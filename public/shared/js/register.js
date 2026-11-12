@@ -135,6 +135,9 @@ function buildRegistrationDraftPayload() {
             timestamp: item.timestamp || null
         }));
     data.portfolio_local_count = mediaDraft.filter(item => item && item.source === 'local' && item.file).length;
+    // ── integracion ── consentimiento de IG (P17) para el commit final.
+    data.ig_import_consent = igImportConsentForCommit(formState.data.ig_import_consent, formState.data.ig_import_consent && formState.data.ig_import_consent.handle)
+        ? { ...formState.data.ig_import_consent } : null;
 
     // Paso guardado: número histórico o 'summary' (revisión). Los grupos ya
     // completos se recuerdan para reanudar sin volver a pasar por ellos.
@@ -243,6 +246,15 @@ function applyRegistrationDraftData(draftData) {
         formState.data.portfolio_media_seeded = true;
     }
     formState.data.portfolio_local_count_saved = Number(draftData.portfolio_local_count) || 0;
+    // ── integracion ── consentimiento de IG (P17) guardado en el borrador.
+    const savedConsent = draftData.ig_import_consent;
+    if (savedConsent && typeof savedConsent === 'object' && savedConsent.accepted === true) {
+        formState.data.ig_import_consent = {
+            accepted: true,
+            version: String(savedConsent.version || 'ig-import-2026-11').slice(0, 40),
+            handle: typeof savedConsent.handle === 'string' ? savedConsent.handle.slice(0, 30) : null
+        };
+    }
 }
 
 function restoreRegistrationDraft() {
@@ -1421,6 +1433,42 @@ function normalizeStyleName(name) {
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+// Chips del paso 03 "Tu oficio" desde el cat\u00e1logo del registro (revisi\u00f3n
+// 12/11, p\u00e1gs. 5-6): elegidos primero y despu\u00e9s "Estilos principales"; los
+// que pasan de `visible` quedan como extra. Cada item: { name, label, extra,
+// selected }. `name` es el valor a guardar (nombre de tattoo_styles si
+// coincide, si no la etiqueta) y `label` lo que se muestra (siempre la
+// etiqueta del cat\u00e1logo: "Old School" se ve "Tradicional Americano (Old School)").
+function buildRegisterStyleGridItems(dbStyles, selected, visible) {
+    const limit = typeof visible === 'number' ? visible : 10;
+    const chosen = (Array.isArray(selected) ? selected : []).filter((v) => String(v || '').trim());
+    const core = window.AccesoRegister && window.AccesoRegister.core;
+    if (core && typeof core.stepStyleChips === 'function' && typeof core.buildStyleGroups === 'function') {
+        return core.stepStyleChips(chosen, core.buildStyleGroups(dbStyles, null), limit);
+    }
+    // Respaldo sin acceso-register-final.js: cat\u00e1logo local tal cual.
+    const catalog = window.WoRegistroCatalogo;
+    const main = catalog && catalog.STYLE_GROUPS && catalog.STYLE_GROUPS[0] ? catalog.STYLE_GROUPS[0].styles : [];
+    const label = (value) => (catalog && typeof catalog.styleLabelFor === 'function' ? catalog.styleLabelFor(value) : value);
+    const chosenKeys = new Set(chosen.map((v) => normalizeStyleName(label(v))));
+    const items = chosen.map((value) => ({ name: value, label: label(value), selected: true }))
+        .concat(main.filter((name) => !chosenKeys.has(normalizeStyleName(name))).map((name) => ({ name, label: name, selected: false })));
+    return items.map((item, idx) => Object.assign({ extra: idx >= Math.max(limit, chosen.length) }, item));
+}
+
+// Etiqueta del cat\u00e1logo para mostrar un estilo guardado (resumen y fila del
+// grupo 03). Los estilos propios se muestran tal cual.
+function styleDisplayLabel(value) {
+    const core = window.AccesoRegister && window.AccesoRegister.core;
+    if (core && typeof core.findStyleChip === 'function') {
+        const chip = core.findStyleChip(value, core.buildStyleGroups(_loadedDbStyles, null));
+        if (chip) return chip.label;
+    }
+    const catalog = window.WoRegistroCatalogo;
+    if (catalog && typeof catalog.styleLabelFor === 'function') return catalog.styleLabelFor(value);
+    return value;
+}
+
 async function loadAndRenderStylesFromDB() {
     const grid = document.getElementById('styles-grid');
     if (!grid) return;
@@ -1441,25 +1489,19 @@ async function loadAndRenderStylesFromDB() {
 
     // Figma final 801:1088: los estilos elegidos van primero y se muestran 10
     // chips + "Ver más estilos" (abre el panel "Todos los estilos").
-    const selectedKeys = new Set((formState.data.styles || []).map(normalizeStyleName));
-    const parentStyles = (_loadedDbStyles || [])
-        .filter(s => !s.parent_id)
-        .sort((a, b) => {
-            const sa = selectedKeys.has(normalizeStyleName(a.name)) ? 0 : 1;
-            const sb = selectedKeys.has(normalizeStyleName(b.name)) ? 0 : 1;
-            if (sa !== sb) return sa - sb;
-            return (a.sort_order || 0) - (b.sort_order || 0);
-        });
+    // Revisión 12/11: los chips salen del catálogo del registro (grupo
+    // "Estilos principales"), no de tattoo_styles; la tabla solo aporta el
+    // nombre con el que se guarda cada estilo cuando coincide.
+    const items = buildRegisterStyleGridItems(_loadedDbStyles, formState.data.styles, STYLES_VISIBLE_COUNT);
 
     grid.innerHTML = '';
 
-    // El Figma muestra 5 chips y un "VER MÁS ESTILOS" que despliega el resto.
-    parentStyles.forEach((style, idx) => {
+    items.forEach((item) => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = idx < STYLES_VISIBLE_COUNT ? 'style-option' : 'style-option is-extra';
-        btn.dataset.style = style.name;
-        btn.textContent = style.name;
+        btn.className = item.extra ? 'style-option is-extra' : 'style-option';
+        btn.dataset.style = item.name;
+        btn.textContent = item.label;
         grid.appendChild(btn);
     });
 
@@ -2935,6 +2977,19 @@ function openPortfolioMediaInstagramImport() {
 //     permalinks the user actually kept in the draft
 // Failures here don't abort the wizard — the user lands on the dashboard
 // with their profile saved, even if photos couldn't be persisted.
+// ── integracion ── consentimiento de importación de IG (Figma 2003:1191, P17)
+// guardado por acceso-register-final.js al completar el importador. Solo vale
+// para el mismo handle que se re-commitea al final del alta.
+function igImportConsentForCommit(stored, handle) {
+    if (!stored || typeof stored !== 'object' || stored.accepted !== true) return null;
+    const want = String(handle || '').trim().replace(/^@+/, '').toLowerCase();
+    const got = String(stored.handle || '').trim().replace(/^@+/, '').toLowerCase();
+    if (got && want && got !== want) return null;
+    const version = typeof stored.version === 'string' && /^[a-z0-9._-]{1,40}$/i.test(stored.version)
+        ? stored.version : 'ig-import-2026-11';
+    return { accepted: true, version };
+}
+
 async function persistPortfolioMedia() {
     const draft = getPortfolioMediaDraft();
     if (!draft.length || !currentUser) return;
@@ -3001,6 +3056,10 @@ async function persistPortfolioMedia() {
                     mode: 'dashboard'
                 };
                 if (allowedPermalinks.length > 0) body.allowed_permalinks = allowedPermalinks;
+                // ── integracion ── P17: consentimiento aceptado en el importador
+                // (paso 01) → el servidor lo registra en el audit y en cada ítem.
+                const consent = igImportConsentForCommit(formState.data.ig_import_consent, igHandle);
+                if (consent) body.consent = consent;
                 const commitRes = await fetch(apiUrl('/api/instagram/commit'), {
                     method: 'POST', headers,
                     body: JSON.stringify(body)
@@ -4104,7 +4163,7 @@ function groupSummaryValue(groupId) {
         case 'acceso':
             return data.email || '—';
         case 'oficio': {
-            const parts = [...(data.styles || [])];
+            const parts = (data.styles || []).map(styleDisplayLabel);
             const experience = experienceLabel(data.experience_years);
             if (experience) parts.push(experience);
             return parts.length ? parts.join(' · ') : '—';
@@ -4168,7 +4227,9 @@ function renderGroups() {
 
         section.hidden = !isActive && !isDone;
         if (row) {
+            const rowWasHidden = row.hidden;
             row.hidden = !isDone;
+            if (isDone && rowWasHidden && !groupsFirstRender) playEntrance(row, 'wo-enter');
             const valueEl = row.querySelector('[data-row-value]');
             if (valueEl && isDone) valueEl.textContent = groupSummaryValue(group.id);
         }
@@ -4191,6 +4252,15 @@ function playPanelEntrance(panel) {
     panel.classList.remove('wo-enter-stagger');
     void panel.offsetWidth; // reinicia la animación al reabrir el grupo
     panel.classList.add('wo-enter-stagger');
+}
+
+// Reinicia una clase de entrada del DS. La fila resumen del grupo que se
+// cierra entra con .wo-enter (revisión 12/11).
+function playEntrance(el, className) {
+    if (!el) return;
+    el.classList.remove(className);
+    void el.offsetWidth; // reinicia la animación al volver a mostrarse
+    el.classList.add(className);
 }
 
 function focusActiveGroup() {
@@ -4615,7 +4685,7 @@ const SUMMARY_ROWS = [
     { label: 'Nombre artístico', group: 'quien',     value: (d) => d.artistic_name },
     { label: 'Nombre real',      group: 'quien',     value: (d) => capitalizeWords(d.full_name) },
     { label: 'Email',            group: 'acceso',    value: (d) => d.email },
-    { label: 'Estilos',          group: 'oficio',    value: (d) => ((d.styles || []).length ? d.styles.join(' · ') : (stylesLaterAllowed() ? 'Para más adelante' : '')) },
+    { label: 'Estilos',          group: 'oficio',    value: (d) => ((d.styles || []).length ? d.styles.map(styleDisplayLabel).join(' · ') : (stylesLaterAllowed() ? 'Para más adelante' : '')) },
     { label: 'Experiencia',      group: 'oficio',    value: (d) => experienceLabel(d.experience_years) },
     { label: 'Tarifa por sesión',group: 'oficio',    value: (d) => summaryPriceValue(d) },
     { label: 'Presentación',     group: 'presencia', value: (d) => bioPlainText(d.bio, 120) },

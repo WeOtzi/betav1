@@ -9,6 +9,10 @@
  *   - turnos con cliente = sesiones de la cotización vinculada
  *     (quotation_sessions), creadas/editadas/borradas en su origen;
  *   - guest spots y convenciones de Travel (artist_trips) en solo lectura.
+ * Ronda 3 (12 nov 2026): solicitudes pendientes proyectadas desde las
+ * cotizaciones, recordatorios en artist_reminders (aviso a la hora), guest
+ * spot / convención → viaje de Travel, fecha de fin (varios días), duración
+ * y "Se repite hasta". Modelo puro en calendar-model.js.
  *
  * Estados por URL (ver calendar-links.js): ?view=week|day|agenda,
  * ?date=YYYY-MM-DD, ?new=<tipo>, ?quote=<quote_id|id>, ?event=<id>, ?picker=open.
@@ -279,6 +283,7 @@
     function eventParam(event) {
         if (!event) return null;
         if (event.sourceType === 'quotation_session') return `session:${event.sourceId}`;
+        if (event.sourceType === 'artist_reminder') return `reminder:${event.sourceId}`;
         return event.baseId ? String(event.baseId) : event.id;
     }
 
@@ -288,6 +293,7 @@
         return state.events.find((event) => event.id === value
             || (event.sourceType === 'manual' && String(event.baseId) === value)
             || (event.sourceType === 'quotation_session' && (`session:${event.sourceId}` === value || event.sourceId === value))
+            || (event.sourceType === 'artist_reminder' && `reminder:${event.sourceId}` === value)
             || (event.sourceType === 'artist_trip' && (`trip:${event.sourceId}` === value || event.sourceId === value))) || null;
     }
 
@@ -880,6 +886,7 @@
     function editorTypeFor(event) {
         if (!event) return null;
         if (event.sourceType === 'quotation_session') return 'confirmed_session';
+        if (event.sourceType === 'artist_reminder') return 'reminder';
         if (event.type === 'reservation' && event.quotationId) return 'confirmed_session';
         return event.type;
     }
@@ -887,6 +894,17 @@
     function editingValues() {
         const event = state.editingEvent;
         if (!event) return {};
+        if (event.sourceType === 'artist_reminder') {
+            const reminder = event.raw || {};
+            return {
+                title: reminder.title || event.title,
+                notes: reminder.detail || '',
+                all_day: false,
+                recurrence_rule: reminder.recurrence_rule === 'weekly' ? 'weekly' : 'none',
+                recurrence_until: reminder.recurrence_until || null,
+                status: 'scheduled',
+            };
+        }
         if (event.sourceType === 'quotation_session') {
             return {
                 title: event.title,
@@ -910,7 +928,7 @@
         state.editingEvent = event && !event.readonly ? event : null;
         const requestedType = options.type && MANUAL_TYPES.includes(options.type) ? options.type : null;
         state.selectedType = state.editingEvent ? editorTypeFor(state.editingEvent) : requestedType;
-        state.selectedDate = date || (state.editingEvent ? startOfDay(asDate(state.editingEvent.start)) : startOfDay(state.currentDate));
+        state.selectedDate = date || (state.editingEvent ? startOfDay(editingStart()) : startOfDay(state.currentDate));
         state.miniDate = startOfMonth(state.selectedDate);
         state.selectedQuote = null;
         state.quoteQuery = '';
@@ -1016,12 +1034,71 @@
         return `<span class="cal-select"><select id="${name}" name="${name}">${optionsHtml}</select><i data-wo-icon="chevron-down" aria-hidden="true"></i></span>`;
     }
 
+    // Inicio a editar: en un recordatorio semanal es la fecha base (due_at),
+    // no la ocurrencia elegida en el mural.
+    function editingStart() {
+        const event = state.editingEvent;
+        if (!event) return null;
+        if (event.sourceType === 'artist_reminder' && event.raw?.due_at) return asDate(event.raw.due_at);
+        return asDate(event.start);
+    }
+
+    // Último día (inclusive) de un evento de todo el día que se está editando.
+    function editingLastDay() {
+        const event = state.editingEvent;
+        if (!event || !event.allDay) return null;
+        const end = asDate(event.end);
+        return end ? addDays(startOfDay(end), end.getHours() || end.getMinutes() ? 0 : -1) : null;
+    }
+
+    // Fecha de fin (bloqueo, guest spot, convención y personal de todo el día).
+    function endDateField(startDate, hidden) {
+        const last = editingLastDay();
+        const value = last && last > startDate ? dateKey(last) : '';
+        return `
+            <div class="cal-field cal-end-date"${hidden ? ' hidden' : ''}>
+                <label for="event-end-date">Fecha de fin <span class="cal-field-optional">(opcional)</span></label>
+                <input id="event-end-date" name="event-end-date" type="date" value="${escapeAttr(value)}" min="${escapeAttr(dateKey(startDate))}" aria-describedby="event-end-date-hint">
+                <p class="cal-field-hint" id="event-end-date-hint">Dejalo vacío si es un solo día.</p>
+            </div>
+        `;
+    }
+
+    // "Hasta" de un evento que se repite (disponibilidad y recordatorio).
+    function untilField(raw, startDate, hidden) {
+        const value = raw?.recurrence_until ? String(raw.recurrence_until).slice(0, 10) : '';
+        return `
+            <div class="cal-field cal-recur-until"${hidden ? ' hidden' : ''}>
+                <label for="event-until">Se repite hasta <span class="cal-field-optional">(opcional)</span></label>
+                <input id="event-until" name="event-until" type="date" value="${escapeAttr(value)}" min="${escapeAttr(dateKey(startDate))}" aria-describedby="event-until-hint">
+                <p class="cal-field-hint" id="event-until-hint">Sin fecha, se repite durante dos años.</p>
+            </div>
+        `;
+    }
+
+    // Duración de un evento con hora (guest, convención, personal, bloqueo).
+    function durationField(hours, hidden) {
+        return `<div class="cal-duration-wrap"${hidden ? ' hidden' : ''}>${field('Duración', 'event-duration', durationSelect(hours))}</div>`;
+    }
+
+    // Guest spot / convención → viaje de Travel (create_artist_trip).
+    function travelFields(checked) {
+        return `
+            ${toggleField('event-travel', 'Agregar también a Travel', 'Se crea el viaje con su checklist. Aparece en Travel y, cuando el estudio confirme y lo compartas, en tu perfil público.', checked)}
+            <div class="cal-field-grid cal-travel-fields"${checked ? '' : ' hidden'}>
+                ${field('Ciudad', 'event-city', textInput('event-city', '', 'Ej: Rosario', false, 'map-pin', ' autocomplete="address-level2"'), true)}
+                ${field('País', 'event-country', textInput('event-country', '', 'Ej: Argentina', false, '', ' autocomplete="country-name"'), true)}
+            </div>
+        `;
+    }
+
     function buildCommonDateFields(raw) {
-        const start = state.editingEvent ? asDate(state.editingEvent.start) : null;
+        const start = editingStart();
         const selected = start || state.selectedDate;
         const dateValue = dateKey(selected);
         const timeValue = start && !state.editingEvent.allDay ? formatTime(start) : '10:00';
         return {
+            startDate: startOfDay(selected),
             date: field('Fecha', 'event-date-display', `
                 <span class="cal-input-with-icon cal-date-control">
                     <i data-wo-icon="calendar" aria-hidden="true"></i>
@@ -1154,46 +1231,57 @@
                 ${checkboxField('event-confirmed', 'La reserva ya está confirmada por el cliente', raw.status === 'scheduled')}
             `;
         } else if (state.selectedType === 'availability') {
+            const recurring = raw.recurrence_rule === 'weekly';
             html = `
                 ${field('Título', 'event-title', textInput('event-title', currentTitle, 'Título del evento', true), true)}
                 <div class="cal-field-grid">${common.date}${common.time}</div>
-                ${toggleField('event-recurring', 'Se repite', 'Repetir este evento todas las semanas', raw.recurrence_rule === 'weekly')}
+                ${field('Duración', 'event-duration', durationSelect(durationHours))}
+                ${toggleField('event-recurring', 'Se repite', 'Repetir este evento todas las semanas', recurring)}
+                ${untilField(raw, common.startDate, !recurring)}
+                <p class="cal-field-hint cal-client-note">Tus clientes ven ese día como “con turnos disponibles” al elegir fecha en el cotizador.</p>
                 ${common.notes}
             `;
         } else if (state.selectedType === 'blocked_day') {
             const allDay = raw.all_day !== false;
             html = `
                 ${field('Motivo', 'event-title', textInput('event-title', currentTitle, 'Ej: Vacaciones, mantenimiento…', true), true)}
-                <div class="cal-field-grid cal-field-grid--blocked">${common.date}<div class="cal-blocked-time"${allDay ? ' hidden' : ''}>${common.time}</div></div>
+                <div class="cal-field-grid cal-field-grid--blocked">${common.date}<div class="cal-blocked-time"${allDay ? ' hidden' : ''}>${common.time}</div>${endDateField(common.startDate, !allDay)}</div>
                 ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', allDay)}
+                ${durationField(durationHours, allDay)}
+                <p class="cal-field-hint cal-client-note">Los días bloqueados no se pueden elegir en el cotizador.</p>
                 ${common.notes}
             `;
-        } else if (state.selectedType === 'guest_spot') {
+        } else if (state.selectedType === 'guest_spot' || state.selectedType === 'convention') {
+            const travel = !state.editingEvent;
+            const allDay = travel || !!raw.all_day;
+            const nameField = state.selectedType === 'guest_spot'
+                ? field('Estudio', 'event-title', textInput('event-title', currentTitle.replace(/^Guest en\s+/i, ''), 'Nombre del estudio', false, 'briefcase'))
+                : field('Nombre del evento', 'event-title', textInput('event-title', currentTitle, 'Ej: Feria Tinta Buenos Aires', true), true);
             html = `
-                ${field('Estudio', 'event-title', textInput('event-title', currentTitle.replace(/^Guest en\s+/i, ''), 'Nombre del estudio', false, 'briefcase'))}
-                <div class="cal-field-grid">${common.date}${common.time}</div>
-                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', !!raw.all_day)}
-                ${common.notes}
-            `;
-        } else if (state.selectedType === 'convention') {
-            html = `
-                ${field('Nombre del evento', 'event-title', textInput('event-title', currentTitle, 'Ej: Feria Tinta Buenos Aires', true), true)}
-                <div class="cal-field-grid">${common.date}${common.time}</div>
-                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', !!raw.all_day)}
+                ${nameField}
+                ${travelFields(travel)}
+                <div class="cal-field-grid">${common.date}<div class="cal-blocked-time"${allDay ? ' hidden' : ''}>${common.time}</div>${endDateField(common.startDate, !allDay)}</div>
+                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', allDay)}
+                ${durationField(durationHours, allDay)}
                 ${common.notes}
             `;
         } else if (state.selectedType === 'reminder') {
+            const recurring = raw.recurrence_rule === 'weekly';
             html = `
                 ${field('Título', 'event-title', textInput('event-title', currentTitle, 'Título del evento', true), true)}
                 <div class="cal-field-grid">${common.date}${common.time}</div>
-                ${toggleField('event-recurring', 'Se repite', 'Repetir este evento todas las semanas', raw.recurrence_rule === 'weekly')}
+                ${toggleField('event-recurring', 'Se repite', 'Repetir este evento todas las semanas', recurring)}
+                ${untilField(raw, common.startDate, !recurring)}
+                <p class="cal-field-hint cal-client-note">Te avisamos en tus notificaciones a esa hora (y por email si lo tenés activado).</p>
                 ${common.notes}
             `;
         } else {
+            const allDay = !!raw.all_day;
             html = `
                 ${field('Título', 'event-title', textInput('event-title', currentTitle, 'Título del evento', true), true)}
-                <div class="cal-field-grid">${common.date}${common.time}</div>
-                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', !!raw.all_day)}
+                <div class="cal-field-grid">${common.date}<div class="cal-blocked-time"${allDay ? ' hidden' : ''}>${common.time}</div>${endDateField(common.startDate, !allDay)}</div>
+                ${toggleField('event-all-day', 'Todo el día', 'El evento ocupa toda la jornada', allDay)}
+                ${durationField(durationHours, allDay)}
                 ${common.notes}
             `;
         }
@@ -1210,8 +1298,7 @@
             }
             location.value = raw.location;
         }
-        const time = document.getElementById('event-time');
-        if (time) time.disabled = !!document.getElementById('event-all-day')?.checked;
+        syncConditionalFields(state.selectedDate);
         if (state.selectedType === 'confirmed_session') {
             renderQuoteListbox();
             updateQuoteHint();
@@ -1500,13 +1587,25 @@
         const selectedDate = parseLocalDate(dateInput?.value);
         if (!selectedDate) throw new Error('Elegí una fecha válida.');
 
-        const allDay = !!document.getElementById('event-all-day')?.checked;
+        const travel = isTravelOn();
+        const allDay = travel || !!document.getElementById('event-all-day')?.checked;
         const timeValue = document.getElementById('event-time')?.value || '10:00';
         const [hours, minutes] = timeValue.split(':').map(Number);
         const start = startOfDay(selectedDate);
         if (!allDay) start.setHours(hours || 0, minutes || 0, 0, 0);
         const duration = Number(document.getElementById('event-duration')?.value || 1);
-        const end = allDay ? endOfDay(start) : new Date(start.getTime() + duration * 3600000);
+        // Varios días: con "Todo el día", la fecha de fin (inclusive) estira
+        // el evento hasta el final de ese día.
+        const endInput = document.getElementById('event-end-date');
+        const lastDay = allDay && endInput && !endInput.closest('[hidden]') ? parseLocalDate(endInput.value) : null;
+        if (lastDay && lastDay < start && !options.lenient) throw new Error('La fecha de fin no puede ser anterior a la fecha de inicio.');
+        const end = allDay
+            ? endOfDay(lastDay && lastDay > start ? lastDay : start)
+            : new Date(start.getTime() + duration * 3600000);
+        const recurring = !!document.getElementById('event-recurring')?.checked;
+        const untilValue = recurring ? (document.getElementById('event-until')?.value || '') : '';
+        const until = untilValue ? parseLocalDate(untilValue) : null;
+        if (until && until < startOfDay(start) && !options.lenient) throw new Error('La repetición no puede terminar antes de la primera fecha.');
         const quote = state.selectedType === 'confirmed_session' ? state.selectedQuote : null;
         const client = quote?.client_full_name || document.getElementById('event-client')?.value.trim() || '';
         const inputTitle = document.getElementById('event-title')?.value.trim() || '';
@@ -1545,9 +1644,21 @@
             location: usesLocation ? (document.getElementById('event-location')?.value || 'Estudio propio') : null,
             notes: document.getElementById('event-notes')?.value.trim() || null,
             status,
-            recurrence_rule: document.getElementById('event-recurring')?.checked ? 'weekly' : 'none',
-            recurrence_until: null,
+            recurrence_rule: recurring ? 'weekly' : 'none',
+            recurrence_until: until ? dateKey(until) : null,
+            due_date: dateKey(start),
         };
+        if (travel) {
+            payload.travel = {
+                type: state.selectedType,
+                name: inputTitle,
+                city: document.getElementById('event-city')?.value.trim() || '',
+                country: document.getElementById('event-country')?.value.trim() || '',
+                startDate: dateKey(start),
+                endDate: dateKey(addDays(end, -1)),
+                notes: payload.notes,
+            };
+        }
         if (quote) {
             payload.quotation_id = quote.id;
             payload.quote_code = links()?.quoteCode(quote) || null;
@@ -1580,14 +1691,59 @@
             }
             renderMiniCalendar();
         }
-        const time = document.getElementById('event-time');
-        if (time) time.disabled = !!document.getElementById('event-all-day')?.checked;
-        const blockedTime = el['event-fields'].querySelector('.cal-blocked-time');
-        if (blockedTime) blockedTime.hidden = !!document.getElementById('event-all-day')?.checked;
+        syncConditionalFields(date);
         const dateDisplay = el['event-fields'].querySelector('[data-date-display]');
         if (dateDisplay && date) dateDisplay.textContent = formatLongDate(date);
         updateFormSummary();
         scheduleConflictCheck();
+    }
+
+    function isTravelOn() {
+        const toggle = document.getElementById('event-travel');
+        return !!toggle && toggle.checked
+            && (state.selectedType === 'guest_spot' || state.selectedType === 'convention');
+    }
+
+    // Campos que dependen de otros: Travel fuerza "Todo el día" (los viajes
+    // van por fecha); "Todo el día" muestra la fecha de fin y oculta hora y
+    // duración; "Se repite" muestra "Se repite hasta".
+    function syncConditionalFields(startDate) {
+        const fields = el['event-fields'];
+        if (!fields) return;
+        const travel = isTravelOn();
+        const allDayToggle = document.getElementById('event-all-day');
+        if (allDayToggle) {
+            if (travel) allDayToggle.checked = true;
+            allDayToggle.disabled = travel;
+        }
+        const travelFieldsBox = fields.querySelector('.cal-travel-fields');
+        if (travelFieldsBox) {
+            travelFieldsBox.hidden = !travel;
+            ['event-city', 'event-country'].forEach((id) => {
+                const input = document.getElementById(id);
+                if (input) input.required = travel;
+            });
+        }
+        const allDay = travel || !!allDayToggle?.checked;
+        const time = document.getElementById('event-time');
+        if (time) time.disabled = !!allDayToggle && allDay;
+        const blockedTime = fields.querySelector('.cal-blocked-time');
+        if (blockedTime) blockedTime.hidden = allDay;
+        const endBox = fields.querySelector('.cal-end-date');
+        if (endBox) endBox.hidden = !allDay;
+        const durationBox = fields.querySelector('.cal-duration-wrap');
+        if (durationBox) durationBox.hidden = allDay;
+        const untilBox = fields.querySelector('.cal-recur-until');
+        if (untilBox) untilBox.hidden = !document.getElementById('event-recurring')?.checked;
+        if (startDate) {
+            const min = dateKey(startDate);
+            ['event-end-date', 'event-until'].forEach((id) => {
+                const input = document.getElementById(id);
+                if (!input) return;
+                input.min = min;
+                if (input.value && input.value < min) input.value = min;
+            });
+        }
     }
 
     function summaryTypeLabel() {
@@ -1613,8 +1769,18 @@
             const end = asDate(payload.ends_at);
             el['summary-time'].textContent = payload.all_day ? 'Todo el día' : formatTime(start);
             const minutes = Math.round((end - start) / 60000);
-            el['summary-duration'].textContent = payload.all_day ? '1 día' : minutes >= 60 ? formatHours(minutes / 60) : `${minutes} min`;
-            el['summary-location'].textContent = payload.location || '—';
+            const days = Math.max(1, Math.round((startOfDay(end) - startOfDay(start)) / 86400000));
+            el['summary-duration'].textContent = payload.all_day
+                ? (days === 1 ? '1 día' : `${days} días`)
+                : (minutes >= 60 ? formatHours(minutes / 60) : `${minutes} min`);
+            if (state.selectedType === 'reminder') el['summary-duration'].textContent = 'Aviso a la hora';
+            if (payload.recurrence_rule === 'weekly') {
+                el['summary-duration'].textContent += payload.recurrence_until
+                    ? ` · semanal hasta el ${formatLongDate(parseLocalDate(payload.recurrence_until))}`
+                    : ' · semanal';
+            }
+            const travelPlace = payload.travel ? [payload.travel.city, payload.travel.country].filter(Boolean).join(', ') : '';
+            el['summary-location'].textContent = payload.location || travelPlace || '—';
         } catch (_error) {
             el['summary-time'].textContent = document.getElementById('event-time')?.value || '—';
             el['summary-duration'].textContent = document.getElementById('event-all-day')?.checked ? '1 día' : '1 hora';
@@ -1742,7 +1908,46 @@
     async function persistRemove(event) {
         const Calendar = window.WeotziData.Calendar;
         if (event.sourceType === 'quotation_session') return Calendar.removeQuoteSession(event.baseId);
+        if (event.sourceType === 'artist_reminder') {
+            return Calendar.removeReminder(state.user.id, event.baseId, event.raw?.attachments || []);
+        }
         return Calendar.remove(event.baseId, state.user.id);
+    }
+
+    // Recordatorio → artist_reminders (aviso a la hora). Un recordatorio viejo
+    // guardado en artist_calendar_events se pasa a artist_reminders al editarlo.
+    async function saveReminderEvent(editing, payload) {
+        const Calendar = window.WeotziData.Calendar;
+        if (editing && editing.sourceType === 'artist_reminder') {
+            await Calendar.saveReminder(state.user.id, editing.baseId, payload);
+            return 'Recordatorio actualizado.';
+        }
+        if (editing && editing.sourceType === 'manual') {
+            const backend = await window.WeotziData.Reminders?.backend?.();
+            if (backend !== 'table') {
+                await Calendar.update(editing.baseId, state.user.id, payload);
+                return 'Recordatorio actualizado.';
+            }
+            await Calendar.saveReminder(state.user.id, null, payload);
+            await Calendar.remove(editing.baseId, state.user.id);
+            return 'Recordatorio actualizado.';
+        }
+        const result = await Calendar.saveReminder(state.user.id, null, payload);
+        return result.legacy
+            ? 'Recordatorio guardado en tu calendario.'
+            : 'Recordatorio guardado. Te avisamos a esa hora.';
+    }
+
+    // Guest spot / convención con "Agregar también a Travel": se crea el viaje
+    // (create_artist_trip) y no una fila manual, así no hay doble fuente. Si
+    // se edita uno manual y se activa Travel, la fila manual se reemplaza.
+    async function saveTravelEvent(editing, payload) {
+        const Calendar = window.WeotziData.Calendar;
+        await Calendar.createTripFromEvent(payload.travel);
+        if (editing && editing.sourceType === 'manual') await Calendar.remove(editing.baseId, state.user.id);
+        return payload.travel.type === 'convention'
+            ? 'Convención agregada al calendario y a Travel.'
+            : 'Guest spot agregado al calendario y a Travel.';
     }
 
     async function saveCurrentEvent(event) {
@@ -1781,7 +1986,12 @@
         el['save-event'].disabled = true;
         setSaveLabel('Guardando…');
         try {
-            if (!editing) {
+            if (state.selectedType === 'reminder' || payload.travel) {
+                const message = payload.travel
+                    ? await saveTravelEvent(editing, payload)
+                    : await saveReminderEvent(editing, payload);
+                showToast(message);
+            } else if (!editing) {
                 await persist(targetKind, payload);
                 showToast(targetKind === 'session'
                     ? `Turno agendado en ${payload.quote_code || 'la cotización'}.`

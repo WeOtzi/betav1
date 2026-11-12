@@ -97,9 +97,28 @@
             seen.add(code);
             const known = local.get(code) || {};
             const name = (item && typeof item === 'object' && (item.name_es || item.label || item.name)) || known.name || code;
-            return { code, name: String(name), region: (item && item.region) || known.region || 'Otras' };
+            // ── integracion ── la región del catálogo local (= CurrencyUtils) manda.
+            return { code, name: String(name), region: known.region || (item && item.region) || 'Otras' };
         }).filter(Boolean);
-        return out.length ? out : null;
+        return out.length ? orderCurrencies(out) : null;
+    }
+
+    // ── integracion ── mismo orden y agrupación que CurrencyUtils.COUNTRY_CURRENCIES
+    // (y que el <select> estático): el servidor manda sus monedas en el orden de
+    // los países (USD, ARS, EUR…), que al redibujar cambiaba el orden del selector.
+    // Las monedas fuera del listado quedan al final, en el orden recibido.
+    function canonicalCurrencies() {
+        const cu = root && (root.WeOtziCurrency || root.CurrencyUtils);
+        if (cu && Array.isArray(cu.COUNTRY_CURRENCIES) && cu.COUNTRY_CURRENCIES.length) return cu.COUNTRY_CURRENCIES;
+        return localCatalog().CURRENCIES || [];
+    }
+    function orderCurrencies(list, canonical) {
+        const ref = canonical || canonicalCurrencies();
+        const index = new Map(ref.map((c, i) => [c.code, i]));
+        return (list || [])
+            .map((c, i) => ({ c, i, k: index.has(c.code) ? index.get(c.code) : ref.length + i }))
+            .sort((a, b) => a.k - b.k)
+            .map((x) => x.c);
     }
 
     // Respuesta completa de /api/registration/catalogs (grupo Backend):
@@ -231,7 +250,12 @@
         const chosen = (Array.isArray(selected) ? selected : []).filter((v) => String(v || '').trim());
         const chosenKeys = new Set(chosen.map(normalizeKey));
         const main = (groups && groups[0] && groups[0].chips) || [];
-        const items = chosen.map((value) => ({ name: value, selected: true }))
+        // Los elegidos se guardan con el nombre de tattoo_styles ("Old School",
+        // "Irezumi"…) pero se muestran con la etiqueta del catálogo.
+        const items = chosen.map((value) => {
+            const chip = findStyleChip(value, groups);
+            return { name: value, label: chip ? chip.label : value, selected: true };
+        })
             .concat(main.filter((chip) => !chosenKeys.has(normalizeKey(chip.value))).map((chip) => ({ name: chip.value, label: chip.label, selected: false })));
         const limit = typeof visible === 'number' ? visible : 10;
         return items.map((item, idx) => Object.assign({ label: item.label || item.name, extra: idx >= Math.max(limit, chosen.length) }, item));
@@ -385,6 +409,7 @@
         styleKeys,
         normalizeStyleGroups,
         normalizeCurrencies,
+        orderCurrencies,
         parseCatalogPayload,
         currencyForCountry,
         buildStyleGroups,
@@ -1102,6 +1127,15 @@
                         if (typeof removePortfolioMediaItem === 'function') removePortfolioMediaItem(item.id);
                     });
                     if (hasRegister()) formState.data.portfolio_media_seeded = false;
+                }
+                // ── integracion ── consentimiento del paso 01 (P17): lo manda
+                // register.js en el commit final; cada re-importación lo renueva.
+                if (hasRegister() && result && result.consent && result.consent.accepted === true) {
+                    formState.data.ig_import_consent = {
+                        accepted: true,
+                        version: String(result.consent.version || 'ig-import-2026-11'),
+                        handle: normalizeInstagramHandle(result.consent.handle || handle) || null
+                    };
                 }
                 if (typeof applyIGPrefillFromResult === 'function') applyIGPrefillFromResult(result, { overwriteArtisticName: false });
                 if (typeof seedPortfolioMediaFromIG === 'function') seedPortfolioMediaFromIG();

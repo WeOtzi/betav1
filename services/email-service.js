@@ -26,6 +26,7 @@ const path = require('path');
 const fs = require('fs');
 const eventMapping = require('./email-event-mapping');
 const { dispatchOnce } = require('./email-delivery-ledger');
+const notificationPrefs = require('../lib/notification-prefs');
 
 // ===== Config =====
 
@@ -362,9 +363,23 @@ async function sendEmail(eventId, payload, options = {}) {
         return { ok: false, channel: 'none', error: 'No hay un destinatario válido guardado para este correo.' };
     }
 
+    // Preferencias de notificaciones del artista (Cuenta 801:572): si apagó
+    // este aviso por email, no se le envía (o se lo saca de un envío doble).
+    if (!options.ignorePreferences) {
+        const gate = await notificationPrefs.applyEmailPreferences(eventId, payload, {
+            resolveRecipients: eventMapping.resolveRecipients
+        });
+        if (gate.skip) {
+            console.log(`[email-service] eventId=${eventId} skipped by notification_prefs (${gate.kind})`);
+            return { ok: true, channel: 'none', skipped: true, sent: false,
+                delivery_status: 'skipped_by_preference', reason: gate.reason };
+        }
+        payload = gate.payload;
+    }
+
     if (options.idempotencyKey && !options.claimed) {
         return dispatchOnce(eventId, options.idempotencyKey,
-            () => sendEmail(eventId, payload, { ...options, claimed: true }));
+            () => sendEmail(eventId, payload, { ...options, claimed: true, ignorePreferences: true }));
     }
 
     const routing = await getRoutingForEvent(eventId);

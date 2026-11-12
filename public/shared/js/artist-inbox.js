@@ -215,6 +215,8 @@
             preview: item.last_message || item.subject || 'Conversación iniciada',
             lastAt: item.last_message_at,
             lastSenderUserId: item.last_sender_user_id,
+            // Sin remitente = mensaje de sistema del dominio (ensure_domain_inbox_thread).
+            lastSenderRole: item.last_sender_user_id ? 'user' : (item.last_message ? 'system' : null),
             unread: Number(item.unread_count) || 0,
             favorite: Boolean(item.is_favorite),
             archived: Boolean(item.is_archived),
@@ -378,6 +380,9 @@
     }
 
     function responseState(row) {
+        // Lógica compartida (inbox-response-state.js): un mensaje de sistema que
+        // cierra la acción (invitación aceptada, etc.) no queda "Esperando respuesta".
+        if (window.InboxResponseState) return window.InboxResponseState.responseState(row, state.userId);
         if (row.closed) return { key: 'closed', label: 'Cerrado', cls: 'is-closed' };
         const explicit = row.context && row.context.reply_status;
         if (explicit === 'replied') return { key: 'replied', label: 'Respondido', cls: 'is-replied' };

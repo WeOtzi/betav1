@@ -244,10 +244,48 @@
         return WeotziData.Sessions.listUpcomingForArtist(nowIso, { limit: 30 });
       });
   }
+  // Ronda 3 (P11): eventos propios del calendario (artist_calendar_events) de
+  // hoy, con repeticiones semanales expandidas por calendar-repo.js. Si el repo
+  // no está o la consulta falla, la agenda sigue solo con los turnos.
+  function fetchTodayEvents() {
+    var C = window.WeotziData && window.WeotziData.Calendar;
+    if (!C || typeof C.listManualRange !== 'function' || !user) return Promise.resolve([]);
+    var now = new Date();
+    var start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    return withLiveTimeout(C.listManualRange(user.id, start, end), 'eventos del calendario')
+      .catch(function (e) { console.warn('[redesign] eventos del calendario', e); return []; });
+  }
+  function agendaRowHtml(item, now) {
+    var LM = window.DashboardLiveModel;
+    var t = LM.agendaTime(item, now);
+    var dur = durationLabel(item.durationHours);
+    var tag = item.href ? 'a' : 'div';
+    return '<' + tag + ' class="wo-dash-agendarow' + (item.kind === 'event' ? ' is-own-event' : '') + '"' +
+        (item.href ? ' href="' + esc(item.href) + '"' : '') + '>' +
+      '<div class="wo-dash-agendatime">' +
+        '<span class="wo-dash-agendahour">' + esc(t.hour) + '</span>' +
+        (t.day ? '<span class="wo-dash-agendaday">' + esc(t.day) + '</span>' : '') +
+      '</div>' +
+      '<div class="wo-dash-agendabody">' +
+        '<div class="wo-dash-agendawho">' + esc(item.who) + '</div>' +
+        '<div class="wo-dash-agendadetail">' + esc(item.detail) + '</div>' +
+      '</div>' +
+      '<div class="wo-dash-agendameta">' +
+        '<span class="wo-dash-state ' + item.state.cls + '">' + esc(item.state.txt) + '</span>' +
+        (dur ? '<span class="wo-dash-agendadur">' + esc(dur) + '</span>' : '') +
+      '</div>' +
+    '</' + tag + '>';
+  }
   function loadAgenda() {
-    var nowIso = new Date().toISOString();
-    return withLiveTimeout(fetchAgendaRows(nowIso), 'agenda')
-      .then(function (rows) {
+    // Desde el inicio del día: un turno de esta mañana ya pasado sigue siendo
+    // parte de la "Agenda del día".
+    var dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+    var sessionsP = withLiveTimeout(fetchAgendaRows(dayStart.toISOString()), 'agenda');
+    return Promise.all([sessionsP, fetchTodayEvents()])
+      .then(function (res) {
+        var rows = res[0];
+        var events = res[1] || [];
         rows = (rows || []).filter(function (s) { return String(s.status || '').toLowerCase() !== 'cancelled'; });
         var agendaIds = dashboardConfig().dashboard_demo_quote_ids;
         if (Array.isArray(agendaIds) && agendaIds.length) {
@@ -258,11 +296,9 @@
           });
         }
         var now = new Date();
-        var todayRows = rows.filter(function (s) {
-          var d = new Date(s.session_date);
-          return !isNaN(d) && sameLocalDay(d, now);
-        });
-        todaySessions = todayRows.length;
+        var LM = window.DashboardLiveModel;
+        var agenda = LM.mergeAgenda(rows, events, now, function (v) { return styleList(v)[0]; });
+        todaySessions = agenda.todayCount;
         renderHero();
 
         // El Figma define un único título para el bloque; las filas ya llevan
@@ -270,51 +306,18 @@
         var cap = $('wod-agenda-cap');
         if (cap) cap.textContent = 'Agenda del día';
 
-        var box = $('wod-agenda-rows'); if (!box) return rows.length;
-        if (!rows.length) {
+        var box = $('wod-agenda-rows'); if (!box) return agenda.items.length;
+        if (!agenda.items.length) {
           box.innerHTML = '<div class="wod-empty">Sin turnos próximos · <a href="/calendar">abrir calendario →</a></div>';
           return 0;
         }
-        // "Agenda del día" muestra sólo hoy cuando hay turnos hoy; si la agenda
-        // está libre, mantiene el próximo turno como orientación útil.
-        var displayRows = todayRows.length ? todayRows : rows.slice(0, 1);
-        box.innerHTML = displayRows.slice(0, 4).map(function (s) {
-          var q = s.quotations_db || {};
-          var who = q.client_full_name || 'Cliente';
-          var d = new Date(s.session_date);
-          var hour = isNaN(d) ? '--:--' : pad2(d.getHours()) + ':' + pad2(d.getMinutes());
-          var isToday = !isNaN(d) && sameLocalDay(d, now);
-          var dayLabel = isToday ? '' :
-            (isNaN(d) ? '' : ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'][d.getDay()] + ' ' + pad2(d.getDate()));
-          var st = sessionState(s.status);
-          var dur = durationLabel(s.duration_hours);
-          // El Figma muestra una linea corta: si la sesion tiene nota propia
-          // esa es la descripcion; si no, se arma con sesion/estilo/zona.
-          var detailParts = [];
-          if (s.notes) {
-            detailParts.push(s.notes);
-          } else {
-            detailParts.push(sessionLabel(s.session_number, q.final_sessions || q.tattoo_estimated_sessions));
-            var style = styleList(q.tattoo_style)[0];
-            if (style) detailParts.push(style);
-            if (q.tattoo_body_part) detailParts.push(q.tattoo_body_part);
-          }
-          return '<div class="wo-dash-agendarow">' +
-            '<div class="wo-dash-agendatime">' +
-              '<span class="wo-dash-agendahour">' + esc(hour) + '</span>' +
-              (dayLabel ? '<span class="wo-dash-agendaday">' + esc(dayLabel) + '</span>' : '') +
-            '</div>' +
-            '<div class="wo-dash-agendabody">' +
-              '<div class="wo-dash-agendawho">' + esc(who) + '</div>' +
-              '<div class="wo-dash-agendadetail">' + esc(detailParts.join(' · ')) + '</div>' +
-            '</div>' +
-            '<div class="wo-dash-agendameta">' +
-              '<span class="wo-dash-state ' + st.cls + '">' + esc(st.txt) + '</span>' +
-              (dur ? '<span class="wo-dash-agendadur">' + esc(dur) + '</span>' : '') +
-            '</div>' +
-          '</div>';
-        }).join('');
-        return rows.length;
+        // "Agenda del día" muestra turnos y eventos propios de hoy; si la
+        // agenda está libre, mantiene el próximo turno como orientación útil.
+        var shown = agenda.items.slice(0, 6);
+        var more = agenda.items.length - shown.length;
+        box.innerHTML = shown.map(function (item) { return agendaRowHtml(item, now); }).join('') +
+          (more > 0 ? '<a class="wod-agenda-more" href="/calendar">+ ' + more + ' más en tu calendario →</a>' : '');
+        return agenda.items.length;
       })
       .catch(function (e) {
         console.warn('[redesign] agenda', e);
@@ -329,49 +332,80 @@
   /* ===================================================================== *
    *  COTIZACIONES  (live · quotations_db)  +  ACTIVIDAD RECIENTE           *
    * ===================================================================== */
-  function activityEvent(q) {
-    var name = q.client_full_name || q.client_name || 'Cliente';
-    var s = String(q.quote_status || '').toLowerCase();
-    var when = q.responded_at || q.updated_at || q.created_at;
-    if (s === 'pending') return { icon: 'mail', txt: 'Nueva cotización de ' + name, when: q.created_at };
-    if (s === 'responded' || s === 'artist_completed') return { icon: 'corner-up-left', txt: 'Respondiste a ' + name, when: when };
-    if (s === 'client_approved' || s === 'completed') return { icon: 'check-circle', txt: name + ' aprobó tu cotización', when: when };
-    if (s === 'client_rejected') return { icon: 'x-circle', txt: name + ' rechazó tu cotización', when: when };
-    return null;
-  }
-  var ACTIVITY_ICONS = {
-    confirmation: 'check-circle', payment: 'dollar-sign', quote: 'mail', review: 'star',
-    session: 'calendar', message: 'message-circle'
-  };
-  function supplementalActivityEvent(item) {
-    if (!item || !item.text) return null;
-    return {
-      icon: ACTIVITY_ICONS[item.type] || item.icon || 'circle',
-      txt: item.text,
-      when: item.created_at || item.when || new Date().toISOString()
-    };
+  /* Actividad reciente (P14, ronda 3): cotizaciones + turnos + reseñas +
+     fuentes registradas por otros módulos con
+     WeotziData.DashboardActivity.registerSource (punto de extensión para
+     "Pago recibido", grupo pagos). La lógica pura vive en
+     dashboard-live-model.js. user_preferences.dashboard_activity queda solo
+     para la cuenta demo (dashboard_demo_marker). */
+  var extraActivity = { sessions: [], reviews: [], sources: [] };
+  function activityEvent(q) { return window.DashboardLiveModel.quoteActivity(q); }
+  function supplementalActivityEvent(item) { return window.DashboardLiveModel.externalActivity(item); }
+  function reviewsHref() {
+    var username = artist && String(artist.username || '').replace(/^@/, '').trim();
+    return username ? '/artist/profile?artist=' + encodeURIComponent(username) + '#artist-reviews-panel' : null;
   }
   function renderActivity(quotes) {
     var sec = $('wod-activity-section'), list = $('wod-activity-list');
     if (!sec || !list) return;
+    var LM = window.DashboardLiveModel;
     var demoActivityOnly = Boolean(dashboardConfig().dashboard_demo_marker && supplementalActivity.length);
     var events = demoActivityOnly
-      ? supplementalActivity.map(supplementalActivityEvent).filter(Boolean)
-      : (quotes || []).map(activityEvent).filter(Boolean)
-          .concat((supplementalActivity || []).map(supplementalActivityEvent).filter(Boolean));
-    events.sort(function (a, b) { return new Date(b.when || 0) - new Date(a.when || 0); });
-    events = events.slice(0, 4);
+      ? LM.mergeActivity([supplementalActivity.map(supplementalActivityEvent)], 4)
+      : LM.mergeActivity([
+          (quotes || []).map(activityEvent),
+          extraActivity.sessions,
+          extraActivity.reviews,
+          extraActivity.sources.map(supplementalActivityEvent),
+          (supplementalActivity || []).map(supplementalActivityEvent)
+        ], 4);
     if (!events.length) { sec.hidden = true; return; }
     sec.hidden = false;
     list.innerHTML = events.map(function (ev) {
-      return '<div class="wo-dash-activityrow">' +
-        '<i data-wo-icon="' + ev.icon + '" class="wo-icon-18"></i>' +
+      var tag = ev.href ? 'a' : 'div';
+      return '<' + tag + ' class="wo-dash-activityrow"' + (ev.href ? ' href="' + esc(ev.href) + '"' : '') + '>' +
+        '<i data-wo-icon="' + esc(ev.icon) + '" class="wo-icon-18"></i>' +
         '<span class="wo-dash-activitytxt">' + esc(ev.txt) + '</span>' +
         '<span class="wo-dash-activitywhen">' + esc(timeAgo(ev.when)) + '</span>' +
-      '</div>';
+      '</' + tag + '>';
     }).join('');
     if (window.WoIcons) window.WoIcons.hydrate(list);
   }
+  // Turnos y reseñas recientes + fuentes registradas. Cada parte degrada sola.
+  function loadExtraActivity(quotes) {
+    var A = window.WeotziData && window.WeotziData.DashboardActivity;
+    var LM = window.DashboardLiveModel;
+    if (!A || !LM || !user) return Promise.resolve();
+    var since = LM.activitySince(new Date());
+    var byId = {};
+    (quotes || []).forEach(function (q) { if (q && q.id != null) byId[q.id] = q; });
+    var ids = Object.keys(byId).map(Number);
+    var sessionsP = withLiveTimeout(A.listRecentSessions(ids, since), 'actividad · turnos')
+      .then(function (rows) {
+        extraActivity.sessions = (rows || []).map(function (s) { return LM.sessionActivity(s, byId, since); }).filter(Boolean);
+      })
+      .catch(function (e) { console.warn('[redesign] actividad · turnos', e); });
+    var reviewsP = withLiveTimeout(A.listRecentReviews(user.id, since), 'actividad · reseñas')
+      .then(function (rows) {
+        var href = reviewsHref();
+        extraActivity.reviews = (rows || []).map(function (r) { return LM.reviewActivity(r, href); }).filter(Boolean);
+      })
+      .catch(function (e) { console.warn('[redesign] actividad · reseñas', e); });
+    return Promise.all([sessionsP, reviewsP, loadActivitySources(quotes, since)])
+      .then(function () { renderActivity(lastQuotes); });
+  }
+  function loadActivitySources(quotes, since) {
+    var A = window.WeotziData && window.WeotziData.DashboardActivity;
+    if (!A || typeof A.loadSources !== 'function' || !user) return Promise.resolve();
+    return withLiveTimeout(A.loadSources({ artistId: user.id, quotes: quotes || [], since: since }), 'actividad · fuentes')
+      .then(function (items) { extraActivity.sources = items || []; })
+      .catch(function (e) { console.warn('[redesign] actividad · fuentes', e); });
+  }
+  document.addEventListener('weotzi:dashboard-activity-refresh', function () {
+    if (!user || !window.DashboardLiveModel) return;
+    loadActivitySources(lastQuotes, window.DashboardLiveModel.activitySince(new Date()))
+      .then(function () { renderActivity(lastQuotes); });
+  });
   function loadCotizaciones() {
     return withLiveTimeout(WeotziData.Quotations.listForArtist(user.id, { limit: 60 }), 'cotizaciones')
       .then(function (rows) {
@@ -394,10 +428,12 @@
           var bb = $('wod-bb-cotiz'); if (bb) { bb.textContent = pending; bb.hidden = false; }
           var nb = $('wod-nav-msg-badge'); if (nb) { nb.textContent = pending; nb.hidden = false; }
         }
-        renderActivity(quotes);
         lastQuotes = quotes;
+        renderActivity(quotes);
+        loadExtraActivity(quotes);
         renderDesigns(quotes);
         renderIncome(quotes);
+        loadIncomePayments();
         return { pending: pending, approved: approved, rejected: rejected };
       })
       .catch(function (e) {
@@ -413,18 +449,46 @@
    *  DISEÑOS EN PROCESO  (live · quotations_db ⋈ quotation_sessions ⋈       *
    *  quotations_attachments)                                               *
    *  El Figma pide "etapa (BOCETO/ENTINTADO/FINAL)", "% de avance" y        *
-   *  "LÍMITE <fecha>". No existe pipeline de diseño ni deadline en el       *
-   *  modelo, así que se derivan datos reales equivalentes:                  *
-   *    · etapa   → estado real de la cotización (CONFIRMADA / LISTA…)       *
+   *  "LÍMITE <fecha>":                                                      *
+   *    · etapa   → quotations_db.design_stage (editable en la tarjeta);     *
+   *                sin cargar, el estado real (CONFIRMADA / LISTA…)         *
    *    · avance  → sesiones completadas / sesiones totales                  *
-   *    · fecha   → PRÓXIMA <fecha de la siguiente sesión agendada>          *
+   *    · fecha   → LÍMITE design_due_date o PRÓXIMA sesión agendada         *
    *  La imagen es la primera referencia adjunta del cliente; si no hay,     *
    *  queda el placeholder de la caja que dibuja el Figma.                   *
    * ===================================================================== */
-  var DESIGN_STAGES = {
-    client_approved: 'CONFIRMADA',
-    artist_completed: 'LISTA PARA CLIENTE'
-  };
+  var lastDesignPaint = null;
+  // P12: abre el editor de etapa (design-stage-editor.js) y repinta la tarjeta
+  // con lo guardado, sin volver a consultar todo el dashboard.
+  function wireDesignStage(box) {
+    if (box.__woStageWired) return;
+    box.__woStageWired = true;
+    box.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-design-stage]');
+      if (!btn) return;
+      e.preventDefault();
+      var id = btn.getAttribute('data-design-stage');
+      var q = (lastQuotes || []).filter(function (x) { return String(x.id) === String(id); })[0];
+      if (!q || !window.DesignStageEditor) return;
+      window.DesignStageEditor.open({
+        quote: q,
+        title: designTitle(q),
+        trigger: btn,
+        onSaved: function (saved) {
+          q.design_stage = saved.design_stage;
+          q.design_due_date = saved.design_due_date;
+          if (lastDesignPaint) {
+            box.innerHTML = lastDesignPaint.quotes.map(function (x) {
+              return designCard(x, lastDesignPaint.sessions[x.id] || [], lastDesignPaint.thumbs[x.quote_id] || '');
+            }).join('');
+            if (window.WoIcons) window.WoIcons.hydrate(box);
+            var again = box.querySelector('[data-design-stage="' + String(id).replace(/"/g, '') + '"]');
+            if (again) again.focus();
+          }
+        }
+      });
+    });
+  }
   function designTitle(q) {
     if (q.project_description) return String(q.project_description).trim();
     var parts = [];
@@ -450,38 +514,43 @@
     var progressOverride = Number(configuredProgress[q.quote_id]);
     if (isFinite(progressOverride)) pct = Math.max(0, Math.min(100, progressOverride));
 
-    var next = live
-      .map(function (s) { return new Date(s.session_date); })
-      .filter(function (d) { return !isNaN(d) && d >= now; })
-      .sort(function (a, b) { return a - b; })[0];
-
-    var stage = q.current_step
-      ? String(q.current_step).toUpperCase()
-      : (DESIGN_STAGES[q.quote_status] || String(q.quote_status || '').toUpperCase());
+    // Ronda 3 (P12): la etapa (BOCETO / ENTINTADO / FINAL) y la fecha LÍMITE
+    // salen de quotations_db.design_stage / design_due_date, que el artista
+    // edita desde la tarjeta (design-stage-editor.js). Sin etapa cargada se
+    // muestra el estado real de la cotización; sin límite, la próxima sesión.
+    // Color de la barra por etapa (Figma 24:1425): is-boceto azul,
+    // is-entintado amarillo, is-final / lista para el cliente verde.
+    var LM = window.DashboardLiveModel;
+    var info = LM.designStageInfo(q);
     var ready = q.quote_status === 'artist_completed';
-    // Color de la barra por etapa (Figma 24:1425): BOCETO azul, ENTINTADO
-    // amarillo, FINAL / lista para el cliente verde.
-    var stageKey = String(q.current_step || '').toLowerCase();
-    var stageCls = stageKey === 'boceto' ? ' is-boceto'
-      : (stageKey === 'final' || ready) ? ' is-final'
-      : stageKey === 'entintado' ? ' is-entintado' : '';
-    var deadline = q.client_preferred_date ? new Date(q.client_preferred_date + 'T12:00:00') : null;
-    if (!deadline || isNaN(deadline)) deadline = next;
+    var deadline = LM.designDeadline(q, live, now);
+    var href = q.quote_id ? '/my-quotations/detail?id=' + encodeURIComponent(q.quote_id) : '';
+    var title = designTitle(q);
 
     var media = thumb
       ? '<img src="' + esc(thumb) + '" alt="" loading="lazy">'
       : '<i data-wo-icon="image"></i>';
 
-    return '<article class="wo-dash-design">' +
+    // P13: la tarjeta lleva al detalle. El título es el link y su ::after cubre
+    // la tarjeta (sin anidar el botón de etapa dentro del <a>).
+    return '<article class="wo-dash-design' + (href ? ' is-linked' : '') + '" data-quote-id="' + esc(q.quote_id || '') + '">' +
       '<div class="wo-dash-design-media">' + media + '</div>' +
-      '<h3 class="wo-dash-design-title">' + esc(designTitle(q)) + '</h3>' +
+      '<h3 class="wo-dash-design-title">' +
+        (href ? '<a class="wo-dash-design-link" href="' + esc(href) + '">' + esc(title) + '</a>' : esc(title)) +
+      '</h3>' +
       '<p class="wo-dash-design-client">' + esc(designClient(q.client_full_name)) + '</p>' +
       (pct === null ? '' :
-        '<div class="wo-dash-design-track"><div class="wo-dash-design-fill' + (ready ? ' is-ready' : '') + stageCls +
+        '<div class="wo-dash-design-track"><div class="wo-dash-design-fill' + (ready ? ' is-ready' : '') + info.cls +
         '" style="width:' + pct + '%"></div></div>') +
       '<div class="wo-dash-design-foot">' +
-        '<span>' + esc(stage) + '</span>' +
-        (deadline ? '<span>LÍMITE ' + esc(dayMonth(deadline)) + '</span>' : '') +
+        (info.editable && q.id != null
+          ? '<button type="button" class="wo-dash-design-stage" data-design-stage="' + esc(q.id) + '"' +
+              ' aria-label="Editar etapa y fecha límite de ' + esc(title) + ' (etapa actual: ' + esc(info.label.toLowerCase()) + ')">' +
+              '<span>' + esc(info.label) + '</span><i data-wo-icon="edit-2" aria-hidden="true"></i></button>'
+          : '<span>' + esc(info.label) + '</span>') +
+        (deadline
+          ? '<span class="' + (deadline.overdue ? 'is-overdue' : '') + '">' + esc(deadline.label) + ' ' + esc(dayMonth(deadline.date)) + '</span>'
+          : '') +
       '</div>' +
     '</article>';
   }
@@ -505,11 +574,13 @@
     if (!inWork.length) { sec.hidden = true; return; }
 
     var paint = function (sessionsByQuote, thumbByQuote) {
+      lastDesignPaint = { sessions: sessionsByQuote, thumbs: thumbByQuote, quotes: inWork };
       box.innerHTML = inWork.map(function (q) {
         return designCard(q, sessionsByQuote[q.id] || [], thumbByQuote[q.quote_id] || '');
       }).join('');
       sec.hidden = false;
       if (window.WoIcons) window.WoIcons.hydrate(box);
+      wireDesignStage(box);
     };
 
     var ids = inWork.map(function (q) { return q.id; }).filter(function (v) { return v != null; });
@@ -545,16 +616,57 @@
    *  La fecha de cierre sale de client_completed_at / artist_completed_at   *
    *  (los sella el trigger de estado) con updated_at como respaldo para     *
    *  filas cerradas antes de esa migración.                                 *
-   *  "SALDO PEND." del Figma se omite: no existe ledger de pagos.           *
+   *  Con quotation_payments (grupo pagos) INGRESOS y "SALDO PEND." salen   *
+   *  de WoPaymentsModel.income / dashboardDue (pagos registrados + cerradas *
+   *  sin pagos; acordado − cobrado). Sin la tabla, el cálculo por estado.   *
    * ===================================================================== */
   var lastQuotes = [];
+  var lastPayments = null; // null = ledger de pagos no disponible / sin cargar
   // Estados con trabajo comprometido y cobro pendiente.
   var PENDING_PAYMENT_STATUSES = ['client_approved', 'in_progress', 'artist_completed'];
+  // ── integracion ── carga los pagos registrados y repinta INGRESOS.
+  function loadIncomePayments() {
+    var R = window.WeotziData && window.WeotziData.QuotationPayments;
+    var M = window.WoPaymentsModel;
+    if (!R || !M || !user) return Promise.resolve();
+    return withLiveTimeout(Promise.resolve(R.isAvailable()).then(function (ok) {
+      if (!ok) return null;
+      return R.listForArtist(user.id, { limit: 500 });
+    }), 'ingresos · pagos')
+      .then(function (rows) {
+        var list = rows ? rows.map(M.normalize) : null;
+        // Cuenta demo: solo los pagos de las cotizaciones visibles.
+        var demoIds = dashboardConfig().dashboard_demo_quote_ids;
+        if (list && Array.isArray(demoIds) && demoIds.length) {
+          var seen = {};
+          (lastQuotes || []).forEach(function (q) { seen[String(q.id)] = true; });
+          list = list.filter(function (p) { return seen[String(p.quotationId)]; });
+        }
+        lastPayments = list;
+        renderIncome(lastQuotes);
+      })
+      .catch(function (e) { console.warn('[redesign] ingresos · pagos', e); });
+  }
+  document.addEventListener('weotzi:payments-changed', function () { loadIncomePayments(); });
   function renderIncome(quotes) {
     var sec = $('wod-income');
     if (!sec || !quotes) return;
     var target = String((artist && artist.session_price_currency) || 'USD').toUpperCase();
     var cur = window.WeOtziCurrency;
+    var PM = window.WoPaymentsModel;
+    if (PM && lastPayments) {
+      var conv = cur && typeof cur.convert === 'function' ? function (a, f, t) { return cur.convert(a, f, t); } : null;
+      var inc = PM.income(quotes, lastPayments, target, conv, new Date());
+      var dueP = PM.dashboardDue(quotes, lastPayments, target, conv);
+      if (!inc.counted && !dueP) { sec.hidden = true; return; }
+      var capP = $('wod-income-cap');
+      if (capP) capP.textContent = 'INGRESOS · ' + MONTHS_ES[new Date().getMonth()];
+      var tP = $('wod-income-total'); if (tP) tP.textContent = money(inc.month, target);
+      var wP = $('wod-income-week'); if (wP) wP.textContent = money(inc.week, target);
+      var dP = $('wod-income-due'); if (dP) dP.textContent = money(dueP, target);
+      sec.hidden = false;
+      return;
+    }
 
     var now = new Date();
     var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);

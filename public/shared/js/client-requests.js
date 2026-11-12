@@ -739,6 +739,14 @@
         }
 
         const a = artistOf(app);
+        // El cliente abrió la propuesta: pasa a "vista" (el artista ve "Cliente
+        // revisando" y ya no puede editarla). Solo pending → viewed.
+        const Apps = window.WeotziData && WeotziData.JobBoard && WeotziData.JobBoard.Applications;
+        if (app.status === 'pending' && Apps && typeof Apps.markViewed === 'function') {
+            Apps.markViewed(app.id)
+                .then((changed) => { if (changed) app.status = 'viewed'; })
+                .catch((e) => console.warn('[client-requests] marcar vista:', e && e.message));
+        }
         const canDecide = isOpen(req) && (app.status === 'pending' || app.status === 'viewed');
 
         let html = shellHtml(req, { step: 3, back: { qs: qsBase + '&view=postulaciones', label: 'Volver a las postulaciones' } });
@@ -753,7 +761,10 @@
             + '</header>';
 
         // Trabajos relacionados (portfolio_links de la postulacion o galeria del artista)
-        const works = parseList(app.portfolio_links).slice(0, 3);
+        // portfolio_links trae el perfil público y el sitio del artista: acá solo
+        // se muestran las URLs de imagen; si no hay, la galería del artista.
+        const works = parseList(app.portfolio_links)
+            .filter((u) => /\.(jpe?g|png|webp|gif|avif)(\?|#|$)/i.test(u)).slice(0, 3);
         const gallery = works.length ? works : parseList(a.gallery_images).slice(0, 3);
         if (gallery.length) {
             html += '<section class="crq-section">'

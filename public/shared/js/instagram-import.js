@@ -113,6 +113,14 @@
         return typeof window !== 'undefined' && window.WoDemoIGImportSample && window.WoDemoIGImportSample.summary
             ? JSON.parse(JSON.stringify(window.WoDemoIGImportSample.summary)) : null;
     }
+    // "@Isai.Nazar " / "https://instagram.com/isai.nazar/" → "isai.nazar" ('' si no es válido).
+    function sampleHandle(value) {
+        const raw = String(value || '').trim()
+            .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+            .replace(/^@/, '')
+            .replace(/[/?#].*$/, '');
+        return /^[A-Za-z0-9._]{1,30}$/.test(raw) ? raw : '';
+    }
     function isPreviewBlocked(res, data) {
         return Boolean(res && res.status === 501 && data && data.preview);
     }
@@ -305,6 +313,11 @@
             if (!sample) { this.renderProfile(); return; }
             this.simulated = true;
             this.payloadId = 'preview-sample';
+            // Las publicaciones son de ejemplo, pero el handle es el del artista
+            // (auditoría H11: el paso 02 decía "@valentina.preview").
+            const ownHandle = sampleHandle(this.handle
+                || (typeof this.opts.getHandle === 'function' ? this.opts.getHandle() : ''));
+            if (ownHandle) sample.username = ownHandle;
             this.summary = sample;
             this.handle = sample.username;
             this.confirmed = true;
@@ -503,6 +516,9 @@
                     payload_id: this.payloadId, selection, target: this.opts.target,
                     mode: isSignup ? 'signup' : 'dashboard'
                 };
+                // Figma 2003:1191 (ronda 3 · P17): el servidor registra el
+                // consentimiento del paso 01 en el audit y en cada ítem importado.
+                if (this.confirmed) body.consent = { accepted: true, version: 'ig-import-2026-11' };
                 if (permalinks.length) body.allowed_permalinks = permalinks;
                 if (this.opts.targetId) body.target_user_id = this.opts.targetId;
                 const res = await fetch(apiUrl('/api/instagram/commit'), {
@@ -558,7 +574,10 @@
 
         notifyComplete(data) {
             if (typeof this.opts.onComplete !== 'function') return;
-            try { this.opts.onComplete({ ...data, handle: this.handle, summary: this.summary }); }
+            // ── integracion ── el registro guarda el consentimiento del paso 01
+            // para el commit final (persistPortfolioMedia) y las re-importaciones.
+            const consent = this.confirmed ? { accepted: true, version: 'ig-import-2026-11', handle: this.handle || null } : null;
+            try { this.opts.onComplete({ ...data, handle: this.handle, summary: this.summary, consent }); }
             catch (e) { console.warn('[ig-import] onComplete threw:', e); }
         }
 

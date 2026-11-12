@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.2.11] - 2026-11-12
+
+- Registro: los chips de estilos del paso 03, los estilos elegidos, la revisión y la edición de perfil (Cuenta y dashboard) salen del catálogo nuevo y no de los nombres viejos de tattoo_styles; animaciones de entrada en Inicio, Crear cuenta y el registro. Monedas: los 24 códigos de los 32 países en todos los selectores del sitio (CurrencyUtils.COUNTRY_CURRENCIES).
+- Funciones del Figma que faltaban, con diseño y backend: ciclo de cotizaciones (transiciones válidas, aceptar con monto, avisos al cliente, vencimiento con chip VENCIDA, contraoferta en notificaciones, aceptación de términos guardada); pagos y seña (REGISTRAR PAGO, saldo pendiente real, Wallet informativo, soporte verifica destinos/documentos y liquida retiros, avisos al artista); dashboard (agenda con eventos propios, etapa y fecha límite del diseño, tarjetas al detalle, actividad completa, imágenes en notas); calendario (solicitudes pendientes, guest spot/convención a Travel, recordatorios con aviso, días ocupados en el cotizador, bloqueos de varios días y duración); cuenta (preferencias de notificaciones respetadas, configuración global, 2FA en el login, vacaciones, TikTok, propuestas vistas, portfolio en la propuesta, validaciones); inbox del estudio con respuesta a solicitudes de cambio. Correcciones de la auditoría en beta (globo de Travel sin base, perfil sin foto, inbox, filtro de ciudades, etiquetas ENVIADA/EN REVISIÓN, dashboard demo). Páginas legales provisorias /legal/terms y /legal/privacy; mapa de Invitaciones con Natural Earth 1:110m (world-atlas 2.0.2, ISC).
+- Seguridad: guardas para que el artista no pueda autoverificarse ni marcarse recomendado, documentos nuevos siempre 'pendiente', y propuestas del Job Board solo retirables por el artista / visto-rechazo por el cliente (aceptar solo por el servidor).
+- Migraciones aplicadas en flbgmlvfiejfttlawnfu (validadas antes con begin…rollback): 20261112150000 guard_verification_jobboard, 160000 quotation_expiry_terms, 170000 quotation_payments_wallet_support, 180000 dashboard_design_stage_note_files, 190000 calendar_reminders_busy_days, 200000 cuenta_travel_interest, 210000 estudio_inbox, 220000 integracion_retiros_inbox. Reversas en supabase/rollbacks/ (más las de 20261028110000/130000 corregidas para borrar sus buckets).
+- Validación: node --test 1518/1518; auditoría de 95 pantallas con sesión en beta (modo demo) contra Figma; cada grupo verificado en preview a 1440 y 390 px.
+- Rollback: controlador a la release 2.2.10 (8518603). Las migraciones son aditivas y compatibles con 2.2.10.
+
+
 ## [2.2.10] - 2026-11-12
 
 - Galería del artista: el límite sube de 12 a 50 archivos (los videos siguen en 2), en línea con la importación de hasta 50 publicaciones de Instagram del registro.

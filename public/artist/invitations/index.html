@@ -124,10 +124,10 @@
                 </div>
             </form>
             <div class="ism-board">
-                <div class="ism-stage" id="ism-stage">
+                <div class="ism-stage" id="ism-stage" data-geography="/shared/geo/countries-110m.json">
                     <!-- Esfera y retícula (SVG) debajo; la tierra (WebGL) las tapa y las fronteras
-                         (canvas 2D) van encima, como en el Figma. Natural Earth 1:110m se activa con
-                         data-geography="/shared/geo/countries-110m.json" cuando el archivo esté vendorizado. -->
+                         (canvas 2D) van encima, como en el Figma. Geografía: Natural Earth 1:110m
+                         (world-atlas@2.0.2, ISC) vendorizada en /shared/geo/countries-110m.json. -->
                     <svg class="ism-grid" id="ism-grid" aria-hidden="true" focusable="false"></svg>
                     <canvas class="ism-canvas" id="ism-canvas" aria-hidden="true"></canvas>
                     <canvas class="ism-borders" id="ism-borders" aria-hidden="true"></canvas>

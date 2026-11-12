@@ -148,6 +148,10 @@
         if (state.mode === 'derived') {
             note.hidden = false;
             note.textContent = 'Mostramos tus cobros a partir de tus cotizaciones. Los retiros y destinos se habilitan cuando el Wallet esté activo en tu cuenta.';
+        } else if (M.hasOffPlatform && M.hasOffPlatform(state.movements)) {
+            // Grupo pagos: los pagos que registrás a mano son informativos.
+            note.hidden = false;
+            note.textContent = 'Los pagos que registrás desde tus cotizaciones figuran como «Cobrado por fuera»: los cobraste vos, no pasan por We Ötzi y no suman a tu saldo disponible.';
         } else {
             note.hidden = true;
         }
@@ -205,8 +209,18 @@
         if (m.kind === 'withdrawal') {
             const dest = state.destinations.find((d) => d.id === m.destinationId);
             extra = dest ? `${dest.label} ${M.maskIdentifier(dest.account_identifier)}` : 'Transferencia a tu destino';
+            // ── integracion ── referencia (pagado) o motivo (fallido) que dejó soporte.
+            if (m.status === 'completed' && m.settlementReference) extra += ` · Ref. ${m.settlementReference}`;
+            if (m.status === 'failed' && m.settlementNote) extra += ` · Motivo: ${m.settlementNote}`;
         } else if (m.source === 'store' && m.orderNumber) {
             extra = storeOrderRef(m);
+        } else if (m.offPlatform) {
+            // Cobro por fuera (grupo pagos): medio + cotización, o lo que falta cobrar.
+            const ref = m.quoteId ? `Cotización ${m.quoteId}` : '';
+            const how = m.source === 'quotation'
+                ? (m.agreedBalance ? `Saldo sin registrar ${M.formatMoney(m.agreedBalance, m.currency)}` : 'Total acordado')
+                : ((M.PAYMENT_METHOD_LABELS || {})[m.paymentMethod] || 'Registrado por vos');
+            extra = [how, ref].filter(Boolean).join(' · ');
         } else if (m.kind === 'fee') {
             extra = m.detail || 'Comisión por servicio';
         } else if (m.booking || m.quoteId) {
@@ -332,7 +346,7 @@
             return `<div class="wal-dest-row${d.is_default ? ' is-default' : ''}">
                 <span class="wal-logo${logoTone}" aria-hidden="true">${esc(badge)}</span>
                 <div class="wal-dest-info">
-                    <div class="wal-dest-name"><strong>${esc(d.label)}</strong><span>${esc(destinationType(d))}</span><span class="wal-mono-s">${esc(destinationLine(d))}</span></div>
+                    <div class="wal-dest-name"><strong>${esc(d.label)}</strong><span>${esc(destinationType(d))}</span><span class="wal-mono-s">${esc(destinationLine(d))}</span>${d.verification_status === 'rejected' && d.metadata_json && d.metadata_json.review && d.metadata_json.review.note ? `<span class="wal-mono-s">Motivo: ${esc(d.metadata_json.review.note)}</span>` : ''}</div>
                     ${ver}
                     ${def}
                 </div>
@@ -470,9 +484,23 @@
         $('wal-methods').querySelectorAll('[data-method]').forEach((btn) => btn.addEventListener('click', () => {
             state.selectedMethod = btn.dataset.method;
             const def = M.DESTINATION_METHODS[state.selectedMethod];
-            if (!$('wal-dest-id').value && def && def.currency) $('wal-dest-currency').value = def.currency;
+            if (!$('wal-dest-id').value && def && def.currency) setDestinationCurrency(def.currency, false);
             renderMethods();
         }));
+    }
+
+    // Moneda del destino: las del listado de países (currency-utils.js). Un
+    // destino guardado con otra moneda la conserva en el grupo "Otras".
+    function setDestinationCurrency(code, refill) {
+        const sel = $('wal-dest-currency');
+        const cur = window.WeOtziCurrency;
+        if (!sel) return;
+        if (cur && typeof cur.fillCurrencySelect === 'function') {
+            if (refill) cur.fillCurrencySelect(sel, { value: code, label: 'code' });
+            else cur.setCurrencySelectValue(sel, code, { label: 'code' });
+            return;
+        }
+        sel.value = code;
     }
 
     function openDestinationDialog(dest) {
@@ -481,7 +509,7 @@
         $('wal-dest-id').value = dest ? dest.id : '';
         state.selectedMethod = dest ? dest.method : 'lemon';
         $('wal-dest-holder').value = dest ? dest.holder_name : (ctx.profileFullName() || ctx.artist.name || '');
-        $('wal-dest-currency').value = dest ? dest.currency : M.DESTINATION_METHODS[state.selectedMethod].currency;
+        setDestinationCurrency(dest ? dest.currency : M.DESTINATION_METHODS[state.selectedMethod].currency, true);
         $('wal-dest-identifier').value = dest ? dest.account_identifier : '';
         $('wal-dest-dialog-title').textContent = dest ? 'Editar destino de retiro' : 'Agregar destino de retiro';
         $('wal-dest-submit').textContent = dest ? 'Guardar destino' : 'Agregar destino';

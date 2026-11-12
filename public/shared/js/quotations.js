@@ -331,13 +331,23 @@ function setupCurrencySelect() {
     const select = document.getElementById('currency-select');
     if (!select) return;
 
+    // Solo las monedas del listado de países, agrupadas como en el registro
+    // (currency-utils.js). La moneda vigente fuera de la lista queda en "Otras".
+    const shortLabel = (c) => {
+        const pretty = c.extra ? null : (CURRENCY_DISPLAY_NAMES[c.code] || c.name);
+        return pretty ? `${pretty} (${c.code})` : c.code;
+    };
+
     function rebuild() {
         const current = displayCurrencyPreference();
+        const api = window.WeOtziCurrency;
+        if (api && typeof api.fillCurrencySelect === 'function') {
+            api.fillCurrencySelect(select, { value: current, label: shortLabel });
+            return;
+        }
         select.innerHTML = '';
 
-        const catalog = (window.WeOtziCurrency && typeof window.WeOtziCurrency.list === 'function')
-            ? window.WeOtziCurrency.list()
-            : [];
+        const catalog = [];
         const seen = new Set();
         const addOption = (code, name) => {
             const upper = String(code || '').toUpperCase();
@@ -546,7 +556,8 @@ function applyFiltersAndSort() {
 // ============================================
 
 function renderQuoteCard(quote, index) {
-    const status = VM.statusBadge(quote.quote_status);
+    // P10: una respuesta con la vigencia vencida ya se ve "Vencida" aunque el job no haya corrido.
+    const status = VM.statusBadge(VM.effectiveStatus ? VM.effectiveStatus(quote) : quote.quote_status);
     const priority = VM.priorityView(quote.priority || 'medium');
     const styleName = VM.styleName(quote.tattoo_style);
     const bodyPart = quote.tattoo_body_part;

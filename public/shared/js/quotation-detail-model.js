@@ -676,7 +676,13 @@
                 }); break;
                 case 'quote': out.push(block('quote', stripHtml(data.text))); break;
                 case 'delimiter': out.push(block('separator')); break;
-                case 'image': out.push(block('image', stripHtml(data.caption), { url: (data.file && data.file.url) || data.url || '' })); break;
+                // Imagen subida al bucket privado quotation-note-files: se guarda
+                // la ruta (file.path) y se ve con URL firmada; las URL pegadas
+                // siguen en file.url.
+                case 'image': out.push(block('image', stripHtml(data.caption), {
+                    url: (data.file && data.file.url) || data.url || '',
+                    path: (data.file && data.file.path) || ''
+                })); break;
                 default: if (data.text) out.push(block('text', stripHtml(data.text)));
             }
         });
@@ -696,11 +702,20 @@
                     case 'checklist': return { id: b.id, type: 'checklist', data: { items: [{ text: text, checked: !!b.checked }] } };
                     case 'quote': return { id: b.id, type: 'quote', data: { text: text, caption: '', alignment: 'left' } };
                     case 'separator': return { id: b.id, type: 'delimiter', data: {} };
-                    case 'image': return { id: b.id, type: 'image', data: { file: { url: b.url || '' }, caption: text } };
+                    case 'image': return { id: b.id, type: 'image', data: { file: b.path ? { url: '', path: b.path } : { url: b.url || '' }, caption: text } };
                     default: return { id: b.id, type: 'paragraph', data: { text: text } };
                 }
             })
         };
+    }
+    // Rutas de Storage (bucket quotation-note-files) de las imágenes de una
+    // nota: van a quotation_notes.images y sirven para borrar los archivos.
+    function notePaths(contentOrBlocks) {
+        var blocks = Array.isArray(contentOrBlocks) ? contentOrBlocks : blocksFromContent(contentOrBlocks);
+        var seen = {};
+        return blocks.filter(function (b) { return b && b.type === 'image' && b.path; })
+            .map(function (b) { return String(b.path); })
+            .filter(function (p) { if (seen[p]) return false; seen[p] = true; return true; });
     }
     function tagsFromContent(content) {
         var raw = content;
@@ -710,7 +725,7 @@
     function countBlocks(content) { return blocksFromContent(content).length; }
     function blocksLabel(n) { return n + (n === 1 ? ' bloque' : ' bloques'); }
     function isEmptyNote(blocks, tags, title) {
-        var hasText = (blocks || []).some(function (b) { return b.type === 'separator' || String(b.text || '').trim() || String(b.url || '').trim(); });
+        var hasText = (blocks || []).some(function (b) { return b.type === 'separator' || String(b.text || '').trim() || String(b.url || '').trim() || String(b.path || '').trim(); });
         return !hasText && !(tags || []).length && (!title || title === 'Nueva nota');
     }
     function noteDateLabel(value, now) {
@@ -731,7 +746,9 @@
                 case 'checklist': lines.push('- [' + (b.checked ? 'x' : ' ') + '] ' + b.text); break;
                 case 'quote': lines.push('> ' + b.text); break;
                 case 'separator': lines.push('---'); break;
-                case 'image': lines.push('![' + (b.text || 'imagen') + '](' + b.url + ')'); break;
+                case 'image': lines.push(b.path
+                    ? '![' + (b.text || 'imagen') + '](imagen privada en We Ötzi)'
+                    : '![' + (b.text || 'imagen') + '](' + b.url + ')'); break;
                 default: lines.push(b.text);
             }
         });
@@ -764,7 +781,7 @@
         // notas
         BLOCK_TYPES: BLOCK_TYPES, BLOCK_LABELS: BLOCK_LABELS, NOTE_TEMPLATES: NOTE_TEMPLATES, templateByKey: templateByKey,
         block: block, blocksFromContent: blocksFromContent, contentFromBlocks: contentFromBlocks, tagsFromContent: tagsFromContent,
-        countBlocks: countBlocks, blocksLabel: blocksLabel, isEmptyNote: isEmptyNote, noteDateLabel: noteDateLabel,
+        notePaths: notePaths, countBlocks: countBlocks, blocksLabel: blocksLabel, isEmptyNote: isEmptyNote, noteDateLabel: noteDateLabel,
         normalizeTag: normalizeTag, noteToMarkdown: noteToMarkdown, escapeHtml: escapeHtml, stripHtml: stripHtml
     };
 }));

@@ -115,6 +115,36 @@
                 <p class="wo-auth-foot">¿Sin cuenta? <a href="/registerclosedbeta">Registrate</a></p>
             </div>
 
+            <!-- Vista: segundo factor (2FA, Cuenta 801:575). Diseño propio con los
+                 componentes de 801:585: se muestra si la cuenta activó la
+                 autenticación en dos pasos y la sesión todavía no la validó. -->
+            <div id="login-mfa-view" class="wo-auth-view wo-auth-view--mfa" hidden>
+                <div class="wo-auth-head">
+                    <h2 class="wo-auth-title" id="mfa-title" tabindex="-1">Verificación en dos pasos</h2>
+                    <p class="wo-auth-copy" id="mfa-copy">Ingresá el código de 6 dígitos de tu app autenticadora para terminar de entrar.</p>
+                </div>
+
+                <form id="mfa-form" class="wo-auth-form" novalidate aria-describedby="mfa-copy">
+                    <div class="wo-auth-field">
+                        <label class="wo-auth-label" for="mfa-code">Código de verificación</label>
+                        <div class="wo-auth-inputwrap">
+                            <i data-wo-icon="lock" aria-hidden="true"></i>
+                            <input type="text" id="mfa-code" class="wo-auth-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="123456" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="wo-auth-btn" id="btn-mfa">
+                        <span class="btn-text">Verificar</span>
+                        <i data-wo-icon="arrow-right" aria-hidden="true"></i>
+                    </button>
+                </form>
+
+                <div id="mfa-message" class="wo-auth-message" role="status" hidden></div>
+
+                <p class="wo-auth-foot wo-auth-foot--logout">
+                    <button type="button" class="wo-auth-logout" id="btn-mfa-cancel">Usar otra cuenta</button>
+                </p>
+            </div>
+
             <!-- Vista: sesión activa (2001:3334) -->
             <div id="login-authenticated-view" class="wo-auth-view wo-auth-view--session" hidden>
                 <div class="wo-auth-head">
@@ -139,6 +169,8 @@
 </div>
 
 <script src="/shared/js/wo-postauth-loader.js"></script>
+<script src="/shared/js/data/account-repo.js"></script>
+<script src="/shared/js/app-settings-loader.js"></script>
 <script src="/shared/js/artist-login.js?v=20261028-figma-final"></script>
 </body>
 </html>

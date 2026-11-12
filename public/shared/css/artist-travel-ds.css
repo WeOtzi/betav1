@@ -43,6 +43,8 @@ body.tvm-open{overflow:hidden}
 .tvl-hero-stat{display:flex;min-width:0;min-height:104px;box-sizing:border-box;flex-direction:column;justify-content:flex-start;gap:8px;padding:20px 24px;border-top:var(--border-hairline) solid var(--ink-rule)}
 .tvl-hero-stat-v{font-family:var(--font-display);font-size:40px;line-height:1;color:var(--text-accent)}
 .tvl-hero-stat-l{color:var(--neutral-300)}
+/* KPI sin dato (Clima / Personas interesadas): no se muestra vacío. */
+.tvl-hero-stat[hidden]{display:none}
 
 /* ---------- Encabezado ---------- */
 .tvl-shell{width:100%;max-width:1368px;margin-inline:auto;padding:40px 44px 0}

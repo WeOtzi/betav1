@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="/shared/css/studio-dashboard-ds.css">
     <link rel="stylesheet" href="/shared/css/studio-dashboard-ops-ds.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
+    <link rel="stylesheet" href="/shared/css/studio-inbox-ds.css">
     <script src="/shared/js/wo-icons.js" data-icon-base="../assets/feather-studio/" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
 </head>
@@ -27,6 +28,7 @@
         </header>
         <nav class="studio-dash-tabs wo-tabs" aria-label="Secciones del estudio">
             <a class="studio-dash-tab wo-tab is-active" href="#resumen" data-tab="resumen">Resumen</a>
+            <a class="studio-dash-tab wo-tab" href="#mensajes" data-tab="mensajes">Mensajes</a>
             <a class="studio-dash-tab wo-tab" href="#perfil" data-tab="perfil">Perfil</a>
             <a class="studio-dash-tab wo-tab" href="#sedes" data-tab="sedes">Sedes</a>
             <a class="studio-dash-tab wo-tab" href="#roster" data-tab="roster">Equipo</a>
@@ -45,6 +47,47 @@
                 <section class="studio-dash-panel is-active" data-panel="resumen" aria-labelledby="summary-title">
                     <h2 class="studio-h1" id="summary-title">Hoy en tu estudio</h2>
                     <div id="studio-summary" aria-live="polite"><p class="studio-help">Cargando el resumen de tu estudio…</p></div>
+                </section>
+                <!-- ============ Mensajes · inbox del estudio (ronda 3, diseño propio sobre 801:1085) ============ -->
+                <section class="studio-dash-panel studio-inbox-panel" data-panel="mensajes" aria-labelledby="si-title">
+                    <h2 class="studio-h1" id="si-title">Mensajes <span class="accent">del estudio</span></h2>
+                    <p class="studio-help">Consultas, postulaciones a spots, invitaciones y viajes de los artistas. Lo que respondas acá les llega a su Inbox.</p>
+                    <div id="si-status" class="studio-status studio-status-info" role="status" hidden></div>
+                    <div class="si-shell" id="si-shell">
+                        <aside class="si-side" aria-label="Filtros de mensajes">
+                            <div class="si-search">
+                                <i data-wo-icon="search" class="wo-icon-18 si-search-ic" aria-hidden="true"></i>
+                                <input type="search" id="si-search" class="wo-input si-search-input" placeholder="Buscar…" aria-label="Buscar artista o conversación" autocomplete="off">
+                            </div>
+                            <nav class="si-side-list" id="si-filters" aria-label="Categorías de mensajes"></nav>
+                            <div class="si-summary" id="si-summary" aria-label="Resumen de mensajes"></div>
+                        </aside>
+                        <section class="si-listcol" aria-label="Conversaciones">
+                            <header class="si-list-head"><span id="si-list-cap">TODAS · 0</span></header>
+                            <div class="si-list" id="si-list" role="list" aria-busy="true">
+                                <div class="si-msg-loading" role="status"><span class="wo-spinner" aria-hidden="true"></span><span class="wo-meta-s">Cargando conversaciones</span></div>
+                            </div>
+                        </section>
+                        <section class="si-threadcol" aria-label="Conversación">
+                            <div class="wo-empty si-thread-placeholder" id="si-thread-placeholder">
+                                <i data-wo-icon="message-circle" aria-hidden="true"></i>
+                                <span class="wo-empty-title">Elegí una conversación</span>
+                                <p>Acá vas a ver los mensajes que te mandan los artistas.</p>
+                            </div>
+                            <div class="si-thread" id="si-thread" hidden>
+                                <header class="si-thread-head" id="si-thread-head"></header>
+                                <div class="si-messages" id="si-messages" aria-live="polite"></div>
+                                <form class="si-composer" id="si-composer" autocomplete="off">
+                                    <div class="si-attachment" id="si-attachment" aria-label="Adjunto seleccionado" hidden></div>
+                                    <input type="file" id="si-file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain" hidden>
+                                    <button type="button" class="wo-iconbtn si-attach" id="si-attach" aria-label="Adjuntar archivo" title="Adjuntar archivo (hasta 15 MB)"><i data-wo-icon="paperclip" class="wo-icon-16" aria-hidden="true"></i></button>
+                                    <input type="text" id="si-input" class="wo-input si-composer-input" placeholder="Escribí un mensaje…" aria-label="Mensaje para el artista" maxlength="2000">
+                                    <button type="submit" class="wo-btn si-send" id="si-send" disabled><i data-wo-icon="send" class="wo-icon-16" aria-hidden="true"></i><span class="si-send-label">Enviar</span></button>
+                                </form>
+                            </div>
+                        </section>
+                        <aside class="si-context" id="si-context" aria-label="Contexto de la conversación" hidden></aside>
+                    </div>
                 </section>
                 <section class="studio-dash-panel" data-panel="cuenta">
                     <h2 class="studio-h1">Acceso y <span class="accent">contraseña</span></h2>
@@ -180,6 +223,7 @@
                     </div>
 
                     <div id="roster-status" class="studio-status studio-status-info" hidden></div>
+                    <section class="si-cr" id="roster-change-requests" aria-label="Solicitudes de cambio de invitaciones" hidden></section>
                     <div id="roster-content"><em>Cargando equipo…</em></div>
 
                     </div><aside class="studio-context"><h3>Colaboraciones claras</h3><p>Las invitaciones quedan pendientes hasta que el artista las acepta. El rol y la sede ayudan a organizar tu equipo.</p></aside></div>
@@ -322,6 +366,8 @@
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/travel-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/data/inbox-repo.js"></script>
+    <script src="/shared/js/data/studio-inbox-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
@@ -333,5 +379,8 @@
     <script src="/shared/js/studio-dashboard.js"></script>
     <script src="/shared/js/studio-dashboard-ops.js"></script>
     <script src="/shared/js/studio-travel-links.js"></script>
+    <script src="/shared/js/studio-inbox-model.js"></script>
+    <script src="/shared/js/studio-inbox.js"></script>
+    <script src="/shared/js/studio-invitation-changes.js"></script>
 </body>
 </html>

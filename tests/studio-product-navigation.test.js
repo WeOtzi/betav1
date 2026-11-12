@@ -34,7 +34,7 @@ function load() {
     return { registry, document };
 }
 
-test('studio product navigation exposes only real studio tabs on desktop and all twelve on mobile', () => {
+test('studio product navigation exposes only real studio tabs on desktop and all thirteen on mobile', () => {
     const { registry } = load();
     const nav = new (registry.get('weotzi-product-nav'))();
     nav.setAttribute('context', 'studio');
@@ -42,13 +42,14 @@ test('studio product navigation exposes only real studio tabs on desktop and all
     const desktop = /<div class="wo-org-product-nav__links">([\s\S]*?)<\/div>/.exec(html)[1];
     const mobile = /<nav id="studio-mobile-menu"[\s\S]*?<\/nav>/.exec(html)[0];
     const destinations = fragment => Array.from(fragment.matchAll(/data-tab="([^"]+)"/g), match => match[1]);
-    assert.deepEqual(destinations(desktop), ['resumen', 'spots', 'ops', 'inventory', 'analytics']);
-    assert.deepEqual(destinations(mobile), ['resumen', 'perfil', 'sedes', 'roster', 'spots', 'travel', 'ops', 'inventory', 'suppliers', 'sponsors', 'analytics', 'cuenta']);
+    assert.deepEqual(destinations(desktop), ['resumen', 'mensajes', 'spots', 'ops', 'inventory', 'analytics']);
+    assert.deepEqual(destinations(mobile), ['resumen', 'mensajes', 'perfil', 'sedes', 'roster', 'spots', 'travel', 'ops', 'inventory', 'suppliers', 'sponsors', 'analytics', 'cuenta']);
     assert.match(html, /id="logout-btn"/);
     assert.match(html, /href="#cuenta" data-tab="cuenta"/);
     assert.match(desktop, /data-tab="resumen" aria-current="page"/);
     assert.match(mobile, />EQUIPO<\/a>/);
     assert.match(mobile, />VISITAS<\/a>/);
+    assert.match(desktop, />MENSAJES<\/a>/);
     assert.doesNotMatch(html, /\/artist\/|INBOX|FINAN/);
     nav.setAttribute('active', 'cuenta');
     assert.match(nav.template(), /href="#cuenta" data-tab="cuenta" aria-label="Centro de la cuenta del estudio" aria-current="page"/);

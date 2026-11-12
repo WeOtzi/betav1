@@ -303,7 +303,76 @@
         return ids.size + unidentified;
     }
 
+    // Redes del perfil público: Instagram y sitio de artists_db, TikTok de
+    // user_preferences.app_settings.profile (RPC get_artist_public_profile_preferences).
+    // Solo URLs http(s); los handles se normalizan sin @.
+    function socialHandle(value) {
+        return String(value || '').trim()
+            .replace(/^https?:\/\/(www\.)?(instagram\.com|tiktok\.com)\//i, '')
+            .replace(/[/?#].*$/, '')
+            .replace(/^@+/, '');
+    }
+
+    function safeHttpUrl(value) {
+        const raw = String(value || '').trim();
+        if (!raw || (/^[a-z][a-z0-9+.-]*:/i.test(raw) && !/^https?:\/\//i.test(raw))) return '';
+        try {
+            const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+            return ['http:', 'https:'].includes(url.protocol) && url.hostname.includes('.') ? url.href : '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function buildSocialLinks(artist, profileExtras) {
+        const links = [];
+        const ig = socialHandle(artist && artist.instagram);
+        if (/^[A-Za-z0-9._]{1,30}$/.test(ig)) {
+            links.push({ key: 'instagram', label: 'Instagram', handle: `@${ig}`, href: `https://www.instagram.com/${ig}/` });
+        }
+        const tk = socialHandle(profileExtras && profileExtras.tiktok);
+        if (/^[A-Za-z0-9._]{2,24}$/.test(tk)) {
+            links.push({ key: 'tiktok', label: 'TikTok', handle: `@${tk}`, href: `https://www.tiktok.com/@${tk}` });
+        }
+        const site = safeHttpUrl(artist && artist.portafolio);
+        if (site && !/instagram\.com|tiktok\.com/i.test(site)) {
+            links.push({ key: 'web', label: 'Sitio web', handle: site.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, ''), href: site });
+        }
+        return links;
+    }
+
+    /**
+     * Iniciales del artista para el retrato vacío (auditoría H4): primeras
+     * letras de las dos primeras palabras del nombre; si no hay nombre, las dos
+     * primeras letras del usuario sin ".wo".
+     */
+    function artistInitials(name, username) {
+        const words = String(name || '').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+        if (words.length) {
+            return words.slice(0, 2).map((word) => Array.from(word)[0]).join('').toLocaleUpperCase('es');
+        }
+        const handle = String(username || '').replace(/^@/, '').replace(/\.wo$/i, '').replace(/[^\p{L}\p{N}]/gu, '');
+        return Array.from(handle).slice(0, 2).join('').toLocaleUpperCase('es') || 'WO';
+    }
+
+    /**
+     * Estudio base a mostrar en el perfil: el `studio_id` del artista; si ese
+     * estudio no se puede leer, el de su primera membresía activa.
+     */
+    function pickBaseStudioIds(studioId, activeMemberships) {
+        const ids = [];
+        if (studioId) ids.push(String(studioId));
+        for (const membership of Array.isArray(activeMemberships) ? activeMemberships : []) {
+            const id = membership && (membership.studio_id || membership.studios?.id);
+            if (id && !ids.includes(String(id))) ids.push(String(id));
+        }
+        return ids;
+    }
+
     return {
+        artistInitials,
+        pickBaseStudioIds,
+        buildSocialLinks,
         formatExperienceFact,
         formatSessionPriceFact,
         studioRosterCount,

@@ -1299,7 +1299,13 @@
             <div class="sps-summary">
                 <div class="sps-summary-head">
                     <span class="wo-meta-s">Resumen del spot</span>
-                    <span class="sps-summary-badge"${state ? ` data-state="${escapeAttr(state.key)}"` : ''}>${escapeHtml(state ? state.label : 'En revisión')}</span>
+                    ${(() => {
+                        // Figma 801:539: «EN REVISIÓN» salvo contraoferta o decisión real (auditoría H10).
+                        const badge = window.WoApplicationState?.sentBadge
+                            ? window.WoApplicationState.sentBadge(state, 'spot')
+                            : (state || { key: 'en_revision', label: 'En revisión' });
+                        return `<span class="sps-summary-badge" data-state="${escapeAttr(badge.key)}">${escapeHtml(badge.label)}</span>`;
+                    })()}
                 </div>
                 <div class="sps-summary-body">
                     ${rows.map(([k, v]) => `

@@ -164,7 +164,7 @@
         const canContact = !!(quote.client_user_id || quote.client_email || quote.client_whatsapp);
         return `
             <div class="qs-actions">
-                <button type="button" class="qs-btn qs-btn--ink" data-qs-action="accept"${actions.accept ? '' : ' disabled'}><i data-wo-icon="check" aria-hidden="true"></i>${esc(actions.accept && actions.accept.label !== 'Aceptar' ? actions.accept.label : 'Aceptar')}</button>
+                <button type="button" class="qs-btn qs-btn--ink" data-qs-action="accept"${actions.accept ? '' : ' disabled'}${actions.accept && actions.accept.needsDialog ? ' title="Completá presupuesto, sesiones y duración antes de enviar"' : ''}><i data-wo-icon="check" aria-hidden="true"></i>${esc(actions.accept && actions.accept.label !== 'Aceptar' ? actions.accept.label : 'Aceptar')}</button>
                 <button type="button" class="qs-btn qs-btn--accent" data-qs-action="schedule"><i data-wo-icon="calendar" aria-hidden="true"></i>Agendar</button>
                 <button type="button" class="qs-btn qs-btn--direct" data-qs-action="contact"${canContact ? '' : ' disabled'}><i data-wo-icon="message-circle" aria-hidden="true"></i>Contactar</button>
                 <button type="button" class="qs-btn qs-btn--danger" data-qs-action="reject"${actions.reject ? '' : ' disabled'}><i data-wo-icon="x" aria-hidden="true"></i>Rechazar</button>
@@ -336,13 +336,29 @@
             page().applyChange(quote, patch);
             page().toast(okMessage, 'success');
             if (current === quote) render(false);
+            return true;
         } catch (err) {
             console.error('[quotations-summary] update', err);
             page().toast('No pudimos actualizar la cotización.', 'error');
             if (current === quote) render(false);
+            return false;
         } finally {
             busy = false;
         }
+    }
+
+    // P8: aviso al cliente (email + feed in-app) cuando el cambio lo afecta.
+    function noticeClient(quote, nextStatus, previousStatus) {
+        const notices = window.QuotationClientNotices;
+        if (notices && typeof notices.notifyStatusChange === 'function') {
+            notices.notifyStatusChange(quote, nextStatus, previousStatus);
+        }
+    }
+
+    // P7: "Aceptar" pide presupuesto, sesiones y duración en el diálogo del
+    // detalle (?modal=responder), que guarda y avisa al cliente.
+    function goRespond(quote) {
+        window.location.href = page().appUrl(VM.respondUrl(quote));
     }
 
     function responsePatch(quote) {
@@ -362,14 +378,18 @@
         if (action === 'accept') {
             const a = VM.summaryActions(quote).accept;
             if (!a) return;
-            const patch = a.patch.quote_status === 'responded' ? responsePatch(quote) : a.patch;
-            return patchQuote(patch, patch.quote_status === 'responded' ? 'Cotización aceptada y enviada al cliente.' : 'Trabajo iniciado.');
+            if (a.needsDialog) return goRespond(quote);
+            return patchQuote(a.patch, 'Trabajo iniciado.');
         }
         if (action === 'reject') {
             const r = VM.summaryActions(quote).reject;
             if (!r) return;
-            if (!window.confirm('¿Querés rechazar esta solicitud? Esta acción quedará en el historial.')) return;
-            return patchQuote(r.patch, 'Solicitud rechazada.');
+            const notice = r.patch.quote_status === 'cancelled' ? ' Le avisamos al cliente.' : '';
+            if (!window.confirm('¿Querés rechazar esta solicitud? Esta acción quedará en el historial' + (notice ? ' y el cliente recibe un aviso.' : '.'))) return;
+            const previous = quote.quote_status;
+            const ok = await patchQuote(r.patch, 'Solicitud rechazada.' + notice);
+            if (ok) noticeClient(quote, r.patch.quote_status, previous);
+            return ok;
         }
         if (action === 'schedule') {
             window.location.href = pg.appUrl(`/calendar?quote=${encodeURIComponent(quote.quote_id || quote.id)}&new=appointment`);
@@ -405,14 +425,23 @@
     async function onStatusChange(value) {
         const quote = current;
         if (!quote || value === quote.quote_status) return;
-        const allowed = VM.STATUS_TRANSITIONS[quote.quote_status] || [];
-        if (!allowed.includes(value)) {
+        if (!VM.canTransition(quote.quote_status, value)) {
             page().toast('Ese cambio de estado no está permitido.', 'error');
             return render(false);
         }
+        // Responder sin monto ni condiciones no sirve al cliente: va al diálogo.
+        if (value === 'responded' && VM.RESPOND_NEEDS_DIALOG) return goRespond(quote);
         const patch = value === 'responded' ? responsePatch(quote) : { quote_status: value };
         if (value === 'artist_completed') patch.artist_completed_at = new Date().toISOString();
-        return patchQuote(patch, `Estado actualizado: ${VM.statusView(value).label}.`);
+        const previous = quote.quote_status;
+        const willNotice = !!(window.QuotationClientNotices && window.QuotationClientNotices.eventForStatus(value, previous));
+        if (willNotice && value === 'cancelled'
+            && !window.confirm('¿Querés cancelar esta cotización? El cliente recibe un aviso y el cambio queda en el historial.')) {
+            return render(false);
+        }
+        const ok = await patchQuote(patch, `Estado actualizado: ${VM.statusView(value).label}.` + (willNotice ? ' Le avisamos al cliente.' : ''));
+        if (ok) noticeClient(quote, value, previous);
+        return ok;
     }
 
     async function onPriorityChange(value) {

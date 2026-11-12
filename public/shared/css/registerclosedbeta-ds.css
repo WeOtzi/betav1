@@ -180,3 +180,52 @@ body.registerclosedbeta-page{margin:0;min-height:100vh;display:flex;flex-directi
 .pac-item:hover,.pac-item-selected{background:var(--surface-input-hover)}
 .pac-item-query{font-size:var(--body-s-size);color:var(--text-heading)}
 .pac-icon{display:none}
+
+/* ---------- Revisión 12/11 (p. 3): entradas sutiles al cargar ---------- */
+/* Fade + subida corta, escalonada: primero el póster y después el formulario.
+   Solo con `wo-motion-in` en <html> (script del <head>, únicamente si el
+   navegador acepta movimiento): sin JS no se oculta nada. Se anima `translate`
+   (el título del póster ya usa `transform`) con relleno `backwards`, así al
+   terminar cada elemento vuelve a sus estilos (hover, :active, disabled). */
+@keyframes wo-beta-rise-in{from{opacity:0;translate:0 12px}to{opacity:1;translate:none}}
+.wo-motion-in .wo-auth-poster-marks,
+.wo-motion-in .wo-auth-poster-eyebrow,
+.wo-motion-in .wo-auth-poster-title .line,
+.wo-motion-in .wo-auth-poster-manifesto,
+.wo-motion-in .wo-auth-poster-triangle,
+.wo-motion-in .wo-auth-brand,
+.wo-motion-in .wo-auth-head,
+.wo-motion-in .wo-auth-form > *,
+.wo-motion-in .wo-auth-or,
+.wo-motion-in .wo-auth-social,
+.wo-motion-in .wo-beta-haveaccount{animation:wo-beta-rise-in 420ms var(--ease-standard) backwards;animation-delay:var(--beta-in-delay,0ms)}
+.wo-motion-in .wo-auth-poster-eyebrow{--beta-in-delay:60ms}
+.wo-motion-in .wo-auth-poster-title .line:nth-child(1){--beta-in-delay:110ms}
+.wo-motion-in .wo-auth-poster-title .line:nth-child(2){--beta-in-delay:170ms}
+.wo-motion-in .wo-auth-poster-title .line:nth-child(3){--beta-in-delay:230ms}
+.wo-motion-in .wo-auth-poster-manifesto{--beta-in-delay:290ms}
+.wo-motion-in .wo-auth-poster-triangle{--beta-in-delay:330ms}
+.wo-motion-in .wo-auth-brand{--beta-in-delay:80ms}
+.wo-motion-in .wo-auth-head{--beta-in-delay:130ms}
+.wo-motion-in .wo-auth-form > :nth-child(1){--beta-in-delay:180ms}
+.wo-motion-in .wo-auth-form > :nth-child(2){--beta-in-delay:220ms}
+.wo-motion-in .wo-auth-form > :nth-child(3){--beta-in-delay:260ms}
+.wo-motion-in .wo-auth-form > :nth-child(4){--beta-in-delay:300ms}
+.wo-motion-in .wo-auth-form > :nth-child(5){--beta-in-delay:340ms}
+.wo-motion-in .wo-auth-form > :nth-child(n+6){--beta-in-delay:380ms}
+.wo-motion-in .wo-auth-or{--beta-in-delay:400ms}
+.wo-motion-in .wo-auth-social{--beta-in-delay:430ms}
+.wo-motion-in .wo-beta-haveaccount{--beta-in-delay:460ms}
+@media (prefers-reduced-motion:reduce){
+  .wo-motion-in .wo-auth-poster-marks,
+  .wo-motion-in .wo-auth-poster-eyebrow,
+  .wo-motion-in .wo-auth-poster-title .line,
+  .wo-motion-in .wo-auth-poster-manifesto,
+  .wo-motion-in .wo-auth-poster-triangle,
+  .wo-motion-in .wo-auth-brand,
+  .wo-motion-in .wo-auth-head,
+  .wo-motion-in .wo-auth-form > *,
+  .wo-motion-in .wo-auth-or,
+  .wo-motion-in .wo-auth-social,
+  .wo-motion-in .wo-beta-haveaccount{animation:none}
+}

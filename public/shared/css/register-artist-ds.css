@@ -1420,8 +1420,42 @@ body.register-page .bauhaus-footer{display:none}
    Revisión del registro (12 nov 2026) · grupo registro-pasos · páginas 3 a 10
    ========================================================================== */
 
-/* Página 3: la entrada sutil de cada grupo usa .wo-enter-stagger del DS
-   (register.js la aplica al abrir el panel; respeta prefers-reduced-motion). */
+/* Página 3: entradas sutiles (fade + subida corta, escalonadas).
+   - Al cargar: marca, barra de pasos y cabecera. Solo con la clase
+     `wo-motion-in` en <html>, que pone el script del <head> cuando el
+     navegador acepta movimiento: sin JS no se oculta nada.
+   - Al abrir un grupo: .wo-enter-stagger del DS en el panel (register.js,
+     playPanelEntrance) y .wo-enter en la fila resumen del grupo que se cierra.
+   Se anima `translate` (no `transform`) y con relleno `backwards`: terminada
+   la animación cada elemento vuelve a sus propios estilos (hover, disabled). */
+@keyframes ra-rise-in{from{opacity:0;translate:0 12px}to{opacity:1;translate:none}}
+.wo-motion-in .ra-topbar .wo-topbar-brand,
+.wo-motion-in .ra-nav-item,
+.wo-motion-in .ra-intro > *{animation:ra-rise-in 400ms var(--ease-standard) backwards;animation-delay:var(--ra-in-delay,0ms)}
+.wo-motion-in .ra-nav-item:nth-child(1){--ra-in-delay:60ms}
+.wo-motion-in .ra-nav-item:nth-child(2){--ra-in-delay:95ms}
+.wo-motion-in .ra-nav-item:nth-child(3){--ra-in-delay:130ms}
+.wo-motion-in .ra-nav-item:nth-child(4){--ra-in-delay:165ms}
+.wo-motion-in .ra-nav-item:nth-child(5){--ra-in-delay:200ms}
+.wo-motion-in .ra-nav-item:nth-child(6){--ra-in-delay:235ms}
+.wo-motion-in .ra-nav-item:nth-child(7){--ra-in-delay:270ms}
+.wo-motion-in .ra-intro > :nth-child(1){--ra-in-delay:120ms}
+.wo-motion-in .ra-intro > :nth-child(2){--ra-in-delay:180ms}
+.wo-motion-in .ra-intro > :nth-child(3){--ra-in-delay:240ms}
+.wo-motion-in .ra-intro > :nth-child(4){--ra-in-delay:300ms}
+/* Grupo que se abre y fila del que se cierra: un poco más visibles que el
+   default del DS (8px · 340ms), sin pasar de 450ms. */
+.register-page .ra-panel.wo-enter-stagger{--wo-enter-distance:14px;--wo-enter-duration:380ms;--wo-enter-step:55ms}
+.register-page .ra-panel.wo-enter-stagger > *,
+.register-page .ra-row.wo-enter{animation-fill-mode:backwards}
+.register-page .ra-row.wo-enter{--wo-enter-distance:6px;--wo-enter-duration:300ms}
+@media (prefers-reduced-motion:reduce){
+  .wo-motion-in .ra-topbar .wo-topbar-brand,
+  .wo-motion-in .ra-nav-item,
+  .wo-motion-in .ra-intro > *,
+  .register-page .ra-panel.wo-enter-stagger > *,
+  .register-page .ra-row.wo-enter{animation:none}
+}
 
 /* Página 4: "Repetir contraseña" a la derecha de "Contraseña" (apilado en
    móvil). El email ocupa la misma columna que la contraseña. */

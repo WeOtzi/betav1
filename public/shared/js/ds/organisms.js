@@ -257,14 +257,14 @@
 
   function renderStudioProductNav(active, options) {
     var navigation = [
-      { id: 'resumen', label: 'RESUMEN' }, { id: 'perfil', label: 'PERFIL' },
+      { id: 'resumen', label: 'RESUMEN' }, { id: 'mensajes', label: 'MENSAJES' }, { id: 'perfil', label: 'PERFIL' },
       { id: 'sedes', label: 'SEDES' }, { id: 'roster', label: 'EQUIPO' },
       { id: 'spots', label: 'SPOTS' }, { id: 'travel', label: 'VISITAS' },
       { id: 'ops', label: 'OPERACIONES' }, { id: 'inventory', label: 'INVENTARIO' },
       { id: 'suppliers', label: 'PROVEEDORES' }, { id: 'sponsors', label: 'SPONSORS' },
       { id: 'analytics', label: 'ESTADÍSTICAS' }, { id: 'cuenta', label: 'CUENTA' }
     ];
-    var desktopIds = ['resumen', 'spots', 'ops', 'inventory', 'analytics'];
+    var desktopIds = ['resumen', 'mensajes', 'spots', 'ops', 'inventory', 'analytics'];
     var menuToggleId = options.menuToggleId || 'studio-mobile-menu-toggle';
     var menuId = options.menuId || 'studio-mobile-menu';
     var profileLabel = options.profileLabel || 'Centro de la cuenta del estudio';

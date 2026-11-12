@@ -34,6 +34,13 @@ const LABELS = {
     artist_current_city: 'Ciudad del artista',
     artist_email: 'Email del artista',
     artist_name: 'Artista',
+    reminder_title: 'Recordatorio',
+    reminder_when: 'Cuándo',
+    reminder_detail: 'Notas',
+    decision_title: 'Decisión',
+    decision_detail: 'Detalle',
+    support_note: 'Nota de soporte',
+    support_reference: 'Referencia',
     artist_studio_name: 'Estudio',
     artistic_name: 'Nombre artistico',
     attachments_count: 'Referencias adjuntas',
@@ -276,6 +283,54 @@ const SPECS = {
         eyebrow: 'COTIZACION / NO APROBADA',
         headline: 'La propuesta no fue aprobada.',
         intro: 'El cliente decidio no avanzar con esta cotizacion. Conservamos el contexto por si necesitas revisarlo.'
+    },
+    // Ronda 3 · P8/P10: avisos al cliente por acciones del artista (sin frame en el Figma;
+    // mismo lenguaje que quotation-rejected / artist-responded).
+    'artist-rejected-quotation': {
+        eyebrow: 'COTIZACIÓN / SIN CUPO',
+        headline: 'El artista no va a tomar tu solicitud.',
+        intro: '{{artist_name}} revisó tu idea y esta vez no puede tomarla. Podés buscar otro artista o publicar tu idea en el Job Board para recibir propuestas.',
+        ctaLabel: 'Ver mis cotizaciones',
+        ctaVar: 'dashboard_url'
+    },
+    'quotation-ready-client': {
+        eyebrow: 'COTIZACIÓN / ENTREGA',
+        headline: 'Tu tatuaje está listo para revisar.',
+        intro: '{{artist_name}} marcó el trabajo como terminado. Entrá a tu cuenta para revisarlo y aprobar la entrega, o contale qué hay que ajustar.',
+        ctaLabel: 'Revisar la entrega',
+        ctaVar: 'dashboard_url'
+    },
+    'dispute-artist-response': {
+        eyebrow: 'DISPUTA / RESPUESTA',
+        headline: 'El artista respondió la disputa.',
+        intro: '{{artist_name}} dejó su respuesta a la disputa de tu cotización. Soporte de We Ötzi también la recibe para acompañar la resolución.',
+        ctaLabel: 'Ver la respuesta',
+        ctaVar: 'dashboard_url'
+    },
+    'quotation-expired': {
+        eyebrow: 'COTIZACIÓN / VENCIDA',
+        headline: 'La propuesta venció.',
+        intro: 'La propuesta de {{artist_name}} venció sin respuesta. Si todavía te interesa, escribile o pedí una nueva cotización desde tu cuenta.',
+        ctaLabel: 'Ir a mi cuenta',
+        ctaVar: 'dashboard_url'
+    },
+    // Ronda 3 · calendario: aviso de un recordatorio del artista a su hora
+    // (artist_reminders.due_at). Sin frame en el Figma; mismo lenguaje que session-reminder.
+    'calendar-reminder': {
+        eyebrow: 'CALENDARIO / RECORDATORIO',
+        headline: 'Tenés un recordatorio.',
+        intro: 'Hola {{artist_name}}: {{reminder_title}} ({{reminder_when}}). Lo agendaste en tu calendario de We Ötzi.',
+        ctaLabel: 'Abrir mi calendario',
+        ctaVar: 'dashboard_url'
+    },
+    // Ronda 3 · integracion: soporte decidió sobre un documento, un destino de
+    // retiro o un retiro (sin frame en el Figma; mismo lenguaje que calendar-reminder).
+    'support-decision': {
+        eyebrow: 'CUENTA / REVISIÓN DE SOPORTE',
+        headline: 'Soporte revisó tu cuenta.',
+        intro: 'Hola {{artist_name}}: {{decision_title}}. {{decision_detail}}',
+        ctaLabel: 'Ver mi cuenta',
+        ctaVar: 'dashboard_url'
     },
     'request-rating': {
         eyebrow: 'EXPERIENCIA / CALIFICACION',

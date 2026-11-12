@@ -3,6 +3,12 @@
 -- en el formato completo que el repo (reminders-repo.js) usa como respaldo, para
 -- que el dashboard siga mostrándolos. Los adjuntos quedan en el bucket hasta que
 -- se vacíe a mano (Storage no permite borrar un bucket con objetos).
+-- Storage bloquea los DELETE por SQL (storage.protect_delete) salvo con
+-- storage.allow_delete_query = 'true'; es un ajuste `set local`, así que la
+-- reversa corre en una transacción (begin … commit) y solo se habilita para
+-- borrar el bucket si está VACÍO (mismo criterio que 20261112180000).
+
+begin;
 
 do $$
 begin
@@ -34,6 +40,7 @@ $$;
 drop policy if exists "artist_reminder_files_owner_select" on storage.objects;
 drop policy if exists "artist_reminder_files_owner_insert" on storage.objects;
 drop policy if exists "artist_reminder_files_owner_delete" on storage.objects;
+set local storage.allow_delete_query = 'true';
 delete from storage.buckets
  where id = 'artist-reminder-files'
    and not exists (select 1 from storage.objects o where o.bucket_id = 'artist-reminder-files');
@@ -41,3 +48,5 @@ delete from storage.buckets
 drop trigger if exists trg_artist_reminders_updated_at on public.artist_reminders;
 drop table if exists public.artist_reminders;
 drop function if exists public.artist_reminders_touch_updated_at();
+
+commit;

@@ -636,7 +636,8 @@ async function handleRegistration(e) {
         const draftPayload = await createOrResumeArtistDraft({
             email,
             source: 'email',
-            extraData: signup.draftData
+            // El servidor guarda fecha y versión de la aceptación (lib/terms-acceptance.js).
+            extraData: { ...signup.draftData, terms_accepted: terms }
         });
         saveBetaSignupHandoff(signup.handoff, draftPayload?.draft_id);
         const artistProgress = getArtistRegistrationProgress(draftPayload.artist);

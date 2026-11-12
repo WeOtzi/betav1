@@ -71,8 +71,133 @@
         'black grey': 'Black and Grey',
         'acuarela': 'Acuarela (Watercolor)',
         'old school': 'Tradicional Americano (Old School)',
-        'american traditional': 'Tradicional Americano (Old School)'
+        'american traditional': 'Tradicional Americano (Old School)',
+        // Nombres históricos de tattoo_styles / artists_db.styles_array (mismos
+        // alias que LEGACY_STYLE_ALIASES de lib/registration-catalogs.js).
+        'realimsmo': 'Realismo',
+        'micro realismo': 'Microrealismo',
+        'fineline': 'Fine Line',
+        'black and gray': 'Black and Grey',
+        'black & gray': 'Black and Grey',
+        'tradicional': 'Tradicional Americano (Old School)',
+        'surrealista': 'Surrealismo',
+        'mandala': 'Mandalas',
+        'polinesio': 'Tribal Polinesio',
+        'nordico viking': 'Nórdico',
+        'etching grabado': 'Grabado (Engraving)',
+        'woodcut xilografia': 'Xilografía (Woodcut)',
+        'sketch boceto': 'Sketch',
+        'boceto': 'Sketch',
+        'blackletter gotico': 'Gothic Lettering',
+        'blackletter': 'Gothic Lettering',
+        'ignorant': 'Ignorant Style',
+        'ilustracion botanica': 'Botánico',
+        'fineline botanico': 'Botánico',
+        'retrato': 'Retratos',
+        'pointillism': 'Puntillismo Geométrico',
+        'ornamental blackwork': 'Blackwork Ornamental',
+        'glitch': 'Glitch Tattoo',
+        'cybersigilismo': 'Cibersigilismo (Cybersigilism)',
+        'freehand': 'Freehand Abstract',
+        'abstract brush': 'Brushstroke'
     };
+
+    // ---- Estilos para editar el perfil (Cuenta, dashboard) ----------------
+    // Misma normalización que acceso-register-final.js: minúsculas, sin
+    // tildes, separadores (espacio - _ / · .) como un espacio.
+    function normalizeKey(name) {
+        return String(name == null ? '' : name).trim().toLowerCase()
+            .normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .replace(/[\s\-_/·.]+/g, ' ')
+            .trim();
+    }
+
+    // Claves de un estilo del catálogo: la etiqueta, sin el paréntesis y el
+    // contenido del paréntesis ("Tradicional Americano (Old School)" →
+    // "tradicional americano" y "old school").
+    function styleKeys(label) {
+        const text = String(label == null ? '' : label);
+        const keys = [normalizeKey(text)];
+        const base = normalizeKey(text.replace(/\s*\([^)]*\)\s*/g, ' '));
+        const match = text.match(/\(([^)]*)\)/);
+        const alt = match ? normalizeKey(match[1]) : '';
+        [base, alt].forEach((key) => { if (key && !keys.includes(key)) keys.push(key); });
+        return keys.filter(Boolean);
+    }
+
+    function catalogEntries(groups) {
+        const seen = new Set();
+        const out = [];
+        (groups || STYLE_GROUPS).forEach((group) => {
+            (group.styles || []).forEach((label) => {
+                const keys = styleKeys(label);
+                if (!keys.length || seen.has(keys[0])) return;
+                seen.add(keys[0]);
+                out.push({ label, keys, group: group.id });
+            });
+        });
+        return out;
+    }
+
+    // Entrada del catálogo para un nombre guardado (etiqueta, nombre de
+    // tattoo_styles o alias histórico). null si es un estilo propio.
+    function findCatalogEntry(value, entries, exclude) {
+        const key = normalizeKey(value);
+        if (!key) return null;
+        const list = (entries || catalogEntries()).filter((e) => !(exclude && exclude.has(e)));
+        const aliasKey = STYLE_ALIASES[key] ? normalizeKey(STYLE_ALIASES[key]) : '';
+        return list.find((e) => e.keys[0] === key)
+            || (aliasKey && list.find((e) => e.keys[0] === aliasKey))
+            || list.find((e) => e.keys.includes(key))
+            || null;
+    }
+
+    // Etiqueta del catálogo para mostrar un estilo guardado ("Old School" →
+    // "Tradicional Americano (Old School)"); los propios quedan como están.
+    function styleLabelFor(value) {
+        const entry = findCatalogEntry(value);
+        return entry ? entry.label : String(value == null ? '' : value).trim();
+    }
+
+    // Opciones de estilos para editar el perfil del artista, desde el catálogo
+    // (no desde tattoo_styles). Cada opción: { value, label, selected, custom,
+    // group }. `value` es lo que se guarda: el estilo guardado tal cual (no se
+    // reescribe) o, para los no elegidos, el nombre de tattoo_styles cuando
+    // coincide (igual que el registro) o la etiqueta del catálogo. Los
+    // guardados que no están en el catálogo siguen elegidos (custom: true).
+    // Orden: los elegidos primero y después el catálogo por grupo.
+    function buildStyleOptions(dbStyles, saved, groups) {
+        const tableByKey = new Map();
+        (Array.isArray(dbStyles) ? dbStyles : []).forEach((row) => {
+            const name = row && (row.name || row.display_name);
+            const key = normalizeKey(name);
+            if (key && !tableByKey.has(key)) tableByKey.set(key, String(name));
+        });
+        const entries = catalogEntries(groups);
+        const used = new Set();
+        const chosen = [];
+        const chosenKeys = new Set();
+        (Array.isArray(saved) ? saved : []).forEach((raw) => {
+            const value = String(raw == null ? '' : raw).trim();
+            const key = normalizeKey(value);
+            if (!key || chosenKeys.has(key)) return;
+            chosenKeys.add(key);
+            const entry = findCatalogEntry(value, entries, used);
+            if (entry) used.add(entry);
+            chosen.push({ value, label: entry ? entry.label : value, selected: true, custom: !entry, group: entry ? entry.group : 'propios' });
+        });
+        const rest = [];
+        entries.forEach((entry) => {
+            if (used.has(entry)) return;
+            const hit = entry.keys.find((k) => tableByKey.has(k));
+            const value = hit ? tableByKey.get(hit) : entry.label;
+            const key = normalizeKey(value);
+            if (chosenKeys.has(key)) return;
+            chosenKeys.add(key);
+            rest.push({ value, label: entry.label, selected: false, custom: false, group: entry.group });
+        });
+        return chosen.concat(rest);
+    }
 
     // Países del listado de Crear cuenta (página 2) con su moneda (igual que
     // lib/registration-catalogs.js: Panamá usa el dólar, de curso legal).
@@ -139,7 +264,10 @@
         { code: 'NZD', name: 'Dólar neozelandés', region: 'Asia y Oceanía' }
     ];
 
-    const catalog = { STYLE_GROUPS, STYLE_ALIASES, COUNTRIES, CURRENCIES };
+    const catalog = {
+        STYLE_GROUPS, STYLE_ALIASES, COUNTRIES, CURRENCIES,
+        normalizeKey, styleKeys, styleLabelFor, buildStyleOptions
+    };
 
     if (typeof module === 'object' && module.exports) module.exports = catalog;
     if (root) root.WoRegistroCatalogo = catalog;

@@ -116,7 +116,8 @@
             result.locations.unshift([artist.estudios, artist.city].filter(Boolean).join(' — '));
         }
         result.locations.push('A coordinar con el cliente');
-        const codes = (window.WeOtziCurrency && typeof window.WeOtziCurrency.list === 'function' ? window.WeOtziCurrency.list() : [])
+        // Monedas: solo las del listado de países (no las ~160 del catálogo de tasas).
+        const codes = (window.WeOtziCurrency && Array.isArray(window.WeOtziCurrency.COUNTRY_CURRENCIES) ? window.WeOtziCurrency.COUNTRY_CURRENCIES : [])
             .map((c) => c && String(c.code || '').toUpperCase()).filter(Boolean);
         result.currencies = codes.length ? codes : ['ARS', 'USD', 'EUR'];
         catalogs = result;
@@ -230,10 +231,15 @@
         const money = (n) => VM.formatMoney(n, state.currency);
         const curr = (catalogs && catalogs.currencies) || [state.currency];
         const list = curr.includes(state.currency) ? curr : [state.currency].concat(curr);
+        // Agrupadas por región como el registro; una moneda vieja queda en "Otras".
+        const currencyApi = window.WeOtziCurrency;
+        const currencyOptions = currencyApi && typeof currencyApi.countryCurrencyOptionsHtml === 'function'
+            ? currencyApi.countryCurrencyOptionsHtml({ value: state.currency, label: 'code' })
+            : options(list, state.currency);
         return `
             <div class="qn-totals-head">
                 <span>Totales</span>
-                <span class="qn-totals-currency"><select data-qn-field="currency" aria-label="Moneda">${options(list, state.currency)}</select><i data-wo-icon="chevron-down" aria-hidden="true"></i></span>
+                <span class="qn-totals-currency"><select data-qn-field="currency" aria-label="Moneda">${currencyOptions}</select><i data-wo-icon="chevron-down" aria-hidden="true"></i></span>
             </div>
             <div class="qn-totals-body">
                 <div class="qn-trow qn-trow--rule"><span>Subtotal</span><span class="qn-tval" data-qn-total="subtotal">${esc(money(t.subtotal))}</span></div>

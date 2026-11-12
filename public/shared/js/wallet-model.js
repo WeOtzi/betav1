@@ -105,12 +105,24 @@
             orderNumber: source === 'store' ? (raw.booking_reference || meta.order_number || raw.orderNumber || null) : null,
             // Retención de soporte sobre una venta de la Store
             // (set_store_order_funds_hold marca metadata_json.store_hold).
-            storeHold: meta.store_hold === true || raw.storeHold === true
+            storeHold: meta.store_hold === true || raw.storeHold === true,
+            // Cobro por fuera de We Ötzi (grupo pagos, 20261112170000): pago
+            // registrado a mano por el artista (source 'manual_payment') o
+            // cotización completada (source 'quotation'). Solo informativo:
+            // We Ötzi no custodia ese dinero, nunca suma al saldo retirable.
+            offPlatform: meta.off_platform === true || raw.offPlatform === true || source === 'manual_payment',
+            paymentMethod: meta.method || raw.paymentMethod || null,
+            paymentKind: meta.payment_kind || raw.paymentKind || null,
+            agreedBalance: meta.balance != null && isFinite(Number(meta.balance)) ? round2(Number(meta.balance)) : null,
+            // ── integracion ── liquidación de soporte (support_settle_artist_withdrawal).
+            settlementReference: (meta.settlement && meta.settlement.reference) || raw.settlementReference || null,
+            settlementNote: (meta.settlement && meta.settlement.note) || raw.settlementNote || null
         };
     }
 
     // Contribución de un movimiento al saldo disponible.
     function availableDelta(m) {
+        if (m.offPlatform) return 0; // cobrado por fuera: no es saldo de We Ötzi
         if ((m.kind === 'release' || m.kind === 'adjustment') && m.status === 'completed') return m.amount;
         if (m.kind === 'withdrawal' && (m.status === 'processing' || m.status === 'completed')) return -m.amount;
         if ((m.kind === 'fee' || m.kind === 'refund') && m.status === 'completed') return -m.amount;
@@ -122,7 +134,9 @@
     function primaryCurrency(movements, preferred) {
         var pref = preferred ? upper(preferred) : null;
         var totals = {};
-        (movements || []).forEach(function (m) { totals[m.currency] = (totals[m.currency] || 0) + m.amount; });
+        // Los cobros por fuera no definen la moneda del Wallet (salvo que no haya otra cosa).
+        var custody = (movements || []).filter(function (m) { return !m.offPlatform; });
+        (custody.length ? custody : (movements || [])).forEach(function (m) { totals[m.currency] = (totals[m.currency] || 0) + m.amount; });
         if (pref && totals[pref]) return pref;
         var best = null;
         Object.keys(totals).forEach(function (code) { if (!best || totals[code] > totals[best]) best = code; });
@@ -134,7 +148,7 @@
         var nowMs = now != null ? (typeof now === 'number' ? now : Date.parse(now)) : Date.now();
         var out = { currency: cur, available: 0, pendingService: 0, awaitingRelease: 0, blocked: 0, inWithdrawal: 0, activeDisputes: 0, nextReleaseAt: null, nextReleaseHours: null, blockedCounterparty: null, blockedDispute: null };
         (movements || []).forEach(function (m) {
-            if (m.currency !== cur) return;
+            if (m.currency !== cur || m.offPlatform) return;
             out.available += availableDelta(m);
             if (m.kind === 'payment' && m.status === 'pending_service') out.pendingService += m.amount;
             if (m.kind === 'payment' && m.status === 'awaiting_release') {
@@ -167,7 +181,7 @@
     function upcomingReleases(movements) {
         var order = { pending_service: 0, awaiting_release: 1, blocked: 2 };
         return (movements || []).filter(function (m) {
-            return m.kind === 'payment' && OPEN_PAYMENT.indexOf(m.status) !== -1;
+            return m.kind === 'payment' && !m.offPlatform && OPEN_PAYMENT.indexOf(m.status) !== -1;
         }).sort(function (a, b) {
             if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
             var ta = time(a.serviceDate || a.releaseAt || a.occurredAt) || 0;
@@ -193,7 +207,13 @@
         else if (m.kind === 'refund') { view.icon = '↑'; view.tone = 'muted'; view.sign = '−'; }
         else if (m.kind === 'dispute') { view.icon = '!'; view.tone = 'danger'; view.sign = ''; }
         if (m.kind === 'payment' && m.status === 'blocked') view.tone = 'danger';
+        if (m.offPlatform) {
+            // Informativo: sin signo y en gris, para que no se lea como saldo.
+            view.icon = '↓'; view.tone = 'muted'; view.sign = '';
+            view.statusLabel = m.source === 'quotation' ? 'Acuerdo cerrado' : 'Cobrado por fuera';
+        }
         if (m.status === 'failed' || m.status === 'cancelled') view.tone = 'muted';
+        if (m.offPlatform && m.status === 'cancelled') view.statusLabel = 'Anulado';
         return view;
     }
 
@@ -356,7 +376,14 @@
         return out;
     }
 
+    // ¿Hay cobros por fuera para mostrar la aclaración en el Wallet?
+    function hasOffPlatform(movements) {
+        return (movements || []).some(function (m) { return m.offPlatform && m.status !== 'cancelled'; });
+    }
+    var PAYMENT_METHOD_LABELS = { cash: 'Efectivo', transfer: 'Transferencia', other: 'Otro medio' };
+
     return {
+        hasOffPlatform: hasOffPlatform, PAYMENT_METHOD_LABELS: PAYMENT_METHOD_LABELS,
         KINDS: KINDS, STATUSES: STATUSES, FILTERS: FILTERS, STATUS_LABELS: STATUS_LABELS,
         DESTINATION_METHODS: DESTINATION_METHODS, AUTO_RELEASE_HOURS: AUTO_RELEASE_HOURS,
         normalizeMovement: normalizeMovement, availableDelta: availableDelta, primaryCurrency: primaryCurrency,

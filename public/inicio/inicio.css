@@ -98,7 +98,29 @@ body.wo-app *,body.wo-app *::before,body.wo-app *::after { box-sizing:border-box
     .inicio-action.wo-btn { flex:1 1 0; min-width:0; height:auto; padding:var(--space-3); white-space:normal; text-align:center; }
     .inicio-note { padding-bottom:var(--space-6); }
 }
+/* Revisión 12/11 (p. 3): entradas sutiles al cargar (marca, título, tarjetas
+   escalonadas y nota). Solo con `wo-motion-in` en <html>, que pone el script
+   del <head> si el navegador acepta movimiento: sin JS no se oculta nada.
+   Relleno `backwards`: al terminar, la tarjeta vuelve a su opacidad/escala
+   (las no elegidas quedan en .82/.86). */
+@keyframes inicio-rise-in { from { opacity:0; translate:0 14px; } to { opacity:1; translate:none; } }
+.wo-motion-in .inicio-topbar .wo-topbar-brand,
+.wo-motion-in .inicio-title,
+.wo-motion-in .inicio-sub,
+.wo-motion-in .inicio-card,
+.wo-motion-in .inicio-note { animation:inicio-rise-in 440ms var(--ease-standard) backwards; animation-delay:var(--inicio-in-delay,0ms); }
+.wo-motion-in .inicio-title { --inicio-in-delay:60ms; }
+.wo-motion-in .inicio-sub { --inicio-in-delay:120ms; }
+.wo-motion-in .inicio-card[data-experience="client"] { --inicio-in-delay:180ms; }
+.wo-motion-in .inicio-card[data-experience="artist"] { --inicio-in-delay:250ms; }
+.wo-motion-in .inicio-card[data-experience="studio"] { --inicio-in-delay:320ms; }
+.wo-motion-in .inicio-note { --inicio-in-delay:400ms; }
 @media (prefers-reduced-motion:reduce) {
     .inicio-card { transition:none; }
     .inicio-actions-group { animation:none !important; }
+    .wo-motion-in .inicio-topbar .wo-topbar-brand,
+    .wo-motion-in .inicio-title,
+    .wo-motion-in .inicio-sub,
+    .wo-motion-in .inicio-card,
+    .wo-motion-in .inicio-note { animation:none; }
 }

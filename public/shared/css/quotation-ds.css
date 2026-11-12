@@ -720,6 +720,18 @@
 .q-cal-day.is-past { color: var(--text-faint); cursor: not-allowed; }
 .q-cal-day.is-past:hover { background: transparent; }
 .q-cal-day.is-selected { background: var(--blue-300); color: var(--white); }
+/* Vacaciones del artista (Cuenta 801:571): días tachados y aviso debajo. */
+.q-cal-day.is-vacation { text-decoration: line-through; background: var(--sand-050, transparent); }
+.q-cal-vacation { margin: var(--space-3) 0 0; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+/* Agenda del artista (calendario, ronda 3 · diseño propio): días sin agenda
+   tachados como las vacaciones; días con turnos disponibles con un punto. */
+.q-cal-day.is-busy { text-decoration: line-through; }
+.q-cal-day.has-slots { position: relative; }
+.q-cal-day.has-slots::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 4px; height: 4px; border-radius: 50%; background: var(--blue-300); transform: translateX(-50%); }
+.q-cal-day.has-slots.is-selected::after { background: var(--white); }
+.q-cal-agenda { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: var(--space-2) 0 0; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+.q-cal-agenda-key.is-busy { text-decoration: line-through; color: var(--text-faint); }
+.q-cal-agenda-key.has-slots { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--blue-300); }
 
 /* ---------- Presupuesto por tramos (Figma 06) ---------- */
 .q-budget-bars {

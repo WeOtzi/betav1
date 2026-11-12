@@ -1659,3 +1659,23 @@ body.wo-app .wo-topbar-item:hover { color: var(--neutral-500); }
     .inv-drawer:focus,
     .inv-drawer:focus-visible { box-shadow: none; }
 }
+
+/* ── integracion ── 801:1101 lado artista: solicitud de cambios abierta
+   (diseño propio con los tokens del detalle: chip mono + aviso con borde). */
+.inv-detail-status--changes { background: var(--neutral-500); color: var(--figma-white); }
+.inv-change-pending {
+    margin-top: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-left: 3px solid var(--yellow-300);
+    background: var(--neutral-100, transparent);
+}
+.inv-change-pending:focus { outline: none; }
+.inv-change-pending:focus-visible { outline: 2px solid var(--blue-300); outline-offset: 2px; }
+.inv-change-pending-copy { margin: 0; font-size: 14px; line-height: 1.45; color: var(--neutral-500); }
+.inv-change-pending-msg {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--neutral-400);
+    overflow-wrap: anywhere;
+}

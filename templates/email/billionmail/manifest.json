@@ -359,6 +359,17 @@
       "session_number"
     ]
   },
+  "support-decision": {
+    "file": "templates/email/billionmail/support-decision.html",
+    "variables": [
+      "artist_name",
+      "decision_title",
+      "decision_detail",
+      "support_note",
+      "support_reference",
+      "dashboard_url"
+    ]
+  },
   "verification-denied": {
     "file": "templates/email/billionmail/verification-denied.html",
     "variables": [
@@ -388,6 +399,60 @@
       "studio_name",
       "subject",
       "body_text",
+      "dashboard_url"
+    ]
+  },
+  "artist-rejected-quotation": {
+    "file": "templates/email/billionmail/artist-rejected-quotation.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "quote_id",
+      "tattoo_body_part",
+      "tattoo_size",
+      "tattoo_style",
+      "dashboard_url"
+    ]
+  },
+  "quotation-ready-client": {
+    "file": "templates/email/billionmail/quotation-ready-client.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "quote_id",
+      "tattoo_body_part",
+      "tattoo_size",
+      "tattoo_style",
+      "dashboard_url"
+    ]
+  },
+  "dispute-artist-response": {
+    "file": "templates/email/billionmail/dispute-artist-response.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "quote_id",
+      "dispute_title",
+      "artist_response",
+      "dashboard_url"
+    ]
+  },
+  "quotation-expired": {
+    "file": "templates/email/billionmail/quotation-expired.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "quote_id",
+      "dashboard_url"
+    ]
+  },
+  "calendar-reminder": {
+    "file": "templates/email/billionmail/calendar-reminder.html",
+    "variables": [
+      "artist_name",
+      "reminder_title",
+      "reminder_when",
+      "reminder_detail",
       "dashboard_url"
     ]
   }

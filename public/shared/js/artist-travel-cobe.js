@@ -41,6 +41,59 @@
         { city: 'Santiago', country: 'Chile', latitude: -33.4489, longitude: -70.6693 },
     ]);
 
+    // Capitales por país (nombre en español/inglés o ISO-2): último recurso
+    // para ubicar "Tu base" cuando la ciudad del artista no tiene coordenadas
+    // propias, ni geocodificadas, ni de su estudio base (auditoría H1). Así el
+    // globo nunca queda sin base ni sin rutas si el artista declaró su país.
+    const CAPITALS = [
+        [['argentina', 'ar'], 'Buenos Aires', -34.6037, -58.3816],
+        [['uruguay', 'uy'], 'Montevideo', -34.9011, -56.1645],
+        [['chile', 'cl'], 'Santiago', -33.4489, -70.6693],
+        [['paraguay', 'py'], 'Asunción', -25.2637, -57.5759],
+        [['bolivia', 'bo'], 'La Paz', -16.4897, -68.1193],
+        [['peru', 'pe'], 'Lima', -12.0464, -77.0428],
+        [['ecuador', 'ec'], 'Quito', -0.1807, -78.4678],
+        [['colombia', 'co'], 'Bogotá', 4.711, -74.0721],
+        [['venezuela', 've'], 'Caracas', 10.4806, -66.9036],
+        [['brasil', 'brazil', 'br'], 'Brasilia', -15.7939, -47.8828],
+        [['mexico', 'mx'], 'Ciudad de México', 19.4326, -99.1332],
+        [['guatemala', 'gt'], 'Ciudad de Guatemala', 14.6349, -90.5069],
+        [['costa rica', 'cr'], 'San José', 9.9281, -84.0907],
+        [['panama', 'pa'], 'Ciudad de Panamá', 8.9824, -79.5199],
+        [['cuba', 'cu'], 'La Habana', 23.1136, -82.3666],
+        [['republica dominicana', 'do'], 'Santo Domingo', 18.4861, -69.9312],
+        [['puerto rico', 'pr'], 'San Juan', 18.4655, -66.1057],
+        [['estados unidos', 'eeuu', 'usa', 'united states', 'us'], 'Washington D. C.', 38.9072, -77.0369],
+        [['canada', 'ca'], 'Ottawa', 45.4215, -75.6972],
+        [['espana', 'spain', 'es'], 'Madrid', 40.4168, -3.7038],
+        [['portugal', 'pt'], 'Lisboa', 38.7223, -9.1393],
+        [['francia', 'france', 'fr'], 'París', 48.8566, 2.3522],
+        [['italia', 'italy', 'it'], 'Roma', 41.9028, 12.4964],
+        [['alemania', 'germany', 'de'], 'Berlín', 52.52, 13.405],
+        [['reino unido', 'inglaterra', 'united kingdom', 'uk', 'gb'], 'Londres', 51.5074, -0.1278],
+        [['irlanda', 'ireland', 'ie'], 'Dublín', 53.3498, -6.2603],
+        [['paises bajos', 'holanda', 'netherlands', 'nl'], 'Ámsterdam', 52.3676, 4.9041],
+        [['belgica', 'belgium', 'be'], 'Bruselas', 50.8503, 4.3517],
+        [['suiza', 'switzerland', 'ch'], 'Berna', 46.948, 7.4474],
+        [['austria', 'at'], 'Viena', 48.2082, 16.3738],
+        [['polonia', 'poland', 'pl'], 'Varsovia', 52.2297, 21.0122],
+        [['suecia', 'sweden', 'se'], 'Estocolmo', 59.3293, 18.0686],
+        [['noruega', 'norway', 'no'], 'Oslo', 59.9139, 10.7522],
+        [['dinamarca', 'denmark', 'dk'], 'Copenhague', 55.6761, 12.5683],
+        [['finlandia', 'finland', 'fi'], 'Helsinki', 60.1699, 24.9384],
+        [['grecia', 'greece', 'gr'], 'Atenas', 37.9838, 23.7275],
+        [['republica checa', 'chequia', 'czechia', 'cz'], 'Praga', 50.0755, 14.4378],
+        [['hungria', 'hungary', 'hu'], 'Budapest', 47.4979, 19.0402],
+        [['rumania', 'romania', 'ro'], 'Bucarest', 44.4268, 26.1025],
+        [['croacia', 'croatia', 'hr'], 'Zagreb', 45.815, 15.9819],
+        [['japon', 'japan', 'jp'], 'Tokio', 35.6762, 139.6503],
+        [['australia', 'au'], 'Canberra', -35.2809, 149.13],
+    ];
+    const COUNTRY_CAPITALS = Object.freeze(CAPITALS.reduce((acc, [keys, city, latitude, longitude]) => {
+        keys.forEach((key) => { acc[key] = Object.freeze({ city, latitude, longitude }); });
+        return acc;
+    }, {}));
+
     function finiteNumber(value) {
         if (value === '' || value == null) return null;
         const number = Number(value);
@@ -164,25 +217,56 @@
         };
     }
 
+    /** Capital del país (nombre o ISO-2) como [lat, lng], o null. */
+    function capitalLocation(country, countryCode) {
+        const entry = COUNTRY_CAPITALS[keyPart(country)] || COUNTRY_CAPITALS[keyPart(countryCode)];
+        return entry ? [entry.latitude, entry.longitude] : null;
+    }
+
+    /**
+     * Sedes del estudio base del artista (studio_locations/studios): primero la
+     * que está en la ciudad del artista, después la primera con coordenadas.
+     */
+    function baseStudioLocation(candidates, city) {
+        const rows = Array.isArray(candidates) ? candidates.filter((row) => row && row.is_active !== false) : [];
+        const cityKey = keyPart(city);
+        const sameCity = cityKey
+            ? rows.find((row) => keyPart(row.city) === cityKey && locationFrom(row))
+            : null;
+        if (sameCity) return locationFrom(sameCity);
+        for (const row of rows) {
+            const location = locationFrom(row);
+            if (location) return location;
+        }
+        return null;
+    }
+
+    /**
+     * Resuelve "Tu base". Orden: base explícita o lat/lng del artista →
+     * ciudad conocida o geocodificada → sede del estudio base → capital del
+     * país. Solo devuelve null si el artista no declaró ninguna ubicación.
+     */
     function resolveBase(input, cityIndex) {
         const artist = input.artist || {};
         const providedBase = input.base || input.artistBase || {};
         const city = providedBase.city || artist.city || '';
         const country = providedBase.country || artist.country || '';
-        const location = locationFrom(providedBase.location)
-            || locationFrom(providedBase)
-            || locationFrom(artist.location)
-            || locationFrom(artist)
-            || cityIndex.get(placeKey(city, country))
-            || null;
-
-        if (!location) return null;
+        const countryCode = providedBase.country_code || artist.country_code || '';
+        const candidates = [
+            ['artist', locationFrom(providedBase.location) || locationFrom(providedBase)
+                || locationFrom(artist.location) || locationFrom(artist)],
+            ['city', city ? (cityIndex.get(placeKey(city, country)) || cityIndex.get(placeKey(city, ''))) : null],
+            ['studio', baseStudioLocation(input.baseStudioLocations, city)],
+            ['capital', capitalLocation(country, countryCode)],
+        ];
+        const found = candidates.find((candidate) => candidate[1]);
+        if (!found) return null;
         return {
             id: 'artist-base',
             city,
             country,
             label: providedBase.label || `Tu base · ${city || country || 'origen'}`,
-            location,
+            location: found[1],
         };
     }
 
@@ -868,8 +952,10 @@
     }
 
     return {
+        COUNTRY_CAPITALS,
         DEFAULT_CITY_COORDINATES,
         buildTravelRoute,
+        resolveTravelBase: (input) => resolveBase(input || {}, buildCityIndex((input || {}).cityCoordinates)),
         createTravelRouteNavigator,
         mountTravelGlobe,
         projectTravelLocation,

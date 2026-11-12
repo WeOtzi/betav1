@@ -899,11 +899,9 @@
                             </div>
                             <div class="form-group">
                                 <label for="setting-default-currency">Moneda por defecto</label>
+                                <!-- El script del backoffice la llena con las monedas del listado de países (currency-utils). -->
                                 <select id="setting-default-currency">
-                                    <option value="USD">USD - Dólar</option>
-                                    <option value="EUR">EUR - Euro</option>
-                                    <option value="MXN">MXN - Peso Mexicano</option>
-                                    <option value="ARS">ARS - Peso Argentino</option>
+                                    <option value="USD">USD - Dólar estadounidense</option>
                                 </select>
                             </div>
                             <button class="btn btn-primary" onclick="saveAppSettings()">

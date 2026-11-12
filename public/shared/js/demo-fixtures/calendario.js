@@ -70,5 +70,58 @@
         var existing = {};
         tables.artist_calendar_events.forEach(function (event) { existing[event.id] = true; });
         rows.forEach(function (event) { if (!existing[event.id]) tables.artist_calendar_events.push(event); });
+
+        // Ronda 3 · "Solicitud pendiente" real: la cotización pendiente pide
+        // una fecha concreta (proyección de solo lectura en el mural).
+        if (pendingQuote && !/\d{4}|\d{1,2}\s+\w{3}/.test(String(pendingQuote.client_preferred_date || ''))) {
+            pendingQuote.client_preferred_date = dateOnly(4);
+            pendingQuote.client_flexible_dates = 'false';
+        }
+
+        // Ronda 3 · recordatorio con hora en artist_reminders (aviso in-app).
+        if (!tables.artist_reminders) tables.artist_reminders = [];
+        if (ctx.TABLES && ctx.TABLES.indexOf('artist_reminders') < 0) ctx.TABLES.push('artist_reminders');
+        var reminderId = '0000c0de-0000-4000-8000-ca1e00000901';
+        if (!tables.artist_reminders.some(function (r) { return r.id === reminderId; })) {
+            tables.artist_reminders.push({
+                id: reminderId, artist_user_id: artistId, title: 'Llamar al proveedor de tintas', detail: 'Pedir 3RL y 5RM.',
+                icon: 'bell', due_date: dateOnly(0), due_at: at(0, '18:00'), recurrence_rule: 'none', recurrence_until: null,
+                last_notified_at: null, priority: 'normal', is_important: true, attachments: [], completed_at: null,
+                created_at: daysAgo(3), updated_at: daysAgo(1)
+            });
+        }
+
+        // Ronda 3 · agenda pública del artista para el cotizador
+        // (list_artist_public_busy_days): solo fecha + estado.
+        if (!ctx.rpcs) ctx.rpcs = {};
+        ctx.rpcs.list_artist_public_busy_days = function (args, store) {
+            var marks = {};
+            function key(date) { return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()); }
+            function mark(date, level) { var k = key(date); marks[k] = Math.max(marks[k] || 0, level); }
+            function eachDay(startIso, endExclusiveIso, level) {
+                var d = new Date(startIso); d.setHours(0, 0, 0, 0);
+                var end = new Date(endExclusiveIso);
+                for (var i = 0; i < 400 && d < end; i += 1) { mark(d, level); d.setDate(d.getDate() + 1); }
+            }
+            (store.rows('artist_calendar_events') || []).forEach(function (e) {
+                if (e.artist_user_id !== args.p_artist_user_id || e.status === 'cancelled') return;
+                var weeks = e.recurrence_rule === 'weekly' ? 12 : 1;
+                for (var w = 0; w < weeks; w += 1) {
+                    var s = new Date(Date.parse(e.starts_at) + w * 7 * DAY).toISOString();
+                    var f = new Date(Date.parse(e.ends_at) + w * 7 * DAY).toISOString();
+                    if (['blocked_day', 'guest_spot', 'convention'].indexOf(e.event_type) >= 0 && e.all_day) eachDay(s, f, 3);
+                    else if (e.event_type === 'personal' && e.all_day) eachDay(s, f, 3);
+                    else if (e.event_type === 'availability') eachDay(s, f, 1);
+                }
+            });
+            (store.rows('artist_trips') || []).forEach(function (t) {
+                if (t.artist_user_id !== args.p_artist_user_id || t.status === 'cancelado') return;
+                eachDay(t.start_date + 'T00:00:00', new Date(Date.parse(t.end_date + 'T00:00:00') + DAY).toISOString(), 3);
+            });
+            var labels = ['', 'available', 'full', 'unavailable'];
+            return Object.keys(marks).sort().filter(function (d) {
+                return (!args.p_from || d >= args.p_from) && (!args.p_to || d <= args.p_to);
+            }).map(function (d) { return { busy_date: d, busy_status: labels[marks[d]] }; });
+        };
     };
 }(typeof self !== 'undefined' ? self : this));
