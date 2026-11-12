@@ -3110,7 +3110,7 @@ function setupIGStep0() {
             const res = await fetch(apiUrl('/api/instagram/preview'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...headers },
-                body: JSON.stringify({ handle, limit: 12, mode: 'signup' })
+                body: JSON.stringify({ handle, limit: 50, mode: 'signup' })
             });
             const data = await readJsonResponse(res);
             if (!res.ok || !data.success) {

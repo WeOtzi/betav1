@@ -3201,7 +3201,7 @@ function formatCompactSessionPrice(amount, currencyCode) {
     });
 }
 
-const MAX_GALLERY_IMAGES = 12;
+const MAX_GALLERY_IMAGES = 50;
 const MAX_GALLERY_VIDEOS = 2;
 const MAX_VIDEO_SIZE_MB = 80;
 const MAX_VIDEO_DURATION_S = 30;
@@ -3746,7 +3746,8 @@ function renderGalleryAdmin() {
         </div>`;
     });
 
-    const emptySlots = Array.from({ length: Math.max(0, MAX_GALLERY_IMAGES - feedItems.length) }, () => (
+    // Con 50 lugares no se dibujan todos los huecos: solo los que completan la fila.
+    const emptySlots = Array.from({ length: Math.min(Math.max(0, MAX_GALLERY_IMAGES - feedItems.length), (4 - (feedItems.length % 4)) % 4) }, () => (
         '<div class="gallery-item-slot" aria-hidden="true"></div>'
     ));
 

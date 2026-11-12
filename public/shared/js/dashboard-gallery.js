@@ -127,13 +127,13 @@
     var videos = list.filter(isVideo).length;
     return {
       files: list.length,
-      max: max || 12,
+      max: max || 50,
       videos: videos,
       maxVideos: maxVideos || 2,
-      free: Math.max(0, (max || 12) - list.length)
+      free: Math.max(0, (max || 50) - list.length)
     };
   }
-  // "8/12 ARCHIVOS · 1/2 VIDEOS" (2003:880)
+  // "8/50 ARCHIVOS · 1/2 VIDEOS" (2003:880)
   function quotaLabel(feed, max, maxVideos) {
     var c = counts(feed, max, maxVideos);
     return c.files + '/' + c.max + ' ARCHIVOS · ' + c.videos + '/' + c.maxVideos + ' VIDEOS';
