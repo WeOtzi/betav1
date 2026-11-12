@@ -605,6 +605,9 @@ function initApp() {
     // affecting regular /quotation visits.
     const initialUrlParams = new URLSearchParams(window.location.search);
     const prequoteSource = initialUrlParams.get('source') === 'prequote';
+    // /inicio · "Recomiéndame tatuador": ?idea=explorar preselecciona
+    // "Quiero explorar opciones" (Figma 01). Un borrador recuperado lo pisa.
+    if (initialUrlParams.get('idea') === 'explorar') formData.tattoo_idea_mode = 'explorar';
     let hasPrequoteHandoff = false;
     if (prequoteSource) {
         hasPrequoteHandoff = applyPrequoteHandoff();

@@ -503,7 +503,11 @@ async function loadArtistStudio(studioId, artistUserId) {
     try {
         const { data: studio, error } = await WeotziData.Studios.getById(
             studioId,
-            'id, slug, name, cover_image, photo_feed_items, formatted_address, street, street_number, locality, city, country'
+            // `*` y no una lista: así `location_verified` llega cuando la
+            // migración 20261112120000_studio_claim_links está aplicada, sin
+            // romper la consulta mientras la columna no exista (anon ya lee
+            // todas las columnas de `studios`).
+            '*'
         );
         if (error || !studio) return null;
 
@@ -615,19 +619,28 @@ function splitBioManifesto(plainText) {
     return { manifesto: sentence, rest: text.slice(match[0].length).trim() };
 }
 
+function bioHasRichFormat(safeHtml) {
+    return /<(a|b|strong|i|em|u|s|strike|del|mark|span|ul|ol|li)[\s>]/i.test(String(safeHtml || ''));
+}
+
 function renderBio() {
     const manifestoEl = document.getElementById('bio-manifesto');
     const bioTextEl = document.getElementById('bio-text');
     if (!bioTextEl) return;
 
     const bio = artistData?.bio_description || '';
-    const hasLinks = window.BioFormatting
-        ? /<a[\s>]/i.test(window.BioFormatting.sanitizeBioHtml(bio))
+    // Revisión 12 nov 2026 (pág. 7): la presentación es HTML enriquecido
+    // (WoRichText). Si trae formato (links, negrita, resaltado, tamaño, color,
+    // listas) se renderiza completa, saneada en el cliente con la misma
+    // allowlist que lib/bio-sanitizer.js; el manifiesto solo se extrae de
+    // bios de texto plano para no perder ese formato.
+    const hasRichFormat = window.BioFormatting
+        ? bioHasRichFormat(window.BioFormatting.sanitizeBioHtml(bio))
         : false;
     const plain = window.BioFormatting
         ? window.BioFormatting.bioHtmlToPlainText(bio)
         : String(bio).trim();
-    const { manifesto, rest } = hasLinks ? { manifesto: '', rest: plain } : splitBioManifesto(plain);
+    const { manifesto, rest } = hasRichFormat ? { manifesto: '', rest: plain } : splitBioManifesto(plain);
 
     if (manifestoEl) {
         manifestoEl.hidden = !manifesto;
@@ -801,6 +814,13 @@ function buildStudioAddress(studio) {
  * del roster activo. `AMBIENTE` y `ACCESOS` del Figma no tienen columna y no se
  * maquetan.
  */
+// `studios.location_verified` (migración 20261112120000): false solo para el
+// estudio que creó un tatuador y todavía no completó su alta. Sin la columna
+// (undefined/null) se considera verificado.
+function isStudioLocationUnverified(studio) {
+    return Boolean(studio) && studio.location_verified === false;
+}
+
 function renderStudio() {
     const band = document.getElementById('studio-band');
     if (!band) return;
@@ -819,6 +839,9 @@ function renderStudio() {
         addressEl.hidden = !address;
         addressEl.textContent = address;
     }
+
+    const unverifiedEl = document.getElementById('studio-unverified');
+    if (unverifiedEl) unverifiedEl.hidden = !isStudioLocationUnverified(studioData);
 
     const photos = parseJsonArray(studioData.photo_feed_items);
     const photoUrl = String(studioData.cover_image || photos.find((item) => item?.url)?.url || '').trim();

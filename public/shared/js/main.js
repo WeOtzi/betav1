@@ -470,13 +470,118 @@ function setRegisterButtonState(btn, label) {
 
 // Validación propia (el form lleva novalidate): mensajes del DS en
 // #form-message en lugar del tooltip nativo "Completa este campo".
-function validateBetaForm({ fullName, email, style, terms }) {
+// Revisión 12/11 (p. 2): todos los campos son obligatorios; Estilo deja de
+// serlo solo con "Añadir más adelante, mi estilo no está aquí".
+function validateBetaForm({ fullName, email, country, city, style, styleLater, terms }) {
     if (!fullName) return { field: 'beta-fullname', message: 'Contanos tu nombre completo.' };
     if (!email) return { field: 'beta-email', message: 'Escribí tu email.' };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return { field: 'beta-email', message: 'Revisá el email: parece incompleto.' };
-    if (!style) return { field: 'beta-style', message: 'Seleccioná tu estilo principal.' };
+    if (!country) return { field: 'beta-country', message: 'Seleccioná tu país.' };
+    if (!city) return { field: 'beta-city', message: 'Contanos en qué ciudad tatuás.' };
+    if (!style && !styleLater) return { field: 'beta-style', message: 'Seleccioná tu estilo principal o marcá "Añadir más adelante".' };
     if (!terms) return { field: 'beta-terms', message: 'Para seguir, aceptá los términos y condiciones.' };
     return null;
+}
+
+// ---- Revisión 12/11 (p. 2): catálogos de Crear cuenta ----
+// Estilos: exactamente los de la revisión, en orden alfabético.
+const BETA_STYLE_OPTIONS = [
+    'Blackwork', 'Fine Line', 'Geométrico', 'Japonés', 'Lettering / Caligrafía',
+    'Microrealismo', 'Minimalista', 'Neotradicional', 'Realismo', 'Tradicional americano'
+];
+
+// Países: Estados Unidos, Argentina y España primero; el resto alfabético.
+// `code` (ISO 3166-1 alfa-2) restringe las sugerencias de ciudad de Places.
+const BETA_COUNTRIES = [
+    { name: 'Estados Unidos', code: 'us' },
+    { name: 'Argentina', code: 'ar' },
+    { name: 'España', code: 'es' },
+    { name: 'Alemania', code: 'de' },
+    { name: 'Australia', code: 'au' },
+    { name: 'Brasil', code: 'br' },
+    { name: 'Canadá', code: 'ca' },
+    { name: 'Chile', code: 'cl' },
+    { name: 'Colombia', code: 'co' },
+    { name: 'Corea del Sur', code: 'kr' },
+    { name: 'Costa Rica', code: 'cr' },
+    { name: 'Dinamarca', code: 'dk' },
+    { name: 'Finlandia', code: 'fi' },
+    { name: 'Francia', code: 'fr' },
+    { name: 'Grecia', code: 'gr' },
+    { name: 'Indonesia', code: 'id' },
+    { name: 'Italia', code: 'it' },
+    { name: 'Japón', code: 'jp' },
+    { name: 'México', code: 'mx' },
+    { name: 'Noruega', code: 'no' },
+    { name: 'Nueva Zelanda', code: 'nz' },
+    { name: 'Países Bajos', code: 'nl' },
+    { name: 'Panamá', code: 'pa' },
+    { name: 'Perú', code: 'pe' },
+    { name: 'Polonia', code: 'pl' },
+    { name: 'Portugal', code: 'pt' },
+    { name: 'Reino Unido', code: 'gb' },
+    { name: 'Suecia', code: 'se' },
+    { name: 'Suiza', code: 'ch' },
+    { name: 'Tailandia', code: 'th' },
+    { name: 'Uruguay', code: 'uy' },
+    { name: 'Venezuela', code: 've' }
+];
+
+function betaCountryByName(name) {
+    return BETA_COUNTRIES.find((country) => country.name === name) || null;
+}
+
+// Handoff al wizard /register-artist. El borrador del servidor guarda nombre,
+// email, país, ciudad y estilos (artists_db); lo que no tiene columna (que el
+// estilo quedó "para más adelante", el código del país y el place_id de la
+// ciudad) viaja en localStorage bajo BETA_SIGNUP_HANDOFF_KEY y en la URL
+// (?styleLater=1).
+const BETA_SIGNUP_HANDOFF_KEY = 'wo:artist-registration:signup-handoff';
+
+function buildBetaSignupData({ fullName, email, country, countryCode, city, cityPlaceId, style, styleLater }) {
+    const styles = !styleLater && style ? [style] : [];
+    return {
+        draftData: {
+            full_name: fullName,
+            location_country: country,
+            location_city: city,
+            city,
+            styles
+        },
+        handoff: {
+            version: 1,
+            full_name: fullName,
+            email,
+            country,
+            country_code: countryCode || null,
+            city,
+            city_place_id: cityPlaceId || null,
+            styles,
+            style_later: Boolean(styleLater)
+        }
+    };
+}
+
+function saveBetaSignupHandoff(handoff, draftId) {
+    try {
+        localStorage.setItem(BETA_SIGNUP_HANDOFF_KEY, JSON.stringify({
+            ...handoff,
+            draft_id: draftId || null,
+            saved_at: Date.now()
+        }));
+    } catch (_) {}
+}
+
+if (typeof window !== 'undefined') {
+    window.WoBetaSignup = {
+        BETA_STYLE_OPTIONS,
+        BETA_COUNTRIES,
+        BETA_SIGNUP_HANDOFF_KEY,
+        betaCountryByName,
+        buildBetaSignupData,
+        parseBetaCatalogs,
+        validateBetaForm
+    };
 }
 
 async function handleRegistration(e) {
@@ -484,17 +589,21 @@ async function handleRegistration(e) {
     const btn = document.querySelector('#beta-form .btn-register-primary');
     const emailInput = document.querySelector('.input-email');
     const email = String(emailInput?.value || '').trim().toLowerCase();
-    // Campos del Figma 801:536: nombre, email y estilo obligatorios, ciudad
-    // opcional. Todo viaja al borrador para que el wizard los precargue.
+    // Revisión 12/11 (p. 2): nombre, email, país, ciudad y estilo (o "más
+    // adelante") son obligatorios. Todo viaja al borrador para que el wizard
+    // los precargue.
     const fullName = String(document.getElementById('beta-fullname')?.value || '').trim();
-    const city = String(document.getElementById('beta-city')?.value || '').trim();
-    const style = String(document.getElementById('beta-style')?.value || '').trim();
+    const country = String(document.getElementById('beta-country')?.value || '').trim();
+    const cityInput = document.getElementById('beta-city');
+    const city = String(cityInput?.value || '').trim();
+    const styleLater = Boolean(document.getElementById('beta-style-later')?.checked);
+    const style = styleLater ? '' : String(document.getElementById('beta-style')?.value || '').trim();
     const terms = Boolean(document.getElementById('beta-terms')?.checked);
 
     clearFormMessage();
     document.querySelectorAll('#beta-form [aria-invalid="true"]').forEach((el) => el.removeAttribute('aria-invalid'));
 
-    const invalid = validateBetaForm({ fullName, email, style, terms });
+    const invalid = validateBetaForm({ fullName, email, country, city, style, styleLater, terms });
     if (invalid) {
         showFormMessage(invalid.message, 'error');
         const field = document.getElementById(invalid.field);
@@ -514,22 +623,30 @@ async function handleRegistration(e) {
         };
 
         setRegisterButtonState(btn, 'Guardando…');
+        const signup = buildBetaSignupData({
+            fullName,
+            email,
+            country,
+            countryCode: betaCountryByName(country)?.code,
+            city,
+            cityPlaceId: cityInput?.dataset.placeId || '',
+            style,
+            styleLater
+        });
         const draftPayload = await createOrResumeArtistDraft({
             email,
             source: 'email',
-            extraData: {
-                full_name: fullName,
-                ...(city ? { city } : {}),
-                ...(style ? { styles: [style] } : {})
-            }
+            extraData: signup.draftData
         });
+        saveBetaSignupHandoff(signup.handoff, draftPayload?.draft_id);
         const artistProgress = getArtistRegistrationProgress(draftPayload.artist);
-        const targetUrl = buildDraftWizardUrl(
+        let targetUrl = buildDraftWizardUrl(
             getArtistResumeUrl(authUrls.registerArtist, artistProgress),
             draftPayload,
             'email',
             email
         );
+        if (styleLater) targetUrl = withUrlParams(targetUrl, { styleLater: '1' });
 
         setRegisterButtonState(btn, 'Redirigiendo…');
         showFormMessage('Registro iniciado. Te llevamos a completar tu perfil…', 'success');
@@ -843,35 +960,181 @@ function handleFacebookSignup() {
     window.location.href = appUrl('/artist/login?' + params.toString());
 }
 
-// ESTILO: catálogo real de tattoo_styles (roots) con fallback fijo del mock.
-const BETA_STYLE_FALLBACK = [
-    'Fine line', 'Blackwork', 'Realismo', 'Tradicional', 'Neotradicional',
-    'Japonés', 'Geométrico', 'Acuarela', 'Lettering', 'Dotwork', 'Tribal', 'Otro'
-];
+// Revisión 12/11 (p. 2): ESTILO muestra solo la lista fija de la revisión
+// (ya no el catálogo completo de tattoo_styles). PAÍS es un select y CIUDAD
+// sugiere ciudades de ese país con Google Places. Los selects los mejora el
+// componente del DS (window.WoControls); esta página no los estiliza.
+function refreshBetaControl(el) {
+    try { window.WoControls?.refresh?.(el); } catch (_) {}
+}
 
-async function populateBetaStyleSelect() {
-    const select = document.getElementById('beta-style');
+function fillBetaSelect(select, items) {
     if (!select) return;
-    let styles = BETA_STYLE_FALLBACK;
-    try {
-        if (window.ConfigManager && typeof window.ConfigManager.loadTattooStylesFromDB === 'function') {
-            const fromDb = await window.ConfigManager.loadTattooStylesFromDB();
-            const names = (Array.isArray(fromDb) ? fromDb : [])
-                .map((s) => (typeof s === 'string' ? s : (s && (s.name || s.label))))
-                .filter(Boolean);
-            if (names.length >= 5) styles = names;
-        }
-    } catch (err) {
-        console.warn('[beta] catálogo de estilos no disponible, uso el fijo:', err && err.message);
-    }
-    styles.forEach((name) => {
+    const placeholder = select.querySelector('option[value=""]');
+    select.innerHTML = '';
+    if (placeholder) select.appendChild(placeholder);
+    items.forEach(({ value, label, code }) => {
         const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
+        opt.value = value;
+        opt.textContent = label;
+        if (code) opt.dataset.code = code;
         select.appendChild(opt);
     });
+    refreshBetaControl(select);
 }
-document.addEventListener('DOMContentLoaded', populateBetaStyleSelect);
+
+function populateBetaStyleSelect(styles = BETA_STYLE_OPTIONS) {
+    fillBetaSelect(
+        document.getElementById('beta-style'),
+        styles.map((name) => ({ value: name, label: name }))
+    );
+}
+
+function populateBetaCountrySelect(countries = BETA_COUNTRIES) {
+    fillBetaSelect(
+        document.getElementById('beta-country'),
+        countries.map(({ name, code }) => ({ value: name, label: name, code }))
+    );
+}
+
+// GET /api/registration/catalogs (grupo Backend) es la fuente principal; las
+// listas locales de arriba son el respaldo (mismo contenido). Acepta
+// { styles: { quick: [{ label }] }, countries: [{ name, code }] } o
+// { quickStyles: [...] }, con o sin envoltorio `data`.
+function parseBetaCatalogs(payload) {
+    const data = payload && typeof payload === 'object' ? (payload.data || payload) : null;
+    if (!data) return null;
+    const quick = Array.isArray(data.quickStyles) ? data.quickStyles : data.styles?.quick;
+    const styles = (Array.isArray(quick) ? quick : [])
+        .map((s) => String(typeof s === 'string' ? s : (s?.label || s?.name || '')).trim())
+        .filter(Boolean);
+    const countries = (Array.isArray(data.countries) ? data.countries : [])
+        .map((c) => ({ name: String(c?.name || '').trim(), code: String(c?.code || '').trim().toLowerCase() }))
+        .filter((c) => c.name && /^[a-z]{2}$/.test(c.code));
+    return {
+        styles: styles.length ? styles : null,
+        countries: countries.length ? countries : null
+    };
+}
+
+function loadBetaCatalogs() {
+    if (typeof fetch !== 'function') return Promise.resolve(null);
+    return fetch(appUrl('/api/registration/catalogs'), { headers: { Accept: 'application/json' } })
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null)
+        .then((payload) => {
+            const catalogs = parseBetaCatalogs(payload);
+            if (!catalogs) return null;
+            const styleSelect = document.getElementById('beta-style');
+            const countrySelect = document.getElementById('beta-country');
+            // Solo si el usuario todavía no eligió nada (no se le cambia la lista en la mano).
+            if (catalogs.styles && styleSelect && !styleSelect.value) populateBetaStyleSelect(catalogs.styles);
+            if (catalogs.countries && countrySelect && !countrySelect.value) {
+                BETA_COUNTRIES.splice(0, BETA_COUNTRIES.length, ...catalogs.countries);
+                populateBetaCountrySelect(catalogs.countries);
+            }
+            return catalogs;
+        });
+}
+
+// "Añadir más adelante": bloquea Estilo y deja de exigirlo.
+function syncBetaStyleLater() {
+    const later = document.getElementById('beta-style-later');
+    const select = document.getElementById('beta-style');
+    if (!later || !select) return;
+    const deferred = later.checked;
+    if (deferred) select.value = '';
+    select.disabled = deferred;
+    select.required = !deferred;
+    if (deferred) select.removeAttribute('aria-invalid');
+    refreshBetaControl(select);
+}
+
+// ---- Ciudad con Google Places (types: ['(cities)'], restringido al país) ----
+const betaCityState = { autocomplete: null, placesFailed: false, loading: null };
+
+function isBetaPlacesConfigured() {
+    try {
+        if (typeof window.ConfigManager?.isGoogleMapsConfigured === 'function') {
+            return window.ConfigManager.isGoogleMapsConfigured();
+        }
+    } catch (_) {}
+    const key = window.CONFIG?.googleMaps?.apiKey || '';
+    return Boolean(key) && !String(key).includes('YOUR_');
+}
+
+function ensureBetaCityAutocomplete(input) {
+    if (betaCityState.autocomplete || betaCityState.placesFailed) return Promise.resolve(betaCityState.autocomplete);
+    if (betaCityState.loading) return betaCityState.loading;
+    if (typeof window.WeOtziGeocoder?.ensureGoogleMapsLoaded !== 'function' || !isBetaPlacesConfigured()) {
+        betaCityState.placesFailed = true;
+        return Promise.resolve(null);
+    }
+    betaCityState.loading = window.WeOtziGeocoder.ensureGoogleMapsLoaded({ libraries: ['places'] })
+        .then(() => {
+            if (!window.google?.maps?.places?.Autocomplete) throw new Error('Places no disponible');
+            const ac = new window.google.maps.places.Autocomplete(input, {
+                types: ['(cities)'],
+                fields: ['name', 'place_id', 'address_components']
+            });
+            ac.addListener('place_changed', () => {
+                const place = ac.getPlace() || {};
+                if (!place.place_id) return;
+                const locality = (place.address_components || [])
+                    .find((c) => (c.types || []).includes('locality'));
+                input.value = place.name || locality?.long_name || input.value;
+                input.dataset.placeId = place.place_id;
+                input.removeAttribute('aria-invalid');
+            });
+            betaCityState.autocomplete = ac;
+            return ac;
+        })
+        .catch((error) => {
+            // Sin key, key inválida o red caída: Ciudad queda como texto libre.
+            betaCityState.placesFailed = true;
+            console.info('[beta] Ciudad como texto libre:', error && error.message);
+            return null;
+        });
+    return betaCityState.loading;
+}
+
+function syncBetaCityWithCountry() {
+    const countrySelect = document.getElementById('beta-country');
+    const cityInput = document.getElementById('beta-city');
+    if (!countrySelect || !cityInput) return;
+    const country = betaCountryByName(countrySelect.value);
+    cityInput.value = '';
+    delete cityInput.dataset.placeId;
+    cityInput.disabled = !country;
+    cityInput.placeholder = country ? 'Buscá tu ciudad' : 'Elegí primero tu país';
+    if (!country) return;
+    ensureBetaCityAutocomplete(cityInput).then((ac) => {
+        if (ac) ac.setComponentRestrictions({ country: country.code });
+    });
+}
+
+function initBetaSignupFields() {
+    if (!document.getElementById('beta-form')) return;
+    populateBetaStyleSelect();
+    populateBetaCountrySelect();
+    loadBetaCatalogs();
+    document.getElementById('beta-style-later')?.addEventListener('change', syncBetaStyleLater);
+    document.getElementById('beta-country')?.addEventListener('change', syncBetaCityWithCountry);
+    const cityInput = document.getElementById('beta-city');
+    if (cityInput) {
+        // Con la lista de Places abierta, Enter elige la sugerencia y no envía.
+        cityInput.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' || !betaCityState.autocomplete) return;
+            const list = Array.from(document.querySelectorAll('.pac-container'))
+                .find((el) => el.style.display !== 'none' && el.querySelector('.pac-item'));
+            if (list) event.preventDefault();
+        });
+        // Si se edita a mano, el place_id anterior ya no corresponde.
+        cityInput.addEventListener('input', () => { delete cityInput.dataset.placeId; });
+    }
+    syncBetaStyleLater();
+}
+document.addEventListener('DOMContentLoaded', initBetaSignupFields);
 
 // ============================================
 // Password Recovery Handler

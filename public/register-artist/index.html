@@ -167,8 +167,8 @@
                 <div class="ra-panel" hidden>
                     <p class="ra-eyebrow">02 · Tu acceso</p>
                     <h2 class="ra-title">Email y contraseña.</h2>
-                    <div class="ra-fields ra-fields--narrow">
-                        <div class="ra-field">
+                    <div class="ra-fields ra-fields--narrow ra-fields--access">
+                        <div class="ra-field ra-field--email">
                             <label class="ra-label" for="email">Email</label>
                             <input type="email" id="email" class="form-input" placeholder="tu@email.com" autocomplete="off">
                         </div>
@@ -233,14 +233,17 @@
                              register.js lo preserva al re-renderizar el grid. -->
                         <button type="button" class="ra-more-styles" id="styles-more-btn" aria-expanded="false" aria-controls="styles-grid">Ver más estilos</button>
                     </div>
-                    <div class="custom-style-wrapper" id="custom-style-wrapper" style="display: none;">
+                    <p class="ra-hint ra-styles-later" id="styles-later-hint" hidden>Dejaste tu estilo para más adelante: podés seguir sin elegir uno. Si querés, buscalo en «Ver más estilos» o escribilo en «Otro» (opcional).</p>
+                    <div class="custom-style-wrapper" id="custom-style-wrapper" hidden>
                         <label class="ra-label" for="custom_style">Tu estilo</label>
                         <div class="ra-inline-add">
-                            <input type="text" id="custom_style" class="form-input custom-style-input" placeholder="Escribí tu estilo" autocomplete="off">
+                            <input type="text" id="custom_style" class="form-input custom-style-input" placeholder="Escribí tu estilo" autocomplete="off" maxlength="60" aria-describedby="custom-style-note">
                             <button type="button" class="ra-add-btn" id="add-custom-style-btn" aria-label="Agregar estilo">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                             </button>
                         </div>
+                        <p class="ra-note" id="custom-style-note">Un estilo propio puede afectar tu ratio de descubrimiento: te recomendamos sumar también algún estilo de la lista.</p>
+                        <button type="button" class="ra-link-btn" id="custom-style-close">Cerrar</button>
                     </div>
 
                     <p class="ra-sublabel">¿Hace cuánto tatuás?</p>
@@ -263,47 +266,37 @@
                         <div class="ra-field">
                             <label class="ra-label" for="session_currency">Mostrar en</label>
                             <select id="session_currency" class="currency-select">
-                                <optgroup label="Americas">
-                                    <option value="USD">Dólar (USD)</option>
-                                    <option value="MXN">Pesos (MXN)</option>
-                                    <option value="COP">Pesos (COP)</option>
-                                    <option value="ARS">Pesos (ARS)</option>
-                                    <option value="CLP">Pesos (CLP)</option>
-                                    <option value="PEN">Soles (PEN)</option>
-                                    <option value="BRL">Reales (BRL)</option>
+                                <!-- Monedas de los países del listado (catalogo-registro.js / /api/registration/catalogs).
+                                     acceso-register-final.js las vuelve a dibujar desde el catálogo. -->
+                                <optgroup label="Américas">
+                                    <option value="USD">Dólar estadounidense (USD)</option>
                                     <option value="CAD">Dólar canadiense (CAD)</option>
-                                    <option value="UYU">Pesos (UYU)</option>
-                                    <option value="PYG">Guaraníes (PYG)</option>
-                                    <option value="BOB">Bolivianos (BOB)</option>
-                                    <option value="VES">Bolívares (VES)</option>
-                                    <option value="CRC">Colones (CRC)</option>
-                                    <option value="PAB">Balboas (PAB)</option>
-                                    <option value="DOP">Pesos (DOP)</option>
-                                    <option value="GTQ">Quetzales (GTQ)</option>
-                                    <option value="HNL">Lempiras (HNL)</option>
-                                    <option value="NIO">Córdobas (NIO)</option>
-                                    <option value="CUP">Pesos (CUP)</option>
-                                    <option value="JMD">Dólar jamaiquino (JMD)</option>
-                                    <option value="TTD">Dólar Trinidad (TTD)</option>
+                                    <option value="MXN">Peso mexicano (MXN)</option>
+                                    <option value="CRC">Colón costarricense (CRC)</option>
+                                    <option value="COP">Peso colombiano (COP)</option>
+                                    <option value="VES">Bolívar venezolano (VES)</option>
+                                    <option value="PEN">Sol peruano (PEN)</option>
+                                    <option value="BRL">Real brasileño (BRL)</option>
+                                    <option value="ARS">Peso argentino (ARS)</option>
+                                    <option value="CLP">Peso chileno (CLP)</option>
+                                    <option value="UYU">Peso uruguayo (UYU)</option>
                                 </optgroup>
                                 <optgroup label="Europa">
-                                    <option value="EUR">Euros (EUR)</option>
-                                    <option value="GBP">Libras (GBP)</option>
-                                    <option value="CHF">Francos (CHF)</option>
-                                    <option value="SEK">Coronas (SEK)</option>
-                                    <option value="NOK">Coronas (NOK)</option>
-                                    <option value="DKK">Coronas (DKK)</option>
-                                    <option value="PLN">Zlotys (PLN)</option>
-                                    <option value="CZK">Coronas (CZK)</option>
-                                    <option value="HUF">Forintos (HUF)</option>
-                                    <option value="RON">Leus (RON)</option>
-                                    <option value="BGN">Levas (BGN)</option>
-                                    <option value="HRK">Kunas (HRK)</option>
-                                    <option value="RSD">Dinares (RSD)</option>
-                                    <option value="UAH">Grivnas (UAH)</option>
-                                    <option value="RUB">Rublos (RUB)</option>
-                                    <option value="ISK">Coronas (ISK)</option>
-                                    <option value="TRY">Liras (TRY)</option>
+                                    <option value="EUR">Euro (EUR)</option>
+                                    <option value="GBP">Libra esterlina (GBP)</option>
+                                    <option value="CHF">Franco suizo (CHF)</option>
+                                    <option value="DKK">Corona danesa (DKK)</option>
+                                    <option value="NOK">Corona noruega (NOK)</option>
+                                    <option value="SEK">Corona sueca (SEK)</option>
+                                    <option value="PLN">Esloti polaco (PLN)</option>
+                                </optgroup>
+                                <optgroup label="Asia y Oceanía">
+                                    <option value="KRW">Won surcoreano (KRW)</option>
+                                    <option value="THB">Baht tailandés (THB)</option>
+                                    <option value="IDR">Rupia indonesia (IDR)</option>
+                                    <option value="JPY">Yen japonés (JPY)</option>
+                                    <option value="AUD">Dólar australiano (AUD)</option>
+                                    <option value="NZD">Dólar neozelandés (NZD)</option>
                                 </optgroup>
                             </select>
                         </div>
@@ -330,31 +323,39 @@
                     <div class="ra-fields">
                         <div class="ra-field">
                             <label class="ra-label" for="bio_text">Breve presentación</label>
-                            <textarea id="bio_text" class="ra-textarea" rows="4" placeholder="Un par de líneas sobre vos y tu trabajo"></textarea>
+                            <textarea id="bio_text" class="ra-textarea" rows="4" maxlength="2000" placeholder="Un par de líneas sobre vos y tu trabajo"></textarea>
                         </div>
                     </div>
 
                     <p class="ra-sublabel">¿Dónde mostrás tu trabajo?</p>
                     <div class="link-toggles" id="link-toggles">
                         <button type="button" class="link-toggle is-active" data-link="instagram" aria-pressed="true">Instagram</button>
-                        <button type="button" class="link-toggle is-active" data-link="website" aria-pressed="true">Sitio web</button>
-                        <button type="button" class="link-toggle is-active" data-link="behance" aria-pressed="true">Behance</button>
-                        <button type="button" class="link-toggle is-active" data-link="other" aria-pressed="true">Otro</button>
+                        <button type="button" class="link-toggle" data-link="website" aria-pressed="false">Sitio web</button>
+                        <button type="button" class="link-toggle" data-link="behance" aria-pressed="false">Behance</button>
+                        <button type="button" class="link-toggle" data-link="other" aria-pressed="false">Otro</button>
                     </div>
                     <div class="ra-fields ra-fields--narrow">
+                        <!-- Página 7: prefijo fijo (.wo-prefixed del DS); el valor no lo incluye
+                             y register.js lo normaliza al guardar (@ · https:// · behance.net/). -->
                         <div class="ra-field" data-link-field="instagram">
                             <label class="ra-label" for="instagram_handle">Instagram</label>
-                            <input type="text" id="instagram_handle" class="form-input" placeholder="@usuario" autocomplete="off">
+                            <div class="wo-prefixed" data-prefix="@">
+                                <input type="text" id="instagram_handle" class="form-input" placeholder="usuario" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="31">
+                            </div>
                         </div>
-                        <div class="ra-field" data-link-field="website">
+                        <div class="ra-field" data-link-field="website" hidden>
                             <label class="ra-label" for="portfolio_url">Sitio web</label>
-                            <input type="url" id="portfolio_url" class="form-input" placeholder="https://tusitio.com" autocomplete="off">
+                            <div class="wo-prefixed" data-prefix="https://">
+                                <input type="text" inputmode="url" id="portfolio_url" class="form-input" placeholder="tusitio.com" autocomplete="off" autocapitalize="off" spellcheck="false">
+                            </div>
                         </div>
-                        <div class="ra-field" data-link-field="behance">
+                        <div class="ra-field" data-link-field="behance" hidden>
                             <label class="ra-label" for="behance_url">Behance</label>
-                            <input type="url" id="behance_url" class="form-input" placeholder="behance.net/usuario" autocomplete="off">
+                            <div class="wo-prefixed" data-prefix="behance.net/">
+                                <input type="text" id="behance_url" class="form-input" placeholder="usuario" autocomplete="off" autocapitalize="off" spellcheck="false">
+                            </div>
                         </div>
-                        <div class="ra-field" data-link-field="other">
+                        <div class="ra-field" data-link-field="other" hidden>
                             <label class="ra-label" for="other_url">Otro</label>
                             <input type="url" id="other_url" class="ra-input" placeholder="Link" autocomplete="off">
                         </div>
@@ -373,7 +374,7 @@
                                 <span class="ra-portfolio-choice-icon is-instagram" aria-hidden="true"><i data-wo-icon="instagram"></i></span>
                                 <span class="ra-portfolio-choice-kicker">Instagram</span>
                                 <span class="ra-portfolio-choice-title">Agregar desde Instagram</span>
-                                <span class="ra-portfolio-choice-hint">Traemos tus últimas publicaciones.</span>
+                                <span class="ra-portfolio-choice-hint">Elegí hasta 50 de tus publicaciones.</span>
                             </button>
                             <button type="button" class="ra-portfolio-choice" data-portfolio-choice="files">
                                 <span class="ra-portfolio-choice-icon is-files" aria-hidden="true"><i data-wo-icon="image"></i></span>
@@ -398,7 +399,11 @@
                             <p class="ra-works-head"><span class="ra-works-title">Tus trabajos</span><span class="ra-works-count" id="ra-works-count">0 archivos</span></p>
                             <p class="ra-works-lead">Estas son las fotos que aparecerán en tu perfil. Borrá las que no quieras y/o agregá más desde tu dispositivo.</p>
                             <div class="ra-works-grid" id="ra-works-grid" role="list"></div>
-                            <button type="button" class="ra-works-clear" id="ra-works-clear">Quitar todo</button>
+                            <p class="ra-note ra-works-ig-note" id="ra-works-ig-note" hidden>Las publicaciones de Instagram no van a ser visibles en tu perfil hasta que validemos tu identidad y que la cuenta es tuya.</p>
+                            <div class="ra-works-actions">
+                                <button type="button" class="ra-works-reimport" id="ra-works-reimport">Volver a importar de Instagram</button>
+                                <button type="button" class="ra-works-clear" id="ra-works-clear">Quitar todo</button>
+                            </div>
                         </div>
 
                         <p class="ra-portfolio-error" id="ra-portfolio-error" role="alert" hidden></p>
@@ -447,6 +452,14 @@
                         <p class="ra-hint studio-address-preview" id="studio-address-preview" hidden>
                             <span>Dirección del estudio:</span> <strong></strong>
                         </p>
+                        <!-- Página 9: estudio nuevo creado desde el registro -->
+                        <div class="wo-alert wo-alert--warning ra-studio-new" id="studio-new-notice" role="note" hidden>
+                            <div>
+                                <p class="ra-studio-new-title">Vas a crear «<span data-studio-new-name></span>»</p>
+                                <p>Un representante del estudio tiene que completar el alta en We Ötzi. Al terminar tu registro te damos un link para que se lo compartas: con ese link puede ajustar el nombre y la ubicación del estudio.</p>
+                                <p>Hasta que complete el alta, el estudio queda disponible para otros tatuadores pero no figura como ubicación verificada en tu perfil.</p>
+                            </div>
+                        </div>
                     </div>
                     <div class="studio-location-select-wrapper" id="studio-location-select-wrapper" hidden>
                         <label class="ra-label" for="studio_location_select">Elegir sede</label>
@@ -533,6 +546,15 @@
                         </label>
                     </div>
                     <p class="ra-error" data-group-error hidden role="alert"></p>
+                    <!-- Página 10: error real del envío + reintentar sin perder datos -->
+                    <div class="wo-alert wo-alert--error ra-submit-error" id="ra-submit-error" role="alert" tabindex="-1" hidden>
+                        <div>
+                            <p class="ra-submit-error-title" data-submit-error-title>No pudimos crear tu perfil</p>
+                            <p data-submit-error-text></p>
+                            <p class="ra-submit-error-keep">Tus datos siguen cargados. Revisalos si hace falta y volvé a intentar.</p>
+                            <button type="button" class="ra-ghost ra-submit-retry" id="ra-submit-retry">Reintentar</button>
+                        </div>
+                    </div>
                     <div class="ra-actions">
                         <button type="button" class="ra-continue ra-continue--confirm" data-continue="revision" disabled>Confirmar y crear perfil <i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
@@ -570,6 +592,19 @@
             </span>
             <h2 class="ra-success-title">Tu perfil está listo, <span id="ra-success-name">artista</span>.</h2>
             <p class="ra-success-sub">Ya podés recibir cotizaciones e invitaciones de estudios.<br>Te llevamos a tu panel.</p>
+            <!-- Página 9: link de alta del estudio nuevo (studio_claim_url) -->
+            <div class="ra-studio-claim" id="ra-studio-claim" hidden>
+                <p class="ra-eyebrow">Alta del estudio</p>
+                <p class="ra-studio-claim-lead">Compartí este link con quien se encarga de <strong data-studio-claim-name>tu estudio</strong> para que complete el alta en We Ötzi. Hasta entonces no figura como ubicación verificada en tu perfil.</p>
+                <label class="ra-label" for="ra-studio-claim-url">Link de alta</label>
+                <div class="ra-studio-claim-row">
+                    <input type="text" id="ra-studio-claim-url" class="form-input" readonly>
+                    <button type="button" class="ra-ghost" id="ra-studio-claim-copy">Copiar link</button>
+                    <button type="button" class="ra-ghost" id="ra-studio-claim-share" hidden>Compartir</button>
+                </div>
+                <p class="ra-hint" id="ra-studio-claim-expiry" hidden></p>
+                <p class="ra-hint" id="ra-studio-claim-status" role="status" aria-live="polite"></p>
+            </div>
             <a href="/artist/dashboard" class="ra-continue" id="ra-success-cta">Ir a tu panel <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
         </section>
 
@@ -665,6 +700,7 @@
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/data/registration-extras-repo.js"></script>
     <script src="/shared/js/wo-postauth-loader.js"></script>
+    <script src="/register-artist/catalogo-registro.js"></script>
     <script src="/shared/js/register.js"></script>
     <script src="/shared/js/acceso-register-final.js"></script>
 

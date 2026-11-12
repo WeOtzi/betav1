@@ -2672,6 +2672,28 @@ function cancelBioEdit() {
     bioEditMode.style.display = 'none';
 }
 
+// La presentación se guarda por POST /api/artist/profile/bio (el servidor la
+// sanea con lib/bio-sanitizer.js) en vez de escribir artists_db directo. En
+// modo demo o en el preview aislado (WEOTZI_PREVIEW) se usa la capa de datos emulada (no hay servidor real detrás).
+async function persistArtistBio(html) {
+    if ((window.WoDemo && window.WoDemo.enabled) || window.WEOTZI_PREVIEW === true) {
+        const { error } = await WeotziData.Artists.updateByUserId(currentUser.id, { bio_description: html || null });
+        if (error) throw error;
+        return html || null;
+    }
+    const token = await getDashboardAccessToken();
+    if (!token) throw new Error('Sin sesión');
+    const response = await fetch(dashboardAppPath('/api/artist/profile/bio'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ bio: html || '' })
+    });
+    let json = null;
+    try { json = await response.json(); } catch (_) { json = null; }
+    if (!response.ok || json?.success === false) throw new Error(json?.error || `HTTP ${response.status}`);
+    return json && 'bio_description' in json ? (json.bio_description || null) : (html || null);
+}
+
 async function saveBio() {
     const bioEditor = document.getElementById('bio-editor');
     if (!bioEditor) return;
@@ -2682,11 +2704,8 @@ async function saveBio() {
         : rawHtml;
 
     try {
-        const { error } = await WeotziData.Artists.updateByUserId(currentUser.id, { bio_description: newBio || null });
-
-        if (error) throw error;
-
-        artistData.bio_description = newBio;
+        const savedBio = await persistArtistBio(newBio || '');
+        artistData.bio_description = savedBio;
         const bioTextEl = document.getElementById('bio-text');
         if (window.BioFormatting) {
             window.BioFormatting.renderBioHtml(bioTextEl, newBio);

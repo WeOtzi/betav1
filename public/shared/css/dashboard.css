@@ -1178,6 +1178,12 @@ body {
     padding: 0;
 }
 
+/* Resaltado de WoRichText (mark o span con background-color, saneados). */
+.bio-text mark {
+    background: var(--yellow-200, #FFD25A);
+    color: var(--ink, #001125);
+}
+
 .bio-edit-mode {
     flex: 1;
     display: flex;

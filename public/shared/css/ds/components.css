@@ -96,9 +96,10 @@ a.wo-btn--ghost:hover{color:var(--action-ghost-fg)}
   background:var(--surface-input);border:var(--border-hairline) solid var(--border-subtle);border-radius:var(--radius-none);
   padding:var(--field-padding-y) var(--field-padding-x);
   font-family:var(--font-body);font-size:var(--body-m-size);color:var(--neutral-500)}
-.wo-input:hover,.wo-textarea:hover,.wo-select:hover{background:var(--surface-input-hover)}
-.wo-input:focus,.wo-textarea:focus,.wo-select:focus{background:var(--white);border:var(--border-strong-width) solid var(--border-focus);padding:calc(var(--field-padding-y) - 1px) calc(var(--field-padding-x) - 1px);box-shadow:none;outline:none}
-.wo-input[disabled],.wo-textarea[disabled],.wo-select[disabled]{background:var(--surface-input-disabled);border-color:var(--surface-input-disabled);color:var(--neutral-300);cursor:not-allowed}
+/* Estados con background-color (no el shorthand): así no se pierde ni se repite el chevron del select. */
+.wo-input:hover,.wo-textarea:hover,.wo-select:hover{background-color:var(--surface-input-hover)}
+.wo-input:focus,.wo-textarea:focus,.wo-select:focus{background-color:var(--white);border:var(--border-strong-width) solid var(--border-focus);padding:calc(var(--field-padding-y) - 1px) calc(var(--field-padding-x) - 1px);box-shadow:none;outline:none}
+.wo-input[disabled],.wo-textarea[disabled],.wo-select[disabled]{background-color:var(--surface-input-disabled);border-color:var(--surface-input-disabled);color:var(--neutral-300);cursor:not-allowed}
 .wo-input--error{background:var(--white);border:var(--border-strong-width) solid var(--status-error-fg)}
 .wo-input--success{background:var(--white);border:var(--border-strong-width) solid var(--system-success)}
 .wo-textarea{resize:vertical;min-height:120px;line-height:var(--body-m-lh)}
@@ -285,6 +286,19 @@ a.wo-btn--ghost:hover{color:var(--action-ghost-fg)}
 .wo-sep::before{content:"·";margin:0 .45em;color:var(--neutral-300)}
 .wo-hidden{display:none !important}
 .wo-sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;clip:rect(0 0 0 0);overflow:hidden}
+
+/* ---------- Entrada sutil (revisión registro 12-11-2026, pág. 3) ----------
+   .wo-enter: fade + subida corta al aparecer. Retraso con --wo-enter-delay.
+   .wo-enter-stagger: aplica lo mismo a los hijos directos, escalonado
+   (--wo-enter-step entre cada uno, hasta 10 hijos). Sin movimiento si el
+   sistema pide reducirlo. */
+@keyframes wo-enter{from{opacity:0;transform:translateY(var(--wo-enter-distance,var(--space-2)))}to{opacity:1;transform:none}}
+.wo-enter,.wo-enter-stagger>*{animation:wo-enter var(--wo-enter-duration,var(--duration-panel)) var(--ease-standard) both;animation-delay:var(--wo-enter-delay,0ms)}
+.wo-enter-stagger>*{animation-delay:calc(var(--wo-enter-delay,0ms) + var(--wo-enter-step,60ms) * var(--wo-enter-i,0))}
+.wo-enter-stagger>:nth-child(2){--wo-enter-i:1}.wo-enter-stagger>:nth-child(3){--wo-enter-i:2}.wo-enter-stagger>:nth-child(4){--wo-enter-i:3}
+.wo-enter-stagger>:nth-child(5){--wo-enter-i:4}.wo-enter-stagger>:nth-child(6){--wo-enter-i:5}.wo-enter-stagger>:nth-child(7){--wo-enter-i:6}
+.wo-enter-stagger>:nth-child(8){--wo-enter-i:7}.wo-enter-stagger>:nth-child(9){--wo-enter-i:8}.wo-enter-stagger>:nth-child(n+10){--wo-enter-i:9}
+@media (prefers-reduced-motion:reduce){.wo-enter,.wo-enter-stagger>*{animation:none}}
 
 /* ---------- Responsive mobile-first ---------- */
 img,video,canvas,iframe{max-width:100%}

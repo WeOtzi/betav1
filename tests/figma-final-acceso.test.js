@@ -14,37 +14,38 @@ const extras = require('../public/shared/js/data/registration-extras-repo.js');
 
 // ------------------------------------------------------------ lógica pura
 
-test('el panel "Todos los estilos" cruza la taxonomía del Figma con el catálogo', () => {
+// Revisión del registro (12 nov 2026, página 5): el panel usa el catálogo
+// exacto de 3 grupos (catalogo-registro.js); ver también registro-pasos.test.js.
+test('el panel "Todos los estilos" cruza el catálogo de la revisión con tattoo_styles', () => {
     const groups = core.buildStyleGroups([
         { name: 'Fine line', parent_id: null, sort_order: 1 },
-        { name: 'Nordico / Viking', parent_id: null, sort_order: 2 },
+        { name: 'Nordico', parent_id: null, sort_order: 2 },
         { name: 'Estilo raro', parent_id: null, sort_order: 3 }
     ]);
-    const titles = groups.map((g) => g.title);
-    assert.equal(titles[0], 'Realismo');
-    assert.ok(titles.includes('Fine Line y Minimalismo'));
-    // El valor persistido es el nombre del catálogo aunque la etiqueta tenga tildes.
-    const fine = groups.find((g) => g.title === 'Fine Line y Minimalismo').main[0];
-    assert.equal(fine.label, 'Fine Line');
+    assert.deepEqual(groups.map((g) => g.title), [
+        'Estilos principales',
+        'Subestilos y especialidades',
+        'Estilos y tendencias contemporáneas en auge'
+    ]);
+    // El valor persistido es el nombre de tattoo_styles aunque la etiqueta difiera.
+    const fine = groups[0].chips.find((c) => c.label === 'Fine Line');
     assert.equal(fine.value, 'Fine line');
     assert.equal(fine.inCatalog, true);
-    const viking = groups.find((g) => g.title === 'Tribal y cultural').subs.find((c) => c.label === 'Nórdico / Viking');
-    assert.equal(viking.value, 'Nordico / Viking');
-    // Lo que no está en la taxonomía cae en "Otros estilos".
-    const others = groups[groups.length - 1];
-    assert.equal(others.title, 'Otros estilos');
-    assert.deepEqual(others.main.map((c) => c.value), ['Estilo raro']);
-    // Sin coincidencia en el catálogo, se guarda la etiqueta.
-    const irezumi = groups.find((g) => g.title === 'Japonés').subs[0];
-    assert.equal(irezumi.value, 'Irezumi');
+    const nordic = groups[1].chips.find((c) => c.label === 'Nórdico');
+    assert.equal(nordic.value, 'Nordico');
+    // Catálogo exacto: lo que está en la tabla y no en la revisión no aparece.
+    assert.ok(groups.every((g) => g.chips.every((c) => c.value !== 'Estilo raro')));
+    // Sin coincidencia en la tabla, se guarda la etiqueta.
+    const irezumi = groups[0].chips.find((c) => c.label === 'Tradicional Japonés (Irezumi)');
+    assert.equal(irezumi.value, 'Tradicional Japonés (Irezumi)');
     assert.equal(irezumi.inCatalog, false);
 });
 
 test('la búsqueda del panel ignora tildes y oculta categorías vacías', () => {
     const groups = core.buildStyleGroups([]);
     const result = core.filterStyleGroups(groups, 'japon');
-    assert.deepEqual(result.map((g) => g.title), ['Japonés', 'Anime e ilustrativo'].filter((t) => result.some((g) => g.title === t)));
-    assert.ok(result.every((g) => g.main.concat(g.subs).every((c) => core.normalizeKey(c.label).includes('japon'))));
+    assert.ok(result.length >= 1);
+    assert.ok(result.every((g) => g.chips.every((c) => c.keys.some((k) => k.includes('japon')))));
     assert.deepEqual(core.filterStyleGroups(groups, ''), groups);
     assert.equal(core.filterStyleGroups(groups, 'zzzz').length, 0);
 });
