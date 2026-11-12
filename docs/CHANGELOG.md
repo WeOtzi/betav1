@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.2.9] - 2026-11-11
+
+- Backoffice: el login suma un botón para entrar con un enlace de acceso por email (signInWithOtp, sin crear cuentas) y el enlace «Restablecer contraseña» con formulario de nueva contraseña al volver del correo. Solo para la cuenta superadmin; el guard del backoffice no cambia.
+- Validación: node --test 1280/1280; check:release aprobada; probado en local y como hotfix en beta 2.2.8.
+- Rollback: controlador hacia la release 2.2.8 (d2680011260f3ac154a419460b41fefebfa7415b). Sin migraciones.
+
 ## [2.2.8] - 2026-11-11
 
 - Logger de sesión: no intenta guardar session_logs sin sesión (la RLS lo rechazaba con 401 en consola en login, registro y recuperar).

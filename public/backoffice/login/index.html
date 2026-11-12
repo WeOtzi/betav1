@@ -46,6 +46,13 @@
         .form-message.error { display: block; background: var(--red); color: white; }
         .form-message.success { display: block; background: var(--blue); color: white; }
         .footer-link { display: inline-block; margin-top: 24px; color: var(--blue); font-family: "Space Mono", monospace; font-size: 12px; text-decoration: none; border-bottom: 2px solid currentColor; }
+        .btn-magic { width: 100%; margin-top: 14px; padding: 16px; border: var(--border) solid var(--fg); background: var(--yellow); color: #1a1a1a; font-weight: 900; font-size: 14px; text-transform: uppercase; cursor: pointer; }
+        .btn-magic:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--fg); }
+        .btn-magic:disabled { opacity: 0.65; cursor: not-allowed; transform: none; box-shadow: none; }
+        .divider { margin-top: 18px; text-align: center; font-family: "Space Mono", monospace; font-size: 12px; opacity: 0.6; text-transform: uppercase; }
+        .link-btn { background: none; border: none; border-bottom: 2px solid currentColor; padding: 0; margin-top: 24px; color: var(--blue); font-family: "Space Mono", monospace; font-size: 12px; cursor: pointer; }
+        .footer-links { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+        [hidden] { display: none !important; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 760px) {
             body { grid-template-columns: 1fr; }
@@ -84,8 +91,20 @@
                 </button>
             </form>
 
-            <div id="form-message" class="form-message"></div>
-            <a class="footer-link" href="/support/login">Ir al portal de soporte</a>
+            <div class="divider" id="magic-divider">o sin contrasena</div>
+            <button type="button" class="btn-magic" id="btn-magic" onclick="handleBackofficeMagicLink()">Enviarme un enlace de acceso por email</button>
+
+            <form id="recovery-form" onsubmit="handleBackofficeNewPassword(event)" hidden>
+                <label for="new-password">Nueva contrasena</label>
+                <input type="password" id="new-password" minlength="8" required autocomplete="new-password" placeholder="Minimo 8 caracteres">
+                <button type="submit" class="btn-login" id="btn-recovery"><span class="btn-text">Guardar nueva contrasena</span><span class="spinner"></span></button>
+            </form>
+
+            <div id="form-message" class="form-message" role="status" aria-live="polite"></div>
+            <div class="footer-links">
+                <button type="button" class="link-btn" id="btn-reset" onclick="handleBackofficePasswordReset()">Restablecer contrasena</button>
+                <a class="footer-link" href="/support/login">Ir al portal de soporte</a>
+            </div>
         </div>
     </main>
 

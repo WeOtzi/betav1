@@ -24,15 +24,99 @@ function getSafeBackofficeRedirect() {
     }
 }
 
+// Al volver de un enlace de recuperacion, Supabase emite PASSWORD_RECOVERY:
+// en vez de redirigir, mostramos el formulario de nueva contrasena.
+let backofficeRecoveryMode = /type=recovery/.test(window.location.hash) ||
+    new URLSearchParams(window.location.search).get('mode') === 'recovery';
+
+backofficeSupabase.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+        backofficeRecoveryMode = true;
+        if (document.readyState !== 'loading') showRecoveryForm();
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     restoreTheme();
+    if (backofficeRecoveryMode) showRecoveryForm();
     checkExistingSuperadminSession();
 });
+
+function backofficeReturnUrl(extra) {
+    const url = new URL('/backoffice/login', window.location.origin);
+    const redirect = getSafeBackofficeRedirect();
+    if (redirect !== '/backoffice/') url.searchParams.set('redirect', redirect);
+    if (extra) Object.entries(extra).forEach(([k, v]) => url.searchParams.set(k, v));
+    return url.toString();
+}
+
+function showRecoveryForm() {
+    ['login-form', 'btn-magic', 'magic-divider', 'btn-reset'].forEach((id) => {
+        document.getElementById(id).hidden = true;
+    });
+    document.getElementById('recovery-form').hidden = false;
+    document.getElementById('new-password').focus();
+}
+
+// Enlace magico: Supabase envia un link de un solo uso que abre esta misma
+// pagina con la sesion en la URL; checkExistingSuperadminSession la detecta y
+// redirige al backoffice. shouldCreateUser:false evita crear cuentas nuevas.
+window.handleBackofficeMagicLink = async function handleBackofficeMagicLink() {
+    const btn = document.getElementById('btn-magic');
+    btn.disabled = true;
+    try {
+        const { error } = await backofficeSupabase.auth.signInWithOtp({
+            email: SUPERADMIN_EMAIL,
+            options: { shouldCreateUser: false, emailRedirectTo: backofficeReturnUrl() }
+        });
+        if (error) throw error;
+        showMessage('Enlace enviado a ' + SUPERADMIN_EMAIL + '. Abrelo en este navegador para entrar.', 'success');
+    } catch (err) {
+        showMessage('No se pudo enviar el enlace: ' + err.message, 'error');
+    } finally {
+        setTimeout(() => { btn.disabled = false; }, 30000);
+    }
+};
+
+window.handleBackofficePasswordReset = async function handleBackofficePasswordReset() {
+    try {
+        const { error } = await backofficeSupabase.auth.resetPasswordForEmail(SUPERADMIN_EMAIL, {
+            redirectTo: backofficeReturnUrl({ mode: 'recovery' })
+        });
+        if (error) throw error;
+        showMessage('Te enviamos un email a ' + SUPERADMIN_EMAIL + ' para definir una nueva contrasena.', 'success');
+    } catch (err) {
+        showMessage('No se pudo enviar el email: ' + err.message, 'error');
+    }
+};
+
+window.handleBackofficeNewPassword = async function handleBackofficeNewPassword(event) {
+    event.preventDefault();
+    const btn = document.getElementById('btn-recovery');
+    const password = document.getElementById('new-password').value;
+    btn.classList.add('loading');
+    btn.disabled = true;
+    try {
+        const { data: { session } } = await backofficeSupabase.auth.getSession();
+        if (!session || !isSuperadminEmail(session.user?.email)) {
+            throw new Error('El enlace expiro. Pide uno nuevo con "Restablecer contrasena".');
+        }
+        const { error } = await backofficeSupabase.auth.updateUser({ password });
+        if (error) throw error;
+        showMessage('Contrasena actualizada. Redirigiendo...', 'success');
+        setTimeout(() => { window.location.href = getSafeBackofficeRedirect(); }, 800);
+    } catch (err) {
+        showMessage(err.message, 'error');
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+};
 
 async function checkExistingSuperadminSession() {
     try {
         const { data: { session }, error } = await backofficeSupabase.auth.getSession();
         if (error || !session) return;
+        if (backofficeRecoveryMode) return;
         if (isSuperadminEmail(session.user?.email)) {
             window.location.href = getSafeBackofficeRedirect();
             return;
@@ -102,6 +186,7 @@ function restoreTheme() {
 
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && document.activeElement.tagName !== 'BUTTON') {
+        if (backofficeRecoveryMode) return;
         const form = document.getElementById('login-form');
         if (form) form.dispatchEvent(new Event('submit'));
     }
