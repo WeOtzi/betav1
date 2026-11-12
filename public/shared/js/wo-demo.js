@@ -39,7 +39,7 @@
 (function () {
     'use strict';
 
-    var VERSION = '20261030-2';
+    var VERSION = '20261112-1';
     var KEYS = {
         mode: 'wo_demo_mode',
         store: 'wo_demo_store',
@@ -785,7 +785,15 @@
                 ss(KEYS.suggestDismissed, '1');
                 removeSuggestion();
             });
-            document.body.appendChild(card);
+            // Con un lugar reservado en la página (dashboard), la tarjeta va en
+            // el flujo y nunca tapa contenido (auditoría H7); si no, flota.
+            var slot = document.querySelector('[data-wo-demo-suggest-slot]');
+            if (slot) {
+                card.classList.add('wo-demo-suggest--inline');
+                slot.appendChild(card);
+            } else {
+                document.body.appendChild(card);
+            }
         });
     }
 

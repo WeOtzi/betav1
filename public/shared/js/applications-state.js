@@ -74,7 +74,23 @@
         return label(deriveJb({ status }, null, false));
     }
 
+    // Badge de las confirmaciones "enviada" (auditoría H10). Mientras nadie
+    // decidió ni contraofertó, la confirmación muestra lo que dice el Figma:
+    // «ENVIADA» en Job Board (801:1069) y «EN REVISIÓN» en Spots (801:539).
+    // Una contraoferta pendiente, una decisión o una oportunidad cerrada sí se
+    // muestran con su estado real.
+    function sentBadge(state, kind) {
+        const key = state && typeof state === 'object' ? state.key : state;
+        if (!key || key === 'esperando_respuesta' || key === 'en_revision') {
+            return kind === 'spot'
+                ? { key: 'en_revision', label: LABELS.en_revision }
+                : { key: 'enviada', label: 'Enviada' };
+        }
+        return { key, label: label(key) };
+    }
+
     const api = {
+        sentBadge,
         LABELS,
         pendingClientOffer,
         pendingStudioOffer,

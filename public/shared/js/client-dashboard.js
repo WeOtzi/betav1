@@ -465,7 +465,10 @@ const FEED_STATUS_EVENTS = {
     client_approved: { icon: 'check-circle', text: (artist) => `Tu cotización con ${artist} quedó confirmada` },
     in_progress: { icon: 'check-circle', text: (artist) => `Tu cotización con ${artist} quedó confirmada` },
     artist_completed: { icon: 'check-circle', text: (artist) => `${artist} marcó tu tatuaje como terminado` },
-    completed: { icon: 'check-circle', text: (artist) => `Tu tatuaje con ${artist} quedó finalizado` }
+    completed: { icon: 'check-circle', text: (artist) => `Tu tatuaje con ${artist} quedó finalizado` },
+    // Ronda 3 · P8/P10: avisos in-app de rechazo y vencimiento.
+    cancelled: { icon: 'x-circle', text: (artist) => `${artist} no va a tomar tu solicitud` },
+    expired: { icon: 'clock', text: (artist) => `La propuesta de ${artist} venció` }
 };
 
 async function loadActivityFeed() {
@@ -497,6 +500,24 @@ async function loadActivityFeed() {
                     text: spec.text(artistByQuote[row.quote_id] || 'El artista')
                 });
             });
+
+            // Respuestas del artista a disputas (quotation_disputes, RLS select_parties)
+            try {
+                const { data: disputes } = await WeotziData
+                    .from('quotation_disputes')
+                    .select('quote_id, artist_responded_at')
+                    .in('quote_id', quoteIds)
+                    .not('artist_responded_at', 'is', null)
+                    .order('artist_responded_at', { ascending: false })
+                    .limit(10);
+                (disputes || []).forEach(row => {
+                    events.push({
+                        at: row.artist_responded_at,
+                        icon: 'message-square',
+                        text: `${artistByQuote[row.quote_id] || 'El artista'} respondió tu disputa`
+                    });
+                });
+            } catch (_) { /* sin disputas visibles */ }
 
             // Mensajes del artista sin leer (chat_messages)
             const { data: messages } = await WeotziData

@@ -26,7 +26,7 @@ const ARTIST_PUBLIC_FIELDS_LEGACY = [
     'portafolio'
 ].join(',');
 
-const ARTIST_PUBLIC_FIELDS = `${ARTIST_PUBLIC_FIELDS_LEGACY},studio_id,gallery_feed_items`;
+const ARTIST_PUBLIC_FIELDS = `${ARTIST_PUBLIC_FIELDS_LEGACY},studio_id,gallery_feed_items,vacation_start,vacation_end`;
 
 // Figma 801:1108: grilla de 3 columnas (4 filas en el frame). Nunca menos de 9
 // celdas; con más obras se muestran todas (la galería aparte /artist/profile/gallery
@@ -497,19 +497,60 @@ async function loadTravelPresences(artistUserId) {
 // Estudio del artista + tamaño del roster (único dato de la fila del Figma con
 // fuente real; AMBIENTE y ACCESOS no existen como columnas). El artista del
 // perfil cuenta como residente aunque su vínculo sea solo `studio_id`.
+// Sin foto: iniciales sobre fondo tinta, sin `<img src="">` (auditoría H4).
+function renderAvatarInitials(artisticName) {
+    const avatarImg = document.getElementById('avatar-image');
+    if (avatarImg) {
+        avatarImg.hidden = true;
+        avatarImg.removeAttribute('src');
+        avatarImg.classList.remove('loaded');
+    }
+    const placeholder = document.getElementById('avatar-placeholder');
+    const initialsEl = document.getElementById('avatar-initials');
+    if (!placeholder || !initialsEl) return;
+    const initials = window.ArtistProfilePresentation?.artistInitials
+        ? window.ArtistProfilePresentation.artistInitials(artisticName, artistData?.username)
+        : String(artisticName || 'WO').slice(0, 2).toUpperCase();
+    initialsEl.textContent = initials;
+    initialsEl.setAttribute('aria-label', `Iniciales de ${artisticName}`);
+    initialsEl.hidden = false;
+    placeholder.querySelectorAll('[data-avatar-loading]').forEach((node) => { node.hidden = true; });
+    placeholder.classList.add('has-initials');
+}
+
+// Estudio base: `artists_db.studio_id` y, si ese estudio no se puede leer
+// (RLS, estudio dado de baja o el modo demo, que sirve `studios` desde
+// fixtures), el de la primera membresía activa del artista (auditoría H4).
 async function loadArtistStudio(studioId, artistUserId) {
-    if (!studioId || !WeotziData?.Studios?.getById) return null;
+    if (!WeotziData?.Studios?.getById) return null;
+
+    // `*` y no una lista: así `location_verified` llega cuando la migración
+    // 20261112120000_studio_claim_links está aplicada, sin romper la consulta
+    // mientras la columna no exista (anon ya lee todas las columnas de `studios`).
+    const fetchStudio = async (id) => {
+        const { data, error } = await WeotziData.Studios.getById(id, '*');
+        return !error && data ? data : null;
+    };
 
     try {
-        const { data: studio, error } = await WeotziData.Studios.getById(
-            studioId,
-            // `*` y no una lista: así `location_verified` llega cuando la
-            // migración 20261112120000_studio_claim_links está aplicada, sin
-            // romper la consulta mientras la columna no exista (anon ya lee
-            // todas las columnas de `studios`).
-            '*'
-        );
-        if (error || !studio) return null;
+        let studio = studioId ? await fetchStudio(studioId) : null;
+        const listActive = WeotziData.StudioMemberships?.listActiveForArtist;
+        if (!studio && artistUserId && typeof listActive === 'function') {
+            let memberships = [];
+            try {
+                const result = await listActive.call(WeotziData.StudioMemberships, artistUserId);
+                memberships = Array.isArray(result?.data) ? result.data : [];
+            } catch (membershipError) {
+                console.warn('Studio memberships unavailable:', membershipError);
+            }
+            const pick = window.ArtistProfilePresentation?.pickBaseStudioIds;
+            const ids = pick ? pick(null, memberships) : memberships.map((m) => m?.studio_id).filter(Boolean);
+            for (const id of ids.filter((value) => String(value) !== String(studioId || ''))) {
+                studio = await fetchStudio(id);
+                if (studio) break;
+            }
+        }
+        if (!studio) return null;
 
         let roster = [];
         try {
@@ -549,8 +590,12 @@ function populateProfile() {
     if (artistData.profile_picture) {
         document.getElementById('og-image').content = artistData.profile_picture;
         const avatarImg = document.getElementById('avatar-image');
+        avatarImg.hidden = false;
+        avatarImg.addEventListener('error', () => renderAvatarInitials(artisticName), { once: true });
         avatarImg.src = artistData.profile_picture;
         avatarImg.classList.add('loaded');
+    } else {
+        renderAvatarInitials(artisticName);
     }
 
     setText('artist-name', artisticName);
@@ -576,6 +621,8 @@ function populateProfile() {
         verifiedIcon.hidden = artistData.verification_state !== 'Yes';
     }
 
+    renderVacation();
+    renderSocials(profileExtras, privacy);
     renderGallery();
     renderStyles(styles);
     renderStats();
@@ -588,6 +635,39 @@ function populateProfile() {
     renderActionbar(artisticName);
     setQuoteLinks();
     renderBio();
+}
+
+/* ---------- Vacaciones (Cuenta 801:571) ---------- */
+
+function currentVacation() {
+    const V = window.WoArtistVacation;
+    return V ? V.fromArtist(artistData) : null;
+}
+
+function isOnVacation() {
+    const V = window.WoArtistVacation;
+    return !!(V && V.status(currentVacation()) === 'active');
+}
+
+function renderVacation() {
+    const box = document.getElementById('hero-vacation');
+    const V = window.WoArtistVacation;
+    if (!box || !V) return;
+    const text = V.notice(currentVacation());
+    setText('hero-vacation-text', text);
+    box.hidden = !text;
+}
+
+/* ---------- Redes (Instagram · TikTok · Sitio web) en la ficha "Sobre" ---------- */
+
+function renderSocials(profileExtras, privacy) {
+    const wrapper = document.getElementById('fact-socials');
+    const value = document.getElementById('display-socials');
+    const P = window.ArtistProfilePresentation;
+    if (!wrapper || !value || !P || typeof P.buildSocialLinks !== 'function') return;
+    const links = privacy && privacy.show_socials === false ? [] : P.buildSocialLinks(artistData, profileExtras);
+    value.innerHTML = links.map((link) => `<a href="${escapeHtml(link.href)}" target="_blank" rel="noopener noreferrer me" aria-label="${escapeHtml(link.label)}: ${escapeHtml(link.handle)} (se abre en otra pestaña)">${escapeHtml(link.label)}</a>`).join(' · ');
+    wrapper.hidden = links.length === 0;
 }
 
 function safePublicHttpUrl(value) {
@@ -1241,6 +1321,7 @@ function renderCtaMonths() {
 }
 
 function hasOpenAgenda() {
+    if (isOnVacation()) return false;
     if (tattooLocations.some((location) => location.agenda_status === 'open')) return true;
     const weekly = publicProfilePreferences.availability?.weekly;
     return Array.isArray(weekly) && weekly.some((day) => day?.enabled === true);
@@ -1258,10 +1339,12 @@ function renderActionbar(artisticName) {
     const status = document.getElementById('actionbar-status');
     const heroBadge = document.getElementById('hero-agenda-badge');
 
+    const vacationText = isOnVacation() && window.WoArtistVacation
+        ? window.WoArtistVacation.notice(currentVacation()) : '';
     if (dot) dot.hidden = !isOpen;
     if (status) {
-        status.hidden = !isOpen;
-        status.textContent = isOpen ? 'Agenda abierta' : '';
+        status.hidden = !isOpen && !vacationText;
+        status.textContent = isOpen ? 'Agenda abierta' : vacationText;
     }
     if (heroBadge) heroBadge.hidden = !isOpen;
 }

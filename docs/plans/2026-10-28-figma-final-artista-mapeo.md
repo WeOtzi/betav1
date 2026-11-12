@@ -127,7 +127,7 @@ Para re-auditar una pantalla: tomá el node-id de la tabla, pedí `get_screensho
 | --- | --- | --- | --- | --- |
 | `801:1067` | Job Board - Explorar solicitudes | `/job-board/` | Rediseñada | alta |
 | `801:1068` | Job Board - Detalle y envío de propuesta | `/job-board/?solicitud=JB-45210` | Rediseñada | alta |
-| `801:1069` | Job Board - Propuesta enviada | `/job-board/?solicitud=JB-24872&estado=enviada` | Rediseñada | alta |
+| `801:1069` | Job Board - Propuesta enviada | `/job-board/?solicitud=JB-59407&estado=enviada` (postulación sin contraoferta; JB-24872 tiene una y muestra CONTRAOFERTA RECIBIDA) | Rediseñada | alta |
 | `801:1070` | Postulaciones - Todas las oportunidades (+ instancia 2007:5811) | `/artist/applications/` | Rediseñada | alta |
 | `801:1071` | Postulaciones - Job Board - Variante 01 | `/artist/applications/?tab=jobboard` | Rediseñada | alta |
 | `801:1073` | Postulaciones - Detalle y seguimiento de propuesta | `/artist/applications/?type=jobboard&id=0000c0de-0000-4000-8000-fa2000000002&from=todas` | Rediseñada | alta |
@@ -135,7 +135,7 @@ Para re-auditar una pantalla: tomá el node-id de la tabla, pedí `get_screensho
 | `801:1074` | Postulaciones - Detalle y seguimiento de spot | `/artist/applications/?type=spot&id=0000c0de-0000-4000-8000-fb4000000001&from=spots` | Rediseñada | alta |
 | `801:537` | Spots - Explorar oportunidades | `/studio-spots/` | Rediseñada | alta |
 | `801:538` | Spots - Detalle y postulación | `/studio-spots/?spot=0000c0de-0000-4000-8000-fb3000000006` | Rediseñada | alta |
-| `801:539` | Spots - Solicitud enviada | `/studio-spots/?spot=0000c0de-0000-4000-8000-b10000000003&estado=enviada` | Rediseñada | alta |
+| `801:539` | Spots - Solicitud enviada | `/studio-spots/?spot=0000c0de-0000-4000-8000-b10000000002&estado=enviada` (Bang Bang, sin contraoferta; Costa Ink tiene una pendiente) | Rediseñada | alta |
 
 ## Invitaciones de estudios
 

@@ -1122,3 +1122,16 @@ body.cal-app:has(#calendar-editor:not([hidden])) { background: var(--neutral-100
 .cal-time-column .cal-event.is-compact .cal-event-time-rest,
 .cal-time-column .cal-event.is-client-hidden small { display: none; }
 .cal-time-column .cal-event.is-compact strong { display: block; flex: 1 1 auto; min-width: 0; margin-top: 0; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── calendario · ronda 3 ───────────────────────────────────────────────
+   Diseño propio (sin frame en el Figma): fecha de fin, "Se repite hasta",
+   Travel con ciudad/país y notas sobre el efecto en el cotizador. Reusa la
+   tipografía y los grises de las ayudas del formulario (801:547…554). */
+.cal-field-optional { color: var(--neutral-300); font-family: var(--font-body); letter-spacing: 0; text-transform: none; }
+.cal-field-hint { margin: 0; color: var(--neutral-400); font: 400 0.65rem/1.35 var(--font-body); }
+.cal-client-note { padding-left: var(--space-2); border-left: 0.125rem solid var(--neutral-300); }
+.cal-travel-fields { margin-top: calc(var(--space-2) * -1); }
+.cal-toggle-row:has(input:disabled) { opacity: 0.6; }
+@media (min-width: 64rem) {
+    .cal-field-hint { font-size: 12px; line-height: 16px; }
+}

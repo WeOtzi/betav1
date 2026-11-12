@@ -39,6 +39,61 @@
         { code: 'GBP', name: 'Pound Sterling',symbol: '£',  decimals: 2, units_per_usd: 0.79, units_per_eur: 0.86, is_active: true }
     ];
 
+    // ----------------------------------------------------------------------
+    // Monedas de los países del listado (revisión del dueño, 12 nov 2026:
+    // "que las monedas sean las que se manejan únicamente en el listado de
+    // países"). ÚNICA fuente del frontend para todos los selectores de moneda.
+    // Mismas 24 monedas, nombres, orden y agrupación que el registro
+    // (public/register-artist/catalogo-registro.js). El servidor las expone en
+    // lib/registration-catalogs.js (REGISTRATION_CURRENCIES); tests/monedas.test.js
+    // verifica que coincidan exactamente.
+    // ----------------------------------------------------------------------
+    var CURRENCY_REGIONS = Object.freeze(['Américas', 'Europa', 'Asia y Oceanía']);
+    var EXTRA_REGION = 'Otras';
+
+    var COUNTRY_CURRENCIES = Object.freeze([
+        { code: 'USD', name: 'Dólar estadounidense', region: 'Américas' },
+        { code: 'CAD', name: 'Dólar canadiense', region: 'Américas' },
+        { code: 'MXN', name: 'Peso mexicano', region: 'Américas' },
+        { code: 'CRC', name: 'Colón costarricense', region: 'Américas' },
+        { code: 'COP', name: 'Peso colombiano', region: 'Américas' },
+        { code: 'VES', name: 'Bolívar venezolano', region: 'Américas' },
+        { code: 'PEN', name: 'Sol peruano', region: 'Américas' },
+        { code: 'BRL', name: 'Real brasileño', region: 'Américas' },
+        { code: 'ARS', name: 'Peso argentino', region: 'Américas' },
+        { code: 'CLP', name: 'Peso chileno', region: 'Américas' },
+        { code: 'UYU', name: 'Peso uruguayo', region: 'Américas' },
+        { code: 'EUR', name: 'Euro', region: 'Europa' },
+        { code: 'GBP', name: 'Libra esterlina', region: 'Europa' },
+        { code: 'CHF', name: 'Franco suizo', region: 'Europa' },
+        { code: 'DKK', name: 'Corona danesa', region: 'Europa' },
+        { code: 'NOK', name: 'Corona noruega', region: 'Europa' },
+        { code: 'SEK', name: 'Corona sueca', region: 'Europa' },
+        { code: 'PLN', name: 'Esloti polaco', region: 'Europa' },
+        { code: 'KRW', name: 'Won surcoreano', region: 'Asia y Oceanía' },
+        { code: 'THB', name: 'Baht tailandés', region: 'Asia y Oceanía' },
+        { code: 'IDR', name: 'Rupia indonesia', region: 'Asia y Oceanía' },
+        { code: 'JPY', name: 'Yen japonés', region: 'Asia y Oceanía' },
+        { code: 'AUD', name: 'Dólar australiano', region: 'Asia y Oceanía' },
+        { code: 'NZD', name: 'Dólar neozelandés', region: 'Asia y Oceanía' }
+    ].map(function (c) { return Object.freeze(c); }));
+
+    var COUNTRY_CURRENCY_BY_CODE = {};
+    COUNTRY_CURRENCIES.forEach(function (c) { COUNTRY_CURRENCY_BY_CODE[c.code] = c; });
+
+    // Las monedas del listado que no traen tasa en el respaldo offline se
+    // siembran sin tasa: convert() devuelve null y cada importe se muestra en
+    // su moneda original (nunca una tasa inventada). Con /api/currencies las 24
+    // tienen tasa (tabla currencies del proyecto vivo, 12 nov 2026).
+    (function () {
+        var known = {};
+        FALLBACK_CATALOG.forEach(function (c) { known[c.code] = true; });
+        COUNTRY_CURRENCIES.forEach(function (c) {
+            if (known[c.code]) return;
+            FALLBACK_CATALOG.push({ code: c.code, name: c.name, symbol: null, decimals: 2, units_per_usd: null, units_per_eur: null, is_active: true });
+        });
+    })();
+
     var state = {
         byCode: {},
         list: [],
@@ -272,6 +327,157 @@
     }
 
     // ----------------------------------------------------------------------
+    // Selectores de moneda (lista de países)
+    // ----------------------------------------------------------------------
+
+    function _esc(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+        });
+    }
+
+    // Código ISO-like en mayúsculas o '' (acepta 3-4 letras: datos viejos).
+    function normalizeCurrencyCode(code) {
+        var c = String(code == null ? '' : code).trim().toUpperCase();
+        return /^[A-Z]{3,4}$/.test(c) ? c : '';
+    }
+
+    function isCountryCurrency(code) {
+        return Object.prototype.hasOwnProperty.call(COUNTRY_CURRENCY_BY_CODE, normalizeCurrencyCode(code));
+    }
+
+    function countryCurrencyName(code) {
+        var hit = COUNTRY_CURRENCY_BY_CODE[normalizeCurrencyCode(code)];
+        return hit ? hit.name : null;
+    }
+
+    /**
+     * Texto de cada opción. label:
+     *   'name' (default) -> "Peso argentino (ARS)"  (como el registro)
+     *   'code'           -> "ARS"
+     *   'code-name'      -> "ARS · Peso argentino"
+     *   function(c)      -> string libre; c = { code, name, region, extra }
+     */
+    function currencyOptionLabel(c, label) {
+        if (typeof label === 'function') return String(label(c));
+        if (c.extra || !c.name || c.name === c.code) return c.code;
+        if (label === 'code') return c.code;
+        if (label === 'code-name') return c.code + ' · ' + c.name;
+        return c.name + ' (' + c.code + ')';
+    }
+
+    /**
+     * HTML de las opciones: las 24 monedas agrupadas por región (optgroup) y,
+     * si el valor guardado no está en la lista (p. ej. una cotización vieja en
+     * BOB), un grupo "Otras" con ese valor para no perder el dato.
+     *
+     * opts: { value, extra: [codes], placeholder: 'Elegí una moneda',
+     *         leading: [{ value, label }], label }
+     */
+    function countryCurrencyOptionsHtml(opts) {
+        opts = opts || {};
+        var raw = opts.value == null ? '' : String(opts.value).trim();
+        var leading = Array.isArray(opts.leading) ? opts.leading : [];
+        var isLeading = leading.some(function (l) { return String(l.value) === raw; });
+        var selected = isLeading ? raw : normalizeCurrencyCode(raw);
+        var html = '';
+
+        if (opts.placeholder != null) {
+            html += '<option value=""' + (selected === '' ? ' selected' : '') + '>' + _esc(opts.placeholder) + '</option>';
+        }
+        leading.forEach(function (l) {
+            var v = String(l.value);
+            html += '<option value="' + _esc(v) + '"' + (v === selected ? ' selected' : '') + '>' + _esc(l.label != null ? l.label : v) + '</option>';
+        });
+        CURRENCY_REGIONS.forEach(function (region) {
+            html += '<optgroup label="' + _esc(region) + '">';
+            COUNTRY_CURRENCIES.forEach(function (c) {
+                if (c.region !== region) return;
+                html += '<option value="' + c.code + '"' + (c.code === selected ? ' selected' : '') + '>'
+                    + _esc(currencyOptionLabel(c, opts.label)) + '</option>';
+            });
+            html += '</optgroup>';
+        });
+
+        var extras = [];
+        (isLeading ? [] : [selected]).concat(Array.isArray(opts.extra) ? opts.extra : []).forEach(function (code) {
+            var c = normalizeCurrencyCode(code);
+            if (c && !isCountryCurrency(c) && extras.indexOf(c) === -1) extras.push(c);
+        });
+        if (extras.length) {
+            html += '<optgroup label="' + _esc(EXTRA_REGION) + '" data-wo-currency-extra="">';
+            extras.forEach(function (code) {
+                html += '<option value="' + _esc(code) + '"' + (code === selected ? ' selected' : '') + '>'
+                    + _esc(currencyOptionLabel({ code: code, name: code, region: EXTRA_REGION, extra: true }, opts.label)) + '</option>';
+            });
+            html += '</optgroup>';
+        }
+        return html;
+    }
+
+    function _resolveSelect(select) {
+        if (select && typeof select === 'string' && typeof document !== 'undefined') {
+            return document.getElementById(select) || document.querySelector(select);
+        }
+        return select || null;
+    }
+
+    function _refreshControl(select) {
+        try {
+            if (window.WoControls && typeof window.WoControls.refresh === 'function') window.WoControls.refresh(select);
+        } catch (e) { /* el select nativo sigue funcionando */ }
+    }
+
+    /**
+     * Llena un <select> con las 24 monedas del listado de países (mismas
+     * opciones que countryCurrencyOptionsHtml). Si no se pasa opts.value,
+     * conserva el valor que tenía el select. Refresca el control del DS.
+     */
+    function fillCurrencySelect(select, opts) {
+        var el = _resolveSelect(select);
+        if (!el) return null;
+        opts = opts || {};
+        var value = Object.prototype.hasOwnProperty.call(opts, 'value') ? opts.value : el.value;
+        var merged = {};
+        Object.keys(opts).forEach(function (k) { merged[k] = opts[k]; });
+        merged.value = value;
+        el.innerHTML = countryCurrencyOptionsHtml(merged);
+        var selectedOpt = el.querySelector('option[selected]');
+        el.value = selectedOpt ? selectedOpt.value : (el.options[0] ? el.options[0].value : '');
+        _refreshControl(el);
+        return el;
+    }
+
+    /**
+     * Fija el valor de un select ya llenado. Si el código no está entre las
+     * opciones (dato viejo), lo agrega al grupo "Otras" en vez de perderlo.
+     */
+    function setCurrencySelectValue(select, code, opts) {
+        var el = _resolveSelect(select);
+        if (!el) return null;
+        opts = opts || {};
+        var raw = code == null ? '' : String(code).trim();
+        var value = Array.prototype.some.call(el.options, function (o) { return o.value === raw; })
+            ? raw : normalizeCurrencyCode(raw);
+        if (value && !Array.prototype.some.call(el.options, function (o) { return o.value === value; })) {
+            var group = el.querySelector('optgroup[data-wo-currency-extra]');
+            if (!group) {
+                group = document.createElement('optgroup');
+                group.label = EXTRA_REGION;
+                group.setAttribute('data-wo-currency-extra', '');
+                el.appendChild(group);
+            }
+            var opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = currencyOptionLabel({ code: value, name: value, region: EXTRA_REGION, extra: true }, opts.label);
+            group.appendChild(opt);
+        }
+        el.value = value;
+        _refreshControl(el);
+        return el;
+    }
+
+    // ----------------------------------------------------------------------
     // Currency switcher widget
     // ----------------------------------------------------------------------
     // Renders a compact dropdown the user can use to choose how prices are
@@ -343,31 +549,13 @@
         select.id = 'weotzi-currency-select';
         select.setAttribute('aria-label', 'Display currency preference');
 
+        // Solo las monedas del listado de países (no las ~160 del catálogo de tasas).
         function rebuildOptions() {
-            select.innerHTML = '';
-            var optLocal = document.createElement('option');
-            optLocal.value = 'local';
-            optLocal.textContent = 'Local';
-            select.appendChild(optLocal);
-            var seen = { LOCAL: true };
-            var preferred = ['USD', 'EUR'];
-            preferred.forEach(function (code) {
-                if (state.byCode[code]) {
-                    var opt = document.createElement('option');
-                    opt.value = code;
-                    opt.textContent = code;
-                    select.appendChild(opt);
-                    seen[code] = true;
-                }
+            fillCurrencySelect(select, {
+                value: getDisplayPreference(),
+                leading: [{ value: 'local', label: 'Local' }],
+                label: 'code'
             });
-            state.list.forEach(function (c) {
-                if (seen[c.code]) return;
-                var opt = document.createElement('option');
-                opt.value = c.code;
-                opt.textContent = c.code;
-                select.appendChild(opt);
-            });
-            select.value = getDisplayPreference();
         }
 
         rebuildOptions();
@@ -421,10 +609,24 @@
         setDisplayPreference: setDisplayPreference,
         resolveDisplayCurrency: resolveDisplayCurrency,
         mount: mount,
-        STORAGE_KEY: STORAGE_KEY
+        STORAGE_KEY: STORAGE_KEY,
+        // Lista de monedas de los países (fuente única de los selectores)
+        COUNTRY_CURRENCIES: COUNTRY_CURRENCIES,
+        CURRENCY_REGIONS: CURRENCY_REGIONS,
+        isCountryCurrency: isCountryCurrency,
+        countryCurrencyName: countryCurrencyName,
+        normalizeCurrencyCode: normalizeCurrencyCode,
+        countryCurrencyOptionsHtml: countryCurrencyOptionsHtml,
+        fillCurrencySelect: fillCurrencySelect,
+        setCurrencySelectValue: setCurrencySelectValue
     };
 
     window.WeOtziCurrency = api;
+    // Alias corto pedido en la revisión (mismo objeto).
+    if (!window.CurrencyUtils) window.CurrencyUtils = api;
+
+    if (typeof module === 'object' && module && module.exports) module.exports = api;
+    if (typeof document === 'undefined') return;
 
     function _bootstrap() {
         init().then(function () {
@@ -442,4 +644,4 @@
     } else {
         _bootstrap();
     }
-})(window);
+})(typeof window !== 'undefined' ? window : globalThis);

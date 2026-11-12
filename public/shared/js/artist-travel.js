@@ -88,6 +88,9 @@
     let pendingShareSlug = null;
     let pendingShareTripId = null;
     let travelStudioCoordinates = [];
+    // Sedes del estudio base del artista: ubican "Tu base" cuando su ciudad no
+    // está en el catálogo ni se pudo geocodificar (auditoría H1).
+    let baseStudioCoordinates = [];
     let travelCityCoordinates = TRAVEL_CITY_COORDINATES.map((row) => ({ ...row }));
     let selectedGlobeTripId = null;
     // Parada que eligió el artista (?parada=, agenda, cronología o globo). Si un
@@ -457,10 +460,11 @@
         try {
             const { data: row } = await D.Artists.getByUserId(
                 session.user.id,
-                'user_id, name, username, city, country, latitude, longitude'
+                'user_id, name, username, city, country, latitude, longitude, country_code, studio_id'
             );
             artist = row || null;
         } catch (err) { artist = null; }
+        await hydrateBaseStudioCoordinates();
 
         await loadTrips();
         routeFromUrl();
@@ -516,12 +520,53 @@
         return true;
     }
 
+    // Sedes activas del estudio base (artists_db.studio_id). Degrada a [] si
+    // no hay estudio, RLS o red: la base cae a la capital del país.
+    async function hydrateBaseStudioCoordinates() {
+        baseStudioCoordinates = [];
+        const studioId = artist?.studio_id;
+        if (!studioId || typeof D.StudioLocations?.listActiveByStudio !== 'function') return;
+        try {
+            const { data, error } = await D.StudioLocations.listActiveByStudio(
+                studioId,
+                'studio_id, is_active, is_primary, latitude, longitude, city, country'
+            );
+            if (error) throw error;
+            baseStudioCoordinates = (data || []).filter((row) => {
+                const lat = Number(row.latitude);
+                const lng = Number(row.longitude);
+                return Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
+            });
+        } catch (err) {
+            console.warn('[travel] sedes del estudio base no disponibles:', err);
+        }
+    }
+
+    // Geocodifica la ciudad base del artista si no tiene lat/lng propias ni
+    // figura en el catálogo (p. ej. "Pilar, Argentina").
+    async function hydrateArtistBaseCoordinate(geocoder) {
+        const city = String(artist?.city || '').trim();
+        const country = String(artist?.country || '').trim();
+        if (!city || !country) return;
+        if (Number.isFinite(Number(artist?.latitude)) && artist?.latitude != null
+            && Number.isFinite(Number(artist?.longitude)) && artist?.longitude != null) return;
+        const key = `${normalize(city)}|${normalize(country)}`;
+        if (travelCityCoordinates.some((row) => `${normalize(row.city)}|${normalize(row.country)}` === key)) return;
+        try {
+            const point = await geocoder.geocodeQuery(`${city}, ${country}`);
+            if (point) rememberTravelCityCoordinate({ city, country, latitude: point.lat, longitude: point.lng });
+        } catch (err) {
+            console.warn('[travel] no pudimos geocodificar la base:', err);
+        }
+    }
+
     async function hydrateTravelCityCoordinates() {
         const geocoder = window.WeOtziGeocoder;
         const model = window.TravelDashboardModel;
         if (!geocoder?.geocodeQuery || !model?.buildMissingDestinationQueries) return;
         const apiConfigured = Boolean(window.CONFIG?.googleMaps?.apiKey) || geocoder.hasGoogleApi?.() === true;
         if (!apiConfigured) return;
+        await hydrateArtistBaseCoordinate(geocoder);
         const normalizedTrips = trips.map((trip) => ({ ...trip, status: dStatus(trip) }));
         const queries = model.buildMissingDestinationQueries(
             normalizedTrips,
@@ -714,11 +759,42 @@
         $('tv-hero-meta').textContent = `${fmtShortHero(t.start_date)} – ${fmtShortHero(t.end_date)} · ${TYPE_LABELS[t.trip_type] || t.trip_type}`;
         const metrics = window.TravelDashboardModel.buildDestinationMetrics(t, { today: today() });
         $('tv-stat-days').textContent = isOngoing(t) ? 'Hoy' : (metrics.daysRemaining == null ? '—' : String(metrics.daysRemaining));
-        $('tv-stat-interested').textContent = metrics.interestedPeople == null ? '—' : String(metrics.interestedPeople);
         $('tv-stat-stay').textContent = metrics.stayDays == null ? '—' : String(metrics.stayDays);
+        // "Clima": nadie lo calcula (requiere una API externa de clima que no
+        // se integró); si el viaje no trae el dato, el indicador no se muestra.
+        const climateStat = $('tv-stat-climate').closest('.tvl-hero-stat');
+        if (climateStat) climateStat.hidden = metrics.climateCelsius == null;
         $('tv-stat-climate').textContent = metrics.climateCelsius == null ? '—' : `${metrics.climateCelsius}°`;
         $('tv-stat-climate-city').textContent = t.city || '—';
+        renderInterestedPeople(t, metrics.interestedPeople);
         $('tv-stat-studios').textContent = metrics.confirmedStudioCount == null ? '—' : String(metrics.confirmedStudioCount);
+    }
+
+    // KPI "Personas interesadas" (801:1076): dato persistido o, si no hay,
+    // la RPC count_trip_interested_people. Sin dato, el indicador se oculta.
+    const interestCache = new Map();
+    function renderInterestedPeople(trip, persisted) {
+        const valueEl = $('tv-stat-interested');
+        const stat = valueEl && valueEl.closest('.tvl-hero-stat');
+        const paint = (n) => {
+            if (!valueEl) return;
+            valueEl.textContent = n == null ? '—' : String(n);
+            if (stat) stat.hidden = n == null;
+        };
+        if (persisted != null && persisted > 0) { paint(persisted); return; }
+        if (interestCache.has(trip.id)) { paint(interestCache.get(trip.id)); return; }
+        paint(null);
+        const repo = D && D.Travel;
+        if (!repo || typeof repo.countInterestedPeople !== 'function' || !trip.id) return;
+        repo.countInterestedPeople(trip.id)
+            .then((n) => {
+                interestCache.set(trip.id, n);
+                if (nextTrip() && nextTrip().id === trip.id) paint(n);
+            })
+            .catch((err) => {
+                interestCache.set(trip.id, null);
+                console.warn('[travel] personas interesadas:', err && err.message);
+            });
     }
 
     function renderHeadline() {
@@ -789,6 +865,7 @@
             })),
             studioLocations: travelStudioCoordinates.map((location) => ({ ...location, studio_id: location.id })),
             cityCoordinates: travelCityCoordinates,
+            baseStudioLocations: baseStudioCoordinates,
             selectedStopId: explicitGlobeTripId || '',
         });
         selectedGlobeTripId = globalGlobe.selectedId;
@@ -857,7 +934,10 @@
     // Tattoo passport: agregación client-side de viajes finalizados por ciudad.
     function renderPassport() {
         let stamps;
-        if (Array.isArray(passportStamps)) {
+        // Sellos persistidos solo si hay alguno: artist_travel_passport_stamps
+        // hoy no tiene escritor y llega vacía, así que se derivan de los viajes
+        // finalizados (801:1076).
+        if (window.TravelDashboardModel.usePersistedPassport(passportStamps)) {
             stamps = passportStamps.map((stamp) => ({
                 city: stamp.city,
                 country: stamp.country,

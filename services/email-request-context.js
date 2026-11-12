@@ -5,11 +5,18 @@ const { resolveBearerUser, verifyAdminCaller } = require('../lib/auth/supabase-a
 const { deliveryKey } = require('./email-delivery-ledger');
 
 const ADMIN_EVENTS = new Set(['profile_verified', 'profile_verification_denied', 'ambassador_status_updated', 'platform_update', 'password_reset_temp']);
-const ARTIST_EVENTS = new Set(['artist_responded_quotation', 'chat_message_to_client', 'request_rating', 'session_scheduled', 'session_rescheduled', 'session_completed', 'session_cancelled']);
+const ARTIST_EVENTS = new Set(['artist_responded_quotation', 'chat_message_to_client', 'request_rating', 'session_scheduled', 'session_rescheduled', 'session_completed', 'session_cancelled',
+    'artist_rejected_quotation', 'quotation_ready_for_client', 'dispute_artist_response']);
+// Avisos al cliente (ronda 3 · P8): solo salen si la cotización guardada está
+// en el estado que anuncian (no se puede avisar un rechazo que no ocurrió).
+const REQUIRED_QUOTE_STATUS = {
+    artist_rejected_quotation: ['cancelled'],
+    quotation_ready_for_client: ['artist_completed']
+};
 const CLIENT_EVENTS = new Set(['client_approved_quotation', 'client_rejected_quotation', 'client_left_rating', 'chat_message_to_artist']);
 // Sent only by trusted server routes (they carry secrets such as verification codes).
 // Without this guard they would fall through to the quotation branch below.
-const SERVER_ONLY_EVENTS = new Set(['instagram_verification_code']);
+const SERVER_ONLY_EVENTS = new Set(['instagram_verification_code', 'quotation_expired', 'artist_calendar_reminder', 'artist_support_decision']);
 const fail = (status, error) => ({ ok: false, status, error });
 const same = (left, right) => !!left && !!right && String(left).toLowerCase() === String(right).toLowerCase();
 
@@ -126,9 +133,22 @@ async function resolveEmailContext(req, eventId, input, deps = {}) {
             return fail(403, 'Esta cotización no corresponde a tu cuenta.');
         }
     }
+    if (REQUIRED_QUOTE_STATUS[eventId] && !REQUIRED_QUOTE_STATUS[eventId].includes(quote.quote_status)) {
+        return fail(409, 'El estado de la cotización cambió. No se envió el aviso.');
+    }
     let entity = quote.quote_id;
     let persisted = {};
-    if (eventId.startsWith('chat_message_')) {
+    if (eventId === 'dispute_artist_response') {
+        if (!payload.dispute_id) return fail(400, 'Falta la disputa asociada al correo.');
+        const dispute = await lookup('quotation_disputes', { id: payload.dispute_id, quotation_id: quote.id });
+        if (!dispute || !String(dispute.artist_response || '').trim()) return fail(409, 'Guardá la respuesta antes de enviar el aviso.');
+        entity += `:dispute:${dispute.id}:${dispute.artist_responded_at || ''}`;
+        persisted = {
+            dispute_id: dispute.id, dispute_title: dispute.title || '',
+            artist_response: String(dispute.artist_response).slice(0, 1000),
+            support_email: process.env.SUPPORT_EMAIL || ''
+        };
+    } else if (eventId.startsWith('chat_message_')) {
         const message = payload.message_id ? await lookup('chat_messages', { id: payload.message_id, quotation_id: quote.quote_id, sender_id: user.id })
             : deps.latestMessage ? await deps.latestMessage(quote.quote_id, user.id)
             : (await pgrest('chat_messages').select('*').eq('quotation_id', quote.quote_id).eq('sender_id', user.id).order('created_at', { ascending: false }).limit(1).execute())[0];

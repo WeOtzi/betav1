@@ -91,6 +91,22 @@
             );
         },
 
+        // El cliente abrió la propuesta: pending → viewed (801:1070/1073). Solo
+        // pisa 'pending' (idempotente; nunca toca accepted/rejected/withdrawn).
+        // Lo permite el guard 20261112150000 al cliente dueño del pedido. Desde
+        // ese momento el artista ya no puede editarla. Devuelve true si cambió.
+        async markViewed(applicationId) {
+            if (!applicationId) return false;
+            const { data } = await run('jobboard.applications.markViewed', (c) =>
+                c.from('job_board_applications')
+                    .update({ status: 'viewed' })
+                    .eq('id', applicationId)
+                    .eq('status', 'pending')
+                    .select('id, status')
+            );
+            return Array.isArray(data) ? data.length > 0 : !!data;
+        },
+
         // Rechazo por el cliente (el accept va por el endpoint del server).
         async reject(applicationId) {
             await run('jobboard.applications.reject', (c) =>

@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>We Ötzi · Creá tu cuenta</title>
+    <!-- Revisión 12/11: entradas sutiles al cargar. La clase solo se pone si
+         el navegador acepta movimiento; sin JS no se oculta nada. -->
+    <script>try{if(!window.matchMedia||!window.matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('wo-motion-in')}catch(e){}</script>
 
     <!-- Microsoft Clarity - Behavior Analytics -->
     <!-- Activates only when window.CLARITY_PROJECT_ID is set to a real ID. -->

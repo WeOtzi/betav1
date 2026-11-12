@@ -210,19 +210,22 @@
         const safe = async (fn) => {
             try { return (await fn()) || { data: [], error: null }; } catch (error) { return { data: [], error }; }
         };
-        const [pending, active, rejected, contacts] = await Promise.all([
+        const [pending, active, rejected, contacts, changes] = await Promise.all([
             safe(() => repo.listPendingForArtist(state.userId)),
             safe(() => repo.listActiveForArtist(state.userId)),
             safe(() => (typeof repo.listRejectedForArtist === 'function' ? repo.listRejectedForArtist(state.userId) : null)),
             safe(() => (D.Invitations ? D.Invitations.listStudioContacts() : null)),
+            // ── integracion ── solicitudes de cambio abiertas (801:1101).
+            safe(() => (typeof repo.listOpenChangeRequestsForArtist === 'function' ? repo.listOpenChangeRequestsForArtist(state.userId) : null)),
         ]);
+        const openChanges = changes.error || typeof M.openChangeRequests !== 'function' ? {} : M.openChangeRequests(changes.data || []);
         const firstError = pending.error || active.error || rejected.error;
         if (firstError) {
             renderLoadError(firstError.message || 'No pudimos cargar las invitaciones.');
             state.items = [];
         } else {
             state.items = [
-                ...(pending.data || []).map((m) => ({ ...m, _state: 'pending' })),
+                ...(pending.data || []).map((m) => ({ ...m, _state: 'pending', _changeRequest: openChanges[String(m.id)] || null })),
                 ...(active.data || []).map((m) => ({ ...m, _state: 'active' })),
                 ...(rejected.data || []).map((m) => ({ ...m, _state: 'rejected' })),
             ];
@@ -315,7 +318,7 @@
     }
 
     function openDrawerFromQuery(item, drawer) {
-        if (drawer === 'cambios' && item._state === 'pending') showChangeRequestDrawer(item, null);
+        if (drawer === 'cambios' && item._state === 'pending' && !changePending(item)) showChangeRequestDrawer(item, null);
         else if (drawer === 'aceptada' && item._state === 'active') showAcceptedDrawer(item, null);
         else if (drawer === 'rechazada' && item._state === 'rejected') showRejectedDrawer(item, null);
     }
@@ -609,6 +612,7 @@
         return `
             <div class="inv-detail-kicker">
                 <span class="inv-detail-status inv-detail-status--${escapeHtml(membership._state)}">${escapeHtml(stateLabel(membership._state))}</span>
+                ${changePending(membership) ? `<span class="inv-detail-status inv-detail-status--changes">${escapeHtml(M.CHANGE_PENDING_LABEL)}</span>` : ''}
                 ${locationText(membership) ? `<span class="inv-detail-place">${icon('map-pin')}${escapeHtml(locationText(membership))}</span>` : ''}
             </div>
             <h1 class="inv-detail-title">${escapeHtml(studioName(membership))}</h1>
@@ -632,11 +636,29 @@
             </section>` : ''}`;
     }
 
+    // ── integracion ── 801:1101: hay una solicitud de cambios sin responder.
+    function changePending(membership) {
+        return Boolean(membership && membership._state === 'pending' && membership._changeRequest && M.CHANGE_PENDING_LABEL);
+    }
+
+    function changeRequestNotice(membership) {
+        if (!changePending(membership)) return '';
+        const req = membership._changeRequest;
+        const when = M.longDate(req.created_at);
+        return `<section class="inv-aside-section inv-change-pending" role="status">
+                <span class="inv-key">${escapeHtml(M.CHANGE_PENDING_LABEL)}</span>
+                <p class="inv-change-pending-copy">${when ? `Enviaste tu propuesta el ${escapeHtml(when)}. ` : ''}Te avisamos en tu Inbox cuando ${escapeHtml(studioName(membership))} responda.</p>
+                ${req.message ? `<blockquote class="inv-change-pending-msg">“${escapeHtml(req.message)}”</blockquote>` : ''}
+            </section>`;
+    }
+
     function detailAside(membership) {
         const details = detailsOf(membership);
         const studio = studioOf(membership);
         const sub = membership._state === 'pending'
-            ? 'El estudio te seleccionó. Revisá las condiciones y respondé.'
+            ? (changePending(membership)
+                ? 'Pediste cambios en las condiciones. Mientras el estudio responde, podés aceptar o rechazar igual.'
+                : 'El estudio te seleccionó. Revisá las condiciones y respondé.')
             : membership._state === 'active'
                 ? 'Ya formás parte del roster de este estudio.'
                 : 'Rechazaste esta invitación. El estudio puede volver a invitarte.';
@@ -645,7 +667,7 @@
             actions = `
                 <button type="button" class="inv-aside-btn inv-aside-btn--primary" data-action="accept" data-id="${escapeHtml(membership.id)}">${icon('check')} Aceptar invitación</button>
                 <button type="button" class="inv-aside-btn inv-aside-btn--outline" data-action="contact" data-id="${escapeHtml(membership.id)}">${icon('message-circle')} Contactar al estudio</button>
-                <button type="button" class="inv-aside-btn" data-action="request-changes" data-id="${escapeHtml(membership.id)}">${icon('edit')} Solicitar cambios</button>
+                ${changePending(membership) ? '' : `<button type="button" class="inv-aside-btn" data-action="request-changes" data-id="${escapeHtml(membership.id)}">${icon('edit')} Solicitar cambios</button>`}
                 <button type="button" class="inv-aside-btn" data-action="reject" data-id="${escapeHtml(membership.id)}">${icon('x')} Rechazar invitación</button>`;
         } else {
             actions = `
@@ -661,6 +683,7 @@
                 <div class="inv-aside-row"><span class="inv-key">Fecha límite</span><span class="inv-aside-value">${escapeHtml(M.longDate(details.responseDueAt) || 'Sin fecha límite')}</span></div>
                 <div class="inv-aside-row"><span class="inv-key">Contacto</span><span class="inv-aside-value">${escapeHtml(details.contactName || studioName(membership))}</span></div>
             </div>
+            ${changeRequestNotice(membership)}
             ${membership._state === 'pending' && details.steps.length ? `<section class="inv-aside-section"><span class="inv-key">Si aceptás</span><ul class="inv-accept-list">${details.steps.map((step) => `<li>${icon('arrow-right')}<span>${escapeHtml(step)}</span></li>`).join('')}</ul></section>` : ''}
             <div class="inv-aside-actions">${actions}</div>`;
     }
@@ -795,7 +818,8 @@
                 <p class="inv-change-copy">Contale al estudio qué te gustaría ajustar antes de aceptar.</p>
                 <form class="inv-change-form" id="inv-change-form" novalidate>
                     <label class="inv-key" for="inv-change-message">Tu propuesta de cambios</label>
-                    <textarea class="inv-change-textarea" id="inv-change-message" name="message" required maxlength="2000" placeholder="Ej: ¿podríamos mover las fechas dos semanas y subir el split a 45/55?"></textarea>
+                    <textarea class="inv-change-textarea" id="inv-change-message" name="message" required minlength="10" maxlength="1000" aria-describedby="inv-change-count inv-change-error" placeholder="Ej: ¿podríamos mover las fechas dos semanas y subir el split a 45/55?"></textarea>
+                    <p class="inv-key inv-change-count" id="inv-change-count" aria-live="polite">0 / 1000 · mínimo 10</p>
                     <p class="inv-drawer-error" id="inv-change-error" role="alert" hidden></p>
                     <div class="inv-change-actions">
                         <button class="inv-change-submit" type="submit">Enviar propuesta ${icon('send')}</button>
@@ -806,20 +830,39 @@
         const form = document.getElementById('inv-change-form');
         const textarea = document.getElementById('inv-change-message');
         textarea?.focus();
+        const countEl = document.getElementById('inv-change-count');
+        textarea?.addEventListener('input', () => {
+            if (countEl) countEl.textContent = `${M.changeRequestCount(textarea.value)} · mínimo ${M.CHANGE_MIN}`;
+            textarea.removeAttribute('aria-invalid');
+        });
         form?.addEventListener('submit', async (event) => {
             event.preventDefault();
-            const message = textarea.value.trim();
             const errorEl = document.getElementById('inv-change-error');
             const submit = form.querySelector('[type="submit"]');
-            const fail = (text) => { errorEl.textContent = text; errorEl.hidden = false; };
-            if (!message) { fail('Escribí los cambios que querés proponer.'); textarea.focus(); return; }
+            const fail = (text) => { errorEl.textContent = text; errorEl.hidden = false; textarea.setAttribute('aria-invalid', 'true'); };
+            const check = M.validateChangeRequest(textarea.value);
+            if (!check.ok) { fail(check.error); textarea.focus(); return; }
+            const message = check.message;
             const repo = D.StudioMemberships;
             if (!repo || typeof repo.requestChanges !== 'function') { fail('La propuesta no está disponible en este momento.'); return; }
             setBusy(submit, true);
             let result;
             try { result = await D.StudioMemberships.requestChanges(membership.id, state.userId, message); } catch (error) { result = { error }; }
             setBusy(submit, false);
-            if (result && result.error) { fail(result.error.message || 'No pudimos enviar tu propuesta.'); return; }
+            if (result && result.error) {
+                console.warn('[invitations] solicitar cambios:', result.error);
+                fail(M.changeRequestError(result.error));
+                return;
+            }
+            // ── integracion ── el detalle pasa a «Cambios solicitados · esperando al estudio».
+            const stored = findItem(membership.id) || membership;
+            stored._changeRequest = { status: 'pending', message, created_at: new Date().toISOString(), membership_id: membership.id };
+            if (state.current && String(state.current.id) === String(membership.id)) {
+                renderDetail(stored);
+                // El botón «Solicitar cambios» ya no existe: el foco vuelve al aviso.
+                const notice = document.querySelector('#inv-detail-view .inv-change-pending');
+                if (notice) { notice.setAttribute('tabindex', '-1'); state.returnFocus = notice; }
+            }
             document.dispatchEvent(new CustomEvent('weotzi:invitation-change-requested', {
                 detail: { membershipId: membership.id, studioId: studioOf(membership).id || null },
             }));

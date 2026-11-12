@@ -34,12 +34,10 @@
     // Tope de filas de WeotziData.Store.listSellerOrders.
     const SELLER_ORDERS_LIMIT = 300;
 
-    // Monedas del catálogo de currency-utils (la base valida contra currencies).
-    const CURRENCIES = [
-        ['USD', 'Dólar estadounidense'], ['ARS', 'Peso argentino'], ['EUR', 'Euro'], ['MXN', 'Peso mexicano'],
-        ['CLP', 'Peso chileno'], ['COP', 'Peso colombiano'], ['UYU', 'Peso uruguayo'], ['PEN', 'Sol peruano'],
-        ['BRL', 'Real brasileño']
-    ];
+    // Monedas: las del listado de países (WeOtziCurrency.COUNTRY_CURRENCIES en
+    // currency-utils.js; las 24 existen en la tabla currencies, contra la que
+    // valida la base). Respaldo mínimo si ese script no cargó.
+    const CURRENCIES_FALLBACK = [['USD', 'Dólar estadounidense'], ['ARS', 'Peso argentino'], ['EUR', 'Euro']];
 
     // Países de envío: los 249 de WeotziStoreModel.COUNTRY_CODES. Primero los
     // más elegidos (Latinoamérica, España y Estados Unidos) y el resto debajo.
@@ -1112,9 +1110,14 @@
         $('ast-ed-f-category').value = p.category || '';
         $('ast-ed-f-tags').value = Array.isArray(p.tags) ? p.tags.join(', ') : '';
         const currency = String(p.currency || defaultCurrency()).toUpperCase();
-        const options = CURRENCIES.slice();
-        if (!options.some((c) => c[0] === currency)) options.push([currency, currency]);
-        $('ast-ed-f-currency').innerHTML = options.map((c) => '<option value="' + esc(c[0]) + '"' + (c[0] === currency ? ' selected' : '') + '>' + esc(c[0] + ' · ' + c[1]) + '</option>').join('');
+        const currencyApi = window.WeOtziCurrency;
+        if (currencyApi && typeof currencyApi.fillCurrencySelect === 'function') {
+            currencyApi.fillCurrencySelect($('ast-ed-f-currency'), { value: currency, label: 'code-name' });
+        } else {
+            const options = CURRENCIES_FALLBACK.slice();
+            if (!options.some((c) => c[0] === currency)) options.push([currency, currency]);
+            $('ast-ed-f-currency').innerHTML = options.map((c) => '<option value="' + esc(c[0]) + '"' + (c[0] === currency ? ' selected' : '') + '>' + esc(c[0] + ' · ' + c[1]) + '</option>').join('');
+        }
         $('ast-ed-f-width').value = toInput(p.design_width_cm);
         $('ast-ed-f-height').value = toInput(p.design_height_cm);
         $('ast-ed-f-style').value = p.design_style || '';

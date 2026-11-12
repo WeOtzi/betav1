@@ -52,7 +52,18 @@ const COLORS = [
     { value: 'full_color', label: 'Color' }
 ];
 
+// Monedas: las del listado de países (WeOtziCurrency.COUNTRY_CURRENCIES en
+// currency-utils.js). Este arreglo es solo el respaldo si ese script no cargó.
 const CURRENCIES = ['USD', 'EUR', 'ARS', 'MXN', 'COP', 'BRL'];
+
+function budgetCurrencyOptionsHtml(selected) {
+    const api = typeof window !== 'undefined' ? window.WeOtziCurrency : null;
+    if (api && typeof api.countryCurrencyOptionsHtml === 'function') {
+        return api.countryCurrencyOptionsHtml({ value: selected, label: 'code' });
+    }
+    const list = CURRENCIES.includes(selected) ? CURRENCIES : CURRENCIES.concat(selected ? [selected] : []);
+    return list.map(c => `<option value="${escapeHtml(c)}" ${selected === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+}
 
 // Chips de estilos del mock de inspiración (la galería filtra contra styles_array)
 const INSPIRATION_STYLES = ['Fine line', 'Blackwork', 'Realismo', 'Japonés', 'Tradicional', 'Color', 'Lettering', 'Ornamental', 'Minimalista'];
@@ -716,9 +727,7 @@ function renderForm(el) {
         .concat(SIZES.map(s => `<option value="${s.value}" ${formData.tattoo_size === s.value ? 'selected' : ''}>${s.label}</option>`))
         .join('');
 
-    const currencyOptions = CURRENCIES.map(c =>
-        `<option value="${c}" ${(formData.budget_currency || 'USD') === c ? 'selected' : ''}>${c}</option>`
-    ).join('');
+    const currencyOptions = budgetCurrencyOptionsHtml(String(formData.budget_currency || 'USD').toUpperCase());
 
     el.innerHTML = `
         <header class="jbrq-head">

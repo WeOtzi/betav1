@@ -27,6 +27,7 @@ const { startLocalNgrok } = require('./lib/local-ngrok');
 const { legacyRedirectFor, legacyLocation } = require('./lib/legacy-routes');
 // Capa PostgREST unificada (ver docs/plans/2026-06-21-postgrest-capa-unificada-piloto-cotizaciones.md)
 const { pgrest } = require('./lib/postgrest');
+const termsAcceptance = require('./lib/terms-acceptance'); // ── cotizaciones · P3
 const { resolveBearerUser } = require('./lib/auth/supabase-auth');
 const { QuotationsRepo } = require('./lib/repos/quotations');
 const { JobBoardRepo } = require('./lib/repos/jobboard');
@@ -270,6 +271,51 @@ app.post('/api/quotations/intake', require('./services/quotation-intake').handle
 app.post('/api/store/licenses/:licenseId/assets/:assetId/url', storeDownloadLimiter, storeOrders.handleDownloadUrl);
 app.post('/api/store/orders/:id/checkout', storeOrders.handleCheckout);
 app.post('/api/store/maintenance', storeOrders.handleMaintenance);
+
+// ── calendario ──
+// Aviso por email de los recordatorios del artista (artist_reminders.due_at).
+// Lo llama un cron (X-Cron-Token = CRON_API_TOKEN) o un intervalo opcional
+// (CALENDAR_REMINDERS_INTERVAL_MS >= 60000). Lógica en lib/calendar-reminders.js.
+const calendarReminders = require('./lib/calendar-reminders');
+function calendarReminderDispatcher(baseUrl) {
+    return calendarReminders.createReminderDispatcher({ pgrest, emailService, baseUrl });
+}
+app.post('/api/calendar/reminders/dispatch', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const expected = process.env.CRON_API_TOKEN;
+    if (typeof expected !== 'string' || !expected.trim()) {
+        return res.status(503).json({ success: false, error: 'El aviso de recordatorios no está configurado.' });
+    }
+    if (!storeOrders.safeTokenEqual(req.headers['x-cron-token'], expected)) {
+        return res.status(401).json({ success: false, error: 'El token de cron no es válido.' });
+    }
+    try {
+        const limit = Math.min(200, Math.max(1, parseInt(req.body?.limit, 10) || 50));
+        const result = await calendarReminderDispatcher(applicationBase(req)).run(limit);
+        return res.json({ success: true, result });
+    } catch (error) {
+        console.error('[calendar] dispatch de recordatorios falló:', error.message);
+        return res.status(500).json({ success: false, error: 'No pudimos enviar los avisos de recordatorios.' });
+    }
+});
+const CALENDAR_REMINDERS_INTERVAL_MS = calendarReminders.intervalFromEnv(process.env);
+if (CALENDAR_REMINDERS_INTERVAL_MS) {
+    const reminderBase = (process.env.PUBLIC_APP_URL || process.env.APP_URL || 'https://weotzi.com/beta').replace(/\/$/, '');
+    let reminderRunActive = false;
+    setInterval(async () => {
+        if (reminderRunActive) return;
+        reminderRunActive = true;
+        try {
+            const result = await calendarReminderDispatcher(reminderBase).run();
+            if (result.claimed) console.log('[calendar] recordatorios:', JSON.stringify(result));
+        } catch (error) {
+            console.warn('[calendar] intervalo de recordatorios:', error.message);
+        } finally {
+            reminderRunActive = false;
+        }
+    }, CALENDAR_REMINDERS_INTERVAL_MS).unref();
+}
+
 const accountModes = require('./services/account-modes');
 app.get('/api/account/testing', (req, res) => res.json({ registrationOpen: accountModes.testingEnabled() }));
 app.post('/api/account/mode', accountModes.activate);
@@ -4547,8 +4593,8 @@ app.post('/api/studio/notify', authLimiter, async (req, res) => {
             studio_name: payload.from_name,
             dashboard_url: payload.links.invitations
         }, { idempotencyKey: `${payload.meta.application_id || payload.meta.membership_id}:${decision || 'invite'}` });
-        return res.status(result.ok ? 200 : 502).json({ success: !!result.ok, sent: !!result.ok,
-            payload_kind: payload.kind, delivery_status: result.delivery_status,
+        return res.status(result.ok ? 200 : 502).json({ success: !!result.ok, sent: !!result.ok && !result.skipped,
+            skipped: !!result.skipped, payload_kind: payload.kind, delivery_status: result.delivery_status,
             deduplicated: result.deduplicated, uncertain: result.uncertain, error: result.error });
     } catch (err) {
         console.error('[StudioNotify] notification failed:', err.message);
@@ -4861,6 +4907,8 @@ app.post('/api/admin/currencies/refresh-now', async (req, res) => {
 
 const appSettings = require('./lib/app-settings');
 const igImport = require('./lib/instagram-import');
+// ── dashboard ── consentimiento de la importación de IG (ronda 3 · P17).
+const igConsent = require('./lib/dashboard-ig-consent');
 
 const APIFY_TOKEN_KEY = 'apify_token';
 const APIFY_TEST_HANDLE_DEFAULT = 'instagram';
@@ -5655,13 +5703,15 @@ app.post('/api/register/artist-draft', async (req, res) => {
         delete patch.user_id;
         delete patch.registration_submitted_at;
         if (!email && existing?.email) delete patch.email;
+        // ── cotizaciones · P3: aceptación de términos de "Crear cuenta" (fecha + versión).
+        Object.assign(patch, termsAcceptance.termsAcceptancePatch(formData, { existing }));
 
         let savedRows;
         if (existing) {
-            savedRows = await _supabaseFetch(
+            ({ result: savedRows } = await termsAcceptance.writeWithTermsFallback(patch, (body) => _supabaseFetch(
                 `artists_db?registration_draft_id=eq.${encodeURIComponent(existing.registration_draft_id)}&user_id=is.null`,
-                { method: 'PATCH', prefer: 'return=representation', body: patch }
-            );
+                { method: 'PATCH', prefer: 'return=representation', body }
+            )));
             if (!Array.isArray(savedRows) || !savedRows[0]) {
                 const latest = await findArtistDraft({ draftId: existing.registration_draft_id });
                 if (await isBlockingFinalizedDraft(latest)) {
@@ -5674,11 +5724,11 @@ app.post('/api/register/artist-draft', async (req, res) => {
                 throw new Error('Draft row was not updated');
             }
         } else {
-            savedRows = await _supabaseFetch('artists_db', {
+            ({ result: savedRows } = await termsAcceptance.writeWithTermsFallback(patch, (body) => _supabaseFetch('artists_db', {
                 method: 'POST',
                 prefer: 'return=representation',
-                body: patch
-            });
+                body
+            })));
         }
 
         const artist = Array.isArray(savedRows) && savedRows[0] ? savedRows[0] : existing;
@@ -5709,6 +5759,10 @@ app.post('/api/register/artist-finalize', async (req, res) => {
     if (!requestedDraftId) return res.status(400).json({ success: false, error: 'draft_id requerido' });
     if (!artistRegistration.isValidEmail(email)) return res.status(400).json({ success: false, error: 'Email invalido' });
     if (password.length < 6) return res.status(400).json({ success: false, error: 'La contrasena debe tener al menos 6 caracteres' });
+    // ── cotizaciones · P3: sin aceptar los Términos no se crea la cuenta.
+    if (!termsAcceptance.hasAcceptedTerms(formData)) {
+        return res.status(400).json({ success: false, error: 'Para crear tu perfil, aceptá los Términos y la Política de Privacidad.', code: 'TERMS_REQUIRED' });
+    }
 
     // Estado del intento para la compensacion (ver lib/registration-finalize.js).
     let draftId = requestedDraftId;
@@ -5786,13 +5840,15 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             status: artistRegistration.REGISTRATION_STATUS_PENDING_VALIDATION,
             submitted: true
         });
+        // ── cotizaciones · P3: la aceptación final queda sellada al crear la cuenta.
+        Object.assign(finalPatch, termsAcceptance.termsAcceptancePatch(formData, { force: true }));
 
         // Solo se finaliza la fila si sigue sin cuenta (o ya es de este
         // usuario): dos requests en paralelo no pueden pisarse.
-        const savedRows = await _supabaseFetch(
+        const { result: savedRows } = await termsAcceptance.writeWithTermsFallback(finalPatch, (body) => _supabaseFetch(
             `artists_db?registration_draft_id=eq.${encodeURIComponent(draftId)}&or=(user_id.is.null,user_id.eq.${encodeURIComponent(authUser.id)})`,
-            { method: 'PATCH', prefer: 'return=representation', body: finalPatch }
-        );
+            { method: 'PATCH', prefer: 'return=representation', body }
+        ));
         const artist = Array.isArray(savedRows) && savedRows[0] ? savedRows[0] : null;
         if (!artist) throw new Error('La fila del borrador cambio durante el registro');
 
@@ -6244,7 +6300,9 @@ app.post('/api/instagram/commit', igSignupLimiter, async (req, res) => {
             target_user_id,
             target,
             mode: isSignup ? 'signup' : 'dashboard',
-            allowed_permalinks: Array.isArray(body.allowed_permalinks) ? body.allowed_permalinks : null
+            allowed_permalinks: Array.isArray(body.allowed_permalinks) ? body.allowed_permalinks : null,
+            // ── dashboard ── P17: consentimiento del paso 01 (hora del servidor).
+            consent: igConsent.normalizeImportConsent(body.consent)
         });
         return res.json({ success: true, ...out });
     } catch (err) {
@@ -6387,7 +6445,8 @@ app.post('/api/email/test', authLimiter, async (req, res) => {
 
     try {
         const result = await emailService.sendEmail(eventId, stub, {
-            forceChannel: channel && emailService.VALID_CHANNELS.includes(channel) ? channel : undefined
+            forceChannel: channel && emailService.VALID_CHANNELS.includes(channel) ? channel : undefined,
+            ignorePreferences: true // prueba del backoffice: no aplica preferencias del artista
         });
         return res.json({ success: !!result.ok, ...result });
     } catch (err) {
@@ -6431,6 +6490,77 @@ app.post('/api/email/:eventId', authLimiter, async (req, res) => {
     }
 });
 
+
+// ── integracion ──
+// Ronda 3: aviso por email al artista cuando soporte decide sobre un documento,
+// un destino de retiro o un retiro. El panel de soporte lo llama después de la
+// RPC security definer; el servidor relee la decisión de la base (service-role),
+// solo avisa decisiones de los últimos 15 min, respeta notification_prefs y
+// envía una sola vez por decisión. Lógica en lib/integracion-support-notify.js.
+const supportDecisionNotify = require('./lib/integracion-support-notify');
+const { shouldNotify: shouldNotifyArtist } = require('./lib/notification-prefs');
+app.post('/api/support/artist-decision-notify', async (req, res) => {
+    const agent = await _getActiveSupportAgent(req);
+    if (!agent.ok) return res.status(agent.status).json({ success: false, error: agent.error });
+    try {
+        const result = await supportDecisionNotify.notifyArtistDecision(req.body || {}, {
+            fetchRow: (table, select, id) => pgrest(table).select(select).eq('id', id).limit(1).single().execute(),
+            fetchArtist: (userId) => pgrest('artists_db').select('user_id,name,username,email')
+                .eq('user_id', userId).limit(1).single().execute(),
+            shouldNotify: shouldNotifyArtist,
+            sendEmail: (eventId, payload, options) => emailService.sendEmail(eventId, payload, options),
+            baseUrl: applicationBase(req)
+        });
+        if (!result.ok) return res.status(result.status || 400).json({ success: false, error: result.error });
+        return res.json({ success: true, sent: result.sent, skipped: result.skipped || null, deduplicated: !!result.deduplicated });
+    } catch (err) {
+        console.error('[integracion] aviso de decisión de soporte:', err.message);
+        return res.status(500).json({ success: false, error: 'No pudimos avisarle al artista por email.' });
+    }
+});
+
+
+// ── cotizaciones ──
+// Ronda 3 · P10: vencimiento de cotizaciones. La RPC service-role
+// expire_stale_quotations (migración 20261112160000) pasa a 'expired' las
+// respuestas cuya vigencia venció y el servidor avisa al cliente por email
+// (evento server-only quotation_expired). Dos disparadores:
+//   - POST /api/quotations/maintenance/expire con X-Cron-Token (n8n, como la Store);
+//   - job interno opt-in (QUOTATION_EXPIRY_JOB=on, cada QUOTATION_EXPIRY_INTERVAL_MIN).
+// Lógica pura y configuración en lib/quotation-expiry.js.
+const quotationExpiry = require('./lib/quotation-expiry');
+const quotationExpiryDeps = {
+    rpc: (body) => pgrest.raw('rpc/expire_stale_quotations', { method: 'POST', body }),
+    sendEmail: (eventId, payload, options) => emailService.sendEmail(eventId, payload, options),
+    baseUrl: applicationBase({ headers: {}, get: () => '' }),
+    log: console
+};
+
+app.post('/api/quotations/maintenance/expire', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const expected = process.env.CRON_API_TOKEN;
+    if (typeof expected !== 'string' || !expected.trim()) {
+        return res.status(503).json({ success: false, error: 'El vencimiento de cotizaciones no está configurado.' });
+    }
+    if (!storeOrders.safeTokenEqual(req.headers['x-cron-token'], expected)) {
+        return res.status(401).json({ success: false, error: 'El token de cron no es válido.' });
+    }
+    try {
+        const result = await quotationExpiry.runExpiryCycle(quotationExpiryDeps, quotationExpiry.expiryConfig());
+        return res.json({ success: true, ...result });
+    } catch (error) {
+        if (quotationExpiry.isMissingRpcError(error)) {
+            return res.status(503).json({ success: false, error: 'Falta aplicar la migración 20261112160000.' });
+        }
+        console.error('[quotations] maintenance/expire failed:', error.message);
+        return res.status(500).json({ success: false, error: 'No pudimos vencer las cotizaciones.' });
+    }
+});
+
+if (require.main === module) {
+    quotationExpiry.startExpiryJob(quotationExpiryDeps, quotationExpiry.expiryConfig());
+}
+// ── fin cotizaciones ──
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {

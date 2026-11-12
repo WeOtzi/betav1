@@ -735,6 +735,9 @@ function mountInstagramImportInDashboard() {
         targetId: currentUser.id,
         mode: 'dashboard',
         prefillHandle: handle,
+        // El perfil puede llegar después del montaje: el paso 02 de QA/demo
+        // muestra el IG real del artista, no el de las publicaciones de ejemplo.
+        getHandle: () => (artistData?.instagram || '').replace(/^@/, ''),
         triggerLabel: 'IMPORTAR INSTAGRAM',
         // Capacidad real de la galería para el paso 01/02 del Figma 2003:*.
         getGalleryState: () => {
@@ -1816,13 +1819,21 @@ function populateDashboard() {
     document.getElementById('input-experience').value = artistData.years_experience || '0-1';
     
     // Parse session price - prefer structured columns, fall back to legacy text
+    // Monedas: las del listado de países (currency-utils.js); un valor viejo fuera
+    // de la lista queda en el grupo "Otras" para no perderlo.
+    let dashboardPriceCurrency = 'USD';
     if (artistData.session_price_amount && artistData.session_price_currency) {
         document.getElementById('input-price').value = artistData.session_price_amount;
-        document.getElementById('input-currency').value = artistData.session_price_currency;
+        dashboardPriceCurrency = artistData.session_price_currency;
     } else if (artistData.session_price) {
         const priceParts = artistData.session_price.split(' ');
         document.getElementById('input-price').value = priceParts[0] || '';
-        document.getElementById('input-currency').value = priceParts[1] || 'USD';
+        dashboardPriceCurrency = priceParts[1] || 'USD';
+    }
+    if (window.WeOtziCurrency && typeof window.WeOtziCurrency.fillCurrencySelect === 'function') {
+        window.WeOtziCurrency.fillCurrencySelect('input-currency', { value: dashboardPriceCurrency, label: 'code' });
+    } else {
+        document.getElementById('input-currency').value = dashboardPriceCurrency;
     }
 
     document.getElementById('input-portfolio').value = artistData.portafolio || '';
@@ -4186,15 +4197,24 @@ async function checkProfileCompletion() {
     }
 }
 
+// Hitos en curso: dos cargas de estadísticas concurrentes no deben disparar el
+// mismo hito dos veces (auditoría H3).
+const milestonesInFlight = new Set();
+
 async function trackMilestone(milestoneField) {
     if (!currentUser || !artistData) return;
-    
+
+    // Modo demo: las cotizaciones son de ejemplo y la escritura se ignora, así
+    // que el hito no es real y se repetiría en cada visita (auditoría H3).
+    if (window.WoDemo?.enabled) return;
+
     // Already completed
-    if (artistData[milestoneField]) return;
-    
+    if (artistData[milestoneField] || milestonesInFlight.has(milestoneField)) return;
+    milestonesInFlight.add(milestoneField);
+
     try {
         const updateData = { [milestoneField]: true };
-        
+
         const { error } = await WeotziData.Artists.updateByUserId(currentUser.id, updateData);
 
         if (error) throw error;
@@ -4217,9 +4237,11 @@ async function trackMilestone(milestoneField) {
         showStatusMessage(`Hito desbloqueado: ${milestoneNames[milestoneField]}!`, 'success');
         
         console.log(`Milestone unlocked: ${milestoneField}`);
-        
+
     } catch (error) {
         console.error('Error tracking milestone:', error);
+    } finally {
+        milestonesInFlight.delete(milestoneField);
     }
 }
 
@@ -4513,6 +4535,34 @@ let _dashboardLoadedStyles = [];
 // Temp selection while modal is open
 let _tempSelectedStyles = [];
 
+// Revisión del registro (12/11): los estilos del perfil salen del catálogo
+// del registro (public/register-artist/catalogo-registro.js, mismo contenido
+// que GET /api/registration/catalogs), no de tattoo_styles. La tabla solo
+// aporta el nombre a guardar cuando coincide; lo guardado no se reescribe.
+let _dashboardStyleCatalogPromise = null;
+function loadDashboardStyleCatalog() {
+    if (window.WoRegistroCatalogo) return Promise.resolve(window.WoRegistroCatalogo);
+    if (_dashboardStyleCatalogPromise) return _dashboardStyleCatalogPromise;
+    _dashboardStyleCatalogPromise = new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = '/register-artist/catalogo-registro.js';
+        script.onload = () => resolve(window.WoRegistroCatalogo || null);
+        script.onerror = () => { _dashboardStyleCatalogPromise = null; resolve(null); };
+        document.head.appendChild(script);
+    });
+    return _dashboardStyleCatalogPromise;
+}
+
+function dashboardStyleLabel(value) {
+    const catalog = window.WoRegistroCatalogo;
+    return catalog && typeof catalog.styleLabelFor === 'function' ? catalog.styleLabelFor(value) : value;
+}
+
+function escapeDashboardStyle(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function updateStylesTriggerUI() {
     const tagsEl = document.getElementById('styles-trigger-tags');
     if (!tagsEl) return;
@@ -4520,8 +4570,12 @@ function updateStylesTriggerUI() {
         tagsEl.innerHTML = '<span class="styles-trigger-placeholder">Seleccionar estilos...</span>';
     } else {
         tagsEl.innerHTML = dashboardSelectedStyles
-            .map(s => `<span class="style-tag">${s}</span>`)
+            .map(s => `<span class="style-tag">${escapeDashboardStyle(dashboardStyleLabel(s))}</span>`)
             .join('');
+        // Primera vez: se carga el catálogo y se repinta con sus etiquetas.
+        if (!window.WoRegistroCatalogo) {
+            loadDashboardStyleCatalog().then((catalog) => { if (catalog) updateStylesTriggerUI(); });
+        }
     }
 }
 
@@ -4573,14 +4627,31 @@ async function loadDashboardStylesGrid() {
         console.error('Error loading tattoo styles from DB:', err);
     }
 
-    const parentStyles = (_dashboardLoadedStyles || [])
-        .filter(s => !s.parent_id)
-        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    const catalog = await loadDashboardStyleCatalog();
 
     grid.innerHTML = '';
 
     const normalizeStyle = (name) => (name || '').trim().toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    if (catalog && typeof catalog.buildStyleOptions === 'function') {
+        // Cat\u00e1logo: elegidos primero (los propios incluidos), despu\u00e9s el resto.
+        catalog.buildStyleOptions(_dashboardLoadedStyles, _tempSelectedStyles).forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'dashboard-style-btn' + (opt.selected ? ' selected' : '') + (opt.custom ? ' dashboard-style-custom' : '');
+            btn.dataset.style = opt.value;
+            btn.textContent = opt.label;
+            btn.addEventListener('click', () => toggleDashboardStyleBtn(btn));
+            grid.appendChild(btn);
+        });
+        return;
+    }
+
+    // Respaldo (sin cat\u00e1logo): lista de tattoo_styles como antes.
+    const parentStyles = (_dashboardLoadedStyles || [])
+        .filter(s => !s.parent_id)
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
     // Add DB styles
     parentStyles.forEach(style => {
@@ -4640,8 +4711,10 @@ function addDashboardCustomStyle() {
     }
 
     const grid = document.getElementById('dashboard-styles-grid');
+    // Coincide por valor guardado o por la etiqueta del catálogo que se ve.
     const existingBtn = grid ? Array.from(grid.querySelectorAll('.dashboard-style-btn'))
-        .find(btn => normalizeStyle(btn.dataset.style) === normalizeStyle(raw)) : null;
+        .find(btn => normalizeStyle(btn.dataset.style) === normalizeStyle(raw)
+            || normalizeStyle(btn.textContent) === normalizeStyle(raw)) : null;
 
     if (existingBtn) {
         if (!existingBtn.classList.contains('selected')) {

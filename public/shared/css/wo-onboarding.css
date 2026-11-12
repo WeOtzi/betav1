@@ -67,3 +67,22 @@ html.wo-tour-active .wo-demo-suggest{display:none}
 @media (prefers-reduced-motion:reduce){
   .wo-demo-suggest{animation:none}
 }
+
+/* Variante en el flujo (auditoría H7): el dashboard le reserva un lugar
+   arriba de la columna principal ([data-wo-demo-suggest-slot]) y la tarjeta
+   empuja el contenido en vez de flotar sobre los KPIs de Cotizaciones. */
+html body .wo-demo-suggest.wo-demo-suggest--inline{
+  position:static;left:auto;right:auto;bottom:auto;z-index:auto;width:auto;
+  margin:var(--space-4) 0 0;
+  padding:var(--space-4);
+  border:var(--border-strong-width) solid var(--border-strong);
+}
+@media (min-width:48rem){
+  html body .wo-demo-suggest.wo-demo-suggest--inline{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:var(--space-6);align-items:center;
+    padding:var(--space-5);
+  }
+  .wo-demo-suggest--inline > :not(.wo-demo-suggest__actions){grid-column:1}
+  .wo-demo-suggest--inline .wo-demo-suggest__actions{grid-column:2;grid-row:1 / span 4;margin-top:0;flex-wrap:nowrap}
+}
+html.wo-tour-active body .wo-demo-suggest.wo-demo-suggest--inline{display:none}

@@ -114,7 +114,27 @@
         });
 
         // Presencias públicas de Travel: viajes confirmados con estudio confirmado.
-        enrichOnAssign(tables, 'artist_public_travel_presences', function (rows) {
+        enrichOnAssign(tables, 'artist_public_travel_presences', derivePresences);
+
+        // Modo demo legacy (beta con la cuenta real): nadie asigna la vista, así
+        // que se lee del backend real y "Próximas residencias" queda vacía aunque
+        // Travel muestra viajes confirmados de ejemplo (auditoría H4). La vista
+        // solo la lee el perfil público, así que se sirve desde memoria derivada
+        // de los viajes del demo; si el preview local la asigna, manda lo suyo.
+        var presencesDesc = Object.getOwnPropertyDescriptor(tables, 'artist_public_travel_presences');
+        if (presencesDesc && presencesDesc.get && !presencesDesc.enumerable) {
+            Object.defineProperty(tables, 'artist_public_travel_presences', {
+                configurable: true,
+                enumerable: true,
+                get: function () {
+                    var assigned = presencesDesc.get.call(tables);
+                    return assigned !== undefined ? assigned : derivePresences([]);
+                },
+                set: presencesDesc.set
+            });
+        }
+
+        function derivePresences(rows) {
             var list = Array.isArray(rows) ? rows.slice() : [];
             var links = tables.trip_studio_links || [];
             (tables.artist_trips || []).forEach(function (trip) {
@@ -130,6 +150,6 @@
                 });
             });
             return list;
-        });
+        }
     };
 }(typeof self !== 'undefined' ? self : this));

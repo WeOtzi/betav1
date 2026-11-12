@@ -222,7 +222,8 @@ test('dashboard rail follows Figma 24:1425: reminders CTA and five quick actions
     assert.match(html, /id="wod-reminder-new"[^>]*>\+ NUEVO RECORDATORIO</);
     assert.match(html, /href="\/my-quotations\/new\?origen=cliente">\+&nbsp; NUEVO CLIENTE</);
     assert.match(html, /href="\/my-quotations\/new\?origen=cita"><i data-wo-icon="calendar"[^>]*><\/i>NUEVA CITA/);
-    assert.match(html, /id="wod-register-payment" href="\/artist\/account#cobros"/);
+    // Ronda 3 · grupo pagos: REGISTRAR PAGO abre el modal propio (antes iba al Wallet).
+    assert.match(html, /id="wod-register-payment" type="button" aria-haspopup="dialog"/);
     assert.match(html, /id="wod-share-profile"[^>]*>[\s\S]*?COMPARTIR MI PERFIL/);
     assert.match(html, /id="wod-qr-card"[^>]*>[\s\S]*?GENERAR TARJETA QR/);
     assert.doesNotMatch(html, /id="qr-modal"/, 'el modal QR legacy se reemplazó por el panel lateral');

@@ -419,7 +419,8 @@ async function checkAuthState() {
             throw new Error('ArtistAuth helper is not available.');
         }
 
-        const artistSelect = 'user_id, username, name, styles_array, city, ubicacion, profile_picture, gallery_images';
+        // portafolio → adjunto de la propuesta; vacation_* → fechas no ofrecidas (801:571).
+        const artistSelect = 'user_id, username, name, styles_array, city, ubicacion, profile_picture, gallery_images, portafolio, vacation_start, vacation_end';
         const authState = await window.ArtistAuth.resolveArtistAuthState({
             artistSelect,
             returnTo: '/job-board',
@@ -843,22 +844,23 @@ function syncQuickFiltersUI() {
 function initAdvancedFilters() {
     if (!allRequests || allRequests.length === 0) return;
 
-    // Populate city dropdown
-    const cities = [...new Set(
-        allRequests
-            .map(r => r.client_city)
-            .filter(Boolean)
-            .map(c => c.trim())
-    )].sort();
+    // Ciudades agrupadas por clave (sin duplicados "Cdmx" / "Ciudad De México")
+    // y con mayúsculas del español ("Mar del Plata") — auditoría H9.
+    const cityOptions = window.WeotziPlaceNames
+        ? window.WeotziPlaceNames.buildCityOptions(allRequests.map(r => r.client_city))
+        : [...new Set(allRequests.map(r => (r.client_city || '').trim()).filter(Boolean))].sort().map(city => ({
+            value: city,
+            label: toTitleCase(city),
+            count: allRequests.filter(r => (r.client_city || '').trim() === city).length,
+        }));
 
     const citySelect = document.getElementById('filter-city');
     if (citySelect) {
         citySelect.innerHTML = '<option value="">Todas las ciudades</option>';
-        cities.forEach(city => {
-            const count = allRequests.filter(r => (r.client_city || '').trim() === city).length;
+        cityOptions.forEach(({ value, label, count }) => {
             const opt = document.createElement('option');
-            opt.value = city;
-            opt.textContent = `${toTitleCase(city)} (${count})`;
+            opt.value = value;
+            opt.textContent = `${label} (${count})`;
             citySelect.appendChild(opt);
         });
 
@@ -928,7 +930,10 @@ function applyFilters() {
 
         // City filter
         if (currentFilters.city) {
-            if ((request.client_city || '').trim() !== currentFilters.city) return false;
+            const sameCity = window.WeotziPlaceNames
+                ? window.WeotziPlaceNames.sameCity(request.client_city, currentFilters.city)
+                : (request.client_city || '').trim() === currentFilters.city;
+            if (!sameCity) return false;
         }
 
         // "Cerca tuyo": misma ciudad que el artista (dato real de artists_db).
@@ -1706,7 +1711,8 @@ function buildProposalAside(request, sample) {
             </div>
             <div class="wo-field">
                 <label class="wo-label" for="app-availability">Disponibilidad</label>
-                <div class="jbf-availability"><img src="/shared/assets/figma/job-board-screen16/calendar.svg" alt="" width="18" height="18"><input type="text" id="app-availability" name="availability_note" class="wo-input" placeholder="Ej: Disponible desde el 10/08"></div>
+                <div class="jbf-availability"><img src="/shared/assets/figma/job-board-screen16/calendar.svg" alt="" width="18" height="18"><input type="text" id="app-availability" name="availability_note" class="wo-input" placeholder="${escapeHtml((vacationAvailabilityHint() || {}).placeholder || 'Ej: Disponible desde el 10/08')}"${vacationAvailabilityHint() ? ' aria-describedby="app-availability-vacation"' : ''}></div>
+                ${vacationAvailabilityHint() ? `<p class="wo-body-s wo-faint" id="app-availability-vacation">${escapeHtml(vacationAvailabilityHint().text)}</p>` : ''}
             </div>
             <div class="wo-field">
                 <label class="wo-label" for="app-message">Mensaje para el cliente</label>
@@ -1863,6 +1869,27 @@ async function handleApply(requestId) {
     }
 }
 
+// Prefijo de la app (/beta en producción, /preview/<id> en el preview local).
+function jobBoardBasePath() {
+    if (window.WEOTZI_BASE_PATH) return String(window.WEOTZI_BASE_PATH).replace(/\/$/, '');
+    return /^\/beta(?:\/|$)/.test(window.location.pathname) ? '/beta' : '';
+}
+
+// Vacaciones del artista (Cuenta 801:571): aviso junto a "Disponibilidad" y
+// sugerencia de la primera fecha libre; el rango no se ofrece al cliente.
+function vacationAvailabilityHint() {
+    const V = window.WoArtistVacation;
+    const vacation = V ? V.fromArtist(artistData) : null;
+    const status = vacation ? V.status(vacation) : null;
+    if (!vacation || status === 'past') return null;
+    const back = V.returnDay(vacation);
+    const [y, m, d] = back.split('-');
+    return {
+        text: `Estás de vacaciones del ${V.longDay(vacation.start)} al ${V.longDay(vacation.end)}: no ofrezcas fechas en ese rango.`,
+        placeholder: `Ej: Disponible desde el ${d}/${m}/${y}`
+    };
+}
+
 async function submitApplication(e) {
     e.preventDefault();
 
@@ -1920,6 +1947,10 @@ async function submitApplication(e) {
                 estimated_duration: estimatedDuration,
                 estimated_sessions: estimatedSessions,
                 availability_note: availabilityNote,
+                // Adjunto "Portfolio en We Ötzi" (801:1068/1073): perfil público + sitio.
+                portfolio_links: window.WoProposalPortfolio
+                    ? window.WoProposalPortfolio.buildLinks(artistData, window.location.origin, jobBoardBasePath())
+                    : [],
                 status: 'pending'
             }])
             .select()
@@ -1997,7 +2028,13 @@ function renderProposalSent(request, proposal) {
         <div class="jbf-summary">
             <div class="jbf-summary-head">
                 <span class="wo-meta-s">Resumen de la propuesta</span>
-                <span class="jbf-summary-badge"${proposal.state ? ` data-state="${escapeHtml(proposal.state.key)}"` : ''}>${escapeHtml(proposal.state ? proposal.state.label : 'Enviada')}</span>
+                ${(() => {
+                    // Figma 801:1069: «ENVIADA» salvo contraoferta o decisión real (auditoría H10).
+                    const badge = window.WoApplicationState?.sentBadge
+                        ? window.WoApplicationState.sentBadge(proposal.state, 'jb')
+                        : (proposal.state || { key: 'enviada', label: 'Enviada' });
+                    return `<span class="jbf-summary-badge" data-state="${escapeHtml(badge.key)}">${escapeHtml(badge.label)}</span>`;
+                })()}
             </div>
             <div class="jbf-summary-body">
                 <div class="jbf-summary-row">

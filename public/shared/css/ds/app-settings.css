@@ -1,0 +1,22 @@
+/* ==========================================================================
+   We Ötzi DS · Configuración y accesibilidad global (Cuenta 801:574)
+   La aplica /shared/js/app-settings-loader.js en todas las páginas del
+   artista con los atributos body[data-aac-*] (los mismos que usa Cuenta).
+   Solo reasigna tokens: los componentes del DS heredan el cambio.
+   ========================================================================== */
+
+/* Densidad compacta: achica el ritmo vertical de los tokens de espacio. */
+body[data-aac-density="compact"]{--space-4:12px;--space-5:16px;--space-6:20px;--space-7:22px;--space-8:24px;--space-10:32px;--space-12:40px}
+
+/* Tamaño de texto: afecta el contenido principal (la escala va en <html>). */
+body[data-aac-text-size="small"] main{font-size:.9rem}
+body[data-aac-text-size="large"] main{font-size:1.08rem}
+
+/* Animaciones apagadas o "Reducir movimiento". */
+body.aac-no-animations *,body.aac-no-animations *::before,body.aac-no-animations *::after{scroll-behavior:auto!important;transition-duration:0s!important;animation-duration:0s!important;animation-iteration-count:1!important}
+
+/* Aumentar contraste. */
+body.aac-high-contrast{--border-subtle:var(--neutral-500);--text-muted:var(--neutral-500);--text-faint:var(--neutral-400)}
+
+/* Tema oscuro opcional: reasigna tokens semánticos (igual que Cuenta). */
+body[data-aac-theme="dark"]{--surface-page:var(--ink-stage);--surface-card:var(--neutral-500);--surface-input:var(--neutral-500);--surface-input-hover:var(--dark-rule);--surface-media:var(--dark-rule);--sand-050:var(--dark-rule);--neutral-100:var(--neutral-500);--neutral-200:var(--dark-rule);--figma-white:var(--neutral-500);--text-heading:var(--neutral-100);--text-body:var(--neutral-200);--text-muted:var(--neutral-300);--text-faint:var(--neutral-300);--border-subtle:var(--dark-rule);--border-strong:var(--neutral-300);background:var(--surface-page);color:var(--text-body)}

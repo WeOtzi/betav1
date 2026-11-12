@@ -266,6 +266,21 @@
     /* ------------------------------ datos ------------------------------ */
     function pushFeed(items) { state.feed = state.feed.concat(items); }
 
+    // Ronda 3 · P15 (Figma 801:558): "Contraoferta recibida" a partir de las
+    // contraofertas pendientes de las postulaciones abiertas (Job Board y Spots).
+    function pushCounterOffers(kind, apps, listOffers, seen) {
+        var FM = window.WoNotificationFeedModel;
+        if (!FM || typeof listOffers !== 'function') return Promise.resolve();
+        var open = kind === 'jb' ? FM.openJbApplications(apps) : FM.openSpotApplications(apps);
+        return Promise.all(open.map(function (app) {
+            return Promise.resolve(listOffers(app)).then(function (offers) { return { app: app, offers: offers }; })
+                .catch(function () { return { app: app, offers: [] }; });
+        })).then(function (entries) {
+            var payload = kind === 'jb' ? { jb: entries } : { spots: entries };
+            pushFeed(FM.counterOfferItems(payload, seen));
+        }).catch(function (e) { console.warn('[wo-menu] contraofertas:', e && e.message); });
+    }
+
     function sessionsWithStamps(D, nowIso) {
         var cols = 'id, session_date, session_number, status, notes, quotation_id, created_at, updated_at, quotations_db(client_full_name, tattoo_style, tattoo_body_part)';
         return D.Sessions.listUpcomingForArtist(nowIso, { limit: 20, select: cols })
@@ -381,7 +396,25 @@
         if (D && D.Reminders && typeof D.Reminders.list === 'function') {
             jobs.push(D.Reminders.list(uid).then(function (list) {
                 var M = D.Reminders.model;
-                pushFeed(M.dueSoon(list, new Date(), 1).map(function (r) {
+                var CM = window.WeotziCalendarModel;
+                // Recordatorios con hora (calendario): el aviso aparece a la
+                // hora indicada (el menú se refresca cada minuto). Los de solo
+                // fecha siguen con el aviso de "Hoy / Mañana".
+                var timed = CM ? (list || []).filter(function (r) { return r.due_at; }) : [];
+                pushFeed(CM ? CM.dueReminderAlerts(timed, new Date()).map(function (alert) {
+                    var r = alert.reminder;
+                    var occ = alert.occurrence;
+                    var key = 'rem:' + r.id + ':' + occ.toISOString();
+                    return {
+                        key: key, type: 'recordatorio', icon: 'calendar',
+                        title: 'Recordatorio',
+                        desc: 'Ahora (' + occ.toTimeString().slice(0, 5) + '): ' + r.title + '.',
+                        ts: occ.toISOString(), unread: !seen.has(key),
+                        href: '/calendar?view=day&date=' + CM.isoDate(occ) + '&event=' + encodeURIComponent('reminder:' + r.id),
+                    };
+                }) : []);
+                var dated = (list || []).filter(function (r) { return !(CM && r.due_at); });
+                pushFeed(M.dueSoon(dated, new Date(), 1).map(function (r) {
                     var today = M.isoDateLocal(new Date()) === r.due_date;
                     return {
                         // Figma 801:558: Recordatorio lleva el ícono de calendario.
@@ -401,6 +434,9 @@
                 if (res && res.error) throw res.error;
                 var apps = (res && res.data) || [];
                 state.counts.apps += apps.filter(function (a) { return a.status === 'pending'; }).length;
+                var offersDone = typeof D.StudioSpots.listCounterOffers === 'function'
+                    ? pushCounterOffers('spots', apps, function (app) { return D.StudioSpots.listCounterOffers(app.id); }, seen)
+                    : null;
                 pushFeed(apps.filter(function (a) {
                     return (a.status === 'accepted' || a.status === 'rejected' || a.status === 'declined')
                         && a.decided_at && new Date(a.decided_at).getTime() >= weekAgo;
@@ -414,6 +450,7 @@
                         ts: a.decided_at, unread: !seen.has('spa:' + a.id), href: '/artist/applications?tab=spots',
                     };
                 }));
+                return offersDone;
             }).catch(function (e) { console.warn('[wo-menu] spots:', e && e.message); }));
         }
 
@@ -422,6 +459,10 @@
                 state.counts.apps += (apps || []).filter(function (a) {
                     return ['pending', 'pendiente', 'submitted', 'enviada'].indexOf(String(a.status || '').toLowerCase()) !== -1;
                 }).length;
+                var CO = D.JobBoard.CounterOffers;
+                if (CO && typeof CO.listByApplication === 'function') {
+                    return pushCounterOffers('jb', apps, function (app) { return CO.listByApplication(app.id); }, seen);
+                }
             }).catch(function (e) { console.warn('[wo-menu] postulaciones:', e && e.message); }));
         }
 
@@ -463,6 +504,15 @@
                     };
                 }));
             }).catch(function (e) { console.warn('[wo-menu] store:', e && e.message); }));
+        }
+
+        // ── integracion ── soporte decidió sobre un documento, un destino de
+        // retiro o un retiro: el aviso sale de las filas (support-decision-model.js).
+        var SDM = window.WoSupportDecisionModel;
+        if (SDM && D && D.SupportDecisions && typeof D.SupportDecisions.listRecentForArtist === 'function') {
+            jobs.push(D.SupportDecisions.listRecentForArtist(uid).then(function (rows) {
+                pushFeed(SDM.feedItems(rows, { seen: seen, now: new Date() }));
+            }).catch(function (e) { console.warn('[wo-menu] soporte:', e && e.message); }));
         }
 
         jobs.push(fetch(appPath('/shared/platform-updates.json'), { cache: 'no-cache' }).then(function (r) {
@@ -809,6 +859,22 @@
                 var D = window.WeotziData;
                 return Boolean(D && D.Reminders);
             }).catch(function (e) { console.warn('[wo-menu] recordatorios:', e && e.message); }),
+            loadCounterRepository('/shared/js/notification-feed-model.js', function () {
+                return Boolean(window.WoNotificationFeedModel);
+            }).catch(function (e) { console.warn('[wo-menu] contraofertas:', e && e.message); }),
+            // ── integracion ── decisiones de soporte (documento, destino, retiro).
+            loadCounterRepository('/shared/js/support-decision-model.js', function () {
+                return Boolean(window.WoSupportDecisionModel);
+            }).then(function () {
+                return loadCounterRepository('/shared/js/data/support-decisions-repo.js', function () {
+                    var D = window.WeotziData;
+                    return Boolean(D && D.SupportDecisions);
+                });
+            }).catch(function (e) { console.warn('[wo-menu] soporte:', e && e.message); }),
+            // Calendario (ronda 3): ocurrencias con hora de los recordatorios.
+            loadCounterRepository('/shared/js/calendar-model.js', function () {
+                return Boolean(window.WeotziCalendarModel);
+            }).catch(function (e) { console.warn('[wo-menu] modelo del calendario:', e && e.message); }),
             // La Store solo se carga con el flag encendido (o en el preview/demo).
             storeFlag() ? loadCounterRepository('/shared/js/store-model.js', function () {
                 return Boolean(window.WeotziStoreModel);
@@ -962,6 +1028,15 @@
         window.setInterval(refresh, 60000);
         document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
         document.addEventListener('weotzi:reminders-changed', function () { refresh(); });
+    }
+
+    // Configuración y accesibilidad global + 2FA (Cuenta 801:574/575):
+    // app-settings-loader.js se carga en todas las páginas del artista.
+    if (!window.WoAppSettings && !document.querySelector('script[data-wo-app-settings-loader]')) {
+        var settingsScript = document.createElement('script');
+        settingsScript.src = appPath('/shared/js/app-settings-loader.js');
+        settingsScript.setAttribute('data-wo-app-settings-loader', '');
+        document.head.appendChild(settingsScript);
     }
 
     if (document.readyState === 'loading') {

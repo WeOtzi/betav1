@@ -303,7 +303,11 @@ test('repo stores turnos of approved quotes as quotation_sessions and degrades w
 
     const reminder = internal.normalizeDashboardReminder({ id: 'r1', title: 'Pedir tinta', due_date: '2026-07-15', completed_at: null });
     assert.equal(reminder.type, 'reminder');
-    assert.equal(reminder.href, '/artist/dashboard?modal=recordatorio&id=r1');
+    // Ronda 3: artist_reminders es la fuente única del tipo Recordatorio y se
+    // edita desde el calendario (antes era solo lectura con link al dashboard).
+    assert.equal(reminder.readonly, false);
+    assert.equal(reminder.sourceType, 'artist_reminder');
+    assert.equal(reminder.allDay, true);
     assert.equal(internal.normalizeDashboardReminder({ id: 'r2', title: 'Hecho', due_date: '2026-07-15', completed_at: '2026-07-01' }), null);
 
     assert.ok(internal.isMissingColumn({ code: '42703', message: 'column "location" does not exist' }, 'location'));

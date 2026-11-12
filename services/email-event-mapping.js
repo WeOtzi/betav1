@@ -147,6 +147,38 @@ const EVENTS = {
         recipient: p => p.artist_email,
         attribs: p => ({ ...p })
     },
+    // ===== Avisos al cliente por acciones del artista (ronda 3 · P8/P10) =====
+    // El destinatario sale SIEMPRE de la cotización guardada
+    // (services/email-request-context.js), nunca de lo que manda el navegador.
+    artist_rejected_quotation: {
+        name: 'Artista rechazó la solicitud',
+        templateHint: 'artist-rejected-quotation',
+        description: 'Aviso al cliente cuando el artista rechaza o cancela su solicitud.',
+        recipient: p => p.client_email,
+        attribs: p => ({ ...p })
+    },
+    quotation_ready_for_client: {
+        name: 'Entrega lista para el cliente',
+        templateHint: 'quotation-ready-client',
+        description: 'Aviso al cliente cuando el artista marca el trabajo listo para aprobar.',
+        recipient: p => p.client_email,
+        attribs: p => ({ ...p })
+    },
+    dispute_artist_response: {
+        name: 'Disputa: respuesta del artista',
+        templateHint: 'dispute-artist-response',
+        description: 'Aviso al cliente (y a soporte si SUPPORT_EMAIL está configurado) cuando el artista responde una disputa.',
+        recipients: p => [p.client_email, p.support_email].filter(Boolean),
+        attribs: p => ({ ...p })
+    },
+    // Server-only: lo envía el job de vencimiento (lib/quotation-expiry.js).
+    quotation_expired: {
+        name: 'Cotización vencida',
+        templateHint: 'quotation-expired',
+        description: 'Aviso al cliente cuando venció la vigencia de la propuesta del artista.',
+        recipient: p => p.client_email,
+        attribs: p => ({ ...p })
+    },
     quotation_completed_summary: {
         name: 'Cotización completada (resumen)',
         templateHint: 'quotation-completed',
@@ -233,6 +265,23 @@ const EVENTS = {
         attribs: p => ({ ...p })
     },
 
+    // ===== Calendario (ronda 3) =====
+    // Server-only: lo dispara POST /api/calendar/reminders/dispatch (cron) con
+    // las ocurrencias que reclama claim_due_artist_reminders().
+    artist_calendar_reminder: {
+        name: 'Calendario: recordatorio del artista',
+        templateHint: 'calendar-reminder',
+        description: 'Aviso a la hora de un recordatorio que el artista agendó en su calendario.',
+        recipient: p => p.artist_email || p.email,
+        attribs: p => ({
+            artist_name: p.artist_name || '-',
+            reminder_title: p.reminder_title || 'Recordatorio',
+            reminder_when: p.reminder_when || '',
+            reminder_detail: p.reminder_detail || '-',
+            dashboard_url: p.dashboard_url || ''
+        })
+    },
+
     // ===== Verification =====
     profile_verified: {
         name: 'Perfil verificado',
@@ -245,6 +294,22 @@ const EVENTS = {
         templateHint: 'verification-denied',
         recipient: p => p.artist_email || p.email,
         attribs: p => ({ ...p })
+    },
+    // ── integracion ── Server-only: lo dispara POST /api/support/artist-decision-notify
+    // (lib/integracion-support-notify.js) con la decisión leída de la base.
+    artist_support_decision: {
+        name: 'Soporte: decisión sobre documento, destino o retiro',
+        templateHint: 'support-decision',
+        description: 'Aviso al artista cuando soporte aprueba o rechaza un documento de verificación o un destino de retiro, o marca un retiro como pagado o fallido.',
+        recipient: p => p.artist_email || p.email,
+        attribs: p => ({
+            artist_name: p.artist_name || '-',
+            decision_title: p.decision_title || 'Soporte revisó tu cuenta',
+            decision_detail: p.decision_detail || '',
+            support_note: p.support_note || '-',
+            support_reference: p.support_reference || '-',
+            dashboard_url: p.dashboard_url || ''
+        })
     },
     ambassador_status_updated: {
         name: 'Artista: estado embajador actualizado',

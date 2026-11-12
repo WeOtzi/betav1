@@ -251,7 +251,14 @@
         return `/artist/travel/?trip=${encodeURIComponent(String(tripId))}`;
     }
 
+    // Tattoo Passport (801:1076): los sellos persistidos mandan solo si hay
+    // alguno; una lista vacía (tabla sin escritor) cae a los viajes finalizados.
+    function usePersistedPassport(stamps) {
+        return Array.isArray(stamps) && stamps.length > 0;
+    }
+
     return {
+        usePersistedPassport,
         buildUpcomingDestinations,
         buildGlobeDestinations,
         createDestinationNavigator,

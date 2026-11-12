@@ -529,6 +529,57 @@
         return { ok: Object.keys(errors).length === 0, errors: errors, message: message };
     }
 
+    /* ----------------------- solicitar cambios (801:1101) ----------------------- */
+    // La RPC request_studio_invitation_changes exige 10–1000 caracteres.
+    var CHANGE_MIN = 10;
+    var CHANGE_MAX = 1000;
+
+    function validateChangeRequest(value) {
+        var message = text(value);
+        var error = null;
+        if (!message) error = 'Escribí los cambios que querés proponer.';
+        else if (message.length < CHANGE_MIN) error = 'Contale al estudio un poco más: mínimo ' + CHANGE_MIN + ' caracteres.';
+        else if (message.length > CHANGE_MAX) error = 'Tu propuesta no puede superar los ' + CHANGE_MAX + ' caracteres.';
+        return { ok: !error, error: error, message: message };
+    }
+
+    function changeRequestCount(value) {
+        return text(value).length + ' / ' + CHANGE_MAX;
+    }
+
+    // ── integracion ── 801:1101 lado artista: solicitud de cambios abierta.
+    // requests: filas de studio_invitation_change_requests del artista. Devuelve
+    // un mapa membership_id → la solicitud 'pending' más reciente.
+    var CHANGE_PENDING_LABEL = 'Cambios solicitados · esperando al estudio';
+    function openChangeRequests(requests) {
+        var out = {};
+        (Array.isArray(requests) ? requests : []).forEach(function (r) {
+            if (!r || r.status !== 'pending' || r.membership_id == null) return;
+            var key = String(r.membership_id);
+            var prev = out[key];
+            if (!prev || String(r.created_at || '') > String(prev.created_at || '')) out[key] = r;
+        });
+        return out;
+    }
+
+    // Errores de la RPC en español (nunca el texto crudo de Postgres).
+    function changeRequestError(err) {
+        var raw = String((err && (err.message || err.details || err.hint)) || '').toLowerCase();
+        if (/between|length|caracteres|characters|too (short|long)/.test(raw)) {
+            return 'Tu propuesta tiene que tener entre ' + CHANGE_MIN + ' y ' + CHANGE_MAX + ' caracteres.';
+        }
+        if (/not found|no encontr|pending|pendiente|status|estado/.test(raw)) {
+            return 'Esta invitación ya no está pendiente: actualizá la página.';
+        }
+        if (/authentication required|jwt|session/.test(raw)) {
+            return 'Tu sesión venció: volvé a iniciar sesión para enviar la propuesta.';
+        }
+        if (/permission|denied|42501|not allowed|permiso/.test(raw)) {
+            return 'No tenés permiso para proponer cambios en esta invitación.';
+        }
+        return 'No pudimos enviar tu propuesta. Probá de nuevo en un momento.';
+    }
+
     function characterCount(value) {
         var n = text(value).length;
         return n + (n === 1 ? ' carácter' : ' caracteres') + ' · mínimo ' + MESSAGE_MIN;
@@ -624,6 +675,13 @@
         clusterPoints: clusterPoints,
         centroid: centroid,
         validateContact: validateContact,
+        validateChangeRequest: validateChangeRequest,
+        changeRequestCount: changeRequestCount,
+        changeRequestError: changeRequestError,
+        openChangeRequests: openChangeRequests,
+        CHANGE_PENDING_LABEL: CHANGE_PENDING_LABEL,
+        CHANGE_MIN: CHANGE_MIN,
+        CHANGE_MAX: CHANGE_MAX,
         characterCount: characterCount,
         shortStudioName: shortStudioName,
         featuredInvitation: featuredInvitation,

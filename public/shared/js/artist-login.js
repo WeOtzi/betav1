@@ -224,6 +224,12 @@ async function checkArtistAuthState() {
         // ficticia. En producción el parámetro se ignora.
         if (params.get('state') === 'login' && isPreviewContext()) return;
 
+        // 2FA (801:575): sesión con contraseña pero sin el segundo factor.
+        if (await needsSecondFactor()) {
+            showMfaStep(() => routeAfterLogin(session.user));
+            return;
+        }
+
         const artist = await lookupArtistProfile(session.user.id);
         if (artist) {
             renderAuthenticatedView({
@@ -360,27 +366,16 @@ async function handleArtistLogin(e) {
 
         if (error) throw error;
 
-        const artist = await lookupArtistProfile(data.user.id);
-        const returnTo = getReturnToParam();
-
-        if (artist) {
-            const progress = getArtistProgress(artist);
-            if (progress && !progress.isComplete) {
-                // Perfil a medias: retomamos el registro donde quedó.
-                window.location.href = appPath(buildRegisterArtistUrl(progress));
-                return;
-            }
-            goWithPostAuthLoader(returnTo || '/artist/dashboard', { role: 'artist', variant: 'v1' });
+        // 2FA (801:575): si la cuenta tiene un factor verificado, se pide el
+        // código antes de entrar. La sesión queda en aal1 hasta validarlo.
+        if (await needsSecondFactor()) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            showMfaStep(() => routeAfterLogin(data.user));
             return;
         }
 
-        const client = await lookupClientProfile(data.user.id);
-        if (client) {
-            goWithPostAuthLoader('/client/dashboard', { role: 'client', variant: 'v1' });
-            return;
-        }
-
-        goWithPostAuthLoader(returnTo || '/artist/dashboard', { role: 'artist', variant: 'v1' });
+        await routeAfterLogin(data.user);
 
     } catch (error) {
         console.error('Artist login error:', error);
@@ -399,6 +394,138 @@ async function handleArtistLogin(e) {
 
         showFormMessage(errorMessage, 'error');
     }
+}
+
+// ============================================
+// Destino después de entrar (página de inicio elegida en Cuenta 801:574)
+// ============================================
+
+async function resolveArtistHome(userId) {
+    const S = window.WoAppSettings;
+    if (!S || typeof S.fetchForUser !== 'function') return '/artist/dashboard';
+    try {
+        const settings = await withArtistLoginTimeout(S.fetchForUser(userId), PROFILE_LOOKUP_TIMEOUT_MS, 'Start page');
+        return settings && !settings.timedOut ? S.startPagePath(settings) : '/artist/dashboard';
+    } catch (err) {
+        console.warn('Start page lookup failed:', err);
+        return '/artist/dashboard';
+    }
+}
+
+async function routeAfterLogin(user) {
+    const artist = await lookupArtistProfile(user.id);
+    const returnTo = getReturnToParam();
+
+    if (artist) {
+        const progress = getArtistProgress(artist);
+        if (progress && !progress.isComplete) {
+            // Perfil a medias: retomamos el registro donde quedó.
+            window.location.href = appPath(buildRegisterArtistUrl(progress));
+            return;
+        }
+        goWithPostAuthLoader(returnTo || await resolveArtistHome(user.id), { role: 'artist', variant: 'v1' });
+        return;
+    }
+
+    const client = await lookupClientProfile(user.id);
+    if (client) {
+        goWithPostAuthLoader('/client/dashboard', { role: 'client', variant: 'v1' });
+        return;
+    }
+
+    goWithPostAuthLoader(returnTo || '/artist/dashboard', { role: 'artist', variant: 'v1' });
+}
+
+// ============================================
+// Verificación en dos pasos (TOTP de Supabase Auth, Cuenta 801:575)
+// ============================================
+
+async function needsSecondFactor() {
+    const mfa = _supabase.auth && _supabase.auth.mfa;
+    if (!mfa || typeof mfa.getAuthenticatorAssuranceLevel !== 'function') return false;
+    try {
+        const { data, error } = await mfa.getAuthenticatorAssuranceLevel();
+        if (error) throw error;
+        return Boolean(data && data.nextLevel === 'aal2' && data.currentLevel !== 'aal2');
+    } catch (err) {
+        console.warn('MFA assurance level error:', err);
+        return false;
+    }
+}
+
+let mfaContinue = null;
+
+function showMfaStep(onVerified) {
+    mfaContinue = onVerified;
+    const anonView = document.getElementById('login-anonymous-view');
+    const authView = document.getElementById('login-authenticated-view');
+    const mfaView = document.getElementById('login-mfa-view');
+    if (!mfaView) return;
+    if (anonView) anonView.hidden = true;
+    if (authView) authView.hidden = true;
+    mfaView.hidden = false;
+    setAuthMessage('mfa-message', '');
+    const form = document.getElementById('mfa-form');
+    if (form && !form.dataset.wired) {
+        form.dataset.wired = '1';
+        form.addEventListener('submit', handleMfaSubmit);
+        document.getElementById('btn-mfa-cancel')?.addEventListener('click', cancelMfaStep);
+        document.getElementById('mfa-code')?.addEventListener('input', (event) => {
+            event.target.value = event.target.value.replace(/\D/g, '').slice(0, 6);
+        });
+    }
+    if (window.WoIcons && typeof window.WoIcons.hydrate === 'function') window.WoIcons.hydrate(mfaView);
+    const code = document.getElementById('mfa-code');
+    if (code) { code.value = ''; code.focus(); }
+}
+
+async function handleMfaSubmit(event) {
+    event.preventDefault();
+    const input = document.getElementById('mfa-code');
+    const btn = document.getElementById('btn-mfa');
+    const code = String(input?.value || '').trim();
+    if (!/^\d{6}$/.test(code)) {
+        setAuthMessage('mfa-message', 'Ingresá los 6 dígitos que muestra tu app autenticadora.', 'error');
+        input?.setAttribute('aria-invalid', 'true');
+        input?.focus();
+        return;
+    }
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="wo-spinner" aria-hidden="true"></span><span class="btn-text">Verificando…</span>';
+    btn.disabled = true;
+    try {
+        const { data: factors, error: listError } = await _supabase.auth.mfa.listFactors();
+        if (listError) throw listError;
+        const factor = (factors?.totp || factors?.all || []).find((f) => f.status === 'verified');
+        if (!factor) throw Object.assign(new Error('Sin factor verificado'), { code: 'NO_FACTOR' });
+        const { error } = await _supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code });
+        if (error) throw error;
+        input?.removeAttribute('aria-invalid');
+        setAuthMessage('mfa-message', 'Código verificado.', 'success');
+        const next = mfaContinue;
+        mfaContinue = null;
+        if (typeof next === 'function') await next();
+    } catch (err) {
+        console.warn('MFA verify error:', err);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        input?.setAttribute('aria-invalid', 'true');
+        const message = err?.code === 'NO_FACTOR'
+            ? 'No encontramos tu app autenticadora. Escribinos a soporte para recuperar el acceso.'
+            : 'El código no es válido o ya venció. Probá con el código nuevo de tu app.';
+        setAuthMessage('mfa-message', message, 'error');
+        if (input) { input.value = ''; input.focus(); }
+    }
+}
+
+async function cancelMfaStep() {
+    mfaContinue = null;
+    try { await _supabase.auth.signOut(); } catch (err) { console.warn('MFA cancel signOut:', err); }
+    const mfaView = document.getElementById('login-mfa-view');
+    const anonView = document.getElementById('login-anonymous-view');
+    if (mfaView) mfaView.hidden = true;
+    if (anonView) anonView.hidden = false;
+    document.getElementById('login-email')?.focus();
 }
 
 // ============================================
@@ -485,11 +612,16 @@ async function handleArtistOAuthCallback() {
         }
         if (!session) return;
 
+        if (await needsSecondFactor()) {
+            showMfaStep(() => routeAfterLogin(session.user));
+            return;
+        }
+
         const artist = await lookupArtistProfile(session.user.id);
         if (artist) {
             const progress = getArtistProgress(artist);
             if (progress?.isComplete) {
-                goWithPostAuthLoader(getReturnToParam() || '/artist/dashboard', { role: 'artist', variant: 'v1' });
+                goWithPostAuthLoader(getReturnToParam() || await resolveArtistHome(session.user.id), { role: 'artist', variant: 'v1' });
             } else {
                 window.location.href = appPath(buildRegisterArtistUrl(progress));
             }

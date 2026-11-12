@@ -46,6 +46,19 @@
             return data || [];
         },
 
+        // KPI "Personas interesadas" (801:1076): clientes distintos que le
+        // pidieron cotización al artista para tatuarse (o que viven) en la ciudad
+        // del viaje, últimos 12 meses. RPC count_trip_interested_people
+        // (migración 20261112200000). Devuelve null si no está disponible.
+        async countInterestedPeople(tripId) {
+            if (!tripId) return null;
+            const { data } = await run('travel.countInterestedPeople', (c) =>
+                c.rpc('count_trip_interested_people', { p_trip_id: tripId })
+            );
+            const n = Number(data);
+            return data == null || !Number.isFinite(n) ? null : n;
+        },
+
         // Viaje completo con satelites embebidos (detalle). .maybeSingle().
         async getById(tripId) {
             const { data } = await run('travel.getById', (c) =>

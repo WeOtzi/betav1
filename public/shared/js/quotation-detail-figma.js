@@ -94,6 +94,16 @@
         // El inbox abre la conversación de la cotización con ?quote=<quote_id>.
         return appUrl(quote ? `/artist/inbox?quote=${encodeURIComponent(quote.quote_id || quote.id)}` : '/artist/inbox');
     }
+    // P8: aviso silencioso al cliente (email por el dispatcher; el feed in-app
+    // del cliente lo deriva del historial). Ver quotation-client-notices.js.
+    function noticeClient(kind, extra) {
+        const notices = window.QuotationClientNotices;
+        if (!notices || state.scenario || !state.quote) return;
+        try {
+            if (kind === 'dispute') notices.notifyDisputeResponse(state.quote, extra);
+            else notices.notifyStatusChange(state.quote, kind, extra);
+        } catch (_) { /* el aviso nunca rompe la acción */ }
+    }
     function notify(eventId, payload) {
         try {
             const pending = window.ConfigManager && window.ConfigManager.sendN8NEvent
@@ -231,8 +241,14 @@
     }
     function currencySelect(value) {
         const current = String(value || 'USD').toUpperCase();
-        const codes = Array.from(new Set(['USD', 'ARS', 'CLP', 'MXN', 'EUR', current]));
-        return `<select class="wo-select" name="currency">${codes.map((c) => `<option value="${c}"${c === current ? ' selected' : ''}>${c}</option>`).join('')}</select>`;
+        // Monedas del listado de países (currency-utils.js); una moneda vieja
+        // fuera de la lista (p. ej. BOB) queda en "Otras" para no perder el dato.
+        const api = window.WeOtziCurrency;
+        if (api && typeof api.countryCurrencyOptionsHtml === 'function') {
+            return `<select class="wo-select" name="currency">${api.countryCurrencyOptionsHtml({ value: current, label: 'code' })}</select>`;
+        }
+        const codes = Array.from(new Set(['USD', 'ARS', 'EUR', current]));
+        return `<select class="wo-select" name="currency">${codes.map((c) => `<option value="${esc(c)}"${c === current ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>`;
     }
     function readMinutes(data) {
         const total = (parseInt(data.hours, 10) || 0) * 60 + (parseInt(data.minutes, 10) || 0);
@@ -715,6 +731,8 @@
             dossierHtml(v),
             agreementHtml(v),
             sessionsHtml(v),
+            // Pagos del proyecto (grupo pagos): lo pinta quotation-payments-panel.js.
+            '<div id="qd-payments-slot"></div>',
             closeoutHtml(v),
             disputeHtml(v),
             timelineHtml(v),
@@ -722,6 +740,11 @@
         ].join('');
         hydrateIcons(root);
         resolvePhotos(root);
+        try {
+            document.dispatchEvent(new CustomEvent('wo:quotation-detail-rendered', {
+                detail: { quote: v.quote, stage: v.stage, readOnly: v.readOnly, user: state.user },
+            }));
+        } catch (_) { /* los módulos satélite son opcionales */ }
     }
 
     async function resolvePhotos(root) {
@@ -832,6 +855,21 @@
         }
     }
 
+    // P10: vigencia de la propuesta. Opciones en días; 14 por defecto (Figma 801:556).
+    const VALIDITY_OPTIONS = [7, 14, 30, 60];
+    function validitySelect(q) {
+        const current = q && q.quote_expires_at && q.artist_responded_at
+            ? Math.round((new Date(q.quote_expires_at) - new Date(q.artist_responded_at)) / 86400000) : 14;
+        const selected = VALIDITY_OPTIONS.includes(current) ? current : 14;
+        return `<select class="wo-select" name="validity" aria-describedby="qd-validity-help">${VALIDITY_OPTIONS.map((d) =>
+            `<option value="${d}"${d === selected ? ' selected' : ''}>${d} días</option>`).join('')}</select>
+            <small class="qd-field-help" id="qd-validity-help">Si el cliente no responde en ese plazo, la cotización vence.</small>`;
+    }
+    function validityExpiry(value) {
+        const days = VALIDITY_OPTIONS.includes(Number(value)) ? Number(value) : 14;
+        return new Date(Date.now() + days * 86400000).toISOString();
+    }
+
     function openRespondDialog() {
         if (!guardWrite()) return;
         const q = state.quote;
@@ -848,6 +886,7 @@
                 ${field('Sesiones', `<input class="wo-input" name="sessions" type="number" min="1" max="30" value="${esc(M.intFrom(q.tattoo_estimated_sessions) || 1)}" required>`)}
                 <span></span>
                 ${durationFields(M.minutesFrom(q.artist_session_minutes) || 120)}
+                ${field('Vigencia de la propuesta', validitySelect(q), true)}
                 ${field('Disponibilidad', `<input class="wo-input" name="availability" maxlength="140" value="${esc(q.artist_availability || '')}" placeholder="Fines de semana, desde agosto">`, true)}
                 ${q.client_user_id ? field('Mensaje para el cliente (opcional)', '<textarea class="wo-textarea" name="message" maxlength="2000" placeholder="Contale cómo vas a encarar el diseño."></textarea>', true) : ''}
             </div>`,
@@ -865,6 +904,8 @@
                     artist_session_minutes: minutes,
                     artist_availability: (data.availability || '').trim() || null,
                     artist_responded_at: nowIso(),
+                    // P10: vigencia elegida (14 días por defecto, Figma 801:556).
+                    quote_expires_at: validityExpiry(data.validity),
                     notes: privateNotesValue(),
                 };
                 await updateQuote(patch);
@@ -887,15 +928,17 @@
         if (!guardWrite()) return;
         const ok = await confirmDialog({
             title: '¿Rechazar esta solicitud?',
-            message: 'La solicitud queda rechazada y el cambio se registra en el historial.',
+            message: 'La solicitud queda rechazada, el cliente recibe un aviso y el cambio se registra en el historial.',
             confirmLabel: 'Rechazar',
             danger: true,
         });
         if (!ok) return;
         try {
+            const previous = state.quote.quote_status;
             await updateQuote({ quote_status: 'cancelled' });
+            noticeClient('cancelled', previous);
             await reloadAll();
-            showToast('Solicitud rechazada.');
+            showToast('Solicitud rechazada. Le avisamos al cliente.');
         } catch (error) {
             console.error('[quotation-detail] reject', error);
             showToast('No pudimos rechazar la solicitud.', { error: true });
@@ -1097,9 +1140,11 @@
         });
         if (!ok) return;
         try {
+            const previous = state.quote.quote_status;
             await updateQuote({ quote_status: 'artist_completed', artist_completed_at: nowIso() });
+            noticeClient('artist_completed', previous);
             await reloadAll();
-            showToast('Entrega enviada al cliente para su aprobación.');
+            showToast('Entrega enviada al cliente para su aprobación. Le avisamos por email.');
         } catch (error) {
             console.error('[quotation-detail] mark ready', error);
             showToast('No pudimos marcar la entrega.', { error: true });
@@ -1140,6 +1185,7 @@
                 const response = (data.response || '').trim();
                 if (response.length < 10) throw userError('Escribí al menos 10 caracteres.');
                 await D().QuotationDetail.respondDispute(dispute.id, response);
+                noticeClient('dispute', dispute.id);
                 await reloadAll();
                 showToast('Respuesta enviada.');
             },
