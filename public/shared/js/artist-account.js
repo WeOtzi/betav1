@@ -529,6 +529,7 @@
         $('aac-fullname').value = p.full_name || '';
         $('aac-username').value = artist.username || '';
         $('aac-bio').value = artist.bio_description || '';
+        mountBioEditor();
         $('aac-city').value = artist.city || '';
         $('aac-country').value = artist.country || '';
         $('aac-instagram').value = artist.instagram ? normalizeHandle(artist.instagram) : '';
@@ -655,6 +656,42 @@
         });
     }
 
+    // Presentación con formato (revisión 12 nov 2026, pág. 7): WoRichText del
+    // DS escribe HTML saneado en el textarea. Si el DS no cargó, queda el
+    // textarea de siempre. Se guarda por POST /api/artist/profile/bio, que
+    // vuelve a sanear con lib/bio-sanitizer.js (2000 caracteres visibles).
+    const BIO_MAX_LENGTH = 2000;
+    let bioEditorMounted = false;
+
+    function mountBioEditor(retry = true) {
+        const textarea = $('aac-bio');
+        if (!textarea || bioEditorMounted) return;
+        const RT = window.WoRichText;
+        if (!RT || typeof RT.mount !== 'function') {
+            if (retry) window.addEventListener('load', () => mountBioEditor(false), { once: true });
+            return;
+        }
+        try {
+            RT.mount(textarea, { maxLength: BIO_MAX_LENGTH });
+            bioEditorMounted = true;
+        } catch (err) {
+            console.warn('[account] editor de biografía:', err);
+        }
+    }
+
+    async function saveBio(value) {
+        const next = String(value || '').trim() || null;
+        if (next === (artist.bio_description || null)) return;
+        // Demo y preview aislado (sin Express real): capa de datos emulada.
+        const previewOnly = typeof window !== 'undefined' && window.WEOTZI_PREVIEW === true;
+        if (isDemo() || previewOnly) {
+            await updateArtist({ bio_description: next });
+            return;
+        }
+        const json = await igApi('/api/artist/profile/bio', { method: 'POST', body: { bio: next || '' } });
+        artist.bio_description = json && 'bio_description' in json ? (json.bio_description || null) : next;
+    }
+
     function normalizeHandle(value) {
         const v = String(value || '').trim().replace(/^https?:\/\/(www\.)?(instagram|tiktok)\.com\/@?/i, '').replace(/\/+$/, '');
         if (!v) return '';
@@ -708,12 +745,12 @@
                 name: $('aac-name').value.trim() || null,
                 username,
                 languages: langsPicker.get(),
-                bio_description: $('aac-bio').value.trim() || null,
                 city: $('aac-city').value.trim() || null,
                 country: $('aac-country').value.trim() || null,
                 instagram: instagram ? instagram.replace(/^@/, '') : null,
                 portafolio: $('aac-website').value.trim() || null
             });
+            await saveBio($('aac-bio').value);
 
             const p = {
                 ...profilePrefs(),
@@ -1759,6 +1796,33 @@
         });
         $('aac-modalidad-save').addEventListener('click', saveModality);
         renderModality();
+        loadStudioVerification(extras?.studio_id);
+    }
+
+    // `studios.location_verified` (migración 20261112120000): false mientras el
+    // estudio que sumó un tatuador no completa su alta. Se pide con `*` para no
+    // romper la consulta si la columna todavía no existe (undefined = verificado).
+    function isStudioLocationUnverified(studio) {
+        return Boolean(studio) && studio.location_verified === false;
+    }
+
+    function paintStudioVerification(studio) {
+        const note = $('aac-modalidad-studio-unverified');
+        if (note) note.hidden = !isStudioLocationUnverified(studio);
+    }
+
+    async function loadStudioVerification(studioId) {
+        paintStudioVerification(null);
+        if (!studioId || !D.Studios?.getById) return;
+        try {
+            const { data, error } = await D.Studios.getById(studioId, '*');
+            if (error) throw error;
+            // Si mientras tanto eligió otro estudio, no se pinta.
+            if (modeState.selected && modeState.selected.id !== studioId) return;
+            paintStudioVerification(data);
+        } catch (err) {
+            console.warn('[account] estado del estudio:', err);
+        }
     }
 
     function renderModality() {
@@ -1771,6 +1835,7 @@
 
     function onStudioInput() {
         modeState.selected = null;
+        paintStudioVerification(null);
         modalityError('');
         const query = $('aac-modalidad-studio').value.trim();
         clearTimeout(modeState.timer);
@@ -1851,6 +1916,7 @@
         $('aac-modalidad-studio').value = result.name;
         modeState.selected = result.create ? null : { id: result.id, name: result.name };
         closeStudioList();
+        if (modeState.selected) loadStudioVerification(modeState.selected.id);
     }
 
     function closeStudioList() {

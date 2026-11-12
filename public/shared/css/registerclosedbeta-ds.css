@@ -105,9 +105,12 @@ body.registerclosedbeta-page{margin:0;min-height:100vh;display:flex;flex-directi
 .wo-auth-reco svg{width:100%;height:100%}
 .wo-auth-social-row{display:flex;gap:14.8px;width:100%}
 .wo-beta-social{display:inline-flex;align-items:center;justify-content:center;gap:9.9px;flex:1 1 auto;box-sizing:border-box;height:26px;padding:0 var(--space-2);background:var(--surface-page);border:1.2px solid var(--border-strong);border-radius:var(--radius-none);color:var(--neutral-500);font-family:var(--font-body);font-size:17.2px;font-weight:var(--weight-bold);letter-spacing:0.065em;text-transform:uppercase;white-space:nowrap;cursor:pointer;transition:transform var(--duration-press),box-shadow var(--duration-press)}
-.wo-beta-social[data-social="instagram"]{flex-basis:167.5px}
-.wo-beta-social[data-social="email"]{flex-basis:125.6px}
 .wo-beta-social[data-social="facebook"]{flex-basis:145.3px}
+/* Revisión 12/11 (p. 2): Instagram y su tag Recomendado forman un bloque, así
+   el tag queda pegado al botón también cuando la fila pasa a columna. */
+.wo-auth-social-row{align-items:flex-end}
+.wo-auth-social-reco{display:flex;flex-direction:column;align-items:flex-start;flex:1 1 167.5px;min-width:0}
+.wo-auth-social-reco .wo-beta-social{width:100%}
 .wo-beta-social [data-wo-icon]{width:22px;height:22px;display:inline-flex;flex:none}
 .wo-beta-social svg{width:100%;height:100%}
 .wo-beta-social:hover{background:var(--action-ghost-hover);transform:translate(-2px,-2px);box-shadow:var(--shadow-hard-sm)}
@@ -133,7 +136,8 @@ body.registerclosedbeta-page{margin:0;min-height:100vh;display:flex;flex-directi
 @media (max-width:640px){
   .wo-auth-fieldrow{grid-template-columns:1fr}
   .wo-auth-title{font-size:32px;line-height:1.1}
-  .wo-auth-social-row{flex-direction:column;gap:var(--space-2)}
+  .wo-auth-social-row{flex-direction:column;align-items:stretch;gap:var(--space-2)}
+  .wo-auth-social-reco,.wo-auth-social-row .wo-beta-social[data-social]{flex:0 0 auto}
   .wo-beta-social{flex-basis:auto;height:var(--control-h-md)}
 }
 @media (max-width:480px){
@@ -157,3 +161,22 @@ body.registerclosedbeta-page{margin:0;min-height:100vh;display:flex;flex-directi
   .wo-auth-poster-eyebrow{top:76px;left:40px;right:40px;white-space:normal;text-align:left;font-size:var(--meta-m-size)}
   .wo-auth-poster-manifesto{left:40px;width:auto;max-width:294px;right:calc(56px + 88px + 24px)}
 }
+
+/* ---------- Revisión 12/11 (p. 2): País, Ciudad y "Añadir más adelante" ---------- */
+/* Campos deshabilitados (Ciudad hasta elegir País; Estilo con "más adelante"). */
+.wo-beta-input:disabled{opacity:var(--opacity-disabled);cursor:not-allowed}
+.wo-beta-input:disabled:hover{background:var(--surface-page)}
+
+/* Check chico debajo de Estilo: misma caja que el de términos, sin banda arena. */
+.wo-beta-check{display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-1);font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted);cursor:pointer}
+.wo-beta-check input{appearance:none;-webkit-appearance:none;flex:none;width:16px;height:16px;margin:0;background:var(--white);border:1.2px solid var(--neutral-400);border-radius:var(--radius-sm);cursor:pointer;display:grid;place-content:center}
+.wo-beta-check input:checked{background:var(--neutral-500);border-color:var(--neutral-500)}
+.wo-beta-check input:checked::before{content:"";width:8px;height:4px;border-left:2px solid var(--accent);border-bottom:2px solid var(--accent);transform:rotate(-45deg) translate(1px,-1px)}
+.wo-beta-check input:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+
+/* Sugerencias de Google Places para Ciudad, con la piel del DS. */
+.pac-container{border:var(--border-hairline) solid var(--border-strong);border-top:0;border-radius:var(--radius-none);box-shadow:none;background:var(--white);font-family:var(--font-body)}
+.pac-item{padding:var(--space-2) var(--space-4);border-top:var(--border-hairline) solid var(--border-subtle);font-size:var(--body-s-size);color:var(--text-body);cursor:pointer}
+.pac-item:hover,.pac-item-selected{background:var(--surface-input-hover)}
+.pac-item-query{font-size:var(--body-s-size);color:var(--text-heading)}
+.pac-icon{display:none}

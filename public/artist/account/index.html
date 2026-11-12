@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
-    <link rel="stylesheet" href="/shared/css/artist-account-ds.css?v=20261030-1">
+    <link rel="stylesheet" href="/shared/css/artist-account-ds.css?v=20261112-1">
     <link rel="stylesheet" href="/shared/css/wallet-account.css?v=20261028-3">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
@@ -105,7 +105,7 @@
                     </div>
                     <div class="aac-field aac-field-full" data-assist="perfil.bio">
                         <label class="aac-label" for="aac-bio">Biografía</label>
-                        <textarea class="aac-input aac-textarea" id="aac-bio" rows="4" maxlength="1200"></textarea>
+                        <textarea class="aac-input aac-textarea" id="aac-bio" rows="4" maxlength="2000"></textarea>
                     </div>
                     <div class="aac-field">
                         <label class="aac-label" for="aac-city">Ciudad</label>
@@ -395,6 +395,11 @@
                             <ul class="aac-typeahead-list" id="aac-modalidad-studio-list" role="listbox" aria-label="Estudios" hidden></ul>
                         </div>
                         <p class="aac-help" id="aac-modalidad-studio-help">Si no aparece en la lista, agregalo con su nombre.</p>
+                        <!-- studios.location_verified=false: estudio sumado por un tatuador sin alta completa. -->
+                        <p class="aac-help aac-studio-unverified" id="aac-modalidad-studio-unverified" hidden>
+                            <span class="aac-studio-unverified-chip"><i data-wo-icon="info" aria-hidden="true"></i>Ubicación sin verificar</span>
+                            <span class="aac-studio-unverified-text">El estudio todavía no completó su alta en We Ötzi. Cuando su representante la complete con el link de alta, la ubicación queda verificada.</span>
+                        </p>
                     </div>
                     <p class="aac-error" id="aac-modalidad-error" role="alert" hidden></p>
                     <div class="av-mode-actions">
@@ -881,7 +886,7 @@
     <script src="/shared/js/account-availability-model.js?v=20261028-3"></script>
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/wallet-account.js?v=20261030-1"></script>
-    <script src="/shared/js/artist-account.js?v=20261030-1"></script>
+    <script src="/shared/js/artist-account.js?v=20261112-1"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>
 </html>

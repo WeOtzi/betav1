@@ -1809,3 +1809,50 @@ document.head.appendChild(modesScript);
         '| Supabase:', ConfigManager.isSupabaseConfigured() ? 'OK' : 'N/A',
         '| Demo:', ConfigManager.isDemoMode() ? 'ON' : 'OFF');
 })();
+
+// ---------------------------------------------------------------------------
+// DS · Controles propios (select, fecha, prefijo fijo, editor de texto).
+// Carga única en todas las páginas: este bloque vive en config-manager.js y en
+// wo-icons.js (entre los dos cubren todas las páginas). Opt-out: [data-native].
+// ---------------------------------------------------------------------------
+(function () {
+  'use strict';
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    if (window.__woControlsLoader) return;
+    var me = document.currentScript;
+    var match = me && me.src ? /^(.*\/shared\/)js\/[^\/?#]+(?:[?#].*)?$/.exec(me.src) : null;
+    if (!match) return;
+    window.__woControlsLoader = true;
+    var base = match[1];
+    var head = document.head || document.documentElement;
+    // Stub: mount() antes de que llegue wo-richtext.js queda en cola y el
+    // controlador devuelto se completa al montar de verdad.
+    if (!window.WoRichText) {
+      var queue = [];
+      window.WoRichText = {
+        __queue: queue,
+        mount: function (textarea, options) {
+          var pendingCtl = { pending: true };
+          queue.push([textarea, options || {}, pendingCtl]);
+          return pendingCtl;
+        }
+      };
+    }
+    if (!window.WoControls) {
+      window.WoControls = { enhance: function () {}, refresh: function () {}, close: function () {}, pending: true };
+    }
+    var css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = base + 'css/wo-controls.css';
+    css.setAttribute('data-wo-controls', '');
+    head.appendChild(css);
+    ['js/wo-controls.js', 'js/wo-richtext.js'].forEach(function (path) {
+      var s = document.createElement('script');
+      s.src = base + path;
+      s.async = false;
+      s.setAttribute('data-wo-controls', '');
+      head.appendChild(s);
+    });
+  } catch (err) { /* los controles son mejora progresiva: nunca bloquean la página */ }
+})();

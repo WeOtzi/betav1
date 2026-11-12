@@ -117,16 +117,47 @@ function buildRegistrationDraftPayload() {
         }
     });
 
+    // Portfolio: las publicaciones de Instagram se guardan en el borrador
+    // local (son URLs); los archivos del dispositivo no se pueden guardar,
+    // solo se cuenta cuántos había para avisarlo al reanudar.
+    const mediaDraft = Array.isArray(formState.data.portfolio_media_draft) ? formState.data.portfolio_media_draft : [];
+    data.portfolio_ig_items = mediaDraft
+        .filter(item => item && item.source === 'ig')
+        .map(item => ({
+            id: item.id,
+            source: 'ig',
+            permalink: item.permalink || null,
+            cdn_url: item.cdn_url || null,
+            thumbnail_url: item.thumbnail_url || null,
+            kind: item.kind === 'video' ? 'video' : 'image',
+            category: item.category || 'instagram',
+            caption: item.caption || null,
+            timestamp: item.timestamp || null
+        }));
+    data.portfolio_local_count = mediaDraft.filter(item => item && item.source === 'local' && item.file).length;
+
+    // Paso guardado: número histórico o 'summary' (revisión). Los grupos ya
+    // completos se recuerdan para reanudar sin volver a pasar por ellos.
+    const step = formState.currentStep;
     return {
         version: 1,
         userId: currentUser?.id || null,
         draftId: registrationDraftId || null,
         source: registrationSource,
-        step: typeof formState.currentStep === 'number' ? formState.currentStep : null,
+        step: typeof step === 'number' || step === 'summary' ? step : (registrationLastFormStep || null),
+        doneGroups: typeof groupDoneState !== 'undefined' ? Array.from(groupDoneState) : [],
         savedAt: Date.now(),
         data
     };
 }
+
+// Último paso del formulario (no pantallas de guardado/éxito) para el borrador.
+let registrationLastFormStep = null;
+// true si al cargar había un borrador local de este registro en el navegador.
+let registrationLocalDraftFound = false;
+// true si el borrador se recuperó del servidor (otro navegador o sin local).
+let registrationRemoteDraftLoaded = false;
+let registrationRestoredDoneGroups = [];
 
 function persistRegistrationDraft() {
     const storageKey = getRegistrationDraftStorageKey();
@@ -197,6 +228,21 @@ function applyRegistrationDraftData(draftData) {
             formState.data[field] = value;
         }
     });
+
+    // Portfolio de Instagram guardado en el borrador local.
+    if (Array.isArray(draftData.portfolio_ig_items) && draftData.portfolio_ig_items.length) {
+        const mediaDraft = getPortfolioMediaDraft();
+        const known = new Set(mediaDraft.map(item => item.permalink || item.cdn_url || item.id).filter(Boolean));
+        draftData.portfolio_ig_items.forEach((item) => {
+            if (!item || (!item.cdn_url && !item.thumbnail_url)) return;
+            const key = item.permalink || item.cdn_url || item.id;
+            if (key && known.has(key)) return;
+            mediaDraft.push({ ...item, source: 'ig' });
+            if (key) known.add(key);
+        });
+        formState.data.portfolio_media_seeded = true;
+    }
+    formState.data.portfolio_local_count_saved = Number(draftData.portfolio_local_count) || 0;
 }
 
 function restoreRegistrationDraft() {
@@ -212,8 +258,11 @@ function restoreRegistrationDraft() {
         if (registrationDraftId && parsedDraft.draftId !== registrationDraftId) return null;
         if (!registrationDraftId && currentUser?.id && parsedDraft.userId !== currentUser.id) return null;
 
+        registrationLocalDraftFound = true;
         applyRegistrationDraftData(parsedDraft.data);
+        registrationRestoredDoneGroups = Array.isArray(parsedDraft.doneGroups) ? parsedDraft.doneGroups.filter(id => typeof id === 'string') : [];
 
+        if (parsedDraft.step === 'summary') return 'summary';
         const parsedStep = Number.parseInt(String(parsedDraft.step || ''), 10);
         if (Number.isInteger(parsedStep) && parsedStep >= 1 && parsedStep <= formState.totalSteps) {
             return parsedStep;
@@ -233,6 +282,38 @@ function clearRegistrationDraft() {
         localStorage.removeItem(storageKey);
     } catch (error) {
         console.warn('Could not clear registration draft:', error);
+    }
+}
+
+// Registro terminado: el navegador ya no tiene un registro "en curso".
+function clearRegistrationDraftContext() {
+    try { localStorage.removeItem(REGISTRATION_DRAFT_CONTEXT_KEY); } catch (_) {}
+    // Los datos de Crear cuenta (main.js) ya quedaron en la cuenta: no se
+    // dejan nombre y email en el navegador.
+    try {
+        const handoff = JSON.parse(localStorage.getItem('wo:artist-registration:signup-handoff') || 'null');
+        if (handoff && (!handoff.draft_id || handoff.draft_id === registrationDraftId)) {
+            localStorage.removeItem('wo:artist-registration:signup-handoff');
+        }
+    } catch (_) {}
+}
+
+// Navegador cerrado a mitad del registro: si se vuelve a /register-artist sin
+// ?draft=, se recupera el borrador activo de este navegador (solo si tiene
+// avance guardado; si no, se mantiene el flujo de siempre).
+const REGISTRATION_DRAFT_CONTEXT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+function readStoredActiveDraftId() {
+    try {
+        const stored = JSON.parse(localStorage.getItem(REGISTRATION_DRAFT_CONTEXT_KEY) || 'null');
+        if (!stored || !/^[0-9a-f-]{36}$/i.test(String(stored.draftId || ''))) return '';
+        if (stored.savedAt && Date.now() - Number(stored.savedAt) > REGISTRATION_DRAFT_CONTEXT_MAX_AGE_MS) return '';
+        const local = JSON.parse(localStorage.getItem(`${REGISTRATION_DRAFT_STORAGE_PREFIX}:draft:${stored.draftId}`) || 'null');
+        const core = window.AccesoRegister && window.AccesoRegister.core;
+        if (!local || !local.data || !core || !core.hasResumableProgress(local.data)) return '';
+        if (stored.source) registrationSource = String(stored.source);
+        return String(stored.draftId);
+    } catch (_) {
+        return '';
     }
 }
 
@@ -330,6 +411,7 @@ async function loadRegistrationDraftFromServer() {
         const payload = await readJsonResponse(res);
         if (!res.ok || !payload.success || !payload.artist) return false;
         applyArtistDraftFromServer(payload.artist);
+        registrationRemoteDraftLoaded = true;
         return true;
     } catch (error) {
         console.warn('[register] Could not load registration draft:', error.message || error);
@@ -954,10 +1036,20 @@ async function initializeAuth() {
         if (draftContext.source) registrationSource = draftContext.source;
         if (igSignupPreAuth) registrationSource = 'instagram';
         if (draftContext.email) formState.data.email = draftContext.email;
-        const hasDraftContext = Boolean(registrationDraftId || draftContext.source || draftContext.email);
+        let hasDraftContext = Boolean(registrationDraftId || draftContext.source || draftContext.email);
         const { data: { session }, error } = await _supabase.auth.getSession();
 
         if (error) throw error;
+
+        // Volver a /register-artist sin ?draft= después de cerrar el navegador:
+        // se retoma el registro en curso de este navegador.
+        if (!hasDraftContext && !session && !igSignupPreAuth && !startOverRequested) {
+            const storedDraftId = readStoredActiveDraftId();
+            if (storedDraftId) {
+                rememberRegistrationDraft(storedDraftId);
+                hasDraftContext = true;
+            }
+        }
 
         // IG signup ALWAYS runs as a fresh registration — even if there's
         // an active session in this browser. We treat it as pre-auth and
@@ -1012,8 +1104,21 @@ async function initializeAuth() {
             resetFormDataForStartOver(session && currentUser ? currentUser.email : formState.data.email);
             loadedArtistRecord = null;
             clearRegistrationDraft();
+            registrationRestoredDoneGroups = [];
+            // loadExistingArtistData ya pudo haber escrito los campos: se vacían.
+            ['artistic_name', 'full_name', 'birth_date', 'session_price', 'instagram_handle', 'portfolio_url',
+                'behance_url', 'other_url', 'bio_text', 'studio_name', 'address_search', 'custom_style']
+                .forEach((id) => {
+                    const input = document.getElementById(id);
+                    if (input) input.value = '';
+                });
+            // "Empezar de cero" se aplica una vez: una recarga posterior no
+            // vuelve a borrar lo que se cargue desde ahora.
+            removeUrlParams(['startOver', 'resumeStep']);
         }
         const draftStep = startOverRequested ? null : (restoredDraftStep || restoreRegistrationDraft());
+        // Primera llegada a este registro en este navegador (sin borrador local).
+        const firstArrival = !registrationLocalDraftFound && !startOverRequested;
         prefillFormInputs();
         const igSignup = isInstagramSignup();
         const resumeStep = startOverRequested ? (igSignup ? 0 : 1) : (draftStep || resolveRegistrationResumeStep());
@@ -1034,9 +1139,15 @@ async function initializeAuth() {
         // resto). Others follow the normal resume logic. El render inicial
         // del acordeón siempre pasa por goToStep().
         const targetStep = igSignup && !startOverRequested ? 0 : resumeStep;
+        // Grupos que ya estaban completos en el borrador (p. ej. el artista
+        // volvió a editar uno anterior): siguen completos al reanudar.
+        const targetGroup = groupForStep(targetStep);
+        registrationRestoredDoneGroups
+            .filter(id => GROUP_IDS.includes(id) && id !== targetGroup && id !== 'revision')
+            .forEach(id => groupDoneState.add(id));
         if (targetStep === 0) {
             goToStep(0);
-        } else if (Number.isInteger(targetStep) && targetStep > 1 && targetStep <= formState.totalSteps) {
+        } else if (targetStep === 'summary' || (Number.isInteger(targetStep) && targetStep > 1 && targetStep <= formState.totalSteps)) {
             goToStep(targetStep);
         } else {
             goToStep(1);
@@ -1047,8 +1158,16 @@ async function initializeAuth() {
         // Figma final (oct 2026): portfolio del grupo 04, panel de estilos y
         // estados de QA del preview (acceso-register-final.js).
         if (window.AccesoRegister && typeof window.AccesoRegister.afterInit === 'function') {
-            try { window.AccesoRegister.afterInit({ loadedArtistRecord }); }
+            try { window.AccesoRegister.afterInit({ loadedArtistRecord, firstArrival }); }
             catch (hookError) { console.warn('[register] AccesoRegister.afterInit falló:', hookError); }
+        }
+
+        // Recarga o navegador cerrado a mitad: ofrecer "Continuar donde lo
+        // dejé" / "Empezar de cero" (revisión, pedido nuevo).
+        if (shouldOfferResume({ startOverRequested, targetStep })) {
+            offerRegistrationResume(targetStep);
+        } else {
+            ensurePasswordStepOnResume();
         }
 
         // Initialize Google Places if API is loaded
@@ -1163,6 +1282,7 @@ function resetFormDataForStartOver(email) {
     formState.data.location_city = '';
     formState.data.location_country = '';
     formState.data.styles = [];
+    formState.data.styles_later = false;
     formState.data.experience_years = '';
     formState.data.session_price = '';
     formState.data.session_currency = 'USD';
@@ -1179,6 +1299,13 @@ function resetFormDataForStartOver(email) {
     formState.data.birth_date = '';
     formState.data.subscribed_newsletter = null;
     formState.data.terms_accepted = false;
+    formState.data.website_url = '';
+    formState.data.behance_url = '';
+    formState.data.other_url = '';
+    formState.data.newsletter_topics = [];
+    formState.data.portfolio_media_draft = [];
+    formState.data.ig_imported_media = [];
+    formState.data.portfolio_media_seeded = false;
 }
 
 function resolveRegistrationResumeStep() {
@@ -1199,6 +1326,91 @@ function resolveRegistrationResumeStep() {
     }
 
     return 1;
+}
+
+// ---------- Reanudar el registro (recarga / navegador cerrado) ----------
+function removeUrlParams(names) {
+    try {
+        const url = new URL(window.location.href);
+        let changed = false;
+        names.forEach((name) => {
+            if (url.searchParams.has(name)) {
+                url.searchParams.delete(name);
+                changed = true;
+            }
+        });
+        if (changed) window.history.replaceState({}, '', url.toString());
+    } catch (_) {}
+}
+
+function shouldOfferResume({ startOverRequested, targetStep }) {
+    if (startOverRequested || targetStep === 0) return false;
+    const params = new URLSearchParams(window.location.search || '');
+    // Deep links explícitos (login "Continuar registro", QA del preview).
+    if (params.has('resumeStep') || params.has('step')) return false;
+    if (!registrationLocalDraftFound && !registrationRemoteDraftLoaded) return false;
+    const core = window.AccesoRegister && window.AccesoRegister.core;
+    return Boolean(core && core.hasResumableProgress({
+        ...formState.data,
+        portfolio_ig_items: getPortfolioMediaDraft().filter(item => item.source === 'ig')
+    }));
+}
+
+function offerRegistrationResume(targetStep) {
+    const group = REGISTRATION_GROUPS.find(candidate => candidate.id === groupForStep(targetStep));
+    const offer = window.AccesoRegister && window.AccesoRegister.offerResume;
+    if (typeof offer !== 'function') {
+        ensurePasswordStepOnResume();
+        return;
+    }
+    offer({
+        groupLabel: group ? group.nav : '',
+        localFilesLost: Number(formState.data.portfolio_local_count_saved) > 0,
+        onContinue: () => {
+            ensurePasswordStepOnResume();
+            focusActiveGroup();
+        },
+        onRestart: startRegistrationOver
+    });
+}
+
+// La contraseña nunca se guarda en el borrador: al reanudar más allá de
+// "Tu acceso" se vuelve a pedir y después se sigue donde estaba.
+function ensurePasswordStepOnResume() {
+    if (!formState.preAuthMode) return;
+    if (String(formState.data.signup_password || '').length) return;
+    const step = formState.currentStep;
+    const pastAccess = step === 'summary' || groupIndex(activeGroupId) > groupIndex('acceso');
+    if (!pastAccess) return;
+    groupDoneState.delete('acceso');
+    goToStep(groupEntryStep('acceso'));
+    setGroupError('acceso', 'Por seguridad no guardamos tu contraseña. Escribila de nuevo para seguir donde lo dejaste.');
+}
+
+// "Empezar de cero": borra el borrador local, limpia el remoto (el arranque
+// con ?startOver=1 lo sobrescribe vacío) y recarga el registro desde 01.
+function startRegistrationOver() {
+    clearRegistrationDraft();
+    try {
+        const handoff = JSON.parse(localStorage.getItem('wo:artist-registration:signup-handoff') || 'null');
+        if (handoff && (!handoff.draft_id || handoff.draft_id === registrationDraftId)) {
+            localStorage.removeItem('wo:artist-registration:signup-handoff');
+        }
+    } catch (_) {}
+    getPortfolioMediaDraft().forEach((item) => {
+        if (item && item.source === 'local' && item.preview_url) {
+            try { URL.revokeObjectURL(item.preview_url); } catch (_) {}
+        }
+    });
+    try {
+        const url = new URL(window.location.href);
+        ['step', 'state', 'resumeStep', 'styleLater'].forEach(name => url.searchParams.delete(name));
+        if (registrationDraftId) url.searchParams.set('draft', registrationDraftId);
+        url.searchParams.set('startOver', '1');
+        window.location.replace(url.toString());
+    } catch (_) {
+        window.location.reload();
+    }
 }
 
 // Cached flat list of style objects loaded from tattoo_styles
@@ -1376,6 +1588,7 @@ function prefillFormInputs() {
             (!data.studio_id || !getDisplayAddress(data.address))
         );
         applyAddressPickerVisibility(data.work_type);
+        syncStudioNewNotice();
     }
 
     if (data.experience_years) {
@@ -1400,22 +1613,27 @@ function prefillFormInputs() {
         });
     }
 
-    // Enlaces del grupo "Tu presencia"
+    // Enlaces del grupo "Tu presencia" (los prefijos fijos no van en el valor)
     const igInput = document.getElementById('instagram_handle');
-    if (igInput && data.instagram_handle) igInput.value = data.instagram_handle;
+    if (igInput && data.instagram_handle) igInput.value = String(data.instagram_handle).replace(/^@+/, '');
     const linkUrl = data.portfolio_url || '';
     const otherInput = document.getElementById('other_url');
     const siteInput = document.getElementById('portfolio_url');
     const behanceInput = document.getElementById('behance_url');
+    const siteForInput = (value) => String(value || '').trim().replace(/^(https?:)?\/\//i, '');
+    const behanceForInput = (value) => String(value || '').trim()
+        .replace(/^(https?:)?\/\//i, '').replace(/^(www\.)?behance\.net\/?/i, '').replace(/^[@/]+/, '');
     if (data.website_url || data.behance_url || data.other_url) {
-        if (siteInput && data.website_url) siteInput.value = data.website_url;
-        if (behanceInput && data.behance_url) behanceInput.value = data.behance_url;
+        if (siteInput && data.website_url) siteInput.value = siteForInput(data.website_url);
+        if (behanceInput && data.behance_url) behanceInput.value = behanceForInput(data.behance_url);
         if (otherInput && data.other_url) otherInput.value = data.other_url;
     } else if (linkUrl && data.portfolio_source === 'other') {
         if (otherInput) otherInput.value = linkUrl;
-    } else if (linkUrl && data.portfolio_source !== 'none') {
-        if (siteInput) siteInput.value = linkUrl;
+    } else if (linkUrl && data.portfolio_source !== 'none' && !/(^|\/\/|\.)instagram\.com\//i.test(linkUrl)) {
+        // El enlace de Instagram que `portafolio` guarda como respaldo no es un sitio web.
+        if (siteInput) siteInput.value = siteForInput(linkUrl);
     }
+    syncLinkToggles();
 
     prefillBirthDateInput();
     prefillBioTextarea();
@@ -1634,55 +1852,42 @@ async function addCustomStyle() {
     const addBtn = document.getElementById('add-custom-style-btn');
     if (addBtn) addBtn.disabled = true;
 
+    // Si el estilo ya está en el catálogo, se usa ese nombre (no un duplicado).
+    const core = window.AccesoRegister && window.AccesoRegister.core;
+    let canonicalName = rawValue.charAt(0).toUpperCase() + rawValue.slice(1);
+    if (core) {
+        const groups = core.buildStyleGroups(_loadedDbStyles, null);
+        const chip = core.findStyleChip(rawValue, groups);
+        if (chip) canonicalName = chip.value;
+    }
+
     try {
+        // Registro en tattoo_styles: best effort. Si falla, el estilo igual
+        // queda en styles_array (texto libre).
         const res = await fetch(apiUrl('/api/tattoo-styles/ensure'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: rawValue })
+            body: JSON.stringify({ name: canonicalName })
         });
-
-        if (!res.ok) {
-            const err = await readJsonResponse(res);
-            console.error('Error ensuring style:', err);
-            return;
+        if (res.ok) {
+            const payload = await readJsonResponse(res);
+            if (payload && payload.style && payload.style.name) canonicalName = payload.style.name;
         }
-
-        const { style } = await readJsonResponse(res);
-        const canonicalName = style?.name || rawValue;
-
-        if (formState.data.styles.includes(canonicalName)) {
-            customInput.value = '';
-            return;
-        }
-
-        const existingBtn = document.querySelector(`#styles-grid .style-option[data-style="${CSS.escape(canonicalName)}"]`);
-        if (existingBtn) {
-            if (!existingBtn.classList.contains('selected')) {
-                existingBtn.classList.add('selected');
-                formState.data.styles.push(canonicalName);
-            }
-        } else {
-            formState.data.styles.push(canonicalName);
-            const stylesGrid = document.getElementById('styles-grid');
-            const otherBtn = document.getElementById('style-other-btn');
-            if (stylesGrid && otherBtn) {
-                const newBtn = document.createElement('button');
-                newBtn.type = 'button';
-                newBtn.className = 'style-option selected custom-added';
-                newBtn.dataset.style = canonicalName;
-                newBtn.textContent = canonicalName;
-                newBtn.addEventListener('click', () => toggleStyleOption(newBtn));
-                stylesGrid.insertBefore(newBtn, otherBtn);
-            }
-        }
-
-        customInput.value = '';
-        persistRegistrationDraft();
     } catch (err) {
-        console.error('addCustomStyle network error:', err);
-    } finally {
-        if (addBtn) addBtn.disabled = false;
+        console.warn('addCustomStyle: no se pudo registrar el estilo en el catálogo:', err && err.message);
     }
+
+    const key = normalizeStyleName(canonicalName);
+    if (!formState.data.styles.some(style => normalizeStyleName(style) === key)) {
+        formState.data.styles.push(canonicalName);
+    }
+    customInput.value = '';
+    persistRegistrationDraft();
+    if (window.AccesoRegister && typeof window.AccesoRegister.renderStyleChips === 'function') {
+        window.AccesoRegister.renderStyleChips();
+    }
+    if (addBtn) addBtn.disabled = false;
+    refreshGroupGate();
 }
 
 function selectExperienceOption(btn) {
@@ -2048,6 +2253,27 @@ function syncStudioHardState() {
     const studioInput = document.getElementById('studio_name');
     if (!studioInput) return;
     studioInput.classList.toggle('has-value', Boolean(String(studioInput.value || '').trim()));
+    syncStudioNewNotice();
+}
+
+// Página 9: estudio nuevo creado por el artista. Hasta que un representante
+// complete el alta con el link que se genera al terminar, el estudio existe
+// (otros tatuadores pueden elegirlo) pero no figura como ubicación verificada.
+function isCreatingNewStudio() {
+    const workType = formState.data.work_type;
+    if (workType !== 'studio' && workType !== 'both') return false;
+    const studioInput = document.getElementById('studio_name');
+    const name = String((studioInput ? studioInput.value : formState.data.studio_name) || '').trim();
+    return Boolean(name && !formState.data.studio_id && studioAddressRequired);
+}
+
+function syncStudioNewNotice() {
+    const notice = document.getElementById('studio-new-notice');
+    if (!notice) return;
+    const show = isCreatingNewStudio();
+    notice.hidden = !show;
+    const nameEl = notice.querySelector('[data-studio-new-name]');
+    if (nameEl && show) nameEl.textContent = String(document.getElementById('studio_name')?.value || formState.data.studio_name || '').trim();
 }
 
 function ensureAddressPicker() {
@@ -2218,6 +2444,7 @@ function selectWorkTypeOption(btn) {
         updateStudioAddressPreview(getDisplayAddress(formState.data.address));
     }
 
+    syncStudioNewNotice();
     scrollWorkTypeFollowupIntoView(btn.dataset.type);
     persistRegistrationDraft();
 }
@@ -2295,8 +2522,11 @@ function showPasswordError(msg) {
 // running pre-auth (IG signup, no session) vs post-auth (normal flow).
 function updatePreAuthFieldsVisibility() {
     const preAuth = formState.preAuthMode === true;
+    // `hidden` (no display inline): el CSS arma la grilla de 2 columnas
+    // Contraseña | Repetir contraseña (página 4).
     document.querySelectorAll('.ig-preauth-only').forEach(el => {
-        el.style.display = preAuth ? 'block' : 'none';
+        el.hidden = !preAuth;
+        el.style.display = '';
     });
     // In pre-auth mode the email is editable and the user must type it; in
     // authed mode it's prefilled from session.user.email and locked.
@@ -2385,6 +2615,16 @@ function applyIGPrefillFromResult(result, opts) {
         // pick up the change. Without this they assume the editor is empty.
         bioEditor.dispatchEvent(new Event('input', { bubbles: true }));
         formState.data.bio = pf.bio;
+    }
+    // "Breve presentación" del grupo 04: la bio de Instagram solo entra si el
+    // campo está vacío (nunca pisa lo que el artista escribió).
+    const bioField = document.getElementById('bio_text');
+    if (bioField && pf.bio && !String(bioField.value || '').trim()) {
+        setBioFieldContent(String(pf.bio)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>'));
     }
 }
 
@@ -2818,7 +3058,7 @@ function findFirstEmptyStep() {
     if (!String(d.artistic_name || '').trim()) return 1;
     if (!String(d.full_name || '').trim()) return 2;
     if (!String(d.email || '').trim()) return 3;
-    if (!Array.isArray(d.styles) || d.styles.length === 0) return 4;
+    if (!stylesRequirementMet(d)) return 4;
     if (!d.experience_years) return 5;
     if (!d.session_price) return 6;
     if (!d.portfolio_source) return 7;
@@ -3178,9 +3418,15 @@ function saveLinkFields() {
     const siteInput = document.getElementById('portfolio_url');
     const behanceInput = document.getElementById('behance_url');
     const otherInput = document.getElementById('other_url');
-    const handle = igInput ? igInput.value.trim().replace(/^@/, '') : String(formState.data.instagram_handle || '');
-    const site = siteInput ? siteInput.value.trim() : '';
-    const behance = behanceInput ? behanceInput.value.trim() : '';
+    // Página 7: los campos muestran el prefijo fijo (@ · https:// ·
+    // behance.net/) fuera del valor. Se guarda normalizado como antes:
+    // handle sin @, sitio con https:// y Behance como "behance.net/usuario".
+    const core = window.AccesoRegister && window.AccesoRegister.core;
+    const handle = igInput
+        ? (core ? core.normalizeInstagramHandle(igInput.value) : igInput.value.trim().replace(/^@+/, ''))
+        : String(formState.data.instagram_handle || '');
+    const site = siteInput ? (core ? core.websiteFromInput(siteInput.value) : siteInput.value.trim()) : '';
+    const behance = behanceInput ? (core ? core.behanceFromInput(behanceInput.value) : behanceInput.value.trim()) : '';
     const other = otherInput ? otherInput.value.trim() : '';
 
     formState.data.instagram_handle = handle;
@@ -3196,20 +3442,130 @@ function saveLinkFields() {
     else formState.data.portfolio_source = 'none';
 }
 
-// ---------- Presentación (textarea del grupo 04) ----------
+// Toggle de enlace activo ↔ campo visible.
+function setLinkToggle(chip, active) {
+    if (!chip) return;
+    chip.classList.toggle('is-active', active);
+    chip.setAttribute('aria-pressed', String(active));
+    const field = document.querySelector(`[data-link-field="${chip.dataset.link}"]`);
+    if (field) field.hidden = !active;
+}
+
+// Instagram arranca activo; el resto solo si ya tiene un valor cargado.
+function syncLinkToggles() {
+    document.querySelectorAll('.link-toggle').forEach((chip) => {
+        const field = document.querySelector(`[data-link-field="${chip.dataset.link}"]`);
+        const input = field ? field.querySelector('input') : null;
+        const hasValue = Boolean(input && String(input.value || '').trim());
+        setLinkToggle(chip, hasValue || chip.classList.contains('is-active'));
+    });
+}
+
+// ---------- Fecha de nacimiento: límites del calendario ----------
+function applyBirthDateBounds() {
+    const input = document.getElementById('birth_date');
+    const core = window.AccesoRegister && window.AccesoRegister.core;
+    if (!input || !core) return;
+    const bounds = core.birthDateBounds(new Date());
+    input.min = bounds.min;
+    input.max = bounds.max;
+    if (window.WoControls && typeof window.WoControls.refresh === 'function') {
+        try { window.WoControls.refresh(input); } catch (_) {}
+    }
+}
+
+function birthDateWithinBounds(iso) {
+    const core = window.AccesoRegister && window.AccesoRegister.core;
+    if (!iso || !core) return Boolean(iso);
+    const bounds = core.birthDateBounds(new Date());
+    return iso >= bounds.min && iso <= bounds.max;
+}
+
+// ---------- Presentación (editor del DS sobre el textarea del grupo 04) ----------
+// WoRichText.mount escribe HTML saneado en el textarea. Sin el editor (DS no
+// cargado) el textarea queda como texto plano, igual que antes.
+const BIO_MAX_LENGTH = 2000;
+let bioRichTextMounted = false;
+let bioRichTextInstance = null;
+
+function mountBioRichText() {
+    const textarea = document.getElementById('bio_text');
+    if (!textarea || bioRichTextMounted) return;
+    const tryMount = () => {
+        if (bioRichTextMounted || !window.WoRichText || typeof window.WoRichText.mount !== 'function') return false;
+        // El borrador guarda HTML: se le pasa el HTML (no el texto plano).
+        if (formState.data.bio && (!textarea.value.trim() || textarea.dataset.bioFormat !== 'html')) {
+            textarea.value = formState.data.bio;
+        }
+        textarea.dataset.bioFormat = 'html';
+        try {
+            bioRichTextInstance = window.WoRichText.mount(textarea, { maxLength: BIO_MAX_LENGTH }) || null;
+            bioRichTextMounted = true;
+        } catch (error) {
+            console.warn('[register] WoRichText.mount falló; queda el textarea simple:', error);
+            textarea.dataset.bioFormat = 'text';
+            textarea.value = bioPlainText(formState.data.bio);
+            return false;
+        }
+        textarea.addEventListener('change', () => syncBioFromTextarea());
+        return true;
+    };
+    if (tryMount()) return;
+    // El DS puede terminar de cargar después que el registro.
+    let tries = 0;
+    const timer = setInterval(() => {
+        if (tryMount() || ++tries > 40) clearInterval(timer);
+    }, 100);
+}
+
+// Carga un texto (por ejemplo, la bio importada de Instagram) en el campo.
+function setBioFieldContent(html) {
+    const textarea = document.getElementById('bio_text');
+    if (!textarea) return;
+    const value = String(html || '');
+    if (bioRichTextMounted) {
+        const inst = bioRichTextInstance;
+        const setter = inst && (inst.setValue || inst.setHTML || inst.setContent);
+        if (typeof setter === 'function') {
+            setter.call(inst, value);
+        } else {
+            textarea.value = value;
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            textarea.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    } else {
+        textarea.value = bioPlainText(value);
+    }
+    syncBioFromTextarea();
+}
+
+function bioTextareaIsHtml(textarea) {
+    return Boolean(textarea && (bioRichTextMounted || textarea.dataset.bioFormat === 'html'));
+}
+
 function syncBioFromTextarea() {
     const textarea = document.getElementById('bio_text');
     if (!textarea) {
         syncBioContent({ normalizeEditor: true });
         return;
     }
-    const html = String(textarea.value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\n/g, '<br>');
-    const safe = window.BioFormatting ? window.BioFormatting.sanitizeBioHtml(html) : html;
-    formState.data.bio = textarea.value.trim() ? safe : '';
+    const raw = String(textarea.value || '');
+    const html = bioTextareaIsHtml(textarea)
+        ? raw
+        : raw
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>');
+    // Con el editor del DS se usa su mismo saneo (conserva color, tamaño,
+    // listas y enlaces; lib/bio-sanitizer.js vuelve a sanear en el servidor).
+    const richSanitize = bioTextareaIsHtml(textarea) && window.WoRichText && typeof window.WoRichText.sanitize === 'function'
+        ? window.WoRichText.sanitize
+        : null;
+    const safe = richSanitize
+        ? richSanitize(html)
+        : (window.BioFormatting ? window.BioFormatting.sanitizeBioHtml(html) : html);
+    formState.data.bio = bioPlainText(safe) ? safe : '';
     const legacyEditor = document.getElementById('bio');
     if (legacyEditor) legacyEditor.innerHTML = formState.data.bio;
     persistRegistrationDraft();
@@ -3229,8 +3585,36 @@ function bioPlainText(bioHtml, limit) {
 function prefillBioTextarea() {
     const textarea = document.getElementById('bio_text');
     if (!textarea || textarea.value.trim()) return;
+    if (bioRichTextMounted) {
+        if (formState.data.bio) setBioFieldContent(formState.data.bio);
+        return;
+    }
     const plain = bioPlainText(formState.data.bio);
+    textarea.dataset.bioFormat = 'text';
     if (plain) textarea.value = plain;
+}
+
+// Crear cuenta → "Añadir más adelante, mi estilo no está aquí": el grupo 03
+// deja seguir sin estilo (llega como ?styleLater=1, en el handoff de main.js o
+// ya guardado en el borrador como `styles_later`). Sin esa marca, sigue siendo
+// obligatorio elegir al menos uno.
+function stylesLaterAllowed() {
+    const data = formState.data || {};
+    if (data.styles_later === true) return true;
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        if (/^(1|true)$/i.test(params.get('styleLater') || '')) return true;
+    } catch (_) { /* sin URL */ }
+    const api = window.AccesoRegister;
+    if (api && typeof api.stylesLaterRequested === 'function') {
+        try { return Boolean(api.stylesLaterRequested()); } catch (_) { return false; }
+    }
+    return false;
+}
+
+function stylesRequirementMet(data) {
+    const styles = data && Array.isArray(data.styles) ? data.styles : [];
+    return styles.length > 0 || stylesLaterAllowed();
 }
 
 // ---------- Gate de cada grupo ----------
@@ -3249,7 +3633,8 @@ function isGroupReady(groupId) {
             const fullNameInput = document.getElementById('full_name');
             const fullName = fullNameInput ? fullNameInput.value : data.full_name;
             if (!String(fullName || '').trim()) return false;
-            return isAdultBirthDate(readBirthDateInput());
+            const birth = readBirthDateInput();
+            return isAdultBirthDate(birth) && birthDateWithinBounds(birth);
         }
         case 'acceso': {
             const emailInput = document.getElementById('email');
@@ -3263,7 +3648,7 @@ function isGroupReady(groupId) {
             return pw === pw2;
         }
         case 'oficio':
-            return Array.isArray(data.styles) && data.styles.length > 0 && Boolean(data.experience_years);
+            return stylesRequirementMet(data) && Boolean(data.experience_years);
         case 'presencia':
             return true;
         case 'trabajo': {
@@ -3603,16 +3988,18 @@ function setupGroupUI() {
         });
     }
 
-    // Toggles de "¿Dónde mostrás tu trabajo?"
+    // Toggles de "¿Dónde mostrás tu trabajo?" (página 7: solo Instagram por
+    // defecto; el resto se activa al tocarlo o si ya tiene un valor guardado).
     document.querySelectorAll('.link-toggle').forEach((chip) => {
         chip.addEventListener('click', () => {
             const active = !chip.classList.contains('is-active');
-            chip.classList.toggle('is-active', active);
-            chip.setAttribute('aria-pressed', String(active));
+            setLinkToggle(chip, active);
             const field = document.querySelector(`[data-link-field="${chip.dataset.link}"]`);
             if (!field) return;
-            field.hidden = !active;
-            if (!active) {
+            if (active) {
+                const input = field.querySelector('input');
+                if (input) setTimeout(() => { try { input.focus(); } catch (_) {} }, 30);
+            } else {
                 const input = field.querySelector('input');
                 if (input) input.value = '';
                 saveLinkFields();
@@ -3620,6 +4007,36 @@ function setupGroupUI() {
             }
         });
     });
+    syncLinkToggles();
+
+    // Fecha de nacimiento (página 3): sin menores de 18 ni fechas futuras.
+    applyBirthDateBounds();
+
+    // Presentación con editor WYSIWYG del DS (página 7): 2000 caracteres.
+    mountBioRichText();
+
+    // Página 10: reintentar el envío sin perder datos.
+    const retryBtn = document.getElementById('ra-submit-retry');
+    if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
+            if (!document.getElementById('terms-checkbox')?.checked) {
+                setGroupError('revision', 'Para crear tu perfil, aceptá los Términos y Condiciones y la Política de Privacidad.');
+                return;
+            }
+            formState.data.terms_accepted = true;
+            submitForm();
+        });
+    }
+
+    // "Otro" estilo propio: aviso de descubrimiento (página 5).
+    const customStyleClose = document.getElementById('custom-style-close');
+    if (customStyleClose) {
+        customStyleClose.addEventListener('click', () => {
+            if (window.AccesoRegister && typeof window.AccesoRegister.toggleCustomStyle === 'function') {
+                window.AccesoRegister.toggleCustomStyle(false);
+            }
+        });
+    }
 
     // Novedades (4 temas → boolean del esquema)
     document.querySelectorAll('.newsletter-topic-input').forEach((box) => {
@@ -3666,6 +4083,9 @@ function workSummaryValue() {
     if (data.work_type === 'independent') modality = 'Independiente';
     else if (data.work_type === 'studio') modality = data.studio_name ? `Estudio ${data.studio_name}` : 'Un estudio';
     else if (data.work_type === 'both') modality = data.studio_name ? `Ambos · ${data.studio_name}` : 'Ambos';
+    if (modality && data.studio_name && !data.studio_id && (data.work_type === 'studio' || data.work_type === 'both')) {
+        modality += ' (estudio nuevo, pendiente de alta)';
+    }
     const address = getDisplayAddress(data.address) || getRegistrationCity();
     return [modality, address].filter(Boolean).join(' · ');
 }
@@ -3752,11 +4172,25 @@ function renderGroups() {
             const valueEl = row.querySelector('[data-row-value]');
             if (valueEl && isDone) valueEl.textContent = groupSummaryValue(group.id);
         }
-        if (panel) panel.hidden = !isActive;
+        if (panel) {
+            const wasHidden = panel.hidden;
+            panel.hidden = !isActive;
+            if (isActive && wasHidden) playPanelEntrance(panel);
+        }
     });
 
     updateGroupNav();
     refreshGroupGate();
+}
+
+// Página 3: entrada sutil de los elementos del grupo que se abre, con la
+// clase del DS (.wo-enter-stagger: fade + subida corta, escalonado por hijo;
+// sin movimiento con prefers-reduced-motion).
+function playPanelEntrance(panel) {
+    if (!panel) return;
+    panel.classList.remove('wo-enter-stagger');
+    void panel.offsetWidth; // reinicia la animación al reabrir el grupo
+    panel.classList.add('wo-enter-stagger');
 }
 
 function focusActiveGroup() {
@@ -3784,6 +4218,7 @@ function scrollActiveGroupIntoView() {
 // grupo dueño del paso y re-renderiza el acordeón.
 function goToStep(step) {
     formState.currentStep = step;
+    if (typeof step === 'number' || step === 'summary') registrationLastFormStep = step;
 
     if (!isScreenStep(step) && step !== 0) {
         const groupId = groupForStep(step);
@@ -3957,7 +4392,7 @@ function validateStep(step) {
             break;
 
         case 4:
-            if (formState.data.styles.length === 0) {
+            if (!stylesRequirementMet(formState.data)) {
                 isValid = false;
                 errorMessage = 'Elegí al menos un estilo.';
                 shakeElement(document.getElementById('styles-grid'));
@@ -3990,19 +4425,29 @@ function validateStep(step) {
 
         case 7: {
             // Los enlaces son opcionales; sólo se controla que las URL
-            // cargadas sean válidas.
-            const urlFields = [
-                document.getElementById('portfolio_url'),
-                document.getElementById('other_url')
-            ];
-            for (const field of urlFields) {
-                const value = String(field?.value || '').trim();
-                if (!value) continue;
+            // cargadas sean válidas. El sitio web lleva el https:// como
+            // prefijo fijo (página 7): se valida el valor ya normalizado.
+            const core = window.AccesoRegister && window.AccesoRegister.core;
+            const siteField = document.getElementById('portfolio_url');
+            const siteValue = String(siteField?.value || '').trim();
+            if (siteValue) {
+                const site = core ? core.websiteFromInput(siteValue) : siteValue;
+                const ok = core ? core.isValidWebsite(site) : /^https?:\/\/\S+\.\S+/.test(site);
+                if (!ok) {
+                    isValid = false;
+                    errorElement = siteField;
+                    errorMessage = 'Revisá tu sitio web: escribí la dirección completa, por ejemplo tusitio.com.';
+                    break;
+                }
+            }
+            const otherField = document.getElementById('other_url');
+            const otherValue = String(otherField?.value || '').trim();
+            if (otherValue) {
                 try {
-                    new URL(value);
+                    new URL(otherValue);
                 } catch {
                     isValid = false;
-                    errorElement = field;
+                    errorElement = otherField;
                     errorMessage = 'Revisá el enlace: tiene que empezar con https://';
                     break;
                 }
@@ -4010,9 +4455,17 @@ function validateStep(step) {
             break;
         }
 
-        case 8:
-            // La presentación es opcional
+        case 8: {
+            // La presentación es opcional; hasta 2000 caracteres de texto visible.
+            const textarea = document.getElementById('bio_text');
+            const raw = String(textarea?.value || '');
+            const visible = bioTextareaIsHtml(textarea) ? bioPlainText(raw) : raw.trim();
+            if (visible.length > BIO_MAX_LENGTH) {
+                isValid = false;
+                errorMessage = `La presentación puede tener hasta ${BIO_MAX_LENGTH} caracteres (tiene ${visible.length}).`;
+            }
             break;
+        }
 
         case 9:
             if (!formState.data.work_type) {
@@ -4058,6 +4511,12 @@ function validateStep(step) {
                 isValid = false;
                 errorElement = document.getElementById('birth_date');
                 errorMessage = 'Tenés que ser mayor de 18 años para registrarte.';
+                break;
+            }
+            if (!birthDateWithinBounds(iso)) {
+                isValid = false;
+                errorElement = document.getElementById('birth_date');
+                errorMessage = 'Revisá la fecha de nacimiento.';
                 break;
             }
             syncBirthDateFromInput();
@@ -4156,7 +4615,7 @@ const SUMMARY_ROWS = [
     { label: 'Nombre artístico', group: 'quien',     value: (d) => d.artistic_name },
     { label: 'Nombre real',      group: 'quien',     value: (d) => capitalizeWords(d.full_name) },
     { label: 'Email',            group: 'acceso',    value: (d) => d.email },
-    { label: 'Estilos',          group: 'oficio',    value: (d) => (d.styles || []).join(' · ') },
+    { label: 'Estilos',          group: 'oficio',    value: (d) => ((d.styles || []).length ? d.styles.join(' · ') : (stylesLaterAllowed() ? 'Para más adelante' : '')) },
     { label: 'Experiencia',      group: 'oficio',    value: (d) => experienceLabel(d.experience_years) },
     { label: 'Tarifa por sesión',group: 'oficio',    value: (d) => summaryPriceValue(d) },
     { label: 'Presentación',     group: 'presencia', value: (d) => bioPlainText(d.bio, 120) },
@@ -4203,11 +4662,18 @@ async function finalizePreAuthRegistration(username) {
     const email = String(formState.data.email || '').trim().toLowerCase();
     const password = String(formState.data.signup_password || '');
     if (!email || !password) {
-        throw new Error('Faltan email o contrasena.');
+        // La contraseña no se guarda en el borrador: tras recargar se pide de nuevo.
+        const error = new Error('Faltan el email o la contraseña.');
+        error.code = 'PASSWORD_REQUIRED';
+        throw error;
     }
     if (!registrationDraftId) {
         const draft = await saveRegistrationDraftToServer({ force: true });
-        if (!draft?.draft_id) throw new Error('No se pudo crear el borrador de registro.');
+        if (!draft?.draft_id) {
+            const error = new Error('No pudimos guardar tu registro en el servidor antes de crear la cuenta.');
+            error.serverMessage = error.message;
+            throw error;
+        }
     } else {
         await saveRegistrationDraftToServer({ force: true });
     }
@@ -4268,6 +4734,11 @@ async function finalizePreAuthRegistration(username) {
         }
         const error = new Error(finalizeData.error || 'No se pudo finalizar el registro.');
         error.conflicts = conflicts;
+        // Detalle real para mostrarlo en la revisión (página 10).
+        error.status = finalizeRes.status;
+        error.serverMessage = finalizeData.error || '';
+        error.detail = finalizeData.detail || finalizeData.message || finalizeData.reason || '';
+        error.code = finalizeData.code || error.code;
         throw error;
     }
     return finalizeData;
@@ -4285,6 +4756,102 @@ function renderSuccessScreen(destinationUrl) {
     if (nameEl) nameEl.textContent = formState.data.artistic_name || 'artista';
     const cta = document.getElementById('ra-success-cta');
     if (cta && destinationUrl) cta.setAttribute('href', appUrl(destinationUrl));
+}
+
+// Página 9: si el artista creó un estudio nuevo, finalize devuelve el link de
+// alta para el representante. Se muestra en "Perfil creado" con copiar y
+// compartir (y sin redirección automática, para que no se pierda).
+function renderStudioClaim(url, expiresAt) {
+    const box = document.getElementById('ra-studio-claim');
+    if (!box) return false;
+    const link = String(url || '').trim();
+    if (!/^https?:\/\//i.test(link)) {
+        box.hidden = true;
+        return false;
+    }
+    const input = document.getElementById('ra-studio-claim-url');
+    if (input) input.value = link;
+    const nameEl = box.querySelector('[data-studio-claim-name]');
+    if (nameEl) nameEl.textContent = String(formState.data.studio_name || '').trim() || 'tu estudio';
+    const status = document.getElementById('ra-studio-claim-status');
+    if (status) status.textContent = '';
+    const expiry = document.getElementById('ra-studio-claim-expiry');
+    if (expiry) {
+        const date = expiresAt ? new Date(expiresAt) : null;
+        const valid = date && !Number.isNaN(date.getTime());
+        expiry.hidden = !valid;
+        expiry.textContent = valid
+            ? `El link vence el ${date.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}.`
+            : '';
+    }
+    const share = document.getElementById('ra-studio-claim-share');
+    if (share) share.hidden = !(navigator.share && typeof navigator.share === 'function');
+    const sub = document.querySelector('.ra-success-sub');
+    if (sub) sub.innerHTML = 'Ya podés recibir cotizaciones e invitaciones de estudios.';
+    if (!box.dataset.wired) {
+        box.dataset.wired = 'true';
+        document.getElementById('ra-studio-claim-copy')?.addEventListener('click', async () => {
+            const value = input ? input.value : link;
+            let ok = false;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(value);
+                    ok = true;
+                }
+            } catch (_) {}
+            if (!ok && input) {
+                input.select();
+                try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+            }
+            if (status) status.textContent = ok ? 'Link copiado.' : 'No pudimos copiarlo: seleccioná el link y copialo a mano.';
+        });
+        share?.addEventListener('click', async () => {
+            try {
+                await navigator.share({
+                    title: 'Alta del estudio en We Ötzi',
+                    text: `Completá el alta de ${String(formState.data.studio_name || 'tu estudio').trim()} en We Ötzi con este link:`,
+                    url: input ? input.value : link
+                });
+            } catch (_) { /* compartir cancelado */ }
+        });
+    }
+    box.hidden = false;
+    return true;
+}
+
+// Página 10: el error real del envío, claro y con "Reintentar" (los datos
+// quedan en el formulario y en el borrador).
+function showSubmitError(error) {
+    const core = window.AccesoRegister && window.AccesoRegister.core;
+    const info = core ? core.describeSubmitError(error) : { title: 'No pudimos crear tu perfil', message: (error && error.message) || 'Intentá de nuevo.', retry: true };
+    if (error && error.code === 'PASSWORD_REQUIRED') {
+        groupDoneState.delete('acceso');
+        goToStep(groupEntryStep('acceso'));
+        setGroupError('acceso', info.message);
+        return;
+    }
+    const box = document.getElementById('ra-submit-error');
+    if (!box) {
+        setGroupError('revision', `${info.title}. ${info.message}`);
+        return;
+    }
+    box.querySelector('[data-submit-error-title]').textContent = info.title;
+    box.querySelector('[data-submit-error-text]').textContent = info.message;
+    const retry = document.getElementById('ra-submit-retry');
+    if (retry) retry.hidden = info.retry === false;
+    box.hidden = false;
+    setTimeout(() => {
+        try {
+            box.scrollIntoView({ block: 'center', behavior: 'auto' });
+            box.focus({ preventScroll: true });
+        } catch (_) {}
+    }, 60);
+}
+
+function clearSubmitError() {
+    const box = document.getElementById('ra-submit-error');
+    if (box) box.hidden = true;
+    setGroupError('revision', '');
 }
 
 // Registro 08 → loader "Organizando tu agenda" (Figma 2001:4308 · v3) → panel.
@@ -4338,14 +4905,27 @@ function sendArtistRegistrationCompletedEvent(payload) {
     }
 }
 
+let registrationSubmitInFlight = false;
+
 async function submitForm() {
+    if (registrationSubmitInFlight) return;
     // Validate terms acceptance first — applies to all flows.
     if (!formState.data.terms_accepted) {
-        alert('Debes aceptar los terminos y condiciones para continuar.');
+        setGroupError('revision', 'Para crear tu perfil, aceptá los Términos y Condiciones y la Política de Privacidad.');
         const termsCheckbox = document.getElementById('terms-checkbox');
         if (termsCheckbox) termsCheckbox.focus();
         return;
     }
+    registrationSubmitInFlight = true;
+    try {
+        await submitFormNow();
+    } finally {
+        registrationSubmitInFlight = false;
+    }
+}
+
+async function submitFormNow() {
+    clearSubmitError();
     prepareRegistrationLocationData();
 
     btnNext.disabled = true;
@@ -4411,6 +4991,7 @@ async function submitForm() {
             }
 
             clearRegistrationDraft();
+            clearRegistrationDraftContext();
             clearInstagramSignupFlag();
 
             sendArtistRegistrationCompletedEvent({
@@ -4450,10 +5031,15 @@ async function submitForm() {
             await finishRegistrationWaitScreen(waitStartedAt);
             btnNext.disabled = false;
             renderSuccessScreen(postRegistrationUrl);
+            const hasStudioClaim = renderStudioClaim(finalizeData.studio_claim_url, finalizeData.studio_claim_expires_at);
             goToStep('success');
-            setTimeout(() => {
-                redirectAfterRegistration(appUrl(postRegistrationUrl));
-            }, 3000);
+            // Con link de alta del estudio no se redirige solo: el artista
+            // tiene que poder copiarlo o compartirlo antes de ir al panel.
+            if (!hasStudioClaim) {
+                setTimeout(() => {
+                    redirectAfterRegistration(appUrl(postRegistrationUrl));
+                }, 3000);
+            }
             return;
         } catch (error) {
             console.error('Error finalizing pre-auth registration:', error);
@@ -4464,8 +5050,11 @@ async function submitForm() {
                 // (markUniquenessConflicts): sin alert ni vuelta al resumen.
                 return;
             }
+            // Los datos siguen en el formulario y en el borrador: se vuelve a
+            // la revisión con el error real y "Reintentar".
+            persistRegistrationDraft();
             goToStep('summary');
-            alert(error.message || 'No se pudo finalizar el registro. Intentá de nuevo.');
+            showSubmitError(error);
             return;
         }
     }
@@ -4474,6 +5063,7 @@ async function submitForm() {
         console.error('No authenticated user');
         btnNext.disabled = false;
         goToStep('summary');
+        showSubmitError(Object.assign(new Error('Tu sesión se cerró. Iniciá sesión de nuevo para terminar el registro.'), { status: 401 }));
         return;
     }
 
@@ -4496,9 +5086,10 @@ async function submitForm() {
                     <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
             `;
-            alert(`El nombre artistico "${formState.data.artistic_name}" ya esta en uso. Por favor, elige otro nombre.`);
             // Go back to artistic name step
+            groupDoneState.delete('quien');
             goToStep(1);
+            setGroupError('quien', `El nombre artístico «${formState.data.artistic_name}» ya está en uso. Elegí otro.`);
             return;
         }
 
@@ -4589,12 +5180,14 @@ async function submitForm() {
                                   ? new Date().toISOString()
                                   : null,
             styles_array: formState.data.styles,
-            estilo: formState.data.styles.join(', '),
+            estilo: (formState.data.styles || []).join(', '),
             portafolio: resolved.portafolio,
             instagram: resolved.instagram,
-            bio_description: window.BioFormatting
-                ? (window.BioFormatting.sanitizeBioHtml(formState.data.bio) || null)
-                : (formState.data.bio || null),
+            bio_description: (window.WoRichText && typeof window.WoRichText.sanitize === 'function')
+                ? (window.WoRichText.sanitize(formState.data.bio || '') || null)
+                : window.BioFormatting
+                    ? (window.BioFormatting.sanitizeBioHtml(formState.data.bio) || null)
+                    : (formState.data.bio || null),
             estudios: estudiosValue,
             studio_id: resolvedStudioId,
             work_type: formState.data.work_type || null,
@@ -4657,6 +5250,7 @@ async function submitForm() {
         }
 
         clearRegistrationDraft();
+        clearRegistrationDraftContext();
 
         // Trigger n8n webhook for artist registration completed.
         // Para el email de credenciales se usa la contrasena en memoria del
@@ -4724,11 +5318,18 @@ async function submitForm() {
         
         // Handle specific error types
         if (error.message === 'USERNAME_CONFLICT') {
-            alert(`El nombre artistico "${formState.data.artistic_name}" ya esta en uso por otro artista. Por favor, elige otro nombre.`);
+            groupDoneState.delete('quien');
             goToStep(1);
+            setGroupError('quien', `El nombre artístico «${formState.data.artistic_name}» ya está en uso por otro artista. Elegí otro.`);
         } else {
+            persistRegistrationDraft();
             goToStep('summary');
-            alert('Error al guardar el perfil. Por favor, intenta de nuevo.');
+            showSubmitError(Object.assign(new Error(error.message || 'Error al guardar el perfil.'), {
+                status: error.status || 0,
+                serverMessage: error.message || '',
+                detail: error.details || error.hint || '',
+                name: error.name
+            }));
         }
     }
 }

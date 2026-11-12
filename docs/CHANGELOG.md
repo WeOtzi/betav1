@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.9] - 2026-11-12
+
+- Revisión del registro de tatuadores: arregla el 500 de finalize (upsert de membresía contra índice parcial) y lo vuelve idempotente y compensado; Inicio con tarjetas animadas y botones por opción; Crear cuenta con País y Ciudad (Google Places), 10 estilos y 'Añadir más adelante'; registro con fecha +18, contraseñas lado a lado, catálogo de estilos en 3 grupos + Otro + vista A–Z, monedas de los 32 países, bio con editor enriquecido (2000), prefijos @/https:///behance.net/, Instagram hasta 50 con reimportación y aviso de validación, link de alta para estudios creados por tatuadores y ubicación sin verificar; continuar o empezar de cero al recargar. Dropdowns y fecha con estilo propio en todo el sitio.
+- Migración aplicada en flbgmlvfiejfttlawnfu: 20261112120000_studio_claim_links (studios.location_verified, studio_claim_links, complete_studio_registration con claim_token), validada antes con begin…rollback.
+- Validación: node --test 1363/1363; finalize probado con server.js real contra Supabase simulado (falla inyectada → sin huérfanos; reintento 200 con studio_claim_url); pantallas revisadas en preview a 1440 y 390 px sin errores de consola.
+- Rollback: controlador a la release 2.2.8 (d268001); la migración es aditiva (reversa en supabase/rollbacks/20261112120000_studio_claim_links.down.sql).
+
+
 ## [2.2.8] - 2026-11-11
 
 - Logger de sesión: no intenta guardar session_logs sin sesión (la RLS lo rechazaba con 401 en consola en login, registro y recuperar).

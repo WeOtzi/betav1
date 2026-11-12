@@ -243,6 +243,15 @@
                     <p class="studio-eyebrow">Estudio</p>
                     <h3 class="studio-name" id="studio-name">-</h3>
                     <p class="studio-address" id="studio-address" hidden></p>
+                    <!-- Estudio sumado por un tatuador (studios.location_verified=false)
+                         hasta que el representante completa el alta. -->
+                    <p class="studio-unverified" id="studio-unverified" hidden>
+                        <span class="studio-unverified-chip" tabindex="0" aria-describedby="studio-unverified-note"
+                              data-tip="El estudio todavía no completó su alta en We Ötzi, así que la dirección no está confirmada.">
+                            <i data-wo-icon="info" aria-hidden="true"></i>Ubicación sin verificar
+                        </span>
+                        <span class="wo-sr-only" id="studio-unverified-note">El estudio todavía no completó su alta en We Ötzi, así que la dirección no está confirmada.</span>
+                    </p>
                     <dl class="studio-facts" id="studio-facts"></dl>
                     <a class="studio-link" id="studio-link" href="/studio/profile" hidden>Ver el estudio →</a>
                 </div>

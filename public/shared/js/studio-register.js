@@ -11,6 +11,12 @@
     let currentStep = 1, existingSession = null, busy = true, resultMode = false, locationId = 0;
     let completedStudio = null, mediaTouched = false, previewUrls = [];
     let confirmationEmail = '', mediaEmail = '', mediaSaving = Promise.resolve();
+    // Link de alta de un estudio creado por un tatuador (?alta=<token>): el
+    // representante completa el registro de ESE estudio y puede corregir
+    // nombre y ubicación. El token viaja en el perfil (claim_token) hasta el
+    // RPC complete_studio_registration.
+    const CLAIM_TOKEN_RE = /^[A-Za-z0-9_-]{32,128}$/;
+    let claimToken = '', claimPreview = null;
     const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const value = id => $(id).value.trim();
     const url = path => window.WeOtziStudioAuth.appUrl(path);
@@ -21,6 +27,7 @@
         wireEvents();
         bootMedia();
         restoreDraft();
+        readClaimTokenFromUrl();
         if (!locations.length) addLocation();
         $('reg-founded').max = String(new Date().getFullYear());
         renderStep(false);
@@ -44,6 +51,7 @@
             const storedFiles = /^\S+@\S+\.\S+$/.test(value('reg-email')) ? await window.WeOtziStudioMedia.load?.(value('reg-email')) : null;
             if (storedFiles) { Object.assign(files, storedFiles); mediaEmail = value('reg-email'); renderMedia(); }
             loadMaps();
+            if (claimToken) await loadClaimPreview();
             if (new URLSearchParams(location.search).get('complete') === '1' && !studio) {
                 showStatus('info', 'Tu cuenta de acceso ya está creada. Completá el perfil y al menos una sede para continuar.');
             }
@@ -64,6 +72,52 @@
         script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&libraries=places&loading=async';
         script.async = true;
         document.head.appendChild(script);
+    }
+    function readClaimTokenFromUrl() {
+        const params = new URLSearchParams(location.search);
+        const fromUrl = params.get('alta') || params.get('claim') || '';
+        if (CLAIM_TOKEN_RE.test(fromUrl)) claimToken = fromUrl;
+        else if (fromUrl) showStatus('error', 'El link de alta no es válido. Pedile al tatuador que te comparta uno nuevo.');
+    }
+    function claimMessage(status) {
+        if (status === 'used' || status === 'claimed') return 'Este link de alta ya se usó. Si sos del estudio y no completaste el alta, pedile al tatuador que genere uno nuevo.';
+        if (status === 'expired' || status === 'revoked') return 'Este link de alta venció. Pedile al tatuador que genere uno nuevo desde su panel.';
+        return 'El link de alta no es válido. Pedile al tatuador que te comparta uno nuevo.';
+    }
+    async function loadClaimPreview() {
+        try {
+            const res = await fetch(url('/api/studio-claim/' + encodeURIComponent(claimToken)), { headers: { Accept: 'application/json' } });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) {
+                claimToken = ''; claimPreview = null; saveDraft();
+                showStatus('error', claimMessage(data.status));
+                return;
+            }
+            claimPreview = data;
+            const name = data.studio?.name || '';
+            if (name && !value('reg-name')) $('reg-name').value = name;
+            const loc = data.location;
+            const first = locations[0];
+            if (loc?.formatted_address && first && !first.address.formatted_address) {
+                first.address = {
+                    formatted_address: loc.formatted_address, country: loc.country || null, country_code: loc.country_code || null,
+                    state_province: loc.state_province || null, city: loc.city || null, locality: loc.locality || null,
+                    street: loc.street || null, street_number: loc.street_number || null, unit: loc.unit || null,
+                    postal_code: loc.postal_code || null, google_place_id: loc.google_place_id || null,
+                    latitude: Number.isFinite(loc.latitude) ? loc.latitude : null, longitude: Number.isFinite(loc.longitude) ? loc.longitude : null
+                };
+                const input = first.row.querySelector('[data-field="address"]');
+                if (input) input.value = loc.formatted_address;
+                first.picker?.setValue?.(first.address);
+                renderAddress(first);
+            }
+            $('claim-notice-title').textContent = 'Alta de ' + (name || 'tu estudio');
+            $('claim-notice-text').textContent = 'Un tatuador sumó este estudio a We Ötzi y te compartió este link. Revisá el nombre y la ubicación: si los corregís, el cambio se verá en los perfiles de los tatuadores vinculados. Cuando termines el alta, la ubicación queda verificada.';
+            $('claim-notice').hidden = false;
+            saveDraft();
+        } catch (_) {
+            showStatus('error', 'No pudimos validar el link de alta. Revisá tu conexión y recargá la página.');
+        }
     }
     function showStatus(kind, message, field) {
         const el = $('wizard-status');
@@ -269,7 +323,7 @@
     function renderSummary() {
         const identity = [value('reg-tagline'), value('reg-bio'), value('reg-founded') ? 'Fundado en ' + value('reg-founded') : '', value('reg-languages'), value('reg-instagram'), value('reg-website'), value('reg-whatsapp')].filter(Boolean).join(' · ');
         $('confirm-summary').innerHTML = summaryRows([
-            [value('reg-name'), value('reg-email')], ['Identidad', identity || 'Podés completarla después'],
+            [value('reg-name'), value('reg-email')], ...(claimPreview ? [['Alta con link', 'Completás el alta de un estudio que sumó un tatuador · la ubicación queda verificada']] : []), ['Identidad', identity || 'Podés completarla después'],
             ...locations.map(entry => [entry.row.querySelector('[data-field="label"]').value.trim() || 'Sede', [entry.primary ? 'Sede principal' : 'Sede adicional', entry.active ? 'Activa' : 'Inactiva', entry.address.formatted_address, entry.address.city, entry.address.country].filter(Boolean).join(' · ')]),
             ['Imágenes', [files.cover ? files.cover.name : value('reg-cover') ? 'Portada por enlace' : '', files.logo ? files.logo.name : value('reg-logo') ? 'Logo por enlace' : '', (files.gallery.length + parsePhotos().length) + ' fotos de galería'].filter(Boolean).join(' · ')]
         ]);
@@ -277,7 +331,7 @@
     function saveDraft() {
         if (resultMode) return;
         try {
-            sessionStorage.setItem(draftKey, JSON.stringify({ step: currentStep, confirmationEmail, fields: Object.fromEntries(textFields.map(id => [id, $(id).value])), locations: locations.map(entry => ({ address: entry.address, primary: entry.primary, active: entry.active, label: entry.row.querySelector('[data-field="label"]').value })) }));
+            sessionStorage.setItem(draftKey, JSON.stringify({ step: currentStep, confirmationEmail, claimToken, fields: Object.fromEntries(textFields.map(id => [id, $(id).value])), locations: locations.map(entry => ({ address: entry.address, primary: entry.primary, active: entry.active, label: entry.row.querySelector('[data-field="label"]').value })) }));
         } catch (_) { /* Registration remains available when browser storage is blocked. */ }
     }
     function restoreDraft() {
@@ -285,6 +339,7 @@
             const draft = JSON.parse(sessionStorage.getItem(draftKey) || 'null');
             if (!draft) return;
             confirmationEmail = typeof draft.confirmationEmail === 'string' ? draft.confirmationEmail : '';
+            if (typeof draft.claimToken === 'string' && CLAIM_TOKEN_RE.test(draft.claimToken)) claimToken = draft.claimToken;
             for (const id of textFields) if (typeof draft.fields?.[id] === 'string') $(id).value = draft.fields[id];
             (draft.locations || []).slice(0, 30).forEach(addLocation);
             // Passwords are intentionally never persisted; account step is revalidated.
@@ -300,6 +355,7 @@
             await mediaSaving;
             if (mediaTouched || files.cover || files.logo || files.gallery.length) await window.WeOtziStudioMedia.stage(value('reg-email'), files);
             const profile = { name: value('reg-name'), email: value('reg-email'), password: $('reg-password').value, tagline: value('reg-tagline') || null, bio: value('reg-bio') || null, founded_year: Number(value('reg-founded')) || null, languages: value('reg-languages').split(',').map(s => s.trim()).filter(Boolean), instagram: value('reg-instagram') || null, website: value('reg-website') || null, whatsapp: value('reg-whatsapp') || null, cover_image: value('reg-cover') || null, logo_image: value('reg-logo') || null, photo_feed_items: parsePhotos().map((image, i) => ({ url: image, kind: 'image', category: 'studio', sort: i, created_at: new Date().toISOString() })), locations: [...locations].sort((a, b) => Number(b.primary) - Number(a.primary)).map(entry => ({ ...entry.address, label: entry.row.querySelector('[data-field="label"]').value.trim() || 'Sede', is_primary: entry.primary, is_active: entry.active })) };
+            if (claimToken) profile.claim_token = claimToken;
             const studio = await window.WeOtziStudioAuth.register(profile);
             $('reg-password').value = ''; $('reg-password-confirm').value = '';
             if (studio.confirmationRequired) showConfirmation(studio.email);
@@ -356,5 +412,5 @@
             catch (err) { showStatus('error', err.message || 'No pudimos terminar de subir las imágenes. Podés reintentar.'); button.disabled = false; button.textContent = 'Continuar configuración'; }
         });
     }
-    function clearDraft() { try { sessionStorage.removeItem(draftKey); } catch (_) { /* Optional browser draft. */ } }
+    function clearDraft() { claimToken = ''; try { sessionStorage.removeItem(draftKey); } catch (_) { /* Optional browser draft. */ } }
 })();
