@@ -396,7 +396,7 @@
 
   function galleryHeader(title, count) {
     return '<header><div><p>GALERÍA DE TRABAJOS</p><h2>' + title + '</h2></div><span>' + count + '</span></header>' +
-      '<div class="wo-mol-gallery__rules"><span>MÁX 12 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>ARRASTRÁ PARA REORDENAR</b></div>';
+      '<div class="wo-mol-gallery__rules"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>ARRASTRÁ PARA REORDENAR</b></div>';
   }
 
   function renderGalleryFull() {
@@ -412,7 +412,7 @@
     return '<section class="wo-mol wo-mol-gallery is-compact" aria-label="Galería de trabajos">' +
       '<p class="wo-mol-preview">VISTA PREVIA</p><div class="wo-mol-gallery__compact-head"><h2>Galería de trabajos <span>— 12</span></h2>' +
       '<button type="button">' + icon('instagram') + ' IMPORTAR INSTAGRAM</button></div><div class="wo-mol-gallery__canvas">' +
-      '<div class="wo-mol-gallery__rules"><span>MÁX 12 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>ARRASTRÁ PARA REORDENAR</b></div>' +
+      '<div class="wo-mol-gallery__rules"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>ARRASTRÁ PARA REORDENAR</b></div>' +
       '<div class="wo-mol-gallery__editor-grid"><article class="is-main"><i>★</i>' + icon('image') + '<p>Manga floral — destacado</p><span>' + icon('star') + icon('edit') + icon('trash-2') + '</span></article>' +
       '<article class="is-hover">' + icon('image') + '<small>HOVER</small></article><article class="is-progress"><progress value="38" max="100" aria-label="Carga de trabajo"></progress><span>38%</span></article>' +
       '<button type="button">' + icon('image') + '<span>SUBIR MÁS</span></button></div>' +

@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.10] - 2026-11-12
+
+- Galería del artista: el límite sube de 12 a 50 archivos (los videos siguen en 2), en línea con la importación de hasta 50 publicaciones de Instagram del registro.
+- Validación: node --test 1363/1363; dashboard en preview muestra MÁX 50 ARCHIVOS, 3/50 y 47 LIBRES.
+- Rollback: controlador a la release 2.2.9 (516d06a). Sin migraciones.
+
+
 ## [2.2.9] - 2026-11-12
 
 - Revisión del registro de tatuadores: arregla el 500 de finalize (upsert de membresía contra índice parcial) y lo vuelve idempotente y compensado; Inicio con tarjetas animadas y botones por opción; Crear cuenta con País y Ciudad (Google Places), 10 estilos y 'Añadir más adelante'; registro con fecha +18, contraseñas lado a lado, catálogo de estilos en 3 grupos + Otro + vista A–Z, monedas de los 32 países, bio con editor enriquecido (2000), prefijos @/https:///behance.net/, Instagram hasta 50 con reimportación y aviso de validación, link de alta para estudios creados por tatuadores y ubicación sin verificar; continuar o empezar de cero al recargar. Dropdowns y fecha con estilo propio en todo el sitio.

@@ -499,14 +499,14 @@
     if (variant === 'full') {
       return '<section class="wo-org wo-org-portfolio is-full" data-figma-node="34:522">' +
         '<p class="wo-org-preview-label">VISTA PREVIA</p><div class="wo-org-portfolio__light"><header><div><p>GALERÍA DE TRABAJOS</p><h2>Tu portfolio</h2></div><span>12 TRABAJOS</span></header>' +
-        '<div class="wo-org-portfolio__rules"><span>MÁX 12 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><span>ARRASTRÁ PARA REORDENAR</span></div>' +
+        '<div class="wo-org-portfolio__rules"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><span>ARRASTRÁ PARA REORDENAR</span></div>' +
         '<div class="wo-org-portfolio__grid">' + DATA.portfolio.map(portfolioMedia).join('') + '<button class="wo-org-portfolio__add" type="button">＋<span>AGREGÁ MÁS TRABAJOS</span></button></div></div>' +
         '<div class="wo-org-portfolio__empty">' + icon('grid') + '<h3>Empezá tu portfolio</h3><p>Subí trabajos uno por uno o importá tu feed completo.</p><div><button type="button">＋ SUBIR FOTOS/VIDEOS</button><button type="button">' + icon('instagram') + 'IMPORTAR INSTAGRAM</button></div></div>' +
       '</section>';
     }
     return '<section class="wo-org wo-org-portfolio is-compact" data-figma-node="34:521">' +
       '<p class="wo-org-preview-label">VISTA PREVIA</p><header class="wo-org-portfolio__compact-head"><h2>Galería de trabajos <span>— 12</span></h2><button type="button">' + icon('instagram') + 'IMPORTAR INSTAGRAM</button></header>' +
-      '<div class="wo-org-portfolio__editor"><div class="wo-org-portfolio__editor-note"><span>MÁX 12 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>▲ ARRASTRÁ PARA REORDENAR</b></div>' +
+      '<div class="wo-org-portfolio__editor"><div class="wo-org-portfolio__editor-note"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>▲ ARRASTRÁ PARA REORDENAR</b></div>' +
         '<div class="wo-org-portfolio__editor-grid"><article class="is-main"><i>★</i>' + icon('image') + '<p>Manga floral — destacado</p><span>' + icon('star') + icon('edit') + icon('trash-2') + '</span></article><article class="is-hover">' + icon('image') + '<small>HOVER</small></article><article class="is-progress"><progress value="38" max="100"></progress><span>38%</span></article><button type="button">' + icon('image') + '<span>SUBIR MÁS</span></button></div>' +
         '<div class="wo-org-portfolio__editor-empty">' + icon('edit-3') + '<h3>Mostrá tu mejor trabajo</h3><p>Un portfolio con fotos de calidad genera más cotizaciones.</p><button type="button">＋ SUBIR FOTOS/VIDEOS</button></div>' +
       '</div></section>';
