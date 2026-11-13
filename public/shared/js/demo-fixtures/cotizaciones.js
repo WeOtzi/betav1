@@ -46,6 +46,9 @@
         }
         var EXTRA = [
             extraQuote({ ref: 'DEMO-V01', status: 'expired', age: 34, upd: 20, client: 'Ezequiel Farías', city: 'Barcelona', part: 'Antebrazo', idea: 'Cobertura de tatuaje antiguo con blackwork.', project: 'Cover-up blackwork', style: 'Blackwork', size: 'Mediano (10 a 15 cm)', sessions: 2, budget: 260, artistBudget: 300, final: null, priority: 'medium' }),
+            // Ronda 3 · P10: respuesta enviada hace 18 días (vigencia 14): el listado la
+            // muestra "Vencida" por la vista calculada aunque el job todavía no la pasó.
+            extraQuote({ ref: 'DEMO-R02', status: 'responded', age: 22, upd: 18, client: 'Tomás Aguirre', city: 'Montevideo', part: 'Pantorrilla', idea: 'Brújula con mapa antiguo en línea fina.', project: 'Brújula fine line', style: 'Fine line', size: 'Mediano (10 a 15 cm)', sessions: 1, budget: 180, artistBudget: 210, final: null, priority: 'low' }),
             extraQuote({ ref: 'DEMO-A01', status: 'completed', age: 70, upd: 55, client: 'Renata Duarte', city: 'Ciudad de México', part: 'Pierna', idea: 'Flash old school de golondrina.', project: 'Golondrina old school', style: 'Old school', size: 'Chico (menos de 10 cm)', sessions: 1, budget: 70, artistBudget: 70, final: 70, priority: 'low', archived: true }),
             extraQuote({ ref: 'DEMO-A02', status: 'client_rejected', age: 80, upd: 74, client: 'Diego Palma', city: 'Lima', part: 'Hombro', idea: 'Cover-up geométrico en dotwork sobre el hombro.', project: 'Cover-up geométrico', style: 'Dotwork', size: 'Mediano (10 a 15 cm)', sessions: 2, budget: 150, artistBudget: 220, final: null, priority: 'medium', archived: true })
         ];

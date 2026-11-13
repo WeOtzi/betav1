@@ -747,6 +747,8 @@ a.qd-evidence-chip:hover { border-color: var(--red-300); }
 .qd-dialog .wo-input, .qd-dialog .wo-textarea, .qd-dialog .wo-select { width: 100%; }
 .qd-dialog .wo-textarea { min-height: 96px; }
 .qd-dialog-error { margin: 0; color: var(--text-danger); font-size: var(--body-s-size); }
+/* Ronda 3 · P10: ayuda bajo "Vigencia de la propuesta" (diseño propio, mismo tono que .qd-dialog-copy). */
+.qd-field-help { display: block; margin-top: var(--space-1); color: var(--text-muted); font-size: var(--body-s-size); line-height: 1.4; }
 .qd-dialog .wo-modal-actions { margin-top: var(--space-2); }
 
 .qd-toast {

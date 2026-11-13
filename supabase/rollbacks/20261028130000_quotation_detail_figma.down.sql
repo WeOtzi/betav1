@@ -11,6 +11,11 @@ begin;
 drop policy if exists "quotation_session_photos_owner_select" on storage.objects;
 drop policy if exists "quotation_session_photos_owner_insert" on storage.objects;
 drop policy if exists "quotation_session_photos_owner_delete" on storage.objects;
+-- Storage bloquea los DELETE por SQL (storage.protect_delete) salvo con
+-- storage.allow_delete_query = 'true' en la transacción (mismo ajuste que la
+-- reversa de 20261112180000). Si el bucket todavía tiene objetos, la FK de
+-- storage.objects hace fallar el delete y la reversa se aborta entera.
+set local storage.allow_delete_query = 'true';
 delete from storage.buckets where id = 'quotation-session-photos';
 
 drop trigger if exists trg_quotation_disputes_sync_status on public.quotation_disputes;

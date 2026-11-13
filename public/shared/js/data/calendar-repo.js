@@ -11,8 +11,13 @@
  *     aprobada SON sesiones de esa cotización. El calendario las crea, edita y
  *     borra en su tabla de origen, así el detalle de la cotización las ve igual.
  *   - artist_trips: guest spots y convenciones de Travel, solo lectura.
- *   - artist_reminders: recordatorios del dashboard con fecha, solo lectura
- *     (si reminders-repo.js está cargado).
+ *   - artist_reminders: ÚNICA fuente del tipo "Recordatorio" (ronda 3): con
+ *     hora y repetición se crean/editan/borran desde el calendario; los de
+ *     solo fecha del dashboard se ven de todo el día (reminders-repo.js).
+ *   - quotations_db pendientes con fecha preferida: "Solicitud pendiente",
+ *     proyección de solo lectura que abre la cotización (calendar-model.js).
+ *   - Guest spot / convención con "Agregar también a Travel" crean el viaje
+ *     con create_artist_trip (no una fila manual).
  *
  * Columnas opcionales (migración 20261028140000_calendar_quote_links, no
  * aplicada todavía): artist_calendar_events.quotation_id y
@@ -38,8 +43,20 @@
         'id', 'quote_id', 'quote_status', 'client_full_name', 'project_description',
         'tattoo_idea_description', 'tattoo_body_part', 'final_sessions',
         'tattoo_estimated_sessions', 'is_archived', 'sent_to_artist_at',
-        'artist_responded_at', 'updated_at',
+        'artist_responded_at', 'updated_at', 'client_preferred_date', 'client_flexible_dates',
     ].join(', ');
+    // Ronda 3 · calendario: modelo puro (calendar-model.js, se carga antes).
+    const Model = window.WeotziCalendarModel || null;
+    const REMINDER_MINUTES = 30;
+
+    // El menú del artista escucha este evento para refrescar el aviso.
+    function notifyRemindersChanged() {
+        try {
+            if (typeof document !== 'undefined' && typeof CustomEvent === 'function') {
+                document.dispatchEvent(new CustomEvent('weotzi:reminders-changed'));
+            }
+        } catch (_error) { /* sin DOM (tests) */ }
+    }
 
     function asDate(value) {
         const date = value instanceof Date ? new Date(value) : new Date(value);
@@ -196,54 +213,90 @@
         };
     }
 
-    // Recordatorios del dashboard (artist_reminders, reminders-repo.js) con
-    // fecha: se muestran como "Recordatorio" de todo el día y se editan en el
-    // dashboard. Los recordatorios con hora y repetición del calendario siguen
-    // en artist_calendar_events (ver reporte: unificación propuesta).
-    function normalizeDashboardReminder(reminder) {
-        if (!reminder || reminder.completed_at || !reminder.due_date) return null;
-        const start = localDate(String(reminder.due_date).slice(0, 10));
+    // Recordatorios (artist_reminders, reminders-repo.js). Desde la ronda 3 es
+    // la ÚNICA fuente del tipo "Recordatorio": el calendario los crea, edita y
+    // borra ahí (con hora y repetición, migración 20261112190000) y el menú del
+    // artista avisa a la hora. Los de solo fecha del dashboard se ven como
+    // "todo el día". `occurrence` es la ocurrencia semanal (null = solo fecha).
+    function reminderEvent(reminder, occurrence, index) {
+        const timed = occurrence instanceof Date;
+        const start = timed ? occurrence : localDate(String(reminder.due_date).slice(0, 10));
         if (!start) return null;
+        const end = timed ? new Date(start.getTime() + REMINDER_MINUTES * 60000) : addDays(start, 1);
         return {
-            id: `artist_reminder:${reminder.id}`,
-            baseId: null,
+            id: `artist_reminder:${reminder.id}:${index || 0}`,
+            baseId: String(reminder.id),
             sourceType: 'artist_reminder',
             sourceId: String(reminder.id),
-            readonly: true,
-            href: `/artist/dashboard?modal=recordatorio&id=${encodeURIComponent(reminder.id)}`,
+            readonly: false,
             type: 'reminder',
             title: reminder.title || 'Recordatorio',
             clientName: '',
             start: start.toISOString(),
-            end: addDays(start, 1).toISOString(),
-            allDay: true,
+            end: end.toISOString(),
+            allDay: !timed,
             location: '',
             notes: reminder.detail || '',
             status: 'scheduled',
-            recurrenceRule: 'none',
-            recurrenceUntil: null,
+            recurrenceRule: reminder.recurrence_rule === 'weekly' ? 'weekly' : 'none',
+            recurrenceUntil: reminder.recurrence_until || null,
             quotationId: null,
             raw: reminder,
         };
     }
 
+    function normalizeDashboardReminder(reminder) {
+        if (!reminder || reminder.completed_at || !reminder.due_date) return null;
+        return reminderEvent(reminder, null, 0);
+    }
+
+    function remindersToEvents(reminders, rangeStart, rangeEnd) {
+        const events = [];
+        (reminders || []).forEach((reminder) => {
+            if (!reminder || reminder.completed_at) return;
+            const occurrences = Model ? Model.reminderOccurrences(reminder, rangeStart, rangeEnd) : null;
+            if (Array.isArray(occurrences)) {
+                occurrences.forEach((occurrence, index) => {
+                    const event = reminderEvent(reminder, occurrence, index);
+                    if (event) events.push(event);
+                });
+                return;
+            }
+            const event = normalizeDashboardReminder(reminder);
+            if (event && overlaps(asDate(event.start), asDate(event.end), rangeStart, rangeEnd)) events.push(event);
+        });
+        return events;
+    }
+
     async function listRemindersProjection(artistUserId, rangeStart, rangeEnd) {
         if (!D.Reminders || typeof D.Reminders.list !== 'function') return [];
         const reminders = await D.Reminders.list(artistUserId);
-        return (reminders || [])
-            .map(normalizeDashboardReminder)
-            .filter((event) => event
-                && overlaps(asDate(event.start), asDate(event.end), rangeStart, rangeEnd));
+        return remindersToEvents(reminders, rangeStart, rangeEnd);
     }
 
-    async function listSessionsProjection(artistUserId, rangeStart, rangeEnd) {
-        if (!D.Quotations || !D.Sessions) return [];
-        const quotations = await D.Quotations.listForArtist(artistUserId, {
+    // Cotizaciones del artista (una sola consulta por carga del mural): de acá
+    // salen los turnos (quotation_sessions) y las solicitudes pendientes.
+    async function listArtistQuotes(artistUserId) {
+        if (!D.Quotations) return [];
+        return D.Quotations.listForArtist(artistUserId, {
             excludeArchived: false,
             excludeInProgress: false,
             select: QUOTE_SELECT,
             order: null,
         });
+    }
+
+    // "Solicitud pendiente" (801:542): proyección de solo lectura de las
+    // cotizaciones que esperan respuesta y tienen una fecha preferida concreta.
+    // Abre el detalle de la cotización; no se crea ni se edita desde acá.
+    function listPendingRequestsProjection(quotations, rangeStart, rangeEnd) {
+        if (!Model) return [];
+        return Model.pendingRequestEvents(quotations, rangeStart, rangeEnd);
+    }
+
+    async function listSessionsProjection(artistUserId, rangeStart, rangeEnd, preloaded) {
+        if (!D.Quotations || !D.Sessions) return [];
+        const quotations = preloaded || await listArtistQuotes(artistUserId);
         if (!quotations.length) return [];
         const byId = new Map(quotations.map((quote) => [quote.id, quote]));
         const sessions = await D.Sessions.listByQuotationIds([...byId.keys()]);
@@ -356,10 +409,17 @@
                     .order('starts_at', { ascending: true })
             );
 
+            let quotations = [];
+            try {
+                quotations = await listArtistQuotes(artistUserId);
+            } catch (error) {
+                console.warn('[calendar] No se pudieron cargar las cotizaciones:', error);
+            }
             const projectionResults = await Promise.allSettled([
-                listSessionsProjection(artistUserId, rangeStart, rangeEnd),
+                listSessionsProjection(artistUserId, rangeStart, rangeEnd, quotations),
                 listTripsProjection(artistUserId, rangeStart, rangeEnd),
                 listRemindersProjection(artistUserId, rangeStart, rangeEnd),
+                Promise.resolve(listPendingRequestsProjection(quotations, rangeStart, rangeEnd)),
             ]);
             projectionResults.forEach((result, index) => {
                 if (result.status === 'rejected') {
@@ -372,6 +432,7 @@
                 ...(projectionResults[0].status === 'fulfilled' ? projectionResults[0].value : []),
                 ...(projectionResults[1].status === 'fulfilled' ? projectionResults[1].value : []),
                 ...(projectionResults[2].status === 'fulfilled' ? projectionResults[2].value : []),
+                ...(projectionResults[3].status === 'fulfilled' ? projectionResults[3].value : []),
             ];
 
             const unique = new Map();
@@ -380,6 +441,24 @@
                 if (!unique.has(key)) unique.set(key, event);
             });
             return [...unique.values()].sort((a, b) => asDate(a.start) - asDate(b.start));
+        },
+
+        // Solo los eventos propios (artist_calendar_events) del rango, con las
+        // repeticiones semanales expandidas. La "Agenda del día" del dashboard
+        // (Figma 24:1425) los suma a los turnos que ya trae de quotation_sessions.
+        async listManualRange(artistUserId, rangeStartValue, rangeEndValue) {
+            const rangeStart = asDate(rangeStartValue);
+            const rangeEnd = asDate(rangeEndValue);
+            if (!rangeStart || !rangeEnd) throw new Error('Rango de calendario inválido.');
+            const { data: rows } = await run('calendar.listManualRange', (client) =>
+                client.from(TABLE)
+                    .select('*')
+                    .eq('artist_user_id', artistUserId)
+                    .neq('status', 'cancelled')
+                    .lt('starts_at', rangeEnd.toISOString())
+                    .order('starts_at', { ascending: true })
+            );
+            return expandManualRows(rows || [], rangeStart, rangeEnd);
         },
 
         // Cotizaciones del artista + sus sesiones, para "Cotización a vincular".
@@ -453,6 +532,66 @@
             await Sessions.delete(sessionId);
         },
 
+        // ---- Recordatorios (artist_reminders) ----
+        // payload: { title, notes, starts_at, due_date, recurrence_rule,
+        // recurrence_until }. Sin la migración 20261112190000 (sin due_at) o
+        // con el respaldo en preferencias, se guarda como antes en
+        // artist_calendar_events para no perder el recordatorio.
+        async saveReminder(artistUserId, reminderId, payload) {
+            const input = {
+                title: payload.title,
+                detail: payload.notes || '',
+                due_date: payload.due_date,
+                due_at: payload.starts_at,
+                recurrence_rule: payload.recurrence_rule === 'weekly' ? 'weekly' : 'none',
+                recurrence_until: payload.recurrence_rule === 'weekly' ? (payload.recurrence_until || null) : null,
+            };
+            const Reminders = D.Reminders;
+            const backend = Reminders && typeof Reminders.backend === 'function' ? await Reminders.backend() : null;
+            if (!reminderId && (!Reminders || backend !== 'table')) {
+                return { legacy: true, row: await Calendar.create(artistUserId, { ...payload, event_type: 'reminder' }) };
+            }
+            if (!Reminders) throw new Error('No pudimos conectar con tus recordatorios.');
+            try {
+                const row = reminderId
+                    ? await Reminders.update(artistUserId, reminderId, input)
+                    : await Reminders.create(artistUserId, input);
+                notifyRemindersChanged();
+                return { legacy: false, row };
+            } catch (error) {
+                if (reminderId || !isMissingColumn(error, 'due_at')) throw error;
+                console.warn('[calendar] artist_reminders sin due_at (migración 20261112190000 pendiente); se guarda en el calendario.');
+                return { legacy: true, row: await Calendar.create(artistUserId, { ...payload, event_type: 'reminder' }) };
+            }
+        },
+
+        async removeReminder(artistUserId, reminderId, attachments) {
+            if (!D.Reminders) throw new Error('No pudimos conectar con tus recordatorios.');
+            await D.Reminders.remove(artistUserId, reminderId, attachments || []);
+            notifyRemindersChanged();
+        },
+
+        // ---- Guest spot / convención → viaje de Travel ----
+        // Reusa create_artist_trip (checklist + cronología en una transacción);
+        // la convención guarda además su nombre en artist_trips.event_name.
+        async createTripFromEvent(input) {
+            if (!D.Travel || typeof D.Travel.create !== 'function') {
+                throw new Error('No pudimos conectar con Travel. Probá de nuevo en un rato.');
+            }
+            if (!Model) throw new Error('Falta calendar-model.js en la página.');
+            const trip = Model.tripPayloadFromEvent(input);
+            const created = await D.Travel.create(trip);
+            const tripId = created && (created.id || created.trip_id);
+            if (tripId && trip.event_name && typeof D.Travel.update === 'function') {
+                try {
+                    await D.Travel.update(tripId, { event_name: trip.event_name });
+                } catch (error) {
+                    console.warn('[calendar] No se pudo guardar el nombre de la convención en Travel:', error);
+                }
+            }
+            return created;
+        },
+
         async checkConflicts(payload, excludeEventId = null) {
             const params = {
                 p_starts_at: payload.starts_at,
@@ -468,6 +607,6 @@
         },
     };
 
-    Calendar._internal = { isMissingColumn, cleanPayload, sessionPatch, normalizeSession, normalizeTrip, normalizeDashboardReminder };
+    Calendar._internal = { isMissingColumn, cleanPayload, sessionPatch, normalizeSession, normalizeTrip, normalizeDashboardReminder, expandManualRows, remindersToEvents, listPendingRequestsProjection };
     D.Calendar = Calendar;
 })();

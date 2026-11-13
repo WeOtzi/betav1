@@ -605,6 +605,9 @@ function initApp() {
     // affecting regular /quotation visits.
     const initialUrlParams = new URLSearchParams(window.location.search);
     const prequoteSource = initialUrlParams.get('source') === 'prequote';
+    // /inicio · "Recomiéndame tatuador": ?idea=explorar preselecciona
+    // "Quiero explorar opciones" (Figma 01). Un borrador recuperado lo pisa.
+    if (initialUrlParams.get('idea') === 'explorar') formData.tattoo_idea_mode = 'explorar';
     let hasPrequoteHandoff = false;
     if (prequoteSource) {
         hasPrequoteHandoff = applyPrequoteHandoff();
@@ -1490,6 +1493,41 @@ function shiftCalendarMonth(delta) {
     renderInlineCalendar();
 }
 
+// ---------- Agenda del artista en el selector de fecha (ronda 3 · calendario) ----------
+// Días bloqueados, de viaje o con la agenda completa no se pueden elegir; los
+// que tienen un bloque de disponibilidad llevan un punto. Fuente: RPC pública
+// list_artist_public_busy_days (solo fecha + estado) vía WeotziData.CalendarPublic.
+const _artistBusyDays = { key: '', index: null, pending: '' };
+
+function getArtistBusyDays(year, month) {
+    const artistId = formData.artist_id;
+    const repo = window.WeotziData && window.WeotziData.CalendarPublic;
+    const Model = window.WeotziCalendarModel;
+    if (!artistId || !repo || !Model) return null;
+    const range = Model.monthRange(year, month);
+    const key = `${artistId}:${range.from}`;
+    if (_artistBusyDays.key === key) return _artistBusyDays.index;
+    if (_artistBusyDays.pending !== key) {
+        _artistBusyDays.pending = key;
+        repo.listBusyDays(artistId, range.from, range.to).then((index) => {
+            if (_artistBusyDays.pending !== key) return;
+            _artistBusyDays.key = key;
+            _artistBusyDays.index = index || {};
+            _artistBusyDays.pending = '';
+            // Si la fecha ya elegida quedó sin agenda, se libera para que el
+            // cliente elija otra (no se envía un día que el artista bloqueó).
+            const chosen = formData._preferred_date_iso;
+            if (chosen && !Model.dayAvailability(_artistBusyDays.index, chosen).selectable) {
+                formData._preferred_date_iso = null;
+                formData.client_preferred_date = null;
+                persistAnswer();
+            }
+            renderInlineCalendar();
+        });
+    }
+    return null;
+}
+
 function renderInlineCalendar() {
     const host = document.getElementById('date-calendar');
     if (!host) return;
@@ -1507,6 +1545,18 @@ function renderInlineCalendar() {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const today = new Date();
     const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const vacation = window.WoArtistVacation ? window.WoArtistVacation.fromArtist(formData.artist_data) : null;
+    const vacationStatus = vacation ? window.WoArtistVacation.status(vacation) : null;
+    const vacationNote = vacationStatus === 'active' || vacationStatus === 'upcoming' || vacationStatus === 'later'
+        ? `<p class="q-cal-vacation" role="note">${vacationStatus === 'active'
+            ? window.WoArtistVacation.notice(vacation)
+            : `De vacaciones del ${window.WoArtistVacation.longDay(vacation.start)} al ${window.WoArtistVacation.longDay(vacation.end)}`}: esos días no están disponibles.</p>`
+        : '';
+    const busyIndex = getArtistBusyDays(year, month);
+    const busyValues = busyIndex ? Object.values(busyIndex) : [];
+    const busyNote = busyValues.length
+        ? `<p class="q-cal-agenda" role="note">${busyValues.some((s) => s !== 'available') ? '<span class="q-cal-agenda-key is-busy" aria-hidden="true">12</span> Sin agenda' : ''}${busyValues.some((s) => s !== 'available') && busyValues.includes('available') ? ' · ' : ''}${busyValues.includes('available') ? '<span class="q-cal-agenda-key has-slots" aria-hidden="true"></span> Turnos disponibles' : ''}</p>`
+        : '';
 
     const cells = [];
     // Figma 06: los días de los meses adyacentes se muestran atenuados y
@@ -1519,8 +1569,14 @@ function renderInlineCalendar() {
         const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const selected = formData._preferred_date_iso === iso;
         const past = iso < todayIso;
-        cells.push(`<button type="button" class="q-cal-day ${selected ? 'is-selected' : ''} ${past ? 'is-past' : ''}"
-            ${past ? 'disabled' : ''} onclick="pickCalendarDay('${iso}')">${day}</button>`);
+        // Vacaciones del artista (Cuenta 801:571): esos días no se ofrecen.
+        const onVacation = !past && !!vacation && window.WoArtistVacation.isDateBlocked(iso, vacation);
+        // Agenda del artista (calendario): sin agenda / completa / con turnos.
+        const agenda = !past && !onVacation && busyIndex ? window.WeotziCalendarModel.dayAvailability(busyIndex, iso) : null;
+        const busyDay = !!agenda && !agenda.selectable;
+        const agendaAttrs = agenda && agenda.label ? ` aria-label="${day}: ${agenda.label}" title="${agenda.label}"` : '';
+        cells.push(`<button type="button" class="q-cal-day ${selected ? 'is-selected' : ''} ${past || onVacation || busyDay ? 'is-past' : ''} ${onVacation ? 'is-vacation' : ''} ${busyDay ? 'is-busy' : ''} ${agenda && agenda.status === 'available' ? 'has-slots' : ''}"
+            ${past || onVacation || busyDay ? 'disabled' : ''}${onVacation ? ' aria-label="' + day + ': el artista está de vacaciones"' : agendaAttrs} onclick="pickCalendarDay('${iso}')">${day}</button>`);
     }
     const trailing = (7 - ((offset + daysInMonth) % 7)) % 7;
     for (let day = 1; day <= trailing; day++) {
@@ -1538,7 +1594,7 @@ function renderInlineCalendar() {
             </button>
         </div>
         <div class="q-cal-dow">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d) => `<span>${d}</span>`).join('')}</div>
-        <div class="q-cal-grid">${cells.join('')}</div>`;
+        <div class="q-cal-grid">${cells.join('')}</div>${vacationNote}${busyNote}`;
 }
 
 // ---------- Lógica post-render por pregunta ----------

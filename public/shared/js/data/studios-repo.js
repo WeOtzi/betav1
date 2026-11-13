@@ -377,6 +377,16 @@
                 p_message: message,
             });
         },
+
+        // ── integracion ── solicitudes de cambio abiertas del artista (RLS
+        // sicr_parties_select: el artista lee las suyas). 801:1101 lado artista.
+        listOpenChangeRequestsForArtist(artistUserId) {
+            return from('studio_invitation_change_requests')
+                .select('id, membership_id, status, message, created_at')
+                .eq('artist_user_id', artistUserId)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+        },
     };
 
     // ===================== studio_spots (+ applications/attachments) =====================
@@ -484,6 +494,19 @@
             const row = { spot_id: spotId, artist_user_id: artistUserId, message, portfolio_url: portfolioUrl };
             if (requestedDates) row.requested_dates = requestedDates;
             return from('studio_spot_applications').insert(row);
+        },
+
+        // El estudio abrió las postulaciones: pending → viewed (801:1074/1075,
+        // paso "En revisión" del artista). Solo pisa 'pending'; el guard
+        // private.guard_spot_application_write lo permite al dueño del estudio.
+        markViewed(applicationIds) {
+            const ids = (Array.isArray(applicationIds) ? applicationIds : [applicationIds]).filter(Boolean);
+            if (!ids.length) return Promise.resolve({ data: [], error: null });
+            return from('studio_spot_applications')
+                .update({ status: 'viewed' })
+                .in('id', ids)
+                .eq('status', 'pending')
+                .select('id, status');
         },
 
         // Acepta/rechaza una postulacion (status + decided_at). Cubre

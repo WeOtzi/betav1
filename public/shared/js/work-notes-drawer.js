@@ -9,6 +9,11 @@
  * quotation_notes (WeotziData.Notes + WeotziData.QuotationDetail.createNote);
  * el contenido usa bloques compatibles con EditorJS (QuotationDetailModel).
  *
+ * Bloque IMAGEN (ronda 3, P16): SUBIR IMAGEN al bucket privado
+ * quotation-note-files (WeotziData.NoteFiles, ruta <artist_id>/<quotation_id>/...)
+ * o pegar una URL. La nota guarda la ruta (no la URL firmada, que vence) y la
+ * imagen se ve con URL firmada.
+ *
  * API: window.WorkNotesDrawer.open({ quote, user, noteId, isNew, template,
  *      confirm, toast, icons }) · window.WorkNotesDrawer.close()
  */
@@ -20,10 +25,11 @@
     const ADD_TYPES = ['text', 'title', 'list', 'checklist', 'quote', 'separator', 'image'];
     const PLACEHOLDER = {
         text: 'Escribí acá...', title: 'Título', list: 'Elemento de la lista', checklist: 'Tarea',
-        quote: 'Cita del cliente', image: 'Pegá la URL de la imagen',
+        quote: 'Cita del cliente', image: 'O pegá la URL de la imagen',
     };
 
-    const st = { opts: null, el: null, notes: [], current: null, timer: null, saving: false, failed: false, pending: null };
+    const st = { opts: null, el: null, notes: [], current: null, timer: null, saving: false, failed: false, pending: null, removedPaths: [] };
+    const files = () => D().NoteFiles || null;
 
     function esc(value) {
         return String(value == null ? '' : value)
@@ -161,13 +167,15 @@
         const now = new Date().toISOString();
         const content = M.contentFromBlocks(note.blocks, note.tags, note.template);
         const title = String(note.title || '').trim() || 'Nota sin título';
+        // quotation_notes.images: rutas de Storage de las imágenes de la nota.
+        const images = M.notePaths(note.blocks);
         try {
             if (note.id) {
-                await D().Notes.update(note.id, { title, content, updated_at: now });
+                await D().Notes.update(note.id, { title, content, images, updated_at: now });
                 const row = st.notes.find((n) => String(n.id) === String(note.id));
-                if (row) Object.assign(row, { title, content, updated_at: now });
+                if (row) Object.assign(row, { title, content, images, updated_at: now });
             } else {
-                const payload = { quotation_id: st.opts.quote.id, title, label: null, content, note_date: note.note_date, created_at: now, updated_at: now };
+                const payload = { quotation_id: st.opts.quote.id, title, label: null, content, images, note_date: note.note_date, created_at: now, updated_at: now };
                 let row = null;
                 if (D().QuotationDetail && D().QuotationDetail.createNote) row = await D().QuotationDetail.createNote(payload);
                 else await D().Notes.create(payload);
@@ -181,6 +189,7 @@
                 sortNotes();
             }
             st.failed = false;
+            purgeRemovedFiles(images);
         } catch (error) {
             console.error('[work-notes] save', error);
             st.failed = true;
@@ -219,8 +228,20 @@
                 return `<div class="wn-quote"><textarea class="wn-text wn-text--quote" data-field="text" rows="1" placeholder="${ph}" aria-label="Cita" maxlength="1000">${esc(b.text)}</textarea></div>`;
             case 'separator':
                 return '<hr class="wn-sep">';
-            case 'image':
-                return `<div class="wn-image"><input class="wn-line" data-field="url" type="url" value="${esc(b.url)}" placeholder="${ph}" aria-label="URL de la imagen">${b.url ? `<img src="${esc(b.url)}" alt="${esc(b.text || 'Imagen de la nota')}" loading="lazy">` : ''}</div>`;
+            case 'image': {
+                const F = files();
+                const upload = F
+                    ? `<label class="wn-upload${b.uploading ? ' is-busy' : ''}"><input type="file" accept="${esc(F.ACCEPT)}" data-image-upload class="wn-upload-input"${b.uploading ? ' disabled' : ''}>${icon('upload', 14)}<span>${b.uploading ? 'Subiendo…' : (b.path ? 'Cambiar imagen' : 'Subir imagen')}</span></label>`
+                    : '';
+                const alt = esc(b.text || 'Imagen de la nota');
+                const preview = b.path
+                    ? `<img data-sign-path="${esc(b.path)}" alt="${alt}" loading="lazy" hidden>`
+                    : (b.url ? `<img src="${esc(b.url)}" alt="${alt}" loading="lazy">` : '');
+                const urlField = b.path
+                    ? '<p class="wn-image-meta">Imagen privada · solo vos la ves</p>'
+                    : `<input class="wn-line" data-field="url" type="url" value="${esc(b.url)}" placeholder="${ph}" aria-label="URL de la imagen">`;
+                return `<div class="wn-image"><div class="wn-image-row">${upload}${urlField}</div>${preview}<p class="wn-image-error" role="alert" hidden></p></div>`;
+            }
             default:
                 return `<textarea class="wn-text" data-field="text" rows="1" placeholder="${ph}" aria-label="Texto" maxlength="4000">${esc(b.text)}</textarea>`;
         }
@@ -236,6 +257,7 @@
                 <button class="wn-icon-btn" type="button" data-block-remove aria-label="Quitar bloque ${esc(M.BLOCK_LABELS[b.type] || '')}">${icon('trash', 15)}</button>
             </div>`).join('');
         host.querySelectorAll('textarea').forEach(autosize);
+        signImages(host);
         if (focusId) {
             const target = host.querySelector(`[data-block-id="${CSS.escape(String(focusId))}"] [data-field]`);
             if (target) target.focus();
@@ -281,6 +303,67 @@
         textarea.style.height = `${Math.max(textarea.scrollHeight, 28)}px`;
     }
 
+    /* ------------------------------ imágenes (P16) ------------------------------ */
+    // Las imágenes subidas se muestran con URL firmada (el bucket es privado).
+    function signImages(host) {
+        const F = files();
+        if (!F) return;
+        host.querySelectorAll('img[data-sign-path]').forEach((img) => {
+            F.signedUrl(img.getAttribute('data-sign-path')).then((url) => {
+                if (!url || !img.isConnected) return;
+                img.src = url;
+                img.hidden = false;
+            });
+        });
+    }
+
+    function imageError(blockId, message) {
+        const box = st.el && st.el.querySelector(`[data-block-id="${CSS.escape(String(blockId))}"] .wn-image-error`);
+        if (!box) return;
+        box.textContent = message || '';
+        box.hidden = !message;
+    }
+
+    async function uploadImage(input) {
+        const F = files();
+        const b = blockOf(input);
+        const file = input.files && input.files[0];
+        input.value = '';
+        if (!F || !b || !file) return;
+        const problem = F.validate(file);
+        if (problem) { imageError(b.id, problem); return; }
+        const quote = st.opts.quote || {};
+        const artistId = quote.artist_id || (st.opts.user && st.opts.user.id);
+        b.uploading = true;
+        renderBlocks();
+        try {
+            const path = await F.upload(file, { artistId, quotationId: quote.id });
+            if (b.path) st.removedPaths.push(b.path);
+            b.path = path;
+            b.url = '';
+            if (!String(b.text || '').trim()) b.text = String(file.name || '').replace(/\.[a-z0-9]+$/i, '').slice(0, 120);
+            b.uploading = false;
+            renderBlocks();
+            markDirty();
+            toast('Imagen subida.');
+        } catch (error) {
+            console.error('[work-notes] upload', error);
+            b.uploading = false;
+            renderBlocks();
+            imageError(b.id, 'No pudimos subir la imagen. Probá de nuevo.');
+        }
+    }
+
+    // Después de guardar, borra del bucket las imágenes que la nota ya no usa.
+    function purgeRemovedFiles(keep) {
+        const F = files();
+        if (!F || !st.removedPaths.length) return;
+        const keepSet = new Set(keep || []);
+        const gone = st.removedPaths.filter((p) => !keepSet.has(p));
+        st.removedPaths = [];
+        if (gone.length) F.remove(gone);
+    }
+
     /* ----------------------------------- acciones ----------------------------------- */
     function blockOf(node) {
         const row = node.closest('[data-block-id]');
@@ -301,6 +384,7 @@
         const blocks = st.current.blocks;
         const index = blocks.findIndex((b) => String(b.id) === String(id));
         if (index < 0) return null;
+        if (blocks[index].path) st.removedPaths.push(blocks[index].path);
         blocks.splice(index, 1);
         if (!blocks.length) blocks.push(M.block('text'));
         const previous = blocks[Math.max(0, index - 1)];
@@ -340,6 +424,7 @@
         if (!ok) return;
         try {
             await D().Notes.delete(row.id);
+            if (files()) files().remove(M.notePaths(row.content));
             st.notes = st.notes.filter((n) => String(n.id) !== String(id));
             if (st.current && String(st.current.id) === String(id)) { st.current = blankNote(); renderAll(); }
             else renderHistory();
@@ -437,6 +522,7 @@
         });
         el.addEventListener('change', (event) => {
             const t = event.target;
+            if (t.hasAttribute && t.hasAttribute('data-image-upload')) { uploadImage(t); return; }
             if (t.dataset && t.dataset.field === 'url') renderBlocks();
         });
         el.addEventListener('keydown', (event) => {

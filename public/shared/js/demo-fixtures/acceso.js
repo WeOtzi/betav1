@@ -14,6 +14,9 @@
  *   /artist/login?postauth=v1|v2|v3  loader post-auth sin redirigir
  *   /registerclosedbeta?state=signup formulario sin el aviso de sesión activa
  *   /register-artist?step=1..8&state=nuevo|estilos|instagram|cargado|estudio|todas|aceptado
+ *   Revisión 12-11-2026: ?step=5&state=estudio-nuevo (aviso de estudio nuevo),
+ *   ?step=7&state=error (error del envío + Reintentar), ?step=8&state=link
+ *   (link de alta del estudio) y &state=reanudar (Continuar / Empezar de cero).
  *   /recover?step=1..4&email=...
  */
 (function (root) {

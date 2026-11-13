@@ -158,7 +158,21 @@ function showSection(sectionId) {
 }
 
 // ============ SETTINGS ============
+// Moneda por defecto: solo las del listado de países (currency-utils.js).
+// Un valor guardado fuera de la lista queda en "Otras" para no perderlo.
+function fillDefaultCurrencySelect(value) {
+    const sel = document.getElementById('setting-default-currency');
+    if (!sel) return;
+    const api = window.WeOtziCurrency;
+    if (api && typeof api.fillCurrencySelect === 'function') {
+        api.fillCurrencySelect(sel, { value, label: (c) => (c.extra ? c.code : `${c.code} - ${c.name}`) });
+    } else {
+        sel.value = value;
+    }
+}
+
 function loadSettings() {
+    fillDefaultCurrencySelect(document.getElementById('setting-default-currency')?.value || 'USD');
     const savedSettings = localStorage.getItem('weotzi_admin_settings');
     if (savedSettings) {
         const settings = JSON.parse(savedSettings);
@@ -180,7 +194,7 @@ function loadSettings() {
         if (settings.app) {
             document.getElementById('setting-max-images').value = settings.app.maxImages || 4;
             document.getElementById('setting-max-image-size').value = settings.app.maxImageSize || 5;
-            document.getElementById('setting-default-currency').value = settings.app.defaultCurrency || 'USD';
+            fillDefaultCurrencySelect(settings.app.defaultCurrency || 'USD');
         }
 
         // Demo Mode [NEW]

@@ -682,6 +682,20 @@
         const spot = spotRes.data;
         const apps = appsRes.data || [];
 
+        // Abrir el panel = el estudio vio las postulaciones pendientes: pasan a
+        // "viewed" y el artista ve "En revisión". No bloquea la vista.
+        const pendingIds = apps.filter(a => a.status === 'pending').map(a => a.id);
+        if (pendingIds.length && typeof WeotziData.StudioSpots.markViewed === 'function') {
+            try {
+                const { data: viewed, error: viewErr } = await WeotziData.StudioSpots.markViewed(pendingIds);
+                if (viewErr) throw viewErr;
+                const changed = new Set((viewed || []).map(v => v.id));
+                apps.forEach(a => { if (changed.has(a.id)) a.status = 'viewed'; });
+            } catch (viewErr) {
+                console.warn('[studio-dashboard] marcar vistas:', viewErr && viewErr.message);
+            }
+        }
+
         c.innerHTML = `
             <div class="studio-location-row" >
                 <div class="studio-location-row-head">

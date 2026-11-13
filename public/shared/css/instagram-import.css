@@ -388,3 +388,11 @@ body.igi-open { overflow: hidden; }
     .igi-overlay, .igi-spinner { animation: none; }
     .ig-import-trigger, .igi-btn { transition: none; }
 }
+
+/* Revisión del registro (12 nov 2026) · página 8: sin "Publicaciones a
+   buscar"; acciones de selección masiva y aviso de verificación en el
+   registro. */
+.igi-bulk { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 10px; }
+.igi-note--verify { align-items: flex-start; margin-top: 10px; padding: 10px 12px; background: var(--status-warning-bg, #FFF6DC); border-left: 3px solid var(--yellow-300, #F2B519); color: var(--neutral-500, #24211D); }
+.igi-note--verify .igi-ic { flex: none; margin-top: 1px; }
+.igi-done .igi-note--verify { margin-top: 0; }

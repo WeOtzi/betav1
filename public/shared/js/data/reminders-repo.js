@@ -108,8 +108,19 @@
             attachments: cleanAttachments(r.attachments),
             completed_at: completed || null,
             created_at: r.created_at || null,
-            updated_at: r.updated_at || null
+            updated_at: r.updated_at || null,
+            // Calendario (migración 20261112190000): hora, repetición y aviso.
+            due_at: cleanTimestamp(r.due_at),
+            recurrence_rule: r.recurrence_rule === 'weekly' ? 'weekly' : 'none',
+            recurrence_until: cleanDate(r.recurrence_until),
+            last_notified_at: r.last_notified_at || null
         };
+    }
+
+    function cleanTimestamp(value) {
+        if (value == null || value === '') return null;
+        var d = new Date(value);
+        return isNaN(d.getTime()) ? null : d.toISOString();
     }
 
     // Abiertos primero; luego por fecha (sin fecha al final), prioridad y alta.
@@ -160,6 +171,18 @@
         if (!partial || 'is_important' in src) out.is_important = src.is_important === undefined ? true : Boolean(src.is_important);
         if (!partial || 'attachments' in src) out.attachments = cleanAttachments(src.attachments);
         if ('completed_at' in src) out.completed_at = src.completed_at || null;
+        // Hora y repetición (calendario). Solo se envían si vienen en la
+        // entrada: así el dashboard sigue funcionando sin la migración
+        // 20261112190000 aplicada.
+        if ('due_at' in src) {
+            if (src.due_at && !cleanTimestamp(src.due_at)) throw validationError('Elegí una hora válida.');
+            out.due_at = cleanTimestamp(src.due_at);
+        }
+        if ('recurrence_rule' in src) out.recurrence_rule = src.recurrence_rule === 'weekly' ? 'weekly' : 'none';
+        if ('recurrence_until' in src) {
+            if (src.recurrence_until && !cleanDate(src.recurrence_until)) throw validationError('Elegí una fecha de fin válida.');
+            out.recurrence_until = cleanDate(src.recurrence_until);
+        }
         return out;
     }
 
@@ -205,7 +228,7 @@
     var Model = {
         TABLE: TABLE, BUCKET: BUCKET, ICONS: ICONS, PRIORITIES: PRIORITIES, PRIORITY_RANK: PRIORITY_RANK,
         LEGACY_TYPE_ICON: LEGACY_TYPE_ICON, MAX_FILE_BYTES: MAX_FILE_BYTES, MAX_ATTACHMENTS: MAX_ATTACHMENTS,
-        normalize: normalize, sort: sort, toRow: toRow, cleanDate: cleanDate, isoDateLocal: isoDateLocal,
+        normalize: normalize, sort: sort, toRow: toRow, cleanDate: cleanDate, cleanTimestamp: cleanTimestamp, isoDateLocal: isoDateLocal,
         formatShortDate: formatShortDate, formatLongDate: formatLongDate, dueSoon: dueSoon, overdue: overdue,
         validateFile: validateFile, safeFileName: safeFileName
     };

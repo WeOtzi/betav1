@@ -70,3 +70,23 @@ Datos: `wo-table`, `wo-agenda-row`, `wo-stat wo-statstrip`
 Feedback: `wo-alert--(success|error|warning|info) wo-empty wo-progress wo-skeleton wo-spinner wo-dots wo-stepper wo-step`
 Overlay: `wo-overlay wo-modal(--inverse) wo-modal-title wo-modal-actions`
 Utils: `wo-mono-num wo-muted wo-faint wo-sep wo-hidden wo-sr-only`
+Movimiento: `wo-enter` (+ `--wo-enter-delay`, `--wo-enter-distance`, `--wo-enter-duration`), `wo-enter-stagger` (hijos escalonados, `--wo-enter-step`); se anulan con `prefers-reduced-motion`.
+
+## Controles propios (carga automática)
+
+`config-manager.js` y `wo-icons.js` cargan una sola vez `/shared/css/wo-controls.css`,
+`/shared/js/wo-controls.js` y `/shared/js/wo-richtext.js` en todas las páginas.
+
+- `<select>`: el nativo sigue visible y es la fuente de verdad (`value`, `change`/`input`,
+  `required`, `disabled`); se reemplaza solo la lista del navegador por una propia
+  (ARIA listbox, búsqueda con más de 10 opciones, `optgroup`, teclado, typeahead).
+  `<select multiple>` usa un disparador propio. Opción vacía deshabilitada = placeholder.
+- `<input type="date">`: el nativo queda oculto con el valor ISO; se ve `dd/mm/aaaa` con
+  calendario propio (selectores rápidos de mes y año, `min`/`max`).
+- `<div class="wo-prefixed" data-prefix="@"><input></div>`: prefijo fijo no borrable,
+  atenuado hasta que se escribe; el valor no incluye el prefijo salvo `data-prefix-in-value`.
+- `window.WoRichText.mount(textarea, { maxLength: 2000 })`: editor WYSIWYG que escribe HTML
+  saneado en el `textarea` (o `<textarea data-wo-richtext="2000">`).
+- `window.WoControls.refresh(el)` / `window.WoControls.enhance(root)`; las opciones nuevas
+  se detectan solas con MutationObserver.
+- Opt-out: `data-native` en el control o en un ancestro.

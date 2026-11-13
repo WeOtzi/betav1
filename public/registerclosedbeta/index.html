@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>We Ötzi · Creá tu cuenta</title>
+    <!-- Revisión 12/11: entradas sutiles al cargar. La clase solo se pone si
+         el navegador acepta movimiento; sin JS no se oculta nada. -->
+    <script>try{if(!window.matchMedia||!window.matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('wo-motion-in')}catch(e){}</script>
 
     <!-- Microsoft Clarity - Behavior Analytics -->
     <!-- Activates only when window.CLARITY_PROJECT_ID is set to a real ID. -->
@@ -88,34 +91,50 @@
                 <!-- Sesión activa: main.js deriva a /artist/login, que muestra
                      "Ya iniciaste sesión" (Figma 2001:3334). -->
 
-                <!-- El flujo de beta captura nombre, email, ciudad y estilo:
-                     crea/reanuda el borrador con esos datos y deriva al wizard
-                     /register-artist, donde se completa el resto. -->
+                <!-- El flujo de beta captura nombre, email, país, ciudad y estilo
+                     (o "más adelante"): crea/reanuda el borrador con esos datos y
+                     deriva al wizard /register-artist, donde se completa el resto.
+                     Revisión 12/11 (p. 2): todos los campos son obligatorios, por
+                     eso las etiquetas no llevan asterisco. -->
                 <form id="beta-form" class="wo-auth-form" onsubmit="handleRegistration(event)" novalidate>
                     <div class="wo-beta-field">
-                        <label class="wo-beta-label" for="beta-fullname">Nombre completo <span class="req">*</span></label>
+                        <label class="wo-beta-label" for="beta-fullname">Nombre completo</label>
                         <input id="beta-fullname" type="text" class="wo-beta-input input-fullname" placeholder="Tu nombre"
                             required autocomplete="name" data-clarity-mask="true">
                     </div>
 
+                    <div class="wo-beta-field">
+                        <label class="wo-beta-label" for="beta-email">Email</label>
+                        <input id="beta-email" type="email" class="wo-beta-input input-email" placeholder="tu@email.com"
+                            required autocomplete="email" data-clarity-mask="true">
+                    </div>
+
                     <div class="wo-auth-fieldrow">
                         <div class="wo-beta-field">
-                            <label class="wo-beta-label" for="beta-email">Email <span class="req">*</span></label>
-                            <input id="beta-email" type="email" class="wo-beta-input input-email" placeholder="tu@email.com"
-                                required autocomplete="email" data-clarity-mask="true">
+                            <label class="wo-beta-label" for="beta-country">País</label>
+                            <select id="beta-country" class="wo-beta-input wo-beta-select input-country" required autocomplete="country-name">
+                                <option value="" selected disabled>Seleccioná tu país</option>
+                            </select>
                         </div>
                         <div class="wo-beta-field">
                             <label class="wo-beta-label" for="beta-city">Ciudad</label>
-                            <input id="beta-city" type="text" class="wo-beta-input input-city" placeholder="Buenos Aires"
-                                autocomplete="address-level2">
+                            <!-- Google Places (cities) restringido al país elegido;
+                                 sin key o si falla la carga queda como texto libre. -->
+                            <input id="beta-city" type="text" class="wo-beta-input input-city" placeholder="Elegí primero tu país"
+                                required disabled autocomplete="off" aria-describedby="beta-city-help">
+                            <span id="beta-city-help" class="wo-sr-only">Se habilita al elegir el país. Escribí y elegí tu ciudad de la lista.</span>
                         </div>
                     </div>
 
                     <div class="wo-beta-field">
-                        <label class="wo-beta-label" for="beta-style">Estilo <span class="req">*</span></label>
+                        <label class="wo-beta-label" for="beta-style">Estilo</label>
                         <select id="beta-style" class="wo-beta-input wo-beta-select input-style" required>
                             <option value="" selected disabled>Seleccioná tu estilo principal</option>
                         </select>
+                        <label class="wo-beta-check" for="beta-style-later">
+                            <input type="checkbox" id="beta-style-later" aria-controls="beta-style">
+                            <span>Añadir más adelante, mi estilo no está aquí</span>
+                        </label>
                     </div>
 
                     <label class="wo-beta-terms" for="beta-terms">
@@ -133,19 +152,18 @@
 
                 <div class="wo-auth-or" role="separator">O continuá con</div>
 
+                <!-- Revisión 12/11 (p. 2): sin Email; el tag Recomendado va pegado
+                     al botón de Instagram (mismo bloque), como en /artist/login. -->
                 <div class="wo-auth-social">
-                    <span class="wo-auth-reco"><i data-wo-icon="star" aria-hidden="true"></i>Recomendado</span>
                     <div class="wo-auth-social-row">
-                        <button type="button" class="wo-beta-social social-btn" data-social="instagram"
-                            onclick="handleSocialLogin('instagram')" aria-label="Continuar con Instagram">
-                            <i data-wo-icon="instagram" aria-hidden="true"></i>
-                            <span class="btn-text">Instagram</span>
-                        </button>
-                        <button type="button" class="wo-beta-social social-btn" data-social="email"
-                            onclick="focusBetaForm()" aria-label="Continuar con email">
-                            <i data-wo-icon="mail" aria-hidden="true"></i>
-                            <span class="btn-text">Email</span>
-                        </button>
+                        <div class="wo-auth-social-reco">
+                            <span class="wo-auth-reco"><i data-wo-icon="star" aria-hidden="true"></i>Recomendado</span>
+                            <button type="button" class="wo-beta-social social-btn" data-social="instagram"
+                                onclick="handleSocialLogin('instagram')" aria-label="Continuar con Instagram (recomendado)">
+                                <i data-wo-icon="instagram" aria-hidden="true"></i>
+                                <span class="btn-text">Instagram</span>
+                            </button>
+                        </div>
                         <button type="button" class="wo-beta-social social-btn" data-social="facebook"
                             onclick="handleFacebookSignup()" aria-label="Continuar con Facebook">
                             <img class="wo-auth-brand-logo" src="/artist/login/assets/facebook.svg" width="17" height="17" alt="" aria-hidden="true">
@@ -167,7 +185,8 @@
 <script src="/shared/js/artist-auth.js"></script>
 <script src="/shared/js/artist-registration-progress.js"></script>
 <script src="/shared/js/instagram-import.js"></script>
-<script src="/shared/js/main.js?v=20261028-figma-final"></script>
+<script src="/shared/js/geocoder.js"></script>
+<script src="/shared/js/main.js?v=20261112-registro-review"></script>
 
 </body>
 

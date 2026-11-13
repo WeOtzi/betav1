@@ -530,6 +530,29 @@
     height: 44px;
 }
 
+/* Sin foto: iniciales del artista en lugar del marco vacío (auditoría H4). */
+.avatar-placeholder.has-initials {
+    background: var(--surface-ink);
+}
+
+.avatar-placeholder.has-initials::after {
+    display: none;
+}
+
+.avatar-initials {
+    font-family: var(--font-display);
+    font-size: clamp(64px, 9vw, 128px);
+    font-weight: var(--weight-extrabold);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--white);
+}
+
+.avatar-initials[hidden],
+.avatar-placeholder [data-avatar-loading][hidden] {
+    display: none;
+}
+
 /* ---------- Statstrip inversa ---------- */
 .stats-band {
     padding: var(--space-8) 0;
@@ -613,6 +636,39 @@
 
 .bio-text a:hover {
     color: var(--yellow-200);
+}
+
+/* Presentación con formato (WoRichText): resaltado, listas y tamaños vienen
+   saneados (BioFormatting / lib/bio-sanitizer.js). El resaltado lleva texto
+   oscuro salvo que el artista haya elegido un color propio. */
+.bio-text mark,
+.bio-text span[style*="background-color"]:not([style^="color"]):not([style*="; color"]) {
+    color: var(--ink);
+}
+
+/* Un enlace descartado por el saneo (href inseguro) queda como texto. */
+.bio-text a:not([href]) {
+    color: inherit;
+    text-decoration: none;
+}
+
+.bio-text mark {
+    background: var(--yellow-200);
+    padding: 0 0.1em;
+}
+
+.bio-text ul,
+.bio-text ol {
+    margin: 0 0 var(--space-4);
+    padding-left: 1.4em;
+}
+
+.bio-text ul {
+    list-style: disc;
+}
+
+.bio-text ol {
+    list-style: decimal;
 }
 
 .sobre-facts {
@@ -1069,6 +1125,78 @@
 
 .studio-address[hidden] {
     display: none;
+}
+
+/* Estudio sin alta completa (studios.location_verified=false): aviso discreto
+   con explicación al pasar el mouse o enfocar. */
+.studio-unverified {
+    margin: var(--space-2) 0 0;
+}
+
+.studio-unverified[hidden] {
+    display: none;
+}
+
+.studio-unverified-chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 2px var(--space-2);
+    border: var(--border-hairline, 1px) solid color-mix(in srgb, var(--neutral-100) 45%, transparent);
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--neutral-100) 80%, transparent);
+    cursor: help;
+}
+
+.studio-unverified-chip i,
+.studio-unverified-chip svg {
+    width: 14px;
+    height: 14px;
+}
+
+.studio-unverified-chip:focus-visible {
+    outline: 2px solid var(--yellow-300);
+    outline-offset: 2px;
+}
+
+.studio-unverified-chip::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 0;
+    top: calc(100% + var(--space-2));
+    z-index: 5;
+    width: max-content;
+    max-width: min(280px, 80vw);
+    padding: var(--space-2) var(--space-3);
+    background: var(--white);
+    color: var(--ink);
+    border: var(--border-hairline, 1px) solid var(--ink);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--black) 35%, transparent);
+    font-family: var(--font-body, inherit);
+    font-size: var(--meta-m-size);
+    letter-spacing: 0;
+    text-transform: none;
+    line-height: 1.4;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+.studio-unverified-chip:hover::after,
+.studio-unverified-chip:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .studio-unverified-chip::after {
+        transition: none;
+    }
 }
 
 /* Figma 344:1600: fila de datos 26px debajo de la dirección, columnas a 24px. */
@@ -3036,4 +3164,31 @@
     .store-band a.store-band-item:hover {
         transform: none;
     }
+}
+
+/* ---------- Vacaciones en el hero (Cuenta 801:571) ----------
+   Diseño propio: el Figma 801:1108 no tiene este estado. Usa el lenguaje
+   del hero (mono, mayúsculas, filete en ink). */
+.hero-vacation {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-4);
+    padding: 6px var(--space-3);
+    background: var(--yellow-300);
+    border: var(--border-hairline) solid var(--ink);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: var(--meta-s-track);
+    text-transform: uppercase;
+}
+
+.hero-vacation[hidden] {
+    display: none;
+}
+
+.hero-vacation [data-wo-icon] {
+    width: 14px;
+    height: 14px;
 }

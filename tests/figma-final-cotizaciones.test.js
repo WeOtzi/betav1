@@ -283,7 +283,8 @@ test('preview fixtures add archived/expired quotes, a client book, a draft and t
     sandbox.WoDemoFixtureExtensions.cotizaciones(ctx);
     sandbox.WoDemoFixtureExtensions.cotizaciones(ctx);
     const refs = ctx.tables.quotations_db.map((q) => q.quote_id);
-    assert.deepEqual(refs, ['DEMO-P01', 'DEMO-V01', 'DEMO-A01', 'DEMO-A02'], 'idempotente');
+    // DEMO-R02 (ronda 3 · P10): respuesta con la vigencia vencida (vista calculada "Vencida").
+    assert.deepEqual(refs, ['DEMO-P01', 'DEMO-V01', 'DEMO-R02', 'DEMO-A01', 'DEMO-A02'], 'idempotente');
     assert.equal(ctx.tables.quotations_db.filter((q) => q.is_archived).length, 2);
     assert.ok(ctx.TABLES.includes('artist_manual_quotes') && ctx.TABLES.includes('artist_clients'));
     assert.equal(ctx.tables.artist_manual_quotes[0].status, 'draft');

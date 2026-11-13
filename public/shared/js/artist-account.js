@@ -36,7 +36,21 @@
     const LANGS = ['Español', 'Inglés', 'Portugués', 'Francés', 'Italiano', 'Alemán'];
     const FALLBACK_STYLES = ['Realismo', 'Black & grey', 'Fine line', 'Blackwork', 'Tradicional', 'Neotradicional',
         'Japonés', 'Geométrico', 'Dotwork', 'Lettering', 'Acuarela', 'Minimalista', 'Ornamental', 'Anime'];
-    const PRICE_CURRENCIES = ['USD', 'EUR', 'ARS', 'MXN', 'COP', 'CLP', 'PEN', 'BRL', 'GBP'];
+    // Monedas: las del listado de países (WeOtziCurrency.COUNTRY_CURRENCIES,
+    // currency-utils.js). Respaldo mínimo si ese script no cargó.
+    const PRICE_CURRENCIES_FALLBACK = ['USD', 'EUR', 'ARS'];
+    function fillAccountCurrencySelect(el, value, opts = {}) {
+        const cur = window.WeOtziCurrency;
+        if (cur && typeof cur.fillCurrencySelect === 'function') {
+            cur.fillCurrencySelect(el, { ...opts, value });
+            return;
+        }
+        const code = String(value || '').toUpperCase();
+        const list = PRICE_CURRENCIES_FALLBACK.includes(code) || !code ? PRICE_CURRENCIES_FALLBACK : [...PRICE_CURRENCIES_FALLBACK, code];
+        el.innerHTML = (opts.placeholder != null ? `<option value="">${esc(opts.placeholder)}</option>` : '')
+            + list.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+        el.value = code;
+    }
 
     // Evento → defaults Email / Push / SMS (ref 801:572).
     const NOTIF_EVENTS = [
@@ -87,7 +101,9 @@
         'Alemania', 'Francia', 'Italia', 'Reino Unido', 'Canadá', 'Australia'];
 
     const MIN_WORK_SLOTS = 8;
-    const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+    const MAX_IMAGE_BYTES = 15 * 1024 * 1024;     // portafolio (bucket artist-gallery)
+    // Foto y banner de perfil: el bucket profile-pictures corta en 5 MB (801:565).
+    const MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024;
     const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 
     const DEFAULT_APP_SETTINGS = {
@@ -458,10 +474,20 @@
     // Multiselección (Idiomas / Estilos)
     // ============================================
 
+    // Opciones: textos o { value, label } (Estilos muestra la etiqueta del
+    // catálogo y guarda el nombre de tattoo_styles / el valor ya guardado).
     function createMulti(container, { options, selected, labelId, placeholder }) {
+        const toOpt = (o) => (o && typeof o === 'object'
+            ? { value: String(o.value), label: String(o.label || o.value) }
+            : { value: String(o), label: String(o) });
+        const mergeOpts = (list) => {
+            const out = [];
+            list.map(toOpt).forEach((o) => { if (!out.some((x) => x.value === o.value)) out.push(o); });
+            return out;
+        };
         let values = [...new Set(selected || [])];
-        let all = [...options];
-        values.forEach((v) => { if (!all.includes(v)) all.push(v); });
+        let all = mergeOpts([...(options || []), ...values]);
+        const labelOf = (v) => (all.find((o) => o.value === v) || { label: v }).label;
         const menuId = container.id + '-menu';
         container.innerHTML = `
             <button type="button" class="aac-multi-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}" aria-labelledby="${labelId} ${container.id}-value">
@@ -474,14 +500,14 @@
         const valueEl = container.querySelector('.aac-multi-value');
 
         function paintValue() {
-            valueEl.textContent = values.length ? values.join(', ') : placeholder;
+            valueEl.textContent = values.length ? values.map(labelOf).join(', ') : placeholder;
             valueEl.classList.toggle('is-empty', !values.length);
         }
         function paintMenu() {
             menu.innerHTML = all.map((opt, i) => `
-                <label class="aac-multi-option" role="option" aria-selected="${values.includes(opt)}">
-                    <input type="checkbox" value="${esc(opt)}" ${values.includes(opt) ? 'checked' : ''} id="${container.id}-opt-${i}">
-                    <span>${esc(opt)}</span>
+                <label class="aac-multi-option" role="option" aria-selected="${values.includes(opt.value)}">
+                    <input type="checkbox" value="${esc(opt.value)}" ${values.includes(opt.value) ? 'checked' : ''} id="${container.id}-opt-${i}">
+                    <span>${esc(opt.label)}</span>
                 </label>`).join('');
         }
         function setOpen(open) {
@@ -509,8 +535,9 @@
         return {
             get: () => [...values],
             setOptions(next) {
-                all = [...new Set([...(next || []), ...values])];
+                all = mergeOpts([...(next || []), ...values]);
                 paintMenu();
+                paintValue();
             }
         };
     }
@@ -523,12 +550,42 @@
         return appSettings().profile || {};
     }
 
+    // Revisión del registro (12/11): la lista de estilos sale del catálogo del
+    // registro (public/register-artist/catalogo-registro.js, mismo contenido
+    // que GET /api/registration/catalogs), no de tattoo_styles. La tabla solo
+    // aporta el nombre a guardar cuando coincide; los estilos guardados que no
+    // están en el catálogo siguen elegidos.
+    let registroCatalogoPromise = null;
+    function loadRegistroCatalogo() {
+        if (window.WoRegistroCatalogo) return Promise.resolve(window.WoRegistroCatalogo);
+        if (registroCatalogoPromise) return registroCatalogoPromise;
+        registroCatalogoPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = '/register-artist/catalogo-registro.js';
+            script.onload = () => (window.WoRegistroCatalogo ? resolve(window.WoRegistroCatalogo) : reject(new Error('catálogo vacío')));
+            script.onerror = () => { registroCatalogoPromise = null; reject(new Error('no se pudo cargar el catálogo de estilos')); };
+            document.head.appendChild(script);
+        });
+        return registroCatalogoPromise;
+    }
+
+    async function loadProfileStyleOptions(saved) {
+        const catalog = await loadRegistroCatalogo();
+        let rows = [];
+        if (window.ConfigManager?.loadTattooStylesFlatFromDB) {
+            rows = await window.ConfigManager.loadTattooStylesFlatFromDB().catch(() => []);
+        }
+        const active = (rows || []).filter((r) => r && r.is_active !== false);
+        return catalog.buildStyleOptions(active, saved).map((o) => ({ value: o.value, label: o.label }));
+    }
+
     function fillProfile() {
         const p = profilePrefs();
         $('aac-name').value = artist.name || '';
         $('aac-fullname').value = p.full_name || '';
         $('aac-username').value = artist.username || '';
         $('aac-bio').value = artist.bio_description || '';
+        mountBioEditor();
         $('aac-city').value = artist.city || '';
         $('aac-country').value = artist.country || '';
         $('aac-instagram').value = artist.instagram ? normalizeHandle(artist.instagram) : '';
@@ -545,23 +602,19 @@
         const styles = Array.isArray(extras?.styles_array) ? extras.styles_array
             : String(extras?.estilo || '').split(',').map((s) => s.trim()).filter(Boolean);
         stylesPicker = createMulti($('aac-styles'), {
-            options: FALLBACK_STYLES,
+            options: [],
             selected: styles,
             labelId: 'aac-styles-label',
             placeholder: 'Elegí tus estilos'
         });
-        if (window.ConfigManager?.loadTattooStylesFlatFromDB) {
-            window.ConfigManager.loadTattooStylesFlatFromDB().then((rows) => {
-                const names = (rows || []).filter((r) => r && r.is_active !== false).map((r) => r.display_name || r.name).filter(Boolean);
-                if (names.length) stylesPicker.setOptions(names);
-            }).catch(() => null);
-        }
+        loadProfileStyleOptions(styles).then((opts) => {
+            if (opts.length) stylesPicker.setOptions(opts);
+        }).catch(() => stylesPicker.setOptions(FALLBACK_STYLES));
 
         setExperience(extras?.years_experience);
-        $('aac-price-currency').innerHTML = PRICE_CURRENCIES.map((c) => `<option value="${c}">${c}</option>`).join('');
         const priceCurrency = extras?.session_price_currency || artist.session_price_currency || 'USD';
-        if (!PRICE_CURRENCIES.includes(priceCurrency)) $('aac-price-currency').insertAdjacentHTML('beforeend', `<option value="${esc(priceCurrency)}">${esc(priceCurrency)}</option>`);
-        $('aac-price-currency').value = priceCurrency;
+        // Columna angosta (6.5rem): solo el código; un valor viejo fuera de la lista queda en "Otras".
+        fillAccountCurrencySelect($('aac-price-currency'), priceCurrency, { label: 'code' });
         $('aac-price').value = extras?.session_price_amount ?? '';
         $('aac-contact-whatsapp').value = extras?.whatsapp_number || '';
 
@@ -623,7 +676,7 @@
 
     function assertImage(file) {
         if (!file.type.startsWith('image/')) throw new Error('Formato no admitido');
-        if (file.size > MAX_IMAGE_BYTES) throw new Error('La imagen supera los 15 MB');
+        if (file.size > MAX_PROFILE_IMAGE_BYTES) throw new Error('La imagen supera los 5 MB. Probá con una más liviana.');
     }
 
     // Dropzone: click (label ya abre el input), drag & drop y subida.
@@ -633,7 +686,7 @@
             try { await onFile(file); }
             catch (err) {
                 console.error('[account] upload:', err);
-                toast(/15 MB|Formato/.test(err?.message || '') ? err.message : 'No pudimos subir la imagen', false);
+                toast(/5 MB|Formato/.test(err?.message || '') ? err.message : 'No pudimos subir la imagen', false);
             }
         };
         input.addEventListener('change', () => {
@@ -653,6 +706,42 @@
             const file = e.dataTransfer?.files && e.dataTransfer.files[0];
             if (file) run(file);
         });
+    }
+
+    // Presentación con formato (revisión 12 nov 2026, pág. 7): WoRichText del
+    // DS escribe HTML saneado en el textarea. Si el DS no cargó, queda el
+    // textarea de siempre. Se guarda por POST /api/artist/profile/bio, que
+    // vuelve a sanear con lib/bio-sanitizer.js (2000 caracteres visibles).
+    const BIO_MAX_LENGTH = 2000;
+    let bioEditorMounted = false;
+
+    function mountBioEditor(retry = true) {
+        const textarea = $('aac-bio');
+        if (!textarea || bioEditorMounted) return;
+        const RT = window.WoRichText;
+        if (!RT || typeof RT.mount !== 'function') {
+            if (retry) window.addEventListener('load', () => mountBioEditor(false), { once: true });
+            return;
+        }
+        try {
+            RT.mount(textarea, { maxLength: BIO_MAX_LENGTH });
+            bioEditorMounted = true;
+        } catch (err) {
+            console.warn('[account] editor de biografía:', err);
+        }
+    }
+
+    async function saveBio(value) {
+        const next = String(value || '').trim() || null;
+        if (next === (artist.bio_description || null)) return;
+        // Demo y preview aislado (sin Express real): capa de datos emulada.
+        const previewOnly = typeof window !== 'undefined' && window.WEOTZI_PREVIEW === true;
+        if (isDemo() || previewOnly) {
+            await updateArtist({ bio_description: next });
+            return;
+        }
+        const json = await igApi('/api/artist/profile/bio', { method: 'POST', body: { bio: next || '' } });
+        artist.bio_description = json && 'bio_description' in json ? (json.bio_description || null) : next;
     }
 
     function normalizeHandle(value) {
@@ -708,12 +797,12 @@
                 name: $('aac-name').value.trim() || null,
                 username,
                 languages: langsPicker.get(),
-                bio_description: $('aac-bio').value.trim() || null,
                 city: $('aac-city').value.trim() || null,
                 country: $('aac-country').value.trim() || null,
                 instagram: instagram ? instagram.replace(/^@/, '') : null,
                 portafolio: $('aac-website').value.trim() || null
             });
+            await saveBio($('aac-bio').value);
 
             const p = {
                 ...profilePrefs(),
@@ -1759,6 +1848,33 @@
         });
         $('aac-modalidad-save').addEventListener('click', saveModality);
         renderModality();
+        loadStudioVerification(extras?.studio_id);
+    }
+
+    // `studios.location_verified` (migración 20261112120000): false mientras el
+    // estudio que sumó un tatuador no completa su alta. Se pide con `*` para no
+    // romper la consulta si la columna todavía no existe (undefined = verificado).
+    function isStudioLocationUnverified(studio) {
+        return Boolean(studio) && studio.location_verified === false;
+    }
+
+    function paintStudioVerification(studio) {
+        const note = $('aac-modalidad-studio-unverified');
+        if (note) note.hidden = !isStudioLocationUnverified(studio);
+    }
+
+    async function loadStudioVerification(studioId) {
+        paintStudioVerification(null);
+        if (!studioId || !D.Studios?.getById) return;
+        try {
+            const { data, error } = await D.Studios.getById(studioId, '*');
+            if (error) throw error;
+            // Si mientras tanto eligió otro estudio, no se pinta.
+            if (modeState.selected && modeState.selected.id !== studioId) return;
+            paintStudioVerification(data);
+        } catch (err) {
+            console.warn('[account] estado del estudio:', err);
+        }
     }
 
     function renderModality() {
@@ -1771,6 +1887,7 @@
 
     function onStudioInput() {
         modeState.selected = null;
+        paintStudioVerification(null);
         modalityError('');
         const query = $('aac-modalidad-studio').value.trim();
         clearTimeout(modeState.timer);
@@ -1851,6 +1968,7 @@
         $('aac-modalidad-studio').value = result.name;
         modeState.selected = result.create ? null : { id: result.id, name: result.name };
         closeStudioList();
+        if (modeState.selected) loadStudioVerification(modeState.selected.id);
     }
 
     function closeStudioList() {
@@ -2575,7 +2693,8 @@
                     ${docBadge(status)}
                     <input type="file" data-doc-input="${type}" accept="image/jpeg,image/png,image/webp,application/pdf" hidden>
                 </div>
-            </div>`;
+            </div>${status === 'rejected' && doc && doc.reviewer_notes ? `
+            <p class="wal-mono-s aac-doc-note" role="note">Motivo del rechazo: ${esc(doc.reviewer_notes)}</p>` : ''}`;
         }).join('');
 
         wrap.querySelectorAll('[data-doc-upload]').forEach((btn) => {
@@ -2673,16 +2792,11 @@
     async function setupSettings() {
         const cur = window.WeOtziCurrency;
         if (cur && typeof cur.init === 'function') await cur.init().catch(() => null);
-        const catalog = cur && typeof cur.list === 'function' && cur.list().length
-            ? cur.list()
-            : [{ code: 'USD', symbol: '$' }, { code: 'EUR', symbol: '€' }, { code: 'ARS', symbol: '$' }];
 
         const currencySel = $('aac-currency');
-        currencySel.innerHTML = '<option value="">Elegí una moneda</option>' + catalog.map((c) =>
-            `<option value="${esc(c.code)}">${esc(c.code)}${c.symbol ? ` (${esc(c.symbol)})` : ''}</option>`
-        ).join('');
         // Moneda efectiva: la elegida o, si no hay, la de la tarifa (la que usa el Wallet).
-        currencySel.value = artist.preferred_display_currency || artist.session_price_currency || '';
+        fillAccountCurrencySelect(currencySel, artist.preferred_display_currency || artist.session_price_currency || '',
+            { placeholder: 'Elegí una moneda' });
 
         const detectedTz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'America/Argentina/Buenos_Aires';
         const tzList = TIMEZONES.includes(detectedTz) ? TIMEZONES : [detectedTz, ...TIMEZONES];
@@ -2806,5 +2920,10 @@
         document.body.classList.toggle('aac-no-animations', settings.animations === false || !!settings.reduce_motion);
         document.body.classList.toggle('aac-high-contrast', !!settings.high_contrast);
         document.documentElement.style.fontSize = `${Math.max(90, Math.min(125, Number(settings.interface_scale) || 100))}%`;
+        // Copia global (app-settings-loader.js): el resto de las páginas del artista
+        // aplican lo mismo sin esperar a leer la base.
+        if (window.WoAppSettings && typeof window.WoAppSettings.remember === 'function') {
+            try { window.WoAppSettings.remember(settings, user?.id); } catch (_) { /* opcional */ }
+        }
     }
 })();

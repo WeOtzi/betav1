@@ -518,3 +518,9 @@ body[data-aac-theme="dark"] .aac-select{background-image:url("data:image/svg+xml
   .av-mode-option{flex:0 0 auto}
   .av-mode-option span{min-width:9.5rem}
 }
+
+/* Estudio sin alta completa (studios.location_verified=false). */
+.aac-studio-unverified{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-1) var(--space-2);margin-top:var(--space-2)}
+.aac-studio-unverified[hidden]{display:none}
+.aac-studio-unverified-chip{display:inline-flex;align-items:center;gap:var(--space-1);padding:2px var(--space-2);border:var(--border-hairline) solid var(--border-subtle);font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted);white-space:nowrap}
+.aac-studio-unverified-chip i,.aac-studio-unverified-chip svg{width:14px;height:14px}

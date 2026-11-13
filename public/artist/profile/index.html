@@ -118,6 +118,12 @@
                         </span>
                     </div>
 
+                    <!-- Vacaciones (Cuenta 801:571): diseño propio con los tokens del
+                         hero; el Figma no tiene este estado. -->
+                    <p class="hero-vacation" id="hero-vacation" role="status" hidden>
+                        <i data-wo-icon="sun" aria-hidden="true"></i><span id="hero-vacation-text"></span>
+                    </p>
+
                     <div class="hero-styles" id="display-styles">-</div>
 
                     <!-- CTA dual del funnel (Figma 344:1323/344:1326): reservar = wizard, cotizar = listado -->
@@ -132,10 +138,12 @@
                         <span class="hero-agenda-dot" aria-hidden="true"></span>Agenda abierta
                     </p>
                     <div class="hero-portrait-frame" id="avatar-wrapper">
-                        <img src="" alt="Foto de perfil del artista" class="avatar-image" id="avatar-image" width="600" height="400">
+                        <!-- Sin src hasta tener foto: sin foto se muestran las iniciales (auditoría H4). -->
+                        <img alt="Foto de perfil del artista" class="avatar-image" id="avatar-image" width="600" height="400" hidden>
                         <div class="avatar-placeholder" id="avatar-placeholder">
-                            <i data-wo-icon="image" aria-hidden="true"></i>
-                            <span>Retrato del artista</span>
+                            <i data-wo-icon="image" aria-hidden="true" data-avatar-loading></i>
+                            <span data-avatar-loading>Retrato del artista</span>
+                            <span class="avatar-initials" id="avatar-initials" role="img" hidden></span>
                         </div>
                     </div>
                 </div>
@@ -195,6 +203,12 @@
                         <dt>Sesión mínima</dt>
                         <dd id="display-price">-</dd>
                     </div>
+                    <!-- Redes (Instagram · TikTok · sitio, 801:565): el Figma retiró la
+                         fila del hero; se listan como un dato más de la ficha. -->
+                    <div class="sobre-fact" id="fact-socials" hidden>
+                        <dt>Redes</dt>
+                        <dd id="display-socials"></dd>
+                    </div>
                     <div class="sobre-fact" id="fact-response-time">
                         <dt>Tiempo de respuesta</dt>
                         <dd id="display-response-time">—</dd>
@@ -243,6 +257,15 @@
                     <p class="studio-eyebrow">Estudio</p>
                     <h3 class="studio-name" id="studio-name">-</h3>
                     <p class="studio-address" id="studio-address" hidden></p>
+                    <!-- Estudio sumado por un tatuador (studios.location_verified=false)
+                         hasta que el representante completa el alta. -->
+                    <p class="studio-unverified" id="studio-unverified" hidden>
+                        <span class="studio-unverified-chip" tabindex="0" aria-describedby="studio-unverified-note"
+                              data-tip="El estudio todavía no completó su alta en We Ötzi, así que la dirección no está confirmada.">
+                            <i data-wo-icon="info" aria-hidden="true"></i>Ubicación sin verificar
+                        </span>
+                        <span class="wo-sr-only" id="studio-unverified-note">El estudio todavía no completó su alta en We Ötzi, así que la dirección no está confirmada.</span>
+                    </p>
                     <dl class="studio-facts" id="studio-facts"></dl>
                     <a class="studio-link" id="studio-link" href="/studio/profile" hidden>Ver el estudio →</a>
                 </div>
@@ -346,6 +369,7 @@
     <script src="/shared/js/bio-formatting.js"></script>
     <script src="/shared/js/reviews.js"></script>
     <script src="/shared/js/artist-profile-presentation.js"></script>
+    <script src="/shared/js/artist-vacation.js"></script>
     <script src="/shared/js/gallery-visibility.js"></script>
     <script src="/shared/js/artist-profile.js"></script>
 </body>

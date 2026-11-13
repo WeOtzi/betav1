@@ -2,7 +2,7 @@
 //
 // Frames: 2003:1191 "01 · Perfil", 2003:1902 "02 · Selección" y
 // 2003:2583 "03 · Importación". Monta un botón que abre un diálogo de 3 pasos:
-//   01 usuario + cantidad a revisar + confirmación de titularidad
+//   01 usuario + confirmación de titularidad (se revisan hasta 50 publicaciones)
 //   02 selección publicación por publicación (bloquea las que no entran)
 //   03 resultado ("Tus trabajos ya están en la galería")
 //
@@ -33,6 +33,8 @@
 
 (function () {
     const DEFAULT_TRIGGER_LABEL = 'Importar desde Instagram';
+    const FETCH_LIMIT = 50;
+    const SIGNUP_VISIBILITY_NOTE = 'Las publicaciones de Instagram no van a ser visibles en tu perfil hasta que validemos tu identidad y que la cuenta es tuya.';
     const SVG = {
         instagram: '<rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>',
         x: '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
@@ -111,6 +113,14 @@
         return typeof window !== 'undefined' && window.WoDemoIGImportSample && window.WoDemoIGImportSample.summary
             ? JSON.parse(JSON.stringify(window.WoDemoIGImportSample.summary)) : null;
     }
+    // "@Isai.Nazar " / "https://instagram.com/isai.nazar/" → "isai.nazar" ('' si no es válido).
+    function sampleHandle(value) {
+        const raw = String(value || '').trim()
+            .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+            .replace(/^@/, '')
+            .replace(/[/?#].*$/, '');
+        return /^[A-Za-z0-9._]{1,30}$/.test(raw) ? raw : '';
+    }
     function isPreviewBlocked(res, data) {
         return Boolean(res && res.status === 501 && data && data.preview);
     }
@@ -124,7 +134,10 @@
             this.payloadId = null;
             this.summary = null;
             this.handle = String(opts.prefillHandle || '').replace(/^@/, '').trim();
-            this.limit = 12;
+            // Revisión del registro (página 8): se traen siempre hasta 50
+            // publicaciones (sin "Publicaciones a buscar"); el servidor también
+            // fija el límite en 50.
+            this.limit = FETCH_LIMIT;
             this.confirmed = false;
             this.items = [];
             this.selected = [];
@@ -198,6 +211,7 @@
             this.setStep(1);
             const g = this.gallery();
             const free = this.freeSlots();
+            const isSignup = this.opts.mode === 'signup';
             this.body.innerHTML =
                 '<h2 class="igi-title" id="igi-title">Importá tus trabajos de Instagram</h2>' +
                 '<p class="igi-sub">Elegí las publicaciones que querés sumar a tu galería.</p>' +
@@ -206,17 +220,14 @@
                         '<div class="igi-input-wrap"><span class="igi-at" aria-hidden="true">@</span>' +
                         '<input id="igi-handle" class="igi-input" type="text" maxlength="31" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="tu.usuario" value="' + escapeHtml(this.handle) + '"></div>' +
                         '<p class="igi-help">Podés escribirlo con o sin @.</p></div>' +
-                    '<div class="igi-field"><label class="igi-label" for="igi-limit">PUBLICACIONES A BUSCAR</label>' +
-                        '<div class="igi-select-wrap"><select id="igi-limit" class="igi-select">' +
-                            '<option value="12">Últimas 12 publicaciones (máximo)</option>' +
-                            '<option value="24">Últimas 24 publicaciones</option>' +
-                            '<option value="50">Últimas 50 publicaciones</option>' +
-                        '</select>' + icon('chevron-down', 'igi-select-chev') + '</div>' +
+                    '<div class="igi-field">' +
                         '<div class="igi-facts">' +
-                            '<div><p class="igi-fact-l">VAMOS A REVISAR</p><p class="igi-fact-v" data-review>' + this.limit + ' publicaciones</p></div>' +
-                            '<div><p class="igi-fact-l">ESPACIOS LIBRES EN TU GALERÍA</p><p class="igi-fact-v" data-free>' + free + ' de ' + g.max + '</p></div>' +
+                            '<div><p class="igi-fact-l">VAMOS A REVISAR</p><p class="igi-fact-v" data-review>Hasta ' + this.limit + ' publicaciones</p></div>' +
+                            '<div><p class="igi-fact-l">' + (isSignup ? 'PODÉS IMPORTAR' : 'ESPACIOS LIBRES EN TU GALERÍA') + '</p><p class="igi-fact-v" data-free>' +
+                                (isSignup ? 'Hasta ' + g.max : free + ' de ' + g.max) + '</p></div>' +
                         '</div></div>' +
                     '<p class="igi-note">' + icon('info') + '<span>Solo podemos importar contenido de cuentas públicas.</span></p>' +
+                    (isSignup ? '<p class="igi-note igi-note--verify">' + icon('alert-triangle') + '<span>' + escapeHtml(SIGNUP_VISIBILITY_NOTE) + '</span></p>' : '') +
                     '<label class="igi-confirm"><input type="checkbox" id="igi-confirm"' + (this.confirmed ? ' checked' : '') + '><span class="igi-box" aria-hidden="true">' + icon('check') + '</span>' +
                         '<span>Confirmo que esta cuenta es mía y autorizo la importación de su contenido.</span></label>' +
                     '<p class="igi-error" role="alert"' + (errorMessage ? '' : ' hidden') + '>' + escapeHtml(errorMessage || '') + '</p>' +
@@ -226,13 +237,7 @@
                 '<button type="button" class="igi-btn is-text" data-cancel>CANCELAR</button>' +
                 '<button type="button" class="igi-btn is-accent" data-search>BUSCAR PERFIL →</button>';
             const handleInput = this.body.querySelector('#igi-handle');
-            const limit = this.body.querySelector('#igi-limit');
             const confirm = this.body.querySelector('#igi-confirm');
-            limit.value = String(this.limit);
-            limit.addEventListener('change', () => {
-                this.limit = Number(limit.value) || 12;
-                this.body.querySelector('[data-review]').textContent = this.limit + ' publicaciones';
-            });
             confirm.addEventListener('change', () => { this.confirmed = confirm.checked; });
             handleInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.startPreview(); } });
             this.foot.querySelector('[data-cancel]').addEventListener('click', () => this.close());
@@ -250,7 +255,7 @@
                 const slot = this.overlay && this.step === 1 && this.body.querySelector('[data-free]');
                 if (!slot || ++ticks > 20) { clearInterval(this._galleryTimer); return; }
                 const g = this.gallery();
-                const text = this.freeSlots() + ' de ' + g.max;
+                const text = this.opts.mode === 'signup' ? 'Hasta ' + g.max : this.freeSlots() + ' de ' + g.max;
                 if (slot.textContent !== text) slot.textContent = text;
             }, 500);
         }
@@ -308,6 +313,11 @@
             if (!sample) { this.renderProfile(); return; }
             this.simulated = true;
             this.payloadId = 'preview-sample';
+            // Las publicaciones son de ejemplo, pero el handle es el del artista
+            // (auditoría H11: el paso 02 decía "@valentina.preview").
+            const ownHandle = sampleHandle(this.handle
+                || (typeof this.opts.getHandle === 'function' ? this.opts.getHandle() : ''));
+            if (ownHandle) sample.username = ownHandle;
             this.summary = sample;
             this.handle = sample.username;
             this.confirmed = true;
@@ -357,10 +367,31 @@
         // Preselección: lo que entra, en orden, como en el Figma.
         preselect() {
             this.selected = [];
+            // Volver a importar (registro): arranca con lo ya importado marcado.
+            const previous = new Set((Array.isArray(this.opts.preselectPermalinks) ? this.opts.preselectPermalinks : []).filter(Boolean));
+            if (previous.size && this.items.some((item) => item.permalink && previous.has(item.permalink))) {
+                this.items.forEach((item) => {
+                    if (item.permalink && previous.has(item.permalink) && !this.blockReason(item)) this.selected.push(item.id);
+                });
+                return;
+            }
             this.items.forEach((item) => {
                 if (!this.blockReason(item)) this.selected.push(item.id);
             });
             if (this.items.some((i) => !i.group) && this.selected.length > 3) this.selected = this.selected.slice(0, 3);
+        }
+
+        // "Seleccionar todas": suma, en orden, todo lo que entra en el cupo.
+        selectAll() {
+            this.items.forEach((item) => {
+                if (this.selected.indexOf(item.id) === -1 && !this.blockReason(item)) this.selected.push(item.id);
+            });
+            this.paintSelection();
+        }
+
+        clearSelection() {
+            this.selected = [];
+            this.paintSelection();
         }
 
         renderSelection() {
@@ -387,21 +418,33 @@
                     '<button type="button" class="igi-link" data-change>CAMBIAR CUENTA</button>' +
                 '</div>' +
                 '<h2 class="igi-title igi-title--s" id="igi-title">Elegí qué sumar</h2>' +
-                '<p class="igi-sub">Tocá una publicación para seleccionarla. Las que no cumplen los requisitos aparecen bloqueadas.</p>' +
+                '<p class="igi-sub">Tocá una publicación para seleccionarla. Las que no cumplen los requisitos aparecen bloqueadas.' +
+                    (this.opts.mode === 'signup' ? ' Podés elegir hasta ' + g.max + '.' : '') + '</p>' +
                 '<div class="igi-status" role="status">' +
                     '<div class="is-on"><strong>' + usedUnits + '</strong><span>' + plural(usedUnits, 'SELECCIONADA', 'SELECCIONADAS') + '</span></div>' +
                     '<div><strong>' + free + '</strong><span>' + plural(free, 'ESPACIO LIBRE', 'ESPACIOS LIBRES') + '</span></div>' +
                     '<div><strong>' + (g.videos + usedVideos) + '/' + g.maxVideos + '</strong><span>VIDEOS EN GALERÍA</span></div>' +
                 '</div>' +
+                (this.items.length > 1 && this.items.some((i) => !i.group)
+                    ? '<div class="igi-bulk">' +
+                        '<button type="button" class="igi-link" data-select-all>SELECCIONAR TODAS</button>' +
+                        (usedUnits ? '<button type="button" class="igi-link" data-select-none>QUITAR SELECCIÓN</button>' : '') +
+                      '</div>'
+                    : '') +
                 (this.items.length
                     ? '<div class="igi-grid">' + this.items.map((item) => this.tileHtml(item)).join('') + '</div>'
                     : '<p class="igi-empty">No encontramos publicaciones para importar en esta cuenta.</p>') +
-                (this.items.some((i) => i.group) ? '<p class="igi-note">' + icon('info') + '<span>Instagram no nos dio el detalle de cada publicación: se suman las más recientes del tipo elegido.</span></p>' : '');
+                (this.items.some((i) => i.group) ? '<p class="igi-note">' + icon('info') + '<span>Instagram no nos dio el detalle de cada publicación: se suman las más recientes del tipo elegido.</span></p>' : '') +
+                (this.opts.mode === 'signup' ? '<p class="igi-note igi-note--verify">' + icon('alert-triangle') + '<span>' + escapeHtml(SIGNUP_VISIBILITY_NOTE) + '</span></p>' : '');
             this.foot.className = 'igi-foot';
             this.foot.innerHTML =
                 '<button type="button" class="igi-btn is-text" data-back>' + icon('arrow-left') + '<span>VOLVER</span></button>' +
                 '<button type="button" class="igi-btn is-accent" data-import' + (usedUnits ? '' : ' disabled') + '>IMPORTAR ' + usedUnits + ' ' + plural(usedUnits, 'PUBLICACIÓN', 'PUBLICACIONES') + '</button>';
             this.body.querySelector('[data-change]').addEventListener('click', () => this.renderProfile());
+            const selectAll = this.body.querySelector('[data-select-all]');
+            if (selectAll) selectAll.addEventListener('click', () => this.selectAll());
+            const selectNone = this.body.querySelector('[data-select-none]');
+            if (selectNone) selectNone.addEventListener('click', () => this.clearSelection());
             this.foot.querySelector('[data-back]').addEventListener('click', () => this.renderProfile());
             this.foot.querySelector('[data-import]').addEventListener('click', () => this.startCommit());
             this.body.querySelectorAll('[data-item]').forEach((btn) => {
@@ -473,6 +516,9 @@
                     payload_id: this.payloadId, selection, target: this.opts.target,
                     mode: isSignup ? 'signup' : 'dashboard'
                 };
+                // Figma 2003:1191 (ronda 3 · P17): el servidor registra el
+                // consentimiento del paso 01 en el audit y en cada ítem importado.
+                if (this.confirmed) body.consent = { accepted: true, version: 'ig-import-2026-11' };
                 if (permalinks.length) body.allowed_permalinks = permalinks;
                 if (this.opts.targetId) body.target_user_id = this.opts.targetId;
                 const res = await fetch(apiUrl('/api/instagram/commit'), {
@@ -528,7 +574,10 @@
 
         notifyComplete(data) {
             if (typeof this.opts.onComplete !== 'function') return;
-            try { this.opts.onComplete({ ...data, handle: this.handle, summary: this.summary }); }
+            // ── integracion ── el registro guarda el consentimiento del paso 01
+            // para el commit final (persistPortfolioMedia) y las re-importaciones.
+            const consent = this.confirmed ? { accepted: true, version: 'ig-import-2026-11', handle: this.handle || null } : null;
+            try { this.opts.onComplete({ ...data, handle: this.handle, summary: this.summary, consent }); }
             catch (e) { console.warn('[ig-import] onComplete threw:', e); }
         }
 
@@ -547,7 +596,8 @@
                     '<span class="igi-done-ic">' + icon('check') + '</span>' +
                     '<h2 class="igi-title" id="igi-title">' + (isSignup ? 'Tus trabajos ya están en tu portafolio' : 'Tus trabajos ya están en la galería') + '</h2>' +
                     '<p class="igi-sub">Sumamos ' + n + ' ' + plural(n, 'publicación', 'publicaciones') + ' desde @' + escapeHtml(result.handle) + '.' +
-                    (isSignup ? '' : ' Te ' + plural(free, 'queda', 'quedan') + ' ' + free + ' ' + plural(free, 'espacio libre', 'espacios libres') + '.') + '</p>' +
+                    (isSignup ? ' Si querés cambiar la selección, podés volver a importar desde «Tus trabajos».' : ' Te ' + plural(free, 'queda', 'quedan') + ' ' + free + ' ' + plural(free, 'espacio libre', 'espacios libres') + '.') + '</p>' +
+                    (isSignup ? '<p class="igi-note igi-note--verify">' + icon('alert-triangle') + '<span>' + escapeHtml(SIGNUP_VISIBILITY_NOTE) + '</span></p>' : '') +
                     (lines.length ? '<p class="igi-warn">' + icon('alert-triangle') + '<span>' + lines.map(escapeHtml).join(' ') + '</span></p>' : '') +
                 '</div>';
             this.foot.className = 'igi-foot is-end';

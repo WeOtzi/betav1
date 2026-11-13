@@ -513,14 +513,16 @@ test('revisión split #6: después de cambiar el usuario la tarjeta muestra la c
 
 function profileHarness(stored, typed = stored) {
     const dom = fakeDom({ 'aac-username': 'laura', 'aac-bio': 'Bio nueva', 'aac-contact-whatsapp': typed || '' });
-    const h = { dom, patches: [], toasts: [], refreshed: [] };
+    const h = { dom, patches: [], toasts: [], refreshed: [], bioCalls: [] };
     Object.assign(h, loadFns(
         ['function setFieldError(inputId, message)', 'function normalizeHandle(value)',
-            'async function saveProfile()', 'async function saveWhatsapp(value)'],
+            'async function saveProfile()', 'async function saveWhatsapp(value)', 'async function saveBio(value)'],
         {
             $: dom.$, CM, extras: { whatsapp_number: stored }, artist: { username: 'laura' }, user: { id: 'artist-1' },
             D: { Artists: { isUsernameAvailable: async () => ({ data: [] }) } },
             updateArtist: async (patch) => { h.patches.push(patch); },
+            isDemo: () => false,
+            igApi: async (path, opts) => { h.bioCalls.push([path, opts]); return { success: true, bio_description: opts.body.bio }; },
             langsPicker: { get: () => [] }, profilePrefs: () => ({}), savePrefs: async () => {},
             setCountrySelect: () => {}, renderIgVerify: () => {}, console: quiet,
             toast: (msg, ok = true) => h.toasts.push([msg, ok]),
@@ -535,7 +537,8 @@ test('revisión split #5: un WhatsApp viejo sin tocar no frena el guardado de Mi
     const legacy = profileHarness('11 5555-1234');
     await legacy.saveProfile();
     assert.equal(legacy.patches.length, 1, 'solo el UPDATE del perfil');
-    assert.equal(legacy.patches[0].bio_description, 'Bio nueva');
+    assert.ok(!('bio_description' in legacy.patches[0]), 'la bio no se escribe directo en artists_db');
+    assert.deepEqual(legacy.bioCalls, [['/api/artist/profile/bio', { method: 'POST', body: { bio: 'Bio nueva' } }]]);
     assert.ok(!('whatsapp_number' in legacy.patches[0]));
     assert.deepEqual(legacy.toasts, [['Cambios guardados', true]]);
     assert.deepEqual(legacy.refreshed, ['perfil']);

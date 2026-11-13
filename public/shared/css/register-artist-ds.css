@@ -1415,3 +1415,159 @@ body.register-page .bauhaus-footer{display:none}
 @media (min-width:769px){
   .ra-fields--price{grid-template-columns:minmax(0,260px) minmax(0,164px);column-gap:12px}
 }
+
+/* ============================================================================
+   Revisión del registro (12 nov 2026) · grupo registro-pasos · páginas 3 a 10
+   ========================================================================== */
+
+/* Página 3: entradas sutiles (fade + subida corta, escalonadas).
+   - Al cargar: marca, barra de pasos y cabecera. Solo con la clase
+     `wo-motion-in` en <html>, que pone el script del <head> cuando el
+     navegador acepta movimiento: sin JS no se oculta nada.
+   - Al abrir un grupo: .wo-enter-stagger del DS en el panel (register.js,
+     playPanelEntrance) y .wo-enter en la fila resumen del grupo que se cierra.
+   Se anima `translate` (no `transform`) y con relleno `backwards`: terminada
+   la animación cada elemento vuelve a sus propios estilos (hover, disabled). */
+@keyframes ra-rise-in{from{opacity:0;translate:0 12px}to{opacity:1;translate:none}}
+.wo-motion-in .ra-topbar .wo-topbar-brand,
+.wo-motion-in .ra-nav-item,
+.wo-motion-in .ra-intro > *{animation:ra-rise-in 400ms var(--ease-standard) backwards;animation-delay:var(--ra-in-delay,0ms)}
+.wo-motion-in .ra-nav-item:nth-child(1){--ra-in-delay:60ms}
+.wo-motion-in .ra-nav-item:nth-child(2){--ra-in-delay:95ms}
+.wo-motion-in .ra-nav-item:nth-child(3){--ra-in-delay:130ms}
+.wo-motion-in .ra-nav-item:nth-child(4){--ra-in-delay:165ms}
+.wo-motion-in .ra-nav-item:nth-child(5){--ra-in-delay:200ms}
+.wo-motion-in .ra-nav-item:nth-child(6){--ra-in-delay:235ms}
+.wo-motion-in .ra-nav-item:nth-child(7){--ra-in-delay:270ms}
+.wo-motion-in .ra-intro > :nth-child(1){--ra-in-delay:120ms}
+.wo-motion-in .ra-intro > :nth-child(2){--ra-in-delay:180ms}
+.wo-motion-in .ra-intro > :nth-child(3){--ra-in-delay:240ms}
+.wo-motion-in .ra-intro > :nth-child(4){--ra-in-delay:300ms}
+/* Grupo que se abre y fila del que se cierra: un poco más visibles que el
+   default del DS (8px · 340ms), sin pasar de 450ms. */
+.register-page .ra-panel.wo-enter-stagger{--wo-enter-distance:14px;--wo-enter-duration:380ms;--wo-enter-step:55ms}
+.register-page .ra-panel.wo-enter-stagger > *,
+.register-page .ra-row.wo-enter{animation-fill-mode:backwards}
+.register-page .ra-row.wo-enter{--wo-enter-distance:6px;--wo-enter-duration:300ms}
+@media (prefers-reduced-motion:reduce){
+  .wo-motion-in .ra-topbar .wo-topbar-brand,
+  .wo-motion-in .ra-nav-item,
+  .wo-motion-in .ra-intro > *,
+  .register-page .ra-panel.wo-enter-stagger > *,
+  .register-page .ra-row.wo-enter{animation:none}
+}
+
+/* Página 4: "Repetir contraseña" a la derecha de "Contraseña" (apilado en
+   móvil). El email ocupa la misma columna que la contraseña. */
+.ig-preauth-only[hidden]{display:none}
+@media (min-width:769px){
+  .ra-fields--access{max-width:680px}
+  .ra-fields--access .ra-field--email{max-width:calc(50% - var(--space-2))}
+  .ra-fields--access .ig-preauth-only{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:var(--space-4);align-items:start}
+  .ra-fields--access .ig-preauth-only > .ra-field + .ra-field{margin-top:0}
+  .ra-fields--access #signup_password_error{grid-column:1 / -1}
+}
+
+/* Página 5: botón "Otro" junto a "Ver más estilos" y campo de estilo propio */
+.ra-other-style{background:var(--surface-card);border-color:var(--border-strong);color:var(--text-heading)}
+.ra-other-style:hover{background:var(--surface-card);border-color:var(--border-strong)}
+.ra-other-style.is-open{background:var(--ink);border-color:var(--ink);color:var(--white)}
+.custom-style-wrapper[hidden],
+.ra-styles-later[hidden]{display:none}
+.custom-style-wrapper{margin-top:var(--space-3)}
+.ra-note{margin:var(--space-2) 0 0;font-size:12px;line-height:1.4;color:var(--text-muted)}
+.ra-link-btn{margin-top:var(--space-2);padding:0;background:none;border:0;font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;text-decoration:underline;color:var(--text-muted);cursor:pointer}
+.ra-link-btn:hover{color:var(--text-heading)}
+.ra-link-btn:focus-visible,
+.ra-works-reimport:focus-visible,
+.ra-works-clear:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.ra-styles-later{margin:var(--space-2) 0 0;font-size:13px}
+
+/* Página 5 · panel "Todos los estilos": el pie (contador + CANCELAR /
+   APLICAR) queda al final del contenido, no fijo. Grupos sin filete
+   divisorio y todos los chips del mismo tamaño, en filas parejas. */
+.ra-styles-foot{position:static}
+@media (min-width:769px){
+  .ra-styles-foot{position:static}
+}
+@media (max-width:768px){
+  .ra-styles-panel{max-height:none;height:auto;min-height:100%}
+  .ra-styles-body{overflow:visible;flex:none}
+}
+.ra-styles-group{border-bottom:0;padding:18px 0 4px}
+.ra-styles-group:first-child{padding-top:0}
+.ra-styles-chips{display:flex;flex-wrap:wrap;gap:9px;padding-top:3px}
+.ra-styles-chip{height:38px;padding:0 15.6px;font-size:13.5px;border-color:var(--neutral-500)}
+.ra-styles-body{padding-bottom:var(--space-6)}
+.ra-styles-note{margin:var(--space-1) 0 0;font-size:12px;line-height:1.4;color:var(--text-muted)}
+.ra-styles-view{display:inline-flex;flex:none;border:var(--border-hairline) solid var(--neutral-500)}
+.ra-styles-view-btn{height:47px;padding:0 14px;background:var(--surface-page);border:0;font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--neutral-500);cursor:pointer}
+.ra-styles-view-btn + .ra-styles-view-btn{border-left:var(--border-hairline) solid var(--neutral-500)}
+.ra-styles-view-btn[aria-pressed="true"]{background:var(--ink);color:var(--white)}
+.ra-styles-view-btn:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+@media (max-width:600px){
+  .ra-styles-tools{gap:10px}
+  .ra-styles-search{flex-basis:100%}
+}
+
+/* Página 8: re-importar Instagram y aviso de verificación en "Tus trabajos" */
+.ra-works-actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) var(--space-5);margin-top:12px}
+.ra-works-actions .ra-works-clear{margin-top:0}
+.ra-works-reimport{padding:0;background:none;border:0;font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;text-decoration:underline;color:var(--text-heading);cursor:pointer}
+.ra-works-reimport:hover{color:var(--blue-500)}
+.ra-works-ig-note[hidden]{display:none}
+
+/* Página 9: aviso de estudio nuevo y link de alta en "Perfil creado" */
+.ra-studio-new[hidden],
+.ra-submit-error[hidden],
+.ra-studio-claim[hidden]{display:none}
+.ra-studio-new{margin-top:var(--space-4);max-width:560px}
+.ra-studio-new p{margin:0}
+.ra-studio-new p + p{margin-top:var(--space-2)}
+.ra-studio-new-title{font-weight:var(--weight-bold)}
+.ra-studio-claim{display:flex;flex-direction:column;gap:var(--space-2);width:100%;max-width:560px;box-sizing:border-box;padding:var(--space-5);text-align:left;background:var(--surface-card);border:var(--border-hairline) solid var(--neutral-500)}
+.ra-studio-claim .ra-eyebrow{margin:0}
+.ra-studio-claim-lead{margin:0 0 var(--space-2);font-size:14px;line-height:1.45;color:var(--text-body)}
+.ra-studio-claim-row{display:flex;gap:var(--space-2);align-items:stretch}
+.ra-studio-claim-row .form-input{flex:1;min-width:0;font-family:var(--font-mono);font-size:12px}
+.ra-studio-claim-row .ra-ghost{flex:none;padding:0 var(--space-4)}
+.ra-studio-claim-row .ra-ghost[hidden]{display:none}
+.ra-studio-claim .ra-hint{margin:0;min-height:1em}
+@media (max-width:600px){
+  .ra-studio-claim-row{flex-wrap:wrap}
+  .ra-studio-claim-row .form-input{flex-basis:100%}
+  .ra-studio-claim-row .ra-ghost{flex:1;min-height:var(--control-h-md)}
+}
+
+/* Página 10: error real del envío con "Reintentar" */
+.ra-submit-error{margin-top:var(--space-4);max-width:720px}
+.ra-submit-error p{margin:0}
+.ra-submit-error p + p{margin-top:var(--space-1)}
+.ra-submit-error-title{font-weight:var(--weight-bold)}
+.ra-submit-error-keep{opacity:.85}
+.ra-submit-retry{margin-top:var(--space-3);padding:var(--space-2) var(--space-4)}
+.ra-submit-error:focus{outline:none}
+.ra-submit-error:focus-visible{box-shadow:var(--shadow-focus)}
+
+/* Reanudar el registro: "Continuar donde lo dejé" / "Empezar de cero" */
+body.ra-resume-open{overflow:hidden}
+.ra-resume-overlay{z-index:400}
+.ra-resume{position:relative;box-sizing:border-box}
+.ra-resume:focus{outline:none}
+.ra-resume .ra-eyebrow{margin:0 0 var(--space-2)}
+.ra-resume-title{margin-bottom:var(--space-3)}
+.ra-resume-text,
+.ra-resume-note{margin:0;font-size:15px;line-height:1.5;color:var(--text-body)}
+.ra-resume-note{margin-top:var(--space-2);font-size:13px;color:var(--text-muted)}
+.ra-resume-actions{align-items:center}
+@media (max-width:600px){
+  .ra-resume-overlay{padding:var(--space-4)}
+  .ra-resume{padding:var(--space-6) var(--space-5)}
+  .ra-resume-actions{flex-direction:column-reverse;align-items:stretch}
+  .ra-resume-actions > *{width:100%}
+}
+
+/* Página 5: "Mostrar en" con el nombre completo de la moneda (sin cortar). */
+@media (min-width:769px){
+  .ra-fields--price{grid-template-columns:minmax(0,260px) minmax(0,280px)}
+}

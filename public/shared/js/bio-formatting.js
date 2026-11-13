@@ -8,7 +8,7 @@ const BioFormatting = (function () {
     'use strict';
 
     const ALLOWED_TAGS = [
-        'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del',
+        'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del', 'mark',
         'br', 'div', 'p', 'span', 'a', 'font',
         'ul', 'ol', 'li'
     ];
@@ -17,15 +17,26 @@ const BioFormatting = (function () {
         a: ['href', 'target', 'rel'],
         span: ['style'],
         font: ['color'],
-        b: [], strong: [], i: [], em: [], u: [], s: [], strike: [], del: [],
+        b: [], strong: [], i: [], em: [], u: [], s: [], strike: [], del: [], mark: [],
         br: [], div: ['style'], p: ['style'],
         ul: [], ol: [], li: []
     };
 
     // iOS Safari uses span+style instead of semantic tags for bold/italic/underline,
     // so we must allow these CSS properties to preserve formatting across all browsers.
+    // `font-size` y `mark` (resaltado) llegan del editor WoRichText (revisión
+    // 12 nov 2026): misma allowlist y mismos topes que lib/bio-sanitizer.js.
+    const FONT_SIZE_KEYWORDS = new Set(['x-small', 'small', 'medium', 'large', 'x-large', 'smaller', 'larger']);
+    const FONT_SIZE_LIMITS = {
+        px: [10, 40],
+        pt: [8, 30],
+        em: [0.6, 2.5],
+        rem: [0.6, 2.5],
+        '%': [60, 250]
+    };
+
     const ALLOWED_STYLE_PROPS = [
-        'color', 'background-color', 'background',
+        'color', 'background-color', 'background', 'font-size',
         'font-weight', 'font-style',
         'text-decoration', 'text-decoration-line', 'text-decoration-style'
     ];
@@ -85,7 +96,8 @@ const BioFormatting = (function () {
             || /@import/i.test(normalized)
             || /-moz-binding/i.test(normalized)
             || /behavior\s*:/i.test(normalized)
-            || /[<>{}\\]/.test(normalized);
+            || /var\s*\(/i.test(normalized)
+            || /[<>{}\\;"'`]/.test(normalized);
     }
 
     function normalizeCssColor(value, property) {
@@ -96,6 +108,18 @@ const BioFormatting = (function () {
         probe.style[targetProp] = '';
         probe.style[targetProp] = String(value || '').trim();
         return probe.style[targetProp] || '';
+    }
+
+    function normalizeFontSize(value) {
+        if (rejectDangerousStyleValue(value)) return '';
+        const raw = String(value || '').trim().toLowerCase();
+        if (FONT_SIZE_KEYWORDS.has(raw)) return raw;
+        const match = raw.match(/^(\d{1,3}(?:\.\d{1,3})?)(px|pt|em|rem|%)$/);
+        if (!match) return '';
+        const amount = Number.parseFloat(match[1]);
+        const limits = FONT_SIZE_LIMITS[match[2]];
+        if (!Number.isFinite(amount) || amount < limits[0] || amount > limits[1]) return '';
+        return match[1] + match[2];
     }
 
     function normalizeFontWeight(value) {
@@ -135,6 +159,11 @@ const BioFormatting = (function () {
                 prop: prop === 'background' ? 'background-color' : prop,
                 value: color
             };
+        }
+
+        if (prop === 'font-size') {
+            const fontSize = normalizeFontSize(value);
+            return fontSize ? { prop, value: fontSize } : null;
         }
 
         if (prop === 'font-weight') {

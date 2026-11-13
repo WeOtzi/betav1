@@ -17,12 +17,17 @@ const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const { estimatePreQuote } = require('./lib/prequote-estimator');
 const artistRegistration = require('./lib/artist-registration');
+const registrationFinalize = require('./lib/registration-finalize');
+const studioClaim = require('./lib/studio-claim');
+const registrationCatalogs = require('./lib/registration-catalogs');
+const { sanitizeBio, MAX_BIO_TEXT_LENGTH } = require('./lib/bio-sanitizer');
 const emailService = require('./services/email-service');
 const emailEventMapping = require('./services/email-event-mapping');
 const { startLocalNgrok } = require('./lib/local-ngrok');
 const { legacyRedirectFor, legacyLocation } = require('./lib/legacy-routes');
 // Capa PostgREST unificada (ver docs/plans/2026-06-21-postgrest-capa-unificada-piloto-cotizaciones.md)
 const { pgrest } = require('./lib/postgrest');
+const termsAcceptance = require('./lib/terms-acceptance'); // ── cotizaciones · P3
 const { resolveBearerUser } = require('./lib/auth/supabase-auth');
 const { QuotationsRepo } = require('./lib/repos/quotations');
 const { JobBoardRepo } = require('./lib/repos/jobboard');
@@ -266,6 +271,51 @@ app.post('/api/quotations/intake', require('./services/quotation-intake').handle
 app.post('/api/store/licenses/:licenseId/assets/:assetId/url', storeDownloadLimiter, storeOrders.handleDownloadUrl);
 app.post('/api/store/orders/:id/checkout', storeOrders.handleCheckout);
 app.post('/api/store/maintenance', storeOrders.handleMaintenance);
+
+// ── calendario ──
+// Aviso por email de los recordatorios del artista (artist_reminders.due_at).
+// Lo llama un cron (X-Cron-Token = CRON_API_TOKEN) o un intervalo opcional
+// (CALENDAR_REMINDERS_INTERVAL_MS >= 60000). Lógica en lib/calendar-reminders.js.
+const calendarReminders = require('./lib/calendar-reminders');
+function calendarReminderDispatcher(baseUrl) {
+    return calendarReminders.createReminderDispatcher({ pgrest, emailService, baseUrl });
+}
+app.post('/api/calendar/reminders/dispatch', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const expected = process.env.CRON_API_TOKEN;
+    if (typeof expected !== 'string' || !expected.trim()) {
+        return res.status(503).json({ success: false, error: 'El aviso de recordatorios no está configurado.' });
+    }
+    if (!storeOrders.safeTokenEqual(req.headers['x-cron-token'], expected)) {
+        return res.status(401).json({ success: false, error: 'El token de cron no es válido.' });
+    }
+    try {
+        const limit = Math.min(200, Math.max(1, parseInt(req.body?.limit, 10) || 50));
+        const result = await calendarReminderDispatcher(applicationBase(req)).run(limit);
+        return res.json({ success: true, result });
+    } catch (error) {
+        console.error('[calendar] dispatch de recordatorios falló:', error.message);
+        return res.status(500).json({ success: false, error: 'No pudimos enviar los avisos de recordatorios.' });
+    }
+});
+const CALENDAR_REMINDERS_INTERVAL_MS = calendarReminders.intervalFromEnv(process.env);
+if (CALENDAR_REMINDERS_INTERVAL_MS) {
+    const reminderBase = (process.env.PUBLIC_APP_URL || process.env.APP_URL || 'https://weotzi.com/beta').replace(/\/$/, '');
+    let reminderRunActive = false;
+    setInterval(async () => {
+        if (reminderRunActive) return;
+        reminderRunActive = true;
+        try {
+            const result = await calendarReminderDispatcher(reminderBase).run();
+            if (result.claimed) console.log('[calendar] recordatorios:', JSON.stringify(result));
+        } catch (error) {
+            console.warn('[calendar] intervalo de recordatorios:', error.message);
+        } finally {
+            reminderRunActive = false;
+        }
+    }, CALENDAR_REMINDERS_INTERVAL_MS).unref();
+}
+
 const accountModes = require('./services/account-modes');
 app.get('/api/account/testing', (req, res) => res.json({ registrationOpen: accountModes.testingEnabled() }));
 app.post('/api/account/mode', accountModes.activate);
@@ -4543,8 +4593,8 @@ app.post('/api/studio/notify', authLimiter, async (req, res) => {
             studio_name: payload.from_name,
             dashboard_url: payload.links.invitations
         }, { idempotencyKey: `${payload.meta.application_id || payload.meta.membership_id}:${decision || 'invite'}` });
-        return res.status(result.ok ? 200 : 502).json({ success: !!result.ok, sent: !!result.ok,
-            payload_kind: payload.kind, delivery_status: result.delivery_status,
+        return res.status(result.ok ? 200 : 502).json({ success: !!result.ok, sent: !!result.ok && !result.skipped,
+            skipped: !!result.skipped, payload_kind: payload.kind, delivery_status: result.delivery_status,
             deduplicated: result.deduplicated, uncertain: result.uncertain, error: result.error });
     } catch (err) {
         console.error('[StudioNotify] notification failed:', err.message);
@@ -4857,6 +4907,8 @@ app.post('/api/admin/currencies/refresh-now', async (req, res) => {
 
 const appSettings = require('./lib/app-settings');
 const igImport = require('./lib/instagram-import');
+// ── dashboard ── consentimiento de la importación de IG (ronda 3 · P17).
+const igConsent = require('./lib/dashboard-ig-consent');
 
 const APIFY_TOKEN_KEY = 'apify_token';
 const APIFY_TEST_HANDLE_DEFAULT = 'instagram';
@@ -5176,6 +5228,15 @@ function isFinalizedArtist(row) {
     return Boolean(row.user_id) || row.registration_status === artistRegistration.REGISTRATION_STATUS_PENDING_VALIDATION;
 }
 
+// Fila "pendiente de validacion" sin cuenta real (resto de un finalize que
+// fallo): no bloquea; se puede seguir editando y volver a finalizar.
+async function isBlockingFinalizedDraft(row) {
+    if (!isFinalizedArtist(row)) return false;
+    if (row.user_id) return true;
+    const authUsers = await listAuthUsersByEmail(row.email);
+    return !registrationFinalize.isRepairableFinalizedDraft(row, authUsers);
+}
+
 function buildStudioAddressPatch(address) {
     return artistRegistration.buildStudioAddressPayload(address);
 }
@@ -5356,18 +5417,71 @@ async function persistRegistrationStudioAssociations({ formData, artistUserId, s
         locationId,
         workType: formData.work_type
     });
+    // Indice unico PARCIAL en vivo (studio_memberships_one_open_per_role): no
+    // se puede usar on_conflict; se busca la membresia abierta y se actualiza
+    // o se inserta (lib/registration-finalize.js).
     if (membership) {
-        await _supabaseFetch('studio_artist_memberships?on_conflict=studio_id,artist_user_id,role,status', {
-            method: 'POST',
-            prefer: 'resolution=merge-duplicates,return=representation',
-            body: membership
-        });
+        await registrationFinalize.upsertOpenStudioMembership(_supabaseFetch, membership);
     }
 
     return { locationId };
 }
 
-async function resolveRegistrationStudio(formData) {
+// PostgREST responde PGRST204 / 42703 si la migracion de columnas nuevas
+// (20261112120000_studio_claim_links) todavia no se aplico.
+function isMissingColumnError(error) {
+    return /PGRST204|42703|column .* does not exist|Could not find the .* column/i.test(String(error && error.message || ''));
+}
+
+async function insertArtistCreatedStudio({ studioName, normalized, artistUserId }) {
+    const base = { name: studioName, normalized_name: normalized };
+    const body = artistUserId
+        ? { ...base, location_verified: false, created_by_artist_user_id: artistUserId }
+        : { ...base, location_verified: false };
+    try {
+        return await _supabaseFetch('studios', { method: 'POST', prefer: 'return=representation', body });
+    } catch (error) {
+        if (!isMissingColumnError(error)) throw error;
+        console.warn('[register finalize] studios sin columnas de alta (migracion pendiente); se crea sin location_verified');
+        return _supabaseFetch('studios', { method: 'POST', prefer: 'return=representation', body: base });
+    }
+}
+
+// Estudio huerfano de un intento anterior cuya compensacion no llego a
+// borrarlo: sin duenio, sin verificar, sin creador (el usuario de Auth se
+// borro) y sin nadie vinculado. Se adopta para que el reintento termine igual
+// que un primer intento (con su link de alta).
+async function isAdoptableOrphanStudio(studio, draftId) {
+    if (!studio || studio.user_id || studio.location_verified !== false || studio.created_by_artist_user_id) return false;
+    const members = await _supabaseFetch(
+        `studio_artist_memberships?studio_id=eq.${encodeURIComponent(studio.id)}&select=id&limit=1`
+    );
+    if (Array.isArray(members) && members.length) return false;
+    const artists = await _supabaseFetch(
+        `artists_db?studio_id=eq.${encodeURIComponent(studio.id)}&select=registration_draft_id&limit=2`
+    );
+    return !(Array.isArray(artists) && artists.some(a => a.registration_draft_id !== draftId));
+}
+
+async function adoptOrphanStudio(studioId, artistUserId) {
+    try {
+        await _supabaseFetch(`studios?id=eq.${encodeURIComponent(studioId)}&user_id=is.null`, {
+            method: 'PATCH',
+            prefer: 'return=minimal',
+            body: { created_by_artist_user_id: artistUserId }
+        });
+        return true;
+    } catch (error) {
+        console.warn('[register finalize] no se pudo adoptar el estudio huerfano:', error.message);
+        return false;
+    }
+}
+
+// Devuelve el estudio de la registracion. `createdStudioId` solo se informa
+// cuando el estudio se creo EN ESTA request (la compensacion lo borra si el
+// finalize falla). `claimableStudioId` es el estudio para el que corresponde
+// emitir el link de alta (creado ahora o huerfano adoptado).
+async function resolveRegistrationStudio(formData, { artistUserId = null, draftId = null } = {}) {
     const workType = artistRegistration.normalizeWorkType(formData?.work_type);
     if (workType === 'independent') {
         return { studioId: null, estudiosValue: 'Sin estudio/Independiente' };
@@ -5387,29 +5501,61 @@ async function resolveRegistrationStudio(formData) {
     }
 
     const normalized = studioName.toUpperCase();
-    let rows = await _supabaseFetch(
-        `studios?normalized_name=eq.${encodeURIComponent(normalized)}&select=id,name&limit=1`
-    );
-
-    let studioId = Array.isArray(rows) && rows[0] ? rows[0].id : null;
-    if (!studioId) {
+    const findByName = async () => {
+        let rows;
         try {
-            const created = await _supabaseFetch('studios', {
-                method: 'POST',
-                prefer: 'return=representation',
-                body: { name: studioName, normalized_name: normalized }
-            });
-            studioId = Array.isArray(created) && created[0] ? created[0].id : null;
-        } catch (error) {
             rows = await _supabaseFetch(
-                `studios?normalized_name=eq.${encodeURIComponent(normalized)}&select=id,name&limit=1`
+                `studios?normalized_name=eq.${encodeURIComponent(normalized)}&select=id,name,user_id,location_verified,created_by_artist_user_id&limit=1`
             );
-            studioId = Array.isArray(rows) && rows[0] ? rows[0].id : null;
-            if (!studioId) throw error;
+        } catch (error) {
+            if (!isMissingColumnError(error)) throw error;
+            rows = await _supabaseFetch(
+                `studios?normalized_name=eq.${encodeURIComponent(normalized)}&select=id,name,user_id&limit=1`
+            );
+        }
+        return Array.isArray(rows) && rows[0] ? rows[0] : null;
+    };
+
+    let existing = await findByName();
+    let createdStudioId = null;
+    let claimableStudioId = null;
+    if (existing) {
+        if (artistUserId && await isAdoptableOrphanStudio(existing, draftId)) {
+            if (await adoptOrphanStudio(existing.id, artistUserId)) claimableStudioId = existing.id;
+        }
+    } else {
+        try {
+            const created = await insertArtistCreatedStudio({ studioName, normalized, artistUserId });
+            existing = Array.isArray(created) && created[0] ? created[0] : null;
+            createdStudioId = existing ? existing.id : null;
+            claimableStudioId = createdStudioId;
+        } catch (error) {
+            existing = await findByName();
+            if (!existing) throw error;
         }
     }
 
-    return { studioId, estudiosValue: studioNameForStorage(studioName), studioName };
+    return {
+        studioId: existing ? existing.id : null,
+        estudiosValue: studioNameForStorage(studioName),
+        studioName,
+        createdStudioId,
+        claimableStudioId
+    };
+}
+
+// Link de alta del estudio para el tatuador que lo creo. Nunca hace fallar el
+// registro: si no se puede emitir ahora, el tatuador lo regenera desde
+// POST /api/artist/studio-claim-link.
+async function issueStudioClaimUrl(req, { studioId, artistUserId }) {
+    if (!studioId || !artistUserId) return null;
+    try {
+        const link = await studioClaim.issueStudioClaimLink(_supabaseFetch, { studioId, createdBy: artistUserId });
+        return { url: requestAbsoluteUrl(req, link.path), expires_at: link.expires_at };
+    } catch (error) {
+        console.warn('[studio claim] no se pudo emitir el link de alta:', error.message);
+        return null;
+    }
 }
 
 async function createArtistAuthUser({ email, password, fullName, username, draftId, source }) {
@@ -5491,7 +5637,7 @@ app.get('/api/register/artist-draft', async (req, res) => {
     try {
         const artist = await findArtistDraft({ draftId, email });
         if (!artist) return res.status(404).json({ success: false, error: 'Borrador de registro no encontrado' });
-        if (isFinalizedArtist(artist)) {
+        if (await isBlockingFinalizedDraft(artist)) {
             return res.status(409).json({
                 success: false,
                 error: 'Registro detectado para este email. Inicia sesion para continuar.',
@@ -5530,8 +5676,13 @@ app.post('/api/register/artist-draft', async (req, res) => {
 
     try {
         let existing = await findArtistDraft({ draftId: requestedDraftId, email });
+        // Draft-id perdido o de otro navegador: se reutiliza la fila sin cuenta
+        // de ese email en vez de crear un duplicado.
+        if (!existing && requestedDraftId && email) {
+            existing = await registrationFinalize.findReusableDraftByEmail(_supabaseFetch, email);
+        }
 
-        if (existing && isFinalizedArtist(existing)) {
+        if (existing && await isBlockingFinalizedDraft(existing)) {
             return res.status(409).json({
                 success: false,
                 error: 'Registro detectado para este email. Inicia sesion para continuar.',
@@ -5552,16 +5703,18 @@ app.post('/api/register/artist-draft', async (req, res) => {
         delete patch.user_id;
         delete patch.registration_submitted_at;
         if (!email && existing?.email) delete patch.email;
+        // ── cotizaciones · P3: aceptación de términos de "Crear cuenta" (fecha + versión).
+        Object.assign(patch, termsAcceptance.termsAcceptancePatch(formData, { existing }));
 
         let savedRows;
         if (existing) {
-            savedRows = await _supabaseFetch(
-                `artists_db?registration_draft_id=eq.${encodeURIComponent(existing.registration_draft_id)}&registration_status=eq.${encodeURIComponent(artistRegistration.REGISTRATION_STATUS_INCOMPLETE)}&user_id=is.null`,
-                { method: 'PATCH', prefer: 'return=representation', body: patch }
-            );
+            ({ result: savedRows } = await termsAcceptance.writeWithTermsFallback(patch, (body) => _supabaseFetch(
+                `artists_db?registration_draft_id=eq.${encodeURIComponent(existing.registration_draft_id)}&user_id=is.null`,
+                { method: 'PATCH', prefer: 'return=representation', body }
+            )));
             if (!Array.isArray(savedRows) || !savedRows[0]) {
                 const latest = await findArtistDraft({ draftId: existing.registration_draft_id });
-                if (isFinalizedArtist(latest)) {
+                if (await isBlockingFinalizedDraft(latest)) {
                     return res.status(409).json({
                         success: false,
                         error: 'Este registro ya fue enviado para validacion',
@@ -5571,11 +5724,11 @@ app.post('/api/register/artist-draft', async (req, res) => {
                 throw new Error('Draft row was not updated');
             }
         } else {
-            savedRows = await _supabaseFetch('artists_db', {
+            ({ result: savedRows } = await termsAcceptance.writeWithTermsFallback(patch, (body) => _supabaseFetch('artists_db', {
                 method: 'POST',
                 prefer: 'return=representation',
-                body: patch
-            });
+                body
+            })));
         }
 
         const artist = Array.isArray(savedRows) && savedRows[0] ? savedRows[0] : existing;
@@ -5597,21 +5750,39 @@ app.post('/api/register/artist-finalize', async (req, res) => {
     }
 
     const body = req.body || {};
-    const draftId = artistRegistration.normalizeDraftId(body.draft_id);
+    const requestedDraftId = artistRegistration.normalizeDraftId(body.draft_id);
     const formData = body.data && typeof body.data === 'object' ? body.data : {};
     const email = artistRegistration.normalizeEmail(body.email || formData.email);
     const password = String(body.password || formData.signup_password || '');
     const source = artistRegistration.sanitizeRegistrationSource(body.source || formData.registration_source);
 
-    if (!draftId) return res.status(400).json({ success: false, error: 'draft_id requerido' });
+    if (!requestedDraftId) return res.status(400).json({ success: false, error: 'draft_id requerido' });
     if (!artistRegistration.isValidEmail(email)) return res.status(400).json({ success: false, error: 'Email invalido' });
     if (password.length < 6) return res.status(400).json({ success: false, error: 'La contrasena debe tener al menos 6 caracteres' });
+    // ── cotizaciones · P3: sin aceptar los Términos no se crea la cuenta.
+    if (!termsAcceptance.hasAcceptedTerms(formData)) {
+        return res.status(400).json({ success: false, error: 'Para crear tu perfil, aceptá los Términos y la Política de Privacidad.', code: 'TERMS_REQUIRED' });
+    }
+
+    // Estado del intento para la compensacion (ver lib/registration-finalize.js).
+    let draftId = requestedDraftId;
+    let draft = null;
+    let authUser = null;
+    let createdStudioId = null;
 
     try {
-        const draft = await findArtistDraft({ draftId });
+        // Fila a finalizar: la del draft; si el navegador perdio el draft-id,
+        // la fila sin cuenta mas reciente con ese email (se repara en vez de
+        // crear otra).
+        const byDraftId = await findArtistDraft({ draftId: requestedDraftId });
+        const byEmail = byDraftId ? null : await registrationFinalize.findReusableDraftByEmail(_supabaseFetch, email);
+        draft = registrationFinalize.pickFinalizeDraft({ byDraftId, byEmail });
         if (!draft) return res.status(404).json({ success: false, error: 'Borrador de registro no encontrado' });
-        if (isFinalizedArtist(draft)) {
-            return res.status(409).json({ success: false, error: 'Este registro ya fue enviado para validacion' });
+        draftId = draft.registration_draft_id || requestedDraftId;
+
+        const priorAuthUsers = await listAuthUsersByEmail(email);
+        if (isFinalizedArtist(draft) && !registrationFinalize.isRepairableFinalizedDraft(draft, priorAuthUsers)) {
+            return res.status(409).json({ success: false, error: 'Este registro ya fue enviado para validacion', code: 'ALREADY_SUBMITTED' });
         }
 
         const username = artistRegistration.formatArtistUsername(formData.artistic_name, email);
@@ -5619,8 +5790,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
 
         // ¿Un intento anterior de ESTE borrador ya creo el usuario de Auth y
         // fallo despues? Se adopta en vez de chocar con "email ya registrado".
-        const priorAuthUsers = await listAuthUsersByEmail(email);
-        const ownAuthUser = priorAuthUsers.find(
+        const ownAuthUser = (priorAuthUsers || []).find(
             (u) => u && u.user_metadata && u.user_metadata.registration_draft_id === draftId
         ) || null;
 
@@ -5635,12 +5805,10 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             return res.status(409).json({ success: false, error: 'Datos ya registrados', conflicts: blocking });
         }
 
-        const { studioId, estudiosValue, studioName } = await resolveRegistrationStudio(formData);
         const fullName = artistRegistration.capitalizeWords(formData.full_name);
-        let authUser = ownAuthUser;
-        let createdAuthUserId = null;
-        if (authUser) {
-            await updateArtistAuthUserPassword(authUser.id, password);
+        if (ownAuthUser) {
+            await updateArtistAuthUserPassword(ownAuthUser.id, password);
+            authUser = ownAuthUser;
         } else {
             authUser = await createArtistAuthUser({
                 email,
@@ -5650,13 +5818,17 @@ app.post('/api/register/artist-finalize', async (req, res) => {
                 draftId,
                 source
             });
-            createdAuthUserId = authUser && authUser.id ? authUser.id : null;
         }
         if (!authUser || !authUser.id) {
+            authUser = null;
             throw new Error('Auth create returned no user id');
         }
 
-        try {
+        // Desde aca todo lo que falle se compensa (catch de abajo).
+        const studio = await resolveRegistrationStudio(formData, { artistUserId: authUser.id, draftId });
+        createdStudioId = studio.createdStudioId || null;
+        const { studioId, estudiosValue, studioName } = studio;
+
         const finalPatch = artistRegistration.buildArtistRegistrationPayload(formData, {
             draftId,
             userId: authUser.id,
@@ -5668,18 +5840,28 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             status: artistRegistration.REGISTRATION_STATUS_PENDING_VALIDATION,
             submitted: true
         });
+        // ── cotizaciones · P3: la aceptación final queda sellada al crear la cuenta.
+        Object.assign(finalPatch, termsAcceptance.termsAcceptancePatch(formData, { force: true }));
 
-        const savedRows = await _supabaseFetch(
-            `artists_db?registration_draft_id=eq.${encodeURIComponent(draftId)}`,
-            { method: 'PATCH', prefer: 'return=representation', body: finalPatch }
-        );
+        // Solo se finaliza la fila si sigue sin cuenta (o ya es de este
+        // usuario): dos requests en paralelo no pueden pisarse.
+        const { result: savedRows } = await termsAcceptance.writeWithTermsFallback(finalPatch, (body) => _supabaseFetch(
+            `artists_db?registration_draft_id=eq.${encodeURIComponent(draftId)}&or=(user_id.is.null,user_id.eq.${encodeURIComponent(authUser.id)})`,
+            { method: 'PATCH', prefer: 'return=representation', body }
+        ));
         const artist = Array.isArray(savedRows) && savedRows[0] ? savedRows[0] : null;
+        if (!artist) throw new Error('La fila del borrador cambio durante el registro');
+
         await persistRegistrationStudioAssociations({
             formData,
             artistUserId: authUser.id,
             studioId,
             studioName: studioName || estudiosValue
         });
+
+        const claim = studio.claimableStudioId
+            ? await issueStudioClaimUrl(req, { studioId: studio.claimableStudioId, artistUserId: authUser.id })
+            : null;
 
         return res.json({
             success: true,
@@ -5689,24 +5871,148 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             artist: artistRegistration.publicArtistDraft(artist),
             dashboard_url: requestAbsoluteUrl(req, '/artist/dashboard'),
             login_url: requestAbsoluteUrl(req, '/registerclosedbeta'),
-            profile_url: username ? requestAbsoluteUrl(req, `/artist/profile?artist=${encodeURIComponent(username)}`) : null
+            profile_url: username ? requestAbsoluteUrl(req, `/artist/profile?artist=${encodeURIComponent(username)}`) : null,
+            studio_id: studioId || null,
+            studio_location_verified: studio.claimableStudioId ? false : null,
+            studio_claim_url: claim ? claim.url : null,
+            studio_claim_expires_at: claim ? claim.expires_at : null
         });
-        } catch (postCreateError) {
-            // Rollback: nunca dejar una cuenta de Auth a medias.
-            if (createdAuthUserId) {
-                await deleteArtistAuthUser(createdAuthUserId).catch((rollbackErr) =>
-                    console.error('[register finalize] rollback del auth user fallo:', rollbackErr.message)
-                );
-            }
-            throw postCreateError;
-        }
     } catch (error) {
         console.error('[register finalize] failed:', error.message);
-        const already = /already|exists|duplicate|registered/i.test(error.message);
+        // Compensacion: nunca dejar una cuenta a medias ni filas huerfanas. La
+        // fila vuelve a borrador ANTES de borrar el usuario de Auth (el
+        // ON DELETE CASCADE de artists_db.user_id se llevaba el borrador).
+        if (authUser && authUser.id) {
+            const { failed } = await registrationFinalize.compensateFailedFinalize(_supabaseFetch, {
+                draftId,
+                artistUserId: authUser.id,
+                restoreStudioId: draft ? draft.studio_id : null,
+                createdStudioId,
+                deleteAuthUser: deleteArtistAuthUser,
+                log: (msg) => console.error(msg)
+            });
+            if (failed.length) console.error('[register finalize] compensacion incompleta:', failed.join(', '));
+        }
+        const already = /already|registered/i.test(error.message) && !/duplicate key|23505|42P10/i.test(error.message);
         return res.status(already ? 409 : 500).json({
             success: false,
-            error: already ? 'Ya existe una cuenta con ese email.' : 'No se pudo finalizar el registro'
+            error: already ? 'Ya existe una cuenta con ese email.' : 'No se pudo finalizar el registro. Probá de nuevo en unos minutos.'
         });
+    }
+});
+
+// ============================================
+// Registro: catalogos (revision 12 nov 2026, pags. 2 y 5)
+// ============================================
+// Lista rapida de 10 estilos, catalogo completo en 3 grupos (con alias de los
+// valores historicos), 32 paises con ISO-2 y moneda, y monedas de esos paises.
+app.get('/api/registration/catalogs', (req, res) => {
+    res.set('Cache-Control', 'public, max-age=3600');
+    return res.json({ success: true, ...registrationCatalogs.getRegistrationCatalogs() });
+});
+
+// ============================================
+// Link de alta de estudios creados por tatuadores (pag. 9)
+// ============================================
+// Preview publico para precargar /studio/register?alta=<token>. No expone el
+// hash ni quien creo el link; un token invalido/usado/vencido devuelve solo
+// el estado.
+app.get('/api/studio-claim/:token', async (req, res) => {
+    try {
+        const preview = await studioClaim.loadClaimPreview(_supabaseFetch, String(req.params.token || ''));
+        res.set('Cache-Control', 'no-store');
+        if (preview.status !== 'valid') {
+            const statusCode = preview.status === 'invalid' ? 404 : 410;
+            return res.status(statusCode).json({ success: false, status: preview.status });
+        }
+        return res.json({ success: true, ...preview });
+    } catch (error) {
+        console.error('[studio claim] preview failed:', error.message);
+        return res.status(500).json({ success: false, error: 'No pudimos validar el link de alta.' });
+    }
+});
+
+// El tatuador que creo un estudio consulta el estado de su link de alta (GET)
+// o genera uno nuevo (POST). El token solo existe en claro en la respuesta del
+// POST: generar uno nuevo revoca el anterior.
+async function resolveArtistCreatedStudio(req, res) {
+    const caller = await resolveBearerUser(req);
+    if (!caller) {
+        res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' });
+        return null;
+    }
+    const studioId = req.body?.studio_id || req.query?.studio_id || null;
+    const studio = await studioClaim.findArtistCreatedStudio(_supabaseFetch, caller.id, studioId);
+    if (!studio) {
+        res.status(404).json({ success: false, error: 'No creaste ningún estudio pendiente de alta.' });
+        return null;
+    }
+    return { caller, studio };
+}
+
+app.get('/api/artist/studio-claim-link', async (req, res) => {
+    try {
+        const ctx = await resolveArtistCreatedStudio(req, res);
+        if (!ctx) return;
+        const { studio } = ctx;
+        const active = studio.user_id ? null : await studioClaim.getActiveClaimLink(_supabaseFetch, studio.id);
+        return res.json({
+            success: true,
+            studio: { id: studio.id, name: studio.name, location_verified: studio.location_verified === true },
+            claimed: Boolean(studio.user_id),
+            has_active_link: Boolean(active),
+            expires_at: active ? active.expires_at : null
+        });
+    } catch (error) {
+        console.error('[studio claim] status failed:', error.message);
+        return res.status(500).json({ success: false, error: 'No pudimos consultar el link de alta.' });
+    }
+});
+
+app.post('/api/artist/studio-claim-link', async (req, res) => {
+    try {
+        const ctx = await resolveArtistCreatedStudio(req, res);
+        if (!ctx) return;
+        const { caller, studio } = ctx;
+        if (studio.user_id) {
+            return res.status(409).json({ success: false, code: 'STUDIO_CLAIMED', error: 'El estudio ya completó su alta en We Ötzi.' });
+        }
+        const link = await studioClaim.issueStudioClaimLink(_supabaseFetch, { studioId: studio.id, createdBy: caller.id });
+        return res.json({
+            success: true,
+            studio: { id: studio.id, name: studio.name, location_verified: false },
+            studio_claim_url: requestAbsoluteUrl(req, link.path),
+            expires_at: link.expires_at
+        });
+    } catch (error) {
+        console.error('[studio claim] issue failed:', error.message);
+        return res.status(500).json({ success: false, error: 'No pudimos generar el link de alta.' });
+    }
+});
+
+// ============================================
+// Presentacion del artista (pag. 7): guardado saneado en el servidor
+// ============================================
+// HTML enriquecido (WoRichText) con maximo 2000 caracteres de texto visible.
+// lib/bio-sanitizer.js aplica la allowlist; el panel/cuenta del artista deberian
+// guardar por aca en vez de escribir bio_description directo.
+app.post('/api/artist/profile/bio', async (req, res) => {
+    try {
+        const caller = await resolveBearerUser(req);
+        if (!caller) return res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' });
+        const raw = req.body && typeof req.body.bio === 'string' ? req.body.bio : '';
+        if (raw.length > 100000) return res.status(413).json({ success: false, error: 'La presentación es demasiado larga.' });
+        const bio = sanitizeBio(raw, MAX_BIO_TEXT_LENGTH);
+        const rows = await _supabaseFetch(`artists_db?user_id=eq.${encodeURIComponent(caller.id)}`, {
+            method: 'PATCH',
+            prefer: 'return=representation',
+            body: { bio_description: bio }
+        });
+        if (!Array.isArray(rows) || !rows[0]) return res.status(404).json({ success: false, error: 'No encontramos tu perfil de artista.' });
+        return res.json({ success: true, bio_description: rows[0].bio_description || null, max_length: MAX_BIO_TEXT_LENGTH });
+    } catch (error) {
+        console.error('[artist bio] save failed:', error.message);
+        return res.status(500).json({ success: false, error: 'No pudimos guardar tu presentación.' });
     }
 });
 
@@ -5953,9 +6259,11 @@ app.post('/api/instagram/preview', igSignupLimiter, async (req, res) => {
         }
     }
     try {
+        // Revision 12 nov (pag. 8): siempre se traen hasta 50 publicaciones;
+        // el parametro `limit` del cliente se ignora.
         const out = await igImport.preview({
             handle: body.handle,
-            limit: body.limit
+            limit: igImport.IG_PREVIEW_LIMIT
         });
         return res.json({ success: true, ...out });
     } catch (err) {
@@ -5992,7 +6300,9 @@ app.post('/api/instagram/commit', igSignupLimiter, async (req, res) => {
             target_user_id,
             target,
             mode: isSignup ? 'signup' : 'dashboard',
-            allowed_permalinks: Array.isArray(body.allowed_permalinks) ? body.allowed_permalinks : null
+            allowed_permalinks: Array.isArray(body.allowed_permalinks) ? body.allowed_permalinks : null,
+            // ── dashboard ── P17: consentimiento del paso 01 (hora del servidor).
+            consent: igConsent.normalizeImportConsent(body.consent)
         });
         return res.json({ success: true, ...out });
     } catch (err) {
@@ -6135,7 +6445,8 @@ app.post('/api/email/test', authLimiter, async (req, res) => {
 
     try {
         const result = await emailService.sendEmail(eventId, stub, {
-            forceChannel: channel && emailService.VALID_CHANNELS.includes(channel) ? channel : undefined
+            forceChannel: channel && emailService.VALID_CHANNELS.includes(channel) ? channel : undefined,
+            ignorePreferences: true // prueba del backoffice: no aplica preferencias del artista
         });
         return res.json({ success: !!result.ok, ...result });
     } catch (err) {
@@ -6179,6 +6490,77 @@ app.post('/api/email/:eventId', authLimiter, async (req, res) => {
     }
 });
 
+
+// ── integracion ──
+// Ronda 3: aviso por email al artista cuando soporte decide sobre un documento,
+// un destino de retiro o un retiro. El panel de soporte lo llama después de la
+// RPC security definer; el servidor relee la decisión de la base (service-role),
+// solo avisa decisiones de los últimos 15 min, respeta notification_prefs y
+// envía una sola vez por decisión. Lógica en lib/integracion-support-notify.js.
+const supportDecisionNotify = require('./lib/integracion-support-notify');
+const { shouldNotify: shouldNotifyArtist } = require('./lib/notification-prefs');
+app.post('/api/support/artist-decision-notify', async (req, res) => {
+    const agent = await _getActiveSupportAgent(req);
+    if (!agent.ok) return res.status(agent.status).json({ success: false, error: agent.error });
+    try {
+        const result = await supportDecisionNotify.notifyArtistDecision(req.body || {}, {
+            fetchRow: (table, select, id) => pgrest(table).select(select).eq('id', id).limit(1).single().execute(),
+            fetchArtist: (userId) => pgrest('artists_db').select('user_id,name,username,email')
+                .eq('user_id', userId).limit(1).single().execute(),
+            shouldNotify: shouldNotifyArtist,
+            sendEmail: (eventId, payload, options) => emailService.sendEmail(eventId, payload, options),
+            baseUrl: applicationBase(req)
+        });
+        if (!result.ok) return res.status(result.status || 400).json({ success: false, error: result.error });
+        return res.json({ success: true, sent: result.sent, skipped: result.skipped || null, deduplicated: !!result.deduplicated });
+    } catch (err) {
+        console.error('[integracion] aviso de decisión de soporte:', err.message);
+        return res.status(500).json({ success: false, error: 'No pudimos avisarle al artista por email.' });
+    }
+});
+
+
+// ── cotizaciones ──
+// Ronda 3 · P10: vencimiento de cotizaciones. La RPC service-role
+// expire_stale_quotations (migración 20261112160000) pasa a 'expired' las
+// respuestas cuya vigencia venció y el servidor avisa al cliente por email
+// (evento server-only quotation_expired). Dos disparadores:
+//   - POST /api/quotations/maintenance/expire con X-Cron-Token (n8n, como la Store);
+//   - job interno opt-in (QUOTATION_EXPIRY_JOB=on, cada QUOTATION_EXPIRY_INTERVAL_MIN).
+// Lógica pura y configuración en lib/quotation-expiry.js.
+const quotationExpiry = require('./lib/quotation-expiry');
+const quotationExpiryDeps = {
+    rpc: (body) => pgrest.raw('rpc/expire_stale_quotations', { method: 'POST', body }),
+    sendEmail: (eventId, payload, options) => emailService.sendEmail(eventId, payload, options),
+    baseUrl: applicationBase({ headers: {}, get: () => '' }),
+    log: console
+};
+
+app.post('/api/quotations/maintenance/expire', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const expected = process.env.CRON_API_TOKEN;
+    if (typeof expected !== 'string' || !expected.trim()) {
+        return res.status(503).json({ success: false, error: 'El vencimiento de cotizaciones no está configurado.' });
+    }
+    if (!storeOrders.safeTokenEqual(req.headers['x-cron-token'], expected)) {
+        return res.status(401).json({ success: false, error: 'El token de cron no es válido.' });
+    }
+    try {
+        const result = await quotationExpiry.runExpiryCycle(quotationExpiryDeps, quotationExpiry.expiryConfig());
+        return res.json({ success: true, ...result });
+    } catch (error) {
+        if (quotationExpiry.isMissingRpcError(error)) {
+            return res.status(503).json({ success: false, error: 'Falta aplicar la migración 20261112160000.' });
+        }
+        console.error('[quotations] maintenance/expire failed:', error.message);
+        return res.status(500).json({ success: false, error: 'No pudimos vencer las cotizaciones.' });
+    }
+});
+
+if (require.main === module) {
+    quotationExpiry.startExpiryJob(quotationExpiryDeps, quotationExpiry.expiryConfig());
+}
+// ── fin cotizaciones ──
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {

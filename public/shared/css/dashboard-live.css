@@ -1,0 +1,90 @@
+/* ============================================================================
+   WE ÖTZI — Dashboard del artista · ronda 3 (12 nov 2026) · grupo "dashboard"
+   ----------------------------------------------------------------------------
+   Figma 24:1425. Estilos de lo nuevo de la capa viva:
+     · Agenda del día con eventos propios del calendario (P11)
+     · Tarjeta de diseño clickeable + editor de etapa / fecha límite (P12, P13)
+     · Filas de actividad que llevan a su origen (P14)
+   El editor de etapa no tiene frame: reutiliza el modal de recordatorios
+   (801:563 / 801:1109) con un selector de 3 opciones.
+   ============================================================================ */
+
+/* ----------------------------- agenda (P11) ----------------------------- */
+.wo-app a.wo-dash-agendarow { color: inherit; text-decoration: none; }
+a.wo-dash-agendarow:hover .wo-dash-agendawho { text-decoration: underline; text-underline-offset: 3px; }
+a.wo-dash-agendarow:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+/* Evento propio del calendario: chip neutro con el tipo (PERSONAL, DÍA BLOQUEADO…). */
+.wo-dash-state.is-own { background: var(--neutral-200); color: var(--neutral-500); }
+.wo-app .wod-agenda-more {
+  display: inline-block;
+  margin-top: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--neutral-500);
+  text-decoration: none;
+}
+.wod-agenda-more:hover { text-decoration: underline; text-underline-offset: 3px; }
+.wod-agenda-more:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+/* ------------------------ diseños en proceso (P12/P13) ------------------------ */
+.wo-dash-design.is-linked { position: relative; }
+.wo-app .wo-dash-design-link { color: inherit; text-decoration: none; }
+/* El link del título cubre la tarjeta entera (sin anidar el botón de etapa). */
+.wo-dash-design-link::after { content: ''; position: absolute; inset: 0; z-index: 0; }
+.wo-dash-design.is-linked:hover .wo-dash-design-link { text-decoration: underline; text-underline-offset: 3px; }
+/* Hover del DS: el objeto se levanta y proyecta la sombra dura. */
+.wo-dash-design.is-linked .wo-dash-design-media { transition: transform var(--dur-fast, 120ms) ease, box-shadow var(--dur-fast, 120ms) ease; }
+.wo-dash-design.is-linked:hover .wo-dash-design-media { transform: translate(-2px, -2px); box-shadow: var(--shadow-hard-sm); }
+.wo-dash-design-link:focus-visible { outline: none; }
+.wo-dash-design-link:focus-visible::after { box-shadow: var(--shadow-focus); }
+.wo-dash-design-stage {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px -6px;
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.wo-dash-design-stage [data-wo-icon], .wo-dash-design-stage svg { width: 12px; height: 12px; flex: none; }
+.wo-dash-design-stage:hover { background: var(--neutral-200); color: var(--neutral-500); }
+.wo-dash-design-stage:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.wo-dash-design-foot .is-overdue { color: var(--system-error); }
+
+/* ------------------------ editor de etapa (P12) ------------------------ */
+.wod-modal--stage { width: min(560px, 100%); }
+.wod-seg--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wod-stage-title {
+  margin: 0;
+  font-family: var(--font-display, 'Archivo Black', sans-serif);
+  font-size: 18px;
+  line-height: 24px;
+  color: var(--neutral-500);
+}
+.wod-stage-help { margin: var(--space-2) 0 0; font-size: 13px; line-height: 19px; color: var(--neutral-400); }
+.wod-stage-hint { margin: var(--space-2) 0 0; font-size: 12px; line-height: 17px; color: var(--neutral-400); }
+/* Etapa elegida = color de su barra en la tarjeta (BOCETO azul, ENTINTADO amarillo, FINAL verde). */
+.wod-seg[data-seg="design-stage"] .wod-seg-btn.is-on { box-shadow: 3px 3px 0 var(--neutral-500); color: var(--white); }
+.wod-seg[data-seg="design-stage"] .wod-seg-btn.is-on[data-value="boceto"] { background: var(--blue-400); }
+.wod-seg[data-seg="design-stage"] .wod-seg-btn.is-on[data-value="entintado"] { background: var(--yellow-300); color: var(--neutral-500); }
+.wod-seg[data-seg="design-stage"] .wod-seg-btn.is-on[data-value="final"] { background: var(--success-fg); }
+
+/* --------------------------- actividad (P14) --------------------------- */
+.wo-app a.wo-dash-activityrow { color: inherit; text-decoration: none; }
+a.wo-dash-activityrow:hover .wo-dash-activitytxt { text-decoration: underline; text-underline-offset: 3px; }
+a.wo-dash-activityrow:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wod-modal--stage .wod-btn:hover:not(:disabled),
+  .wo-dash-design.is-linked:hover .wo-dash-design-media { transform: none; }
+  .wo-dash-design.is-linked .wo-dash-design-media { transition: none; }
+}

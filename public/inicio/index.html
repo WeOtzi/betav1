@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>We Ötzi · Inicio</title>
+    <!-- Revisión 12/11: entradas sutiles al cargar. La clase solo se pone si
+         el navegador acepta movimiento; sin JS no se oculta nada. -->
+    <script>try{if(!window.matchMedia||!window.matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('wo-motion-in')}catch(e){}</script>
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <script src="/shared/js/wo-icons.js" defer></script>
@@ -44,8 +47,8 @@
         </header>
 
         <form id="inicio-selection" aria-label="Elegí tu experiencia">
-        <div class="inicio-cards">
-            <label class="inicio-card">
+        <div class="inicio-cards" id="inicio-cards">
+            <label class="inicio-card" data-experience="client">
                 <input class="inicio-radio" type="radio" name="experience" value="client" aria-label="Quiero tatuarme">
                 <span class="inicio-selected" aria-hidden="true"><i data-wo-icon="check"></i></span>
                 <div class="inicio-media" aria-hidden="true">
@@ -67,8 +70,8 @@
                 </div>
             </label>
 
-            <label class="inicio-card">
-                <input class="inicio-radio" type="radio" name="experience" value="artist" aria-label="Soy tatuador" checked>
+            <label class="inicio-card" data-experience="artist">
+                <input class="inicio-radio" type="radio" name="experience" value="artist" aria-label="Soy tatuador">
                 <span class="inicio-selected" aria-hidden="true"><i data-wo-icon="check"></i></span>
                 <div class="inicio-media inicio-media--alt" aria-hidden="true">
                     <span class="im-circle"></span>
@@ -88,7 +91,7 @@
                     <span class="wo-meta inicio-cta">Continuar como tatuador <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></span>
                 </div>
             </label>
-            <label class="inicio-card">
+            <label class="inicio-card" data-experience="studio">
                 <input class="inicio-radio" type="radio" name="experience" value="studio" aria-label="Tengo un estudio">
                 <span class="inicio-selected" aria-hidden="true"><i data-wo-icon="check"></i></span>
                 <div class="inicio-media inicio-media--studio" aria-hidden="true">
@@ -112,7 +115,22 @@
         </div>
         </form>
 
-        <div class="inicio-actions"><a id="inicio-continue" class="wo-btn inicio-continue" href="/artist/login/">CONTINUAR <i data-wo-icon="arrow-right" aria-hidden="true"></i></a></div>
+        <!-- Revisión 12/11 (p. 1): sin tarjeta elegida no hay acciones; cada
+             experiencia muestra las suyas (la visibilidad la resuelve inicio.css
+             con :has() sobre el radio marcado). -->
+        <div class="inicio-actions" id="inicio-actions" aria-live="polite">
+            <div class="inicio-actions-group" data-for="artist" role="group" aria-label="Soy tatuador">
+                <a class="wo-btn inicio-action" href="/registerclosedbeta">Soy nuevo <i data-wo-icon="arrow-right" aria-hidden="true"></i></a>
+                <a class="wo-btn wo-btn--ghost inicio-action" href="/artist/login/">Ya tengo cuenta <i data-wo-icon="arrow-right" aria-hidden="true"></i></a>
+            </div>
+            <div class="inicio-actions-group" data-for="client" role="group" aria-label="Quiero tatuarme">
+                <a class="wo-btn inicio-action" href="/marketplace/">Buscar tatuador <i data-wo-icon="arrow-right" aria-hidden="true"></i></a>
+                <a class="wo-btn wo-btn--ghost inicio-action" href="/quotation?idea=explorar">Recomiéndame tatuador <i data-wo-icon="arrow-right" aria-hidden="true"></i></a>
+            </div>
+            <div class="inicio-actions-group" data-for="studio" role="group" aria-label="Tengo un estudio">
+                <a class="wo-btn inicio-action" href="/studio/register/">Continuar <i data-wo-icon="arrow-right" aria-hidden="true"></i></a>
+            </div>
+        </div>
         <p class="inicio-note">Podrás cambiar esta experiencia en cualquier momento desde la configuración de tu cuenta.</p>
     </main>
 </body>

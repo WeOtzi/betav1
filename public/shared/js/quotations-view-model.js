@@ -299,7 +299,7 @@
 
     // Badge de la cabecera del resumen: etapa del timeline o el cierre.
     function stageBadge(quote, sessions) {
-        var status = quote && quote.quote_status;
+        var status = effectiveStatus(quote);
         if (status === 'client_rejected' || status === 'cancelled') return { label: 'Rechazada', tone: 'rejected' };
         if (status === 'expired') return { label: 'Vencida', tone: 'expired' };
         if (status === 'completed') return { label: 'Completada', tone: 'done' };
@@ -308,18 +308,84 @@
     }
 
     // Transiciones que el artista puede elegir desde el selector de estado.
-    // Mismas reglas que el detalle (aceptar → responded / iniciar; rechazar → cancelled / client_rejected).
+    // Subconjunto de las que acepta el trigger vivo fn_quotation_status_change
+    // (copia en DB_STATUS_TRANSITIONS; tests/r3-cotizaciones.test.js verifica
+    // que no se separen). Se omite in_progress → pending (vuelta atrás que el
+    // artista no necesita). "responded" pide monto/condiciones: el resumen lo
+    // abre en el diálogo del detalle (RESPOND_NEEDS_DIALOG).
     var STATUS_TRANSITIONS = {
         pending: ['responded', 'cancelled', 'expired'],
         responded: ['client_approved', 'client_rejected', 'expired'],
-        client_approved: ['in_progress', 'expired'],
+        client_approved: ['in_progress', 'cancelled'],
         client_rejected: ['responded'],
         cancelled: [],
-        in_progress: ['artist_completed'],
-        artist_completed: ['in_progress', 'completed'],
+        in_progress: ['artist_completed', 'cancelled'],
+        artist_completed: ['in_progress', 'completed', 'cancelled'],
         completed: [],
         expired: []
     };
+
+    // Copia literal del JSON valid_transitions de fn_quotation_status_change
+    // (proyecto flbgmlvfiejfttlawnfu, leído el 12 nov 2026).
+    var DB_STATUS_TRANSITIONS = {
+        pending: ['responded', 'expired', 'cancelled'],
+        responded: ['client_approved', 'client_rejected', 'expired'],
+        client_approved: ['in_progress', 'cancelled'],
+        in_progress: ['pending', 'artist_completed', 'cancelled'],
+        artist_completed: ['in_progress', 'completed', 'cancelled'],
+        en_progreso: ['artist_completed', 'cancelled'],
+        client_rejected: ['responded'],
+        completed: [],
+        expired: [],
+        cancelled: []
+    };
+
+    // ---------- vigencia (P10) ----------
+    // Misma regla que la RPC expire_stale_quotations y lib/quotation-expiry.js:
+    // una respuesta vence en quote_expires_at, o respuesta + vigencia (validity
+    // de la cotización manual o 14 días). Mientras el job no corre, la vista
+    // ya la muestra como "Vencida" (vista calculada).
+    var DEFAULT_VALIDITY_DAYS = 14;
+    var DAY_MS = 86400000;
+
+    function timeOf(value) {
+        if (!value) return null;
+        var t = new Date(value).getTime();
+        return isFinite(t) ? t : null;
+    }
+
+    function offerExpiresAt(quote, opts) {
+        opts = opts || {};
+        if (!quote || quote.quote_status !== 'responded') return null;
+        var explicit = timeOf(quote.quote_expires_at);
+        if (explicit != null) return new Date(explicit);
+        var base = timeOf(quote.artist_responded_at);
+        if (base == null) base = timeOf(quote.updated_at);
+        if (base == null) base = timeOf(quote.created_at);
+        if (base == null) return null;
+        var days = Number(opts.validityDays) > 0 ? Number(opts.validityDays) : (Number(opts.defaultDays) > 0 ? Number(opts.defaultDays) : DEFAULT_VALIDITY_DAYS);
+        return new Date(base + days * DAY_MS);
+    }
+
+    function effectiveStatus(quote, now, opts) {
+        var status = quote && quote.quote_status;
+        var at = offerExpiresAt(quote, opts);
+        if (at && at.getTime() <= new Date(now || Date.now()).getTime()) return 'expired';
+        return status;
+    }
+
+    // Transiciones que el selector puede mostrar para un estado.
+    function canTransition(from, to) {
+        return (STATUS_TRANSITIONS[from] || []).indexOf(to) !== -1
+            && (DB_STATUS_TRANSITIONS[from] || []).indexOf(to) !== -1;
+    }
+
+    var RESPOND_NEEDS_DIALOG = true;
+
+    // URL del detalle con el diálogo "Aceptar y enviar presupuesto" abierto.
+    function respondUrl(quote) {
+        return '/my-quotations/detail?id=' + encodeURIComponent(quote.quote_id || quote.id) + '&modal=responder';
+    }
 
     function statusOptions(status) {
         var list = [status].concat(STATUS_TRANSITIONS[status] || []);
@@ -333,7 +399,8 @@
         var archived = !!(quote && quote.is_archived);
         if (archived) return { accept: null, reject: null, archived: true };
         var accept = null;
-        if (status === 'pending') accept = { label: 'Aceptar', patch: { quote_status: 'responded' } };
+        // Aceptar pide presupuesto, sesiones y duración: abre el diálogo del detalle (P7).
+        if (status === 'pending') accept = { label: 'Aceptar', patch: { quote_status: 'responded' }, needsDialog: true };
         else if (status === 'client_approved') accept = { label: 'Iniciar trabajo', patch: { quote_status: 'in_progress' } };
         var reject = null;
         if (status === 'pending') reject = { label: 'Rechazar', patch: { quote_status: 'cancelled' } };
@@ -384,6 +451,13 @@
         SCOPES: SCOPES,
         TIMELINE: TIMELINE,
         STATUS_TRANSITIONS: STATUS_TRANSITIONS,
+        DB_STATUS_TRANSITIONS: DB_STATUS_TRANSITIONS,
+        DEFAULT_VALIDITY_DAYS: DEFAULT_VALIDITY_DAYS,
+        RESPOND_NEEDS_DIALOG: RESPOND_NEEDS_DIALOG,
+        offerExpiresAt: offerExpiresAt,
+        effectiveStatus: effectiveStatus,
+        canTransition: canTransition,
+        respondUrl: respondUrl,
         MONTH_NAMES: MONTH_NAMES,
         MONTH_SHORT: MONTH_SHORT,
         statusView: statusView,
