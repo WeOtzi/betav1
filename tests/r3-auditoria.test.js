@@ -155,7 +155,9 @@ test('H10: la confirmación muestra ENVIADA / EN REVISIÓN salvo contraoferta o 
     assert.match(read('public/shared/js/studio-spots-directory.js'), /sentBadge\(state, 'spot'\)/);
 });
 
-test('H10: los deep links de QA de las confirmaciones apuntan a postulaciones sin contraoferta', () => {
+// output/ no está versionado (capturas locales de QA): en CI se omite.
+const SCREENS_FILE = path.join(__dirname, '..', 'output', 'figma-v2', 'screens.json');
+test('H10: los deep links de QA de las confirmaciones apuntan a postulaciones sin contraoferta', { skip: !fs.existsSync(SCREENS_FILE) && 'output/ no versionado' }, () => {
     const screens = JSON.parse(read('output/figma-v2/screens.json'));
     const byNode = Object.fromEntries(screens.map((s) => [s.node, s.url]));
     assert.match(byNode['801:1069'], /JB-59407&estado=enviada/);
