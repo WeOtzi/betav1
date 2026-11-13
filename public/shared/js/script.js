@@ -3971,6 +3971,18 @@ async function handleQuotationLogin(e) {
 
     } catch (error) {
         console.error('Quotation login error:', error);
+        // ── confirmacion-email: cuenta sin confirmar → aviso con "Reenviar email".
+        const EC = window.WeotziEmailConfirm;
+        const msgEl = document.getElementById('q-login-message');
+        if (EC && msgEl && EC.isEmailNotConfirmedError(error)) {
+            msgEl.className = 'q-form-message';
+            EC.renderLoginNotice(msgEl, {
+                email,
+                client: window._supabase,
+                redirectTo: EC.redirectUrl('/client/register/', { confirmado: '1' })
+            });
+            return;
+        }
         let msg = 'Error al iniciar sesión.';
         if (error.message?.includes('Invalid login credentials')) {
             msg = 'Email o contraseña incorrectos.';

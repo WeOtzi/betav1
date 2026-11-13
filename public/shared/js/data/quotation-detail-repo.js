@@ -22,7 +22,8 @@
 
     // Columnas nuevas de la migración 20261028130000 (no aplicada): si el
     // backend no las conoce, el update se reintenta sin ellas.
-    const OPTIONAL_QUOTE_COLUMNS = ['artist_session_minutes', 'artist_viewed_at', 'quote_expires_at']; // quote_expires_at: 20261112160000
+    // quote_expires_at: 20261112160000 · quote_expiry_enabled/_days: 20261113100000
+    const OPTIONAL_QUOTE_COLUMNS = ['artist_session_minutes', 'artist_viewed_at', 'quote_expires_at', 'quote_expiry_enabled', 'quote_expiry_days'];
     const OPTIONAL_SESSION_COLUMNS = ['photo_urls'];
     const PHOTO_BUCKET = 'quotation-session-photos';
 

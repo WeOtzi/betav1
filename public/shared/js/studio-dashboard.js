@@ -46,6 +46,15 @@
 
         document.getElementById('logout-btn').addEventListener('click', () => auth.logout());
 
+        if (studio.access === 'manager') {
+            // Manager del estudio: solo Mensajes y Equipo → solicitudes de cambio.
+            // Perfil, sedes, roster, spots, operaciones, finanzas y cuenta quedan
+            // fuera (además, la base solo autoriza al dueño en esas áreas).
+            applyManagerMode(studio);
+            wireTabs();
+            return;
+        }
+
         wireTabs();
         wireAccount();
         publishSummary();
@@ -67,11 +76,39 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    const MANAGER_TABS = ['mensajes', 'roster'];
+
+    function applyManagerMode(current) {
+        document.body.dataset.studioAccess = 'manager';
+        document.querySelectorAll('.studio-dash-panel[data-panel]').forEach(panel => {
+            if (!MANAGER_TABS.includes(panel.dataset.panel)) panel.remove();
+        });
+        document.querySelectorAll('.studio-dash-tab[data-tab]').forEach(tab => {
+            if (!MANAGER_TABS.includes(tab.dataset.tab)) tab.hidden = true;
+        });
+        const roster = document.querySelector('.studio-dash-panel[data-panel="roster"]');
+        if (roster) {
+            roster.querySelectorAll('.studio-invite-form, #roster-content').forEach(node => node.remove());
+            const title = roster.querySelector('.studio-h1');
+            if (title) title.innerHTML = 'Solicitudes <span class="accent">de cambio</span>';
+            const help = roster.querySelector('.studio-panel-content > .studio-help');
+            if (help) help.textContent = 'Respondé los pedidos de cambio de las invitaciones del estudio. Como manager podés ajustar sede, fechas, duración y mensaje; el rol manager y el reparto los define el dueño.';
+            const aside = roster.querySelector('.studio-context');
+            if (aside) aside.innerHTML = '<h3>Acceso de manager</h3><p>Entrás como manager de ' + escapeHtml(current.name || 'este estudio') + '. Ves los mensajes del estudio y las solicitudes de cambio; el resto del panel lo administra el dueño.</p>';
+        }
+        const heading = document.querySelector('.studio-workspace-heading p');
+        if (heading) heading.textContent = 'Acceso de manager: mensajes y solicitudes de cambio del equipo.';
+        if (!MANAGER_TABS.includes(window.location.hash.slice(1))) {
+            history.replaceState(null, '', window.location.pathname + window.location.search + '#mensajes');
+        }
+    }
+
     function wireTabs() {
         let current = null;
         function activate(want) {
             const panels = Array.from(document.querySelectorAll('.studio-dash-panel[data-panel]'));
-            const fallback = panels.some(panel => panel.dataset.panel === 'resumen') ? 'resumen' : 'perfil';
+            const fallback = panels.some(panel => panel.dataset.panel === 'resumen') ? 'resumen'
+                : panels.some(panel => panel.dataset.panel === 'perfil') ? 'perfil' : (panels[0] && panels[0].dataset.panel);
             if (!panels.some(panel => panel.dataset.panel === want)) want = fallback;
             document.querySelectorAll('.studio-dash-tab').forEach(tab => {
                 const active = tab.dataset.tab === want;

@@ -321,7 +321,10 @@ test('client-auth: los links entre login y registro conservan ?returnTo=', () =>
 
 test('client-auth: returnTo en el login, el signUp y Google; artistas aceptados', () => {
     const src = read('public/shared/js/client-auth.js');
-    assert.match(src, /emailRedirectTo: window\.location\.origin \+ postAuthDestination\(\)/);
+    // ── confirmacion-email: el link vuelve al wizard (retoma el borrador) y
+    // conserva el returnTo para seguir a la Store.
+    assert.match(src, /emailRedirectTo: clientConfirmRedirectUrl\(\)/);
+    assert.match(src, /confirmado: '1', returnTo: readReturnTo\(\) \|\| ''/);
     assert.match(src, /withReturnTo\(clientAppPath\('\/client\/login'\), returnTo\)/, 'Google vuelve al login con returnTo');
     assert.match(src, /: window\.location\.origin \+ '\/client\/dashboard';/, 'Google sin returnTo, igual que antes');
     const login = src.slice(src.indexOf('async function handleClientLogin'), src.indexOf('async function handleGoogleLogin'));

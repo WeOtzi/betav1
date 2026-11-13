@@ -382,48 +382,142 @@
     };
 
     // ===================== artist_payout_destinations (Wallet) =====================
-    // Destinos de retiro. La verificacion la hace soporte/proveedor: un trigger
-    // de la migracion fuerza verification_status = 'pending' en altas y cambios.
+    // Destinos de retiro. La verificacion la hace soporte/proveedor.
+    // ── cifrado ── (ronda 3c) El numero de cuenta (CBU/IBAN/alias) se cifra en
+    // el SERVIDOR (AES-256-GCM): alta, edicion, baja y listado pasan por
+    // /api/payout-destinations y el navegador solo recibe los ultimos 4
+    // (account_identifier_last4 + account_identifier_mask). Ver el numero
+    // completo: reveal(id), solo el dueño, auditado. En el preview (sin backend)
+    // cae a PostgREST sobre las fixtures, que tampoco guardan el dato completo.
     const PAYOUT_METHODS = ['lemon', 'bank_usd', 'bank_international'];
+    const PAYOUT_SAFE_COLUMNS = 'id, artist_user_id, method, label, holder_name, currency, rail, country_code, verification_status, verified_at, is_default, active, metadata_json, created_at, updated_at, account_identifier_last4';
+
+    function payoutAppPath(path) {
+        if (window.WoDemo && typeof window.WoDemo.appPath === 'function') return window.WoDemo.appPath(path);
+        const base = window.WEOTZI_BASE_PATH
+            ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '')
+            : (/^\/beta(?:\/|$)/.test(String((window.location && window.location.pathname) || '')) ? '/beta' : '');
+        return base && String(path).indexOf(base + '/') !== 0 ? base + path : path;
+    }
+
+    // { status, json, offline } — offline = sin backend (preview / red caida).
+    async function payoutApi(path, method, body) {
+        if (typeof fetch !== 'function') return { status: 0, json: {}, offline: true };
+        let token = '';
+        try {
+            const client = typeof D.getClient === 'function' ? D.getClient() : null;
+            const { data } = client ? await client.auth.getSession() : { data: null };
+            token = (data && data.session && data.session.access_token) || '';
+        } catch (_error) { token = ''; }
+        const headers = { Accept: 'application/json' };
+        if (token) headers.Authorization = 'Bearer ' + token;
+        if (body !== undefined) headers['Content-Type'] = 'application/json';
+        let res;
+        try {
+            res = await fetch(payoutAppPath(path), {
+                method: method || 'GET', headers, cache: 'no-store', credentials: 'same-origin',
+                body: body !== undefined ? JSON.stringify(body) : undefined
+            });
+        } catch (_error) {
+            return { status: 0, json: {}, offline: true };
+        }
+        let json = null;
+        try { json = await res.json(); } catch (_error) { json = null; }
+        json = json || {};
+        return { status: res.status, json, offline: res.status === 404 || json.preview === true };
+    }
+
+    function payoutError(result, fallback) {
+        const err = new Error('payoutdest: ' + ((result.json && result.json.error) || fallback));
+        err.status = result.status;
+        err.configured = !(result.json && result.json.configured === false);
+        return err;
+    }
+
+    function lastFour(value) { return String(value == null ? '' : value).replace(/[^A-Za-z0-9]/g, '').slice(-4); }
+
+    // Nunca deja el dato completo en memoria del navegador.
+    function payoutView(row) {
+        if (!row) return row;
+        const out = Object.assign({}, row);
+        const tail = out.account_identifier_last4 || lastFour(out.account_identifier);
+        delete out.account_identifier;
+        delete out.account_identifier_enc;
+        delete out.account_identifier_key_id;
+        out.account_identifier_last4 = tail || null;
+        out.account_identifier_mask = tail ? '···· ' + tail : '';
+        return out;
+    }
+
+    function sortDestinations(list) {
+        return list.slice().sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0)
+            || String(a.created_at || '').localeCompare(String(b.created_at || '')));
+    }
+
     const PayoutDestinations = {
         isAvailable: availabilityProbe('artist_payout_destinations', 'payoutdest'),
 
         async list(artistUserId) {
+            const result = await payoutApi('/api/payout-destinations', 'GET');
+            if (!result.offline) {
+                if (result.status === 200 && result.json.success) return sortDestinations((result.json.destinations || []).map(payoutView));
+                throw payoutError(result, 'no pudimos cargar los destinos');
+            }
             const { data } = await run('payoutdest.list', (c) =>
                 c.from('artist_payout_destinations').select('*')
                     .eq('artist_user_id', artistUserId).eq('active', true)
                     .order('is_default', { ascending: false }).order('created_at', { ascending: true })
             );
-            return data || [];
+            return (data || []).map(payoutView);
         },
 
         async save(artistUserId, destination) {
             const method = String(destination.method || '');
             if (!PAYOUT_METHODS.includes(method)) throw new Error('payoutdest.save: metodo no disponible');
             const identifier = String(destination.accountIdentifier || '').trim();
+            const keepIdentifier = !!destination.id && identifier === '';
             // CBU (22 digitos), IBAN o alias: nunca datos de tarjeta (el modal lo aclara).
             if (looksLikeCardNumber(identifier)) throw new Error('payoutdest.save: el identificador parece un numero de tarjeta');
-            if (identifier.length < 4 || identifier.length > 64) throw new Error('payoutdest.save: identificador invalido');
+            if (!keepIdentifier && (identifier.length < 4 || identifier.length > 64)) throw new Error('payoutdest.save: identificador invalido');
             if (hasForbiddenMetadata(destination.metadata || {}, ['pan', 'card_number', 'cvv', 'cvc', 'security_code'])) {
                 throw new Error('payoutdest.save: metadata de tarjeta no permitida');
             }
+            const body = {
+                method,
+                label: String(destination.label || '').trim().slice(0, 80),
+                holderName: String(destination.holderName || '').trim().slice(0, 120),
+                currency: String(destination.currency || 'USD').trim().toUpperCase(),
+                accountIdentifier: keepIdentifier ? '' : identifier,
+                rail: destination.rail || null,
+                countryCode: destination.countryCode || null,
+                isDefault: !!destination.isDefault
+            };
+            const result = destination.id
+                ? await payoutApi('/api/payout-destinations/' + encodeURIComponent(destination.id), 'PATCH', body)
+                : await payoutApi('/api/payout-destinations', 'POST', body);
+            if (!result.offline) {
+                if ((result.status === 200 || result.status === 201) && result.json.success) return payoutView(result.json.destination);
+                throw payoutError(result, 'no pudimos guardar el destino');
+            }
+            // Preview: solo los ultimos 4 llegan a las fixtures.
             const row = {
                 artist_user_id: artistUserId,
                 method,
-                label: String(destination.label || '').trim().slice(0, 80),
-                holder_name: String(destination.holderName || '').trim().slice(0, 120),
-                currency: String(destination.currency || 'USD').trim().toUpperCase(),
-                account_identifier: identifier,
-                rail: destination.rail || null,
-                country_code: destination.countryCode || null,
-                metadata_json: { entered_via: 'account_center' },
+                label: body.label,
+                holder_name: body.holderName,
+                currency: body.currency,
+                rail: body.rail,
+                country_code: body.countryCode,
                 active: true
             };
+            // Igual que el servidor: la edicion no pisa metadata_json (revision de soporte).
+            if (!destination.id) row.metadata_json = { entered_via: 'account_center' };
+            if (!keepIdentifier) row.account_identifier_last4 = lastFour(identifier) || null;
             const query = destination.id
                 ? (c) => c.from('artist_payout_destinations').update(row).eq('id', destination.id).eq('artist_user_id', artistUserId).select().single()
                 : (c) => c.from('artist_payout_destinations').insert([Object.assign({ is_default: !!destination.isDefault }, row)]).select().single();
             const { data } = await run('payoutdest.save', query);
-            return data;
+            return payoutView(data);
         },
 
         async setDefault(artistUserId, destinationId) {
@@ -434,11 +528,25 @@
         },
 
         async remove(artistUserId, destinationId) {
+            const result = await payoutApi('/api/payout-destinations/' + encodeURIComponent(destinationId), 'DELETE');
+            if (!result.offline) {
+                if (result.status === 200 && result.json.success) return payoutView(result.json.destination);
+                throw payoutError(result, 'no pudimos eliminar el destino');
+            }
             const { data } = await run('payoutdest.remove', (c) =>
                 c.from('artist_payout_destinations').update({ active: false, is_default: false })
-                    .eq('artist_user_id', artistUserId).eq('id', destinationId).select().single()
+                    .eq('artist_user_id', artistUserId).eq('id', destinationId).select(PAYOUT_SAFE_COLUMNS).single()
             );
-            return data;
+            return payoutView(data);
+        },
+
+        // Numero completo, solo para el dueño y solo por el servidor (auditado).
+        // { available:false } en el preview.
+        async reveal(destinationId) {
+            const result = await payoutApi('/api/payout-destinations/' + encodeURIComponent(destinationId) + '/reveal', 'POST', {});
+            if (result.offline) return { available: false, value: null };
+            if (result.status === 200 && result.json.success) return { available: true, value: String(result.json.account_identifier || '') };
+            throw payoutError(result, 'no pudimos mostrar el numero de cuenta');
         }
     };
 
@@ -560,7 +668,9 @@
     const AccountProfile = {
         async getExtras(artistUserId) {
             const { data } = await run('accountprofile.getExtras', (c) =>
-                c.from('artists_db').select(ACCOUNT_EXTRAS_SELECT).eq('user_id', artistUserId).maybeSingle()
+                // pii-artistas: whatsapp_number y subscribed_newsletter son privadas;
+                // la fila propia sale de la RPC get_my_artist_profile().
+                c.rpc('get_my_artist_profile').select(ACCOUNT_EXTRAS_SELECT).eq('user_id', artistUserId).maybeSingle()
             );
             return data || null;
         }

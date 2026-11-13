@@ -39,9 +39,10 @@ test('security surface uses Supabase MFA, visible sessions and an auditable dele
   assert.match(js, /auth\.mfa\.unenroll/);
   assert.match(js, /auth\.signOut\(\{ scope: 'others' \}\)/);
   assert.match(js, /D\.AccountSessions\.touch/);
-  assert.match(js, /D\.AccountDeletionRequests\.request/);
+  // Ronda 3c · borrado: la baja la gestiona soporte (account-deletion.js + RPCs).
+  assert.match(js, /WeotziAccountDeletion\.mount\(host, \{ role: 'artist'/);
   assert.match(html, /id="aac-sessions"/);
-  assert.match(html, /id="aac-delete-dialog"/);
+  assert.match(html, /id="aac-delete-host" data-account-deletion="artist"/);
 });
 
 test('payment and document flows never collect raw card data and clean private storage', () => {

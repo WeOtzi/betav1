@@ -680,6 +680,19 @@ html.qn-pv-open .qn-overlay { background: transparent; }
 .qn-form > .qn-cond + .qn-field { margin-top: calc(var(--space-4) + 2.6px); }
 .qn-form > .qn-cond + .qn-field + .qn-field { margin-top: calc(var(--space-5) + 2px); }
 .qn-form > .qn-cond ~ .qn-field > .qn-label { line-height: 13.6px; }
+/* 13 nov 2026 · Vencimiento opcional (diseño propio: .wo-toggle del DS + días numérico,
+   mismas cajas que los campos vecinos). Reemplaza el select "Vigencia de la cotización". */
+.qn-expiry-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); min-height: var(--control-h-md); }
+.qn-expiry-switch { display: inline-flex; align-items: center; gap: var(--space-3); font-size: var(--body-s-size); color: var(--black); cursor: pointer; }
+.qn-expiry-switch .wo-toggle input:focus-visible + .knob { outline: none; box-shadow: var(--shadow-focus); }
+.qn-expiry-days { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--body-s-size); color: var(--black); }
+.qn-expiry-days .qn-input { width: 80px; }
+.qn-expiry-days .qn-input:focus { outline: none; border-color: var(--blue-400); box-shadow: var(--shadow-focus); }
+.qn-expiry-days .qn-input:disabled { opacity: .5; cursor: not-allowed; }
+.qn-expiry-help { font-size: var(--meta-m-size); line-height: 1.4; color: var(--qn-faint); }
+@media (prefers-reduced-motion: reduce) {
+    .qn-expiry-switch .wo-toggle .knob, .qn-expiry-switch .wo-toggle .knob::before { transition: none; }
+}
 
 /* ---------- Pie ---------- */
 .qn-foot {

@@ -204,6 +204,15 @@ const LoggingService = (function() {
         }
     }
 
+    // ── privacidad ── zona horaria e idioma del navegador: el servidor estima
+    // el país con esto en lugar de mandar la IP a un geolocalizador externo.
+    function geoHint() {
+        let tz = null;
+        try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch (_) { /* sin Intl */ }
+        return { tz, lang: (navigator.language || '').slice(0, 16) || null };
+    }
+
+    // El servidor devuelve la IP ya anonimizada (IPv4 /24, IPv6 /48).
     async function fetchClientIP() {
         try {
             const response = await fetch('/api/client-info');
@@ -729,7 +738,9 @@ const LoggingService = (function() {
                 log_entries_count: logs.length,
                 has_errors: hasErrors,
                 error_count: errorCount,
-                ended_at: new Date().toISOString()
+                ended_at: new Date().toISOString(),
+                // ── privacidad ── país aproximado sin IP ni terceros.
+                geo_hint: geoHint()
             });
 
             // Try to use a beacon endpoint if available

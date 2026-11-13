@@ -15,8 +15,11 @@
     <link rel="stylesheet" href="/shared/css/studio-dashboard-ops-ds.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
     <link rel="stylesheet" href="/shared/css/studio-inbox-ds.css">
+    <link rel="stylesheet" href="/shared/css/account-deletion.css?v=20261113-borrado">
     <script src="/shared/js/wo-icons.js" data-icon-base="../assets/feather-studio/" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
+    <script src="/shared/js/wo-consent.js" defer></script>
 </head>
 <body class="wo-app studio-dashboard-page" data-theme="light">
     <a class="studio-skip-link" href="#studio-main">Ir al contenido</a>
@@ -105,6 +108,11 @@
                         <button type="submit" class="studio-btn studio-btn-primary wo-btn wo-btn--primary">Actualizar contraseña</button>
                         <div id="account-status" class="studio-status studio-status-info" role="status" hidden></div>
                     </form>
+                    <!-- borrado (ronda 3c): baja de la cuenta del estudio, la gestiona soporte (account-deletion.js). -->
+                    <div class="ad-danger" data-account-deletion="studio" data-title-class="ad-danger-title" data-text-class="ad-status-text">
+                        <p class="ad-danger-title">Eliminar cuenta</p>
+                        <p class="ad-status-text">Cargando…</p>
+                    </div>
 
                     </div><aside class="studio-context"><h3>Tu cuenta, bajo control</h3><p>Usá una contraseña de al menos ocho caracteres. Podés cerrar tu sesión desde el encabezado del panel.</p></aside></div>
                 </section>
@@ -368,6 +376,8 @@
     <script src="/shared/js/data/clients-repo.js"></script>
     <script src="/shared/js/data/inbox-repo.js"></script>
     <script src="/shared/js/data/studio-inbox-repo.js"></script>
+    <script src="/shared/js/data/account-deletion-repo.js?v=20261113-borrado"></script>
+    <script src="/shared/js/account-deletion.js?v=20261113-borrado"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>

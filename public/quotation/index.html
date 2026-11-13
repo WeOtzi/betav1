@@ -8,20 +8,6 @@
     <meta name="description"
         content="Cotizá tu próximo tatuaje con los mejores artistas del mundo a través de We Ötzi.">
 
-    <!-- Microsoft Clarity - Behavior Analytics -->
-    <!-- Activates only when window.CLARITY_PROJECT_ID is set to a real ID. -->
-    <script type="text/javascript">
-        (function(){
-            var id = window.CLARITY_PROJECT_ID;
-            if (!id || id === 'CLARITY_TRACKING_ID') return;
-            (function(c,l,a,r,i,t,y){
-                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-            })(window,document,"clarity","script",id);
-        })();
-    </script>
-
     <!-- Fonts - Bauhaus Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -69,6 +55,8 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/quotation-ds.css">
     <script src="/shared/js/wo-icons.js" defer></script>
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
+    <script src="/shared/js/wo-consent.js" defer></script>
 </head>
 
 <body class="wo-app quotation-page">
@@ -287,6 +275,7 @@
     <script src="/shared/js/bauhaus-footer.js"></script>
 
     <!-- Client Auth (provides window.ClientAuth for inline login modal) -->
+    <script src="/shared/js/email-confirmation.js"></script>
     <script src="/shared/js/client-auth.js"></script>
     <script src="/shared/js/heic-converter.js"></script>
 

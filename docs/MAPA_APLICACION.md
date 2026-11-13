@@ -152,8 +152,11 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `POST` | `/api/gemini/generate-image` | Genera imagenes/conceptos con Gemini usando `GEMINI_API_KEY`. | Gemini API |
 | `POST` | `/api/google-drive/test` | Valida acceso a una carpeta de Google Drive. | Google Drive service account |
 | `POST` | `/api/google-drive/create-quote-folder` | Crea carpeta de cotizacion y sube referencias descargadas por URL. | Google Drive |
-| `GET` | `/api/client-info` | Devuelve IP detectada y timestamp. | Request headers |
-| `POST` | `/api/session-log` | Recibe logs finales via `sendBeacon`, geolocaliza IP y actualiza `session_logs`. | Supabase, ip-api.com |
+| `GET` | `/api/client-info` | Devuelve la IP **anonimizada** (IPv4 /24, IPv6 /48) y timestamp. | Request headers |
+| `POST` | `/api/session-log` | Recibe logs finales via `sendBeacon` y estima el país por zona horaria/idioma del navegador (`geo_hint`), sin enviar la IP a terceros. | Supabase |
+| `GET` | `/api/privacy/cookie-config` | Configuración pública del banner de cookies (`app_settings.cookie_consent_config`). | Supabase |
+| `GET`/`PUT` | `/api/admin/privacy/cookie-config` | Lee/guarda la configuración del banner (superadmin). | Supabase |
+| `GET`/`POST` | `/api/privacy/cookie-consent` | Lee/guarda el consentimiento del usuario con sesión (`user_preferences.privacy.cookie_consent` + `cookie_consent_log`). | Supabase |
 | `POST` | `/api/admin/update-user-password` | Superadmin actualiza password de un usuario en Supabase Auth. | Supabase Admin API, `verifyAdminCaller` |
 | `POST` | `/api/auth/reset-temp-password` | Reset temporal para artista/cliente/estudio usado por flujo n8n email. | Supabase Auth Admin, tablas `artists_db`, `clients_db`, `studios` |
 | `POST` | `/api/tattoo-styles/ensure` | Busca o crea estilo raiz en `tattoo_styles`. | Supabase REST |
@@ -185,7 +188,9 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `POST` | `/api/store/licenses/:licenseId/assets/:assetId/url` | URL firmada (300 s) para bajar el original o el stencil de una licencia; Bearer, titular o comprador, tope de 50 por licencia en 24 h. Limiter propio `storeDownloadLimiter` (60 cada 15 min por IP). El nombre de descarga es la base sanitizada más la extensión del MIME real del archivo. | `services/store-orders.js`, `lib/storage-sign.js`, bucket `store-design-files` |
 | `POST` | `/api/store/orders/:id/checkout` | Inicia el pago con el adaptador del pedido (hoy solo `manual`, que el front no llama). | `services/store-payments.js` |
 | `POST` | `/api/store/maintenance` | Cron (`X-Cron-Token`): vencimientos, pagos informados vencidos, entregas automáticas y liberación de fondos. | RPC `run_store_maintenance` |
-| `POST` | `/api/quotations/maintenance/expire` | Cron (`X-Cron-Token`) o job interno (`QUOTATION_EXPIRY_JOB=on`): pasa a `expired` las respuestas con la vigencia vencida (14 días por defecto, `quote_expires_at` o `validity_days` de la cotización manual) y avisa al cliente (`quotation_expired`). | RPC `expire_stale_quotations` (migración `20261112160000`) |
+| `POST` | `/api/quotations/maintenance/expire` | Cron (`X-Cron-Token`) o job interno (prendido por defecto, cada hora; `QUOTATION_EXPIRY_JOB=off` lo apaga): pasa a `expired` solo las respuestas con el vencimiento activado por el artista (`quote_expiry_enabled` + `quote_expiry_days`) cuya fecha pasó, y avisa a esos clientes (`quotation_expired`). Nada vence por defecto. | RPC `expire_stale_quotations(p_limit, p_opt_in_only)` (migración `20261113100000`) |
+| `POST` | `/api/account-deletion/notify` | Ronda 3c · borrado: email del estado actual de una baja de cuenta (recibida, aprobada, rechazada) al usuario; Bearer del dueño de la solicitud o de un agente de soporte; relee la fila con service-role y envía una vez por estado. | `account_deletion_requests`, eventos `account_deletion_*`, `lib/account-deletion.js` |
+| `POST` | `/api/support/account-deletions/:id/execute` | Ejecuta una baja APROBADA (agente de soporte, body `{ confirm: 'ELIMINAR' }`): recalcula `account_deletion_blockers` (si aparecen bloqueos la pasa a `blocked`), borra estudio/artista/cliente reutilizando `lib/artist-relations.js` y el trigger `delete_auth_on_artist_delete`, anonimiza soporte, borra Auth, marca `completed`, audita en `account_deletion_events` y avisa `account_deletion_completed`. | Migración `20261113103000`, Supabase Admin API |
 | `POST` | `/api/store/payments/webhook/:provider` | Aviso de pago de un proveedor real (body crudo antes de `express.json`, limiter propio). Sin adaptador registrado responde 404. Si el pedido venció y no se puede reabrir (`store:cannot_reopen`), responde 422 y deja un log de error «COBRO HUÉRFANO» con pedido, proveedor y referencia. | `services/store-payments.js`, RPC `confirm_store_order_payment_as_provider` |
 | `GET`/`POST` | `/api/artist/onboarding` | Estado del onboarding del artista (sugerencia del demo, demo automático, modo asistido y sus 8 pasos). | Bearer de artista, `user_preferences`, `artists_db` |
 | `GET`/`POST` | `/api/artist/instagram-verification` | Estado de la validación de Instagram y generación del código por email (POST máx. 5/hora). | Bearer de artista, `artist_instagram_verifications`, email `instagram_verification_code` |
@@ -433,7 +438,7 @@ RPC principales: `create_store_order`, `report_store_payment`, `confirm_store_or
 ### Observabilidad y soporte
 
 1. `logging-loader.js` registra sesiones/errores.
-2. Al cerrar pagina, `/api/session-log` persiste datos finales y geolocaliza IP.
+2. Al cerrar pagina, `/api/session-log` persiste datos finales y estima el país por zona horaria (sin IP a terceros).
 3. Backoffice/soporte consumen `/api/analytics/*` y tablas de soporte.
 4. `/api/health/*` mide servicios y guarda historial en `service_health_logs`.
 

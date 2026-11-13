@@ -143,6 +143,60 @@ async function ensureClientMode(session) {
     if (!response.ok) throw new Error(result.error || 'No pudimos activar el modo cliente.');
 }
 
+// ── confirmacion-email ─────────────────────────────────────────────
+const CLIENT_CONFIRM_KEY = 'client-signup';
+
+function clientConfirmRedirectUrl() {
+    const EC = window.WeotziEmailConfirm;
+    const params = { confirmado: '1', returnTo: readReturnTo() || '' };
+    if (EC) return EC.redirectUrl('/client/register/', params);
+    return window.location.origin + clientAppPath('/client/register/') + '?confirmado=1';
+}
+
+function clientSignupIsExistingAccount(data) {
+    const user = data && data.user;
+    return Boolean(user && Array.isArray(user.identities) && user.identities.length === 0);
+}
+
+function markPendingClientSignup(userId, email) {
+    const EC = window.WeotziEmailConfirm;
+    const quoteId = currentClientData?.quote_id || null;
+    if (EC) EC.savePending(CLIENT_CONFIRM_KEY, { userId, email, quoteId, sentAt: Date.now() });
+}
+
+function readPendingClientSignup() {
+    const EC = window.WeotziEmailConfirm;
+    return EC ? EC.readPending(CLIENT_CONFIRM_KEY) : null;
+}
+
+// Al volver del link de confirmación (ya con sesión): enlaza las cotizaciones
+// que quedaron esperando y limpia el marcador. Idempotente.
+async function completePendingClientSignup(session) {
+    const pending = readPendingClientSignup();
+    if (!pending || !session?.user?.id) return false;
+    if (pending.userId && pending.userId !== session.user.id) return false;
+    const email = String(session.user.email || pending.email || '').toLowerCase();
+    await linkQuotationsByEmail(session.user.id, email);
+    const quoteId = pending.quoteId || currentClientData?.quote_id;
+    if (quoteId) await linkQuotationById(session.user.id, quoteId);
+    window.WeotziEmailConfirm?.clearPending(CLIENT_CONFIRM_KEY);
+    try { localStorage.removeItem('weotzi_client_registration_data'); } catch (_) {}
+    return true;
+}
+
+// Login con email sin confirmar: aviso con "Reenviar email" (DS).
+function showClientEmailNotConfirmed(email) {
+    const EC = window.WeotziEmailConfirm;
+    const box = document.getElementById('form-message');
+    if (!EC || !box) {
+        showFormMessage('Confirmá tu email antes de ingresar. Revisá tu bandeja de entrada.', 'error');
+        return;
+    }
+    box.className = ''; // sin el marco de .form-message: el aviso trae el suyo
+    EC.renderLoginNotice(box, { email, client: _supabase, redirectTo: clientConfirmRedirectUrl() });
+    box.style.display = 'block';
+}
+
 async function sendPendingClientWelcome(user) {
     if (!user?.id || !window.ConfigManager?.sendN8NEvent) return;
     try {
@@ -179,6 +233,9 @@ async function checkClientAuthState() {
     const currentPath = window.location.pathname;
     const onAuthPage = currentPath.includes('/client/login') || currentPath.includes('/client/register');
     const returnTo = readReturnTo();
+    // ── confirmacion-email: se lee antes de cualquier await (el wizard lo
+    // apaga al terminar y no tiene que disparar la redirección al panel).
+    const wizardResumes = Boolean(window.WO_CLIENT_REGISTER_RESUME);
     
     try {
         const { data: { session } } = await _supabase.auth.getSession();
@@ -192,7 +249,13 @@ async function checkClientAuthState() {
             const { data: client, error } = await WeotziData.Clients.getByUserId(session.user.id);
 
             if (client) {
+                await completePendingClientSignup(session).catch(() => false);
                 void sendPendingClientWelcome(session.user);
+                // El wizard retoma su borrador tras confirmar el email.
+                if (onAuthPage && wizardResumes) {
+                    currentClientData = client;
+                    return;
+                }
                 // User is a valid client
                 if (onAuthPage) {
                     // Redirect to dashboard (o al returnTo de la Store) if trying to access login/register
@@ -335,12 +398,25 @@ async function handleClientRegistration(payload) {
                 health_conditions: currentClientData?.client_health_conditions || '',
                 allergies: currentClientData?.client_allergies || ''
             },
-            emailRedirectTo: window.location.origin + postAuthDestination()
+            // Con "Confirm email" activo, el link vuelve al wizard: retoma el
+            // borrador (gustos, preferencias) y enlaza la cotización.
+            emailRedirectTo: clientConfirmRedirectUrl()
         }
     });
 
     if (authError) throw authError;
     if (!authData.user) throw new Error('No pudimos crear la cuenta.');
+    if (clientSignupIsExistingAccount(authData)) throw new Error('User already registered');
+
+    // ── confirmacion-email: sin sesión = falta confirmar el email. No se asume
+    // el modo de Supabase: se mira la respuesta. El perfil base lo crea el
+    // trigger handle_new_user; el enlace de cotizaciones y el resto del perfil
+    // se completan al volver del link (completePendingClientSignup).
+    if (!authData.session) {
+        markPendingClientSignup(authData.user.id, email);
+        try { localStorage.setItem('weotzi_pending_client_welcome', authData.user.id); } catch (_) {}
+        return Object.assign({}, authData.user, { pendingEmailConfirmation: true });
+    }
 
     // Calculate age from birthdate
     let age = null;
@@ -548,6 +624,11 @@ async function handleClientLogin(e) {
         btn.classList.remove('loading');
         btn.disabled = false;
         
+        if (window.WeotziEmailConfirm?.isEmailNotConfirmedError(error) || /email not confirmed/i.test(error?.message || '')) {
+            showClientEmailNotConfirmed(email);
+            return;
+        }
+
         let errorMessage = 'No pudimos iniciar sesión. Probá de nuevo.';
         if (error.message.includes('Invalid login credentials')) {
             errorMessage = 'Email o contraseña incorrectos.';

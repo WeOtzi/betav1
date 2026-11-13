@@ -338,7 +338,8 @@ test('runtime: AccountProfile.getExtras trae la modalidad y el estudio', async (
     const data = {
         run: async (label, build) => {
             const chain = { select(cols) { selects.push(cols); return chain; }, eq() { return chain; }, maybeSingle() { return chain; } };
-            build({ from: () => chain });
+            // pii-artistas: la fila propia sale de rpc('get_my_artist_profile').
+            build({ from: () => chain, rpc: () => chain });
             return { data: { work_type: 'both', estudios: 'TINTA ROJA', studio_id: 's-1' } };
         }
     };

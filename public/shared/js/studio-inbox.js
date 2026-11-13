@@ -386,7 +386,9 @@
     function renderContext(t) {
         const host = el('si-context');
         const info = M.contextRows(t);
-        const action = M.contextAction(t);
+        let action = M.contextAction(t);
+        // Manager del estudio: solo tiene Mensajes y Equipo (solicitudes de cambio).
+        if (action && state.studio && state.studio.access === 'manager' && action.tab !== 'roster') action = null;
         const profile = t.username
             ? '<a class="wo-btn wo-btn--secondary si-ctx-btn" href="' + esc(appUrl('/artist/profile?artist=' + encodeURIComponent(t.username))) + '" target="_blank" rel="noopener">Ver perfil del artista</a>'
             : '';

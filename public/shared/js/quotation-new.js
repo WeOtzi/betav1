@@ -156,6 +156,28 @@
         return `<div class="qn-field"><label class="qn-label"${id ? ` for="${id}"` : ''}>${esc(label)}</label>${control}</div>`;
     }
 
+    // Vencimiento opcional (13 nov 2026): toggle del DS + días (1–365). Apagado
+    // por defecto; reemplaza el select "Vigencia de la cotización".
+    const EXPIRY_HELP_OFF = 'Apagado: la cotización no vence.';
+    const EXPIRY_HELP_ON = 'Si el cliente no responde en ese plazo, la cotización vence y le avisamos.';
+    function expiryFieldHtml() {
+        const on = !!state.expiryEnabled;
+        return `<div class="qn-field qn-expiry" role="group" aria-labelledby="qn-expiry-label">
+                <span class="qn-label" id="qn-expiry-label">Vencimiento</span>
+                <div class="qn-expiry-row">
+                    <label class="qn-expiry-switch" for="qn-f-expiry">
+                        <span class="wo-toggle"><input type="checkbox" role="switch" id="qn-f-expiry" data-qn-expiry aria-describedby="qn-expiry-help"${on ? ' checked' : ''}><span class="knob" aria-hidden="true"></span></span>
+                        <span>Activar vencimiento</span>
+                    </label>
+                    <span class="qn-expiry-days">
+                        <input id="qn-f-validity" class="qn-input" type="number" inputmode="numeric" min="1" max="365" step="1" data-qn-field="validityDays" value="${esc(state.validityDays)}" aria-label="Días hasta el vencimiento" aria-describedby="qn-expiry-help"${on ? '' : ' disabled'}>
+                        <span aria-hidden="true">días</span>
+                    </span>
+                </div>
+                <small class="qn-expiry-help" id="qn-expiry-help">${on ? EXPIRY_HELP_ON : EXPIRY_HELP_OFF}</small>
+            </div>`;
+    }
+
     function clientBlockHtml() {
         if (state.client) {
             const c = state.client;
@@ -323,7 +345,7 @@
 
                     <h3 class="qn-step qn-step--wide">04 · Condiciones</h3>
                     <div class="qn-cond">
-                        ${field('Vigencia de la cotización', `<span class="qn-select"><select id="qn-f-validity" data-qn-field="validityDays">${options(M.VALIDITY_OPTIONS.map((d) => ({ value: d, label: `${d} días` })), state.validityDays)}</select></span>`, 'qn-f-validity')}
+                        ${expiryFieldHtml()}
                         ${field('Política de reserva y cancelación', `<span class="qn-select"><select id="qn-f-policy" data-qn-field="policy">${options(M.POLICIES.map((p) => ({ value: p.value, label: p.label })), state.policy)}</select></span>`, 'qn-f-policy')}
                     </div>
                     ${field('Notas para el cliente', `<textarea id="qn-f-notes" class="qn-textarea" data-qn-field="clientNotes" maxlength="4000" placeholder="Lo que quieras aclararle sobre el proyecto, cuidados o tiempos.">${esc(state.clientNotes)}</textarea>`, 'qn-f-notes')}
@@ -766,6 +788,14 @@
             focusMissing();
             return;
         }
+        const expiry = M.expiryPatch(state);
+        if (!expiry.ok) {
+            toast(expiry.error, 'error');
+            closePreview();
+            const days = $('#qn-f-validity');
+            if (days) days.focus();
+            return;
+        }
         busy = true;
         const sheet = $('#qn-sheet');
         sheet.querySelectorAll('[data-qn-submit]').forEach((b) => { b.classList.add('is-busy'); b.textContent = 'Enviando…'; });
@@ -776,6 +806,14 @@
             const result = await D().Quotations.createManual(quotePayload, details);
             if (!result || result.error) throw Object.assign(new Error((result && result.error) || 'Sin respuesta'), { code: '22023' });
             const quoteId = result.quote_id || snapshot.ref;
+            // Vencimiento opcional: create_manual_quotation lo deja apagado; si el
+            // artista lo activó se aplica sobre la fila creada (el trigger de
+            // 20261113100000 calcula quote_expires_at).
+            let expiryFailed = false;
+            if (expiry.patch.quote_expiry_enabled && result.id != null) {
+                try { await D().Quotations.updateById(result.id, expiry.patch); }
+                catch (error) { expiryFailed = true; console.warn('[quotation-new] expiry', error); }
+            }
             removeLocalDraft(snapshot.ref);
             const uploads = await uploadFiles(quoteId);
             try {
@@ -797,7 +835,7 @@
             busy = false;
             close({ force: true, stay: true }); // queda en el listado con el resumen de la nueva
             await page().reload();
-            toast(`Cotización ${quoteId} creada y enviada a ${quotePayload.client_full_name}.` + (uploads.failed ? ` No pudimos subir ${uploads.failed} ${uploads.failed === 1 ? 'archivo' : 'archivos'}.` : ''), uploads.failed ? 'info' : 'success');
+            toast(`Cotización ${quoteId} creada y enviada a ${quotePayload.client_full_name}.` + (uploads.failed ? ` No pudimos subir ${uploads.failed} ${uploads.failed === 1 ? 'archivo' : 'archivos'}.` : '') + (expiryFailed ? ' No pudimos activar el vencimiento: activalo desde el detalle.' : ''), uploads.failed || expiryFailed ? 'info' : 'success');
             const created = page().findQuote(quoteId);
             if (created && window.QuotationSummary) window.QuotationSummary.open(created.id);
         } catch (err) {
@@ -972,6 +1010,18 @@
                 if (tooBig.length) toast(`${tooBig.length} ${tooBig.length === 1 ? 'archivo supera' : 'archivos superan'} los ${MAX_FILE_MB} MB.`, 'error');
                 t.value = '';
                 rerender('[data-qn-files]', filesHtml());
+                return;
+            }
+            if (t.id === 'qn-f-expiry') {
+                state.expiryEnabled = t.checked;
+                const days = $('#qn-f-validity');
+                if (days) {
+                    days.disabled = !t.checked;
+                    if (t.checked && !days.value) { days.value = '14'; state.validityDays = 14; }
+                }
+                const help = $('#qn-expiry-help');
+                if (help) help.textContent = t.checked ? EXPIRY_HELP_ON : EXPIRY_HELP_OFF;
+                refreshComputed();
                 return;
             }
             if (t.dataset.qnField && t.tagName === 'SELECT') setField(t.dataset.qnField, t.value);

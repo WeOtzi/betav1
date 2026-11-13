@@ -1135,3 +1135,23 @@ body.cal-app:has(#calendar-editor:not([hidden])) { background: var(--neutral-100
 @media (min-width: 64rem) {
     .cal-field-hint { font-size: 12px; line-height: 16px; }
 }
+
+/* ── gcal ── Ocupado en Google Calendar (ronda 3b, diseño propio):
+   mismo lenguaje que "Día bloqueado" pero rayado y con borde punteado, para
+   distinguirlo de lo que el artista bloqueó en We Ötzi. Solo lectura. */
+.is-external-google {
+    --event-color: var(--neutral-200);
+    --event-tint: var(--neutral-200);
+    --event-contrast: var(--neutral-500);
+}
+.cal-event.is-external-google,
+.cal-upcoming-item.is-external-google {
+    background-color: var(--neutral-200);
+    background-image: repeating-linear-gradient(135deg, transparent 0 0.3rem, rgba(90, 84, 73, 0.18) 0.3rem 0.38rem);
+    outline: 0.0625rem dashed var(--neutral-400);
+    outline-offset: -0.0625rem;
+    color: var(--neutral-500);
+}
+.cal-agenda-event.is-external-google i {
+    background: repeating-linear-gradient(135deg, var(--neutral-200) 0 0.1rem, var(--neutral-400) 0.1rem 0.2rem);
+}

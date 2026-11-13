@@ -200,12 +200,28 @@
         const studio = st.rows('studios').find(row => row.user_id === identityId(email));
         const metadata = Object.assign({}, options.options && options.options.data, studio ? { user_type: 'studio', name: studio.name, full_name: studio.name } : {});
         const user = makeUser(email, metadata);
+        // ── confirmacion-email: localStorage wo_preview_confirm_email=1 emula
+        // "Confirm email" activo (signUp sin sesión, login "Email not confirmed").
+        const unconfirmed = previewUnconfirmed();
+        if (previewConfirmMode() && signup) {
+            if (!unconfirmed.includes(email)) unconfirmed.push(email);
+            try { window.localStorage.setItem('wo_preview_unconfirmed', JSON.stringify(unconfirmed)); } catch (_) { /* storage */ }
+            await ensureProfiles(user);
+            record('auth.signup.confirm', 'simulated', 'Confirmación de email emulada; no se envió ningún correo.');
+            return { data: { user: Object.assign(clone(user), { identities: [{ provider: 'email' }] }), session: null }, error: null };
+        }
+        if (previewConfirmMode() && !signup && unconfirmed.includes(email)) {
+            return { data: { user: null, session: null }, error: { code: 'email_not_confirmed', status: 400, message: 'Email not confirmed' } };
+        }
         await ensureProfiles(user);
         publishSession(makeSession(user), 'SIGNED_IN');
         record(signup ? 'auth.signup' : 'auth.login', 'simulated', 'Sesión ficticia; no verifica contraseñas contra Supabase.');
         return { data: { user: clone(user), session: clone(session) }, error: null };
     }
+    function previewConfirmMode() { try { return window.localStorage.getItem('wo_preview_confirm_email') === '1'; } catch (_) { return false; } }
+    function previewUnconfirmed() { try { return JSON.parse(window.localStorage.getItem('wo_preview_unconfirmed') || '[]'); } catch (_) { return []; } }
     const auth = {
+        resend: async () => { record('auth.resend', 'simulated', 'Reenvío de confirmación emulado; no se envió ningún correo.'); return { data: {}, error: null }; },
         getSession: async () => ({ data: { session: clone(session) }, error: null }),
         getUser: async () => ({ data: { user: session ? clone(session.user) : null }, error: null }),
         signInWithPassword: options => login(options, false),

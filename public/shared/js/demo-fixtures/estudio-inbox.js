@@ -18,6 +18,9 @@
     root.WoDemoFixtureExtensions = root.WoDemoFixtureExtensions || {};
 
     var STUDIO_EMAIL = 'estudio@preview.weotzi.invalid';
+    // Manager activo del estudio (20261113101000): entra por /studio/login con
+    // este correo ficticio y ve solo Mensajes y Equipo → solicitudes de cambio.
+    var MANAGER_EMAIL = 'manager@preview.weotzi.invalid';
 
     // Misma identidad determinística que preview-bootstrap.js (identityId).
     function identityId(email) {
@@ -48,6 +51,7 @@
         var ownerId = identityId(STUDIO_EMAIL);
         studio.user_id = ownerId;
         studio.email = STUDIO_EMAIL;
+        var managerId = identityId(MANAGER_EMAIL);
 
         var ARTISTS = {
             martina: { user_id: id('f1', 1), name: 'Martina Ríos', username: 'martina.rios.ink', city: 'Córdoba', country: 'Argentina' },
@@ -138,10 +142,35 @@
             _demo_details: null
         });
 
+        var memberships = tables.studio_artist_memberships || (tables.studio_artist_memberships = []);
+        memberships.push({
+            id: id('f2', 9), studio_id: studio.id, artist_user_id: managerId, role: 'manager', status: 'active',
+            location_id: studio.primary_location_id || null, invited_at: minutesAgo(60 * 24 * 90), started_at: minutesAgo(60 * 24 * 88),
+            ended_at: null, revenue_split_pct: null, notes: 'Manager del estudio (preview).',
+            created_at: minutesAgo(60 * 24 * 90), updated_at: minutesAgo(60 * 24 * 88)
+        });
+        var artistsDb = tables.artists_db || [];
+        if (artistsDb.length && !artistsDb.some(function (a) { return a.user_id === managerId; })) {
+            artistsDb.push(Object.assign({}, artistsDb[0], {
+                id: managerId, user_id: managerId, email: MANAGER_EMAIL, name: 'Sofía Méndez',
+                username: 'sofia.mendez.preview', profile_picture: null
+            }));
+        }
+
         /* ------------------------------ RPC mocks ------------------------------ */
+        // Dueño (studios.user_id) o manager activo: mismo criterio que private.studio_inbox_access_for.
+        function accessFor(store, studioId, userId) {
+            if (!studioId || !userId) return null;
+            var row = store.rows('studios').find(function (s) { return s.id === studioId; });
+            if (row && row.user_id === userId) return 'owner';
+            var m = store.rows('studio_artist_memberships').find(function (x) {
+                return x.studio_id === studioId && x.artist_user_id === userId && x.role === 'manager' && x.status === 'active';
+            });
+            return m ? 'manager' : null;
+        }
         function ownedStudio(store, studioId, userId) {
             var row = store.rows('studios').find(function (s) { return s.id === studioId; });
-            if (!row || !userId || row.user_id !== userId) throw new Error('No tenés acceso al inbox de este estudio.');
+            if (!row || !accessFor(store, studioId, userId)) throw new Error('No tenés acceso al inbox de este estudio.');
             return row;
         }
         function studioThread(store, threadId) {
@@ -189,7 +218,7 @@
         rpcs.send_inbox_message = function (args, store, c) {
             var row = baseSend ? baseSend(args, store, c) : null;
             var thread = studioThread(store, args.p_thread_id);
-            if (row && thread && thread._studio_owner === c.userId) {
+            if (row && thread && accessFor(store, thread._studio_id, c.userId)) {
                 row.sender_role = 'studio';
                 row.message_kind = args.p_attachment_path ? (/^image\//.test(args.p_attachment_mime || '') ? 'image' : 'file') : 'text';
             }
@@ -199,7 +228,10 @@
         rpcs.list_studio_invitation_change_requests = function (args, store, c) {
             ownedStudio(store, args.p_studio_id, c.userId);
             return store.rows('studio_invitation_change_requests')
-                .filter(function (r) { return r._demo_studio_id === args.p_studio_id; })
+                .filter(function (r) {
+                    return r._demo_studio_id === args.p_studio_id
+                        && (accessFor(store, args.p_studio_id, c.userId) === 'owner' || r.artist_user_id !== c.userId);
+                })
                 .sort(function (a, b) {
                     if ((a.status === 'pending') !== (b.status === 'pending')) return a.status === 'pending' ? -1 : 1;
                     return a.created_at < b.created_at ? 1 : -1;
@@ -218,6 +250,9 @@
             var r = store.rows('studio_invitation_change_requests').find(function (x) { return x.id === args.p_request_id; });
             if (!r || !r._demo_studio_id) throw new Error('Solicitud no encontrada.');
             ownedStudio(store, r._demo_studio_id, c.userId);
+            var access = accessFor(store, r._demo_studio_id, c.userId);
+            if (access === 'manager' && r.artist_user_id === c.userId) throw new Error('Solicitud no encontrada.');
+            if (access === 'manager' && r._demo_membership && r._demo_membership.role === 'manager') throw new Error('Solo el dueño del estudio responde invitaciones de managers.');
             if (r.status !== 'pending') throw new Error('Esta solicitud ya fue respondida.');
             var decision = args.p_decision;
             var reply = String(args.p_reply || '').trim();
@@ -225,6 +260,13 @@
             if (decision === 'declined' && reply.length < 10) throw new Error('Contale al artista por qué mantenés las condiciones (mínimo 10 caracteres).');
             var changes = args.p_changes || {};
             var summary = [];
+            if (decision === 'accepted' && access === 'manager') {
+                if (changes.role === 'manager') throw new Error('Solo el dueño del estudio puede invitar managers.');
+                if (Object.prototype.hasOwnProperty.call(changes, 'revenue_split_pct')
+                    && Number(changes.revenue_split_pct) !== Number(r._demo_membership && r._demo_membership.revenue_split_pct)) {
+                    throw new Error('Solo el dueño del estudio puede cambiar el reparto.');
+                }
+            }
             if (decision === 'accepted') {
                 var m = r._demo_membership; var d = r._demo_details || (r._demo_details = {});
                 Object.keys(changes).forEach(function (key) {
@@ -254,6 +296,14 @@
                 thread._studio_participant = true;
             }
             return { request_id: r.id, membership_id: r.membership_id, status: decision, changes: summary, thread_id: thread ? thread.id : null, resolved_at: r.resolved_at };
+        };
+
+        rpcs.list_my_studio_access = function (args, store, c) {
+            if (!c.userId) return [];
+            return store.rows('studios').map(function (s) {
+                var access = accessFor(store, s.id, c.userId);
+                return access ? { studio_id: s.id, access: access, name: s.name, slug: s.slug, logo_image: s.logo_image || null } : null;
+            }).filter(Boolean).sort(function (a, b) { return (a.access === 'owner' ? 0 : 1) - (b.access === 'owner' ? 0 : 1); });
         };
     };
 })(typeof self !== 'undefined' ? self : this);

@@ -26,6 +26,8 @@
 
     <!-- Styles -->
     <link rel="stylesheet" href="/shared/css/admin-styles.css">
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
+    <script src="/shared/js/wo-consent.js" defer></script>
 </head>
 
 <body>
@@ -111,6 +113,10 @@
                 <a href="#" class="nav-item" data-section="currencies">
                     <i class="fa-solid fa-dollar-sign"></i>
                     <span>Monedas</span>
+                </a>
+                <a href="#" class="nav-item" data-section="privacy">
+                    <i class="fa-solid fa-cookie-bite"></i>
+                    <span>Cookies y privacidad</span>
                 </a>
             </nav>
 
@@ -1968,6 +1974,75 @@
                 </div>
             </section>
 
+            <!-- ── privacidad ── Cookies y privacidad (banner de consentimiento) -->
+            <section id="section-privacy" class="content-section">
+                <div class="section-toolbar">
+                    <p class="section-description">
+                        Banner de cookies de todo el sitio. Se guarda en <code>app_settings.cookie_consent_config</code>
+                        y lo lee el banner por <code>GET /api/privacy/cookie-config</code> (cache de 5 min).
+                    </p>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" id="privacy-reload-btn">
+                            <i class="fa-solid fa-arrows-rotate"></i> Recargar
+                        </button>
+                        <button type="button" class="btn btn-primary" id="privacy-save-btn">
+                            <i class="fa-solid fa-floppy-disk"></i> Guardar
+                        </button>
+                    </div>
+                </div>
+
+                <div id="privacy-status" class="info-card" role="status" aria-live="polite" style="margin-bottom: 16px;">Cargando configuración…</div>
+
+                <form id="privacy-config-form" class="settings-grid" novalidate>
+                    <div class="card settings-card">
+                        <div class="card-header"><h3><i class="fa-solid fa-toggle-on"></i> Banner y versión</h3></div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label><input type="checkbox" id="privacy-enabled"> Mostrar el banner de cookies</label>
+                                <small>Apagarlo no equivale a consentir: sin una elección vigente no se carga ningún script no esencial.</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="privacy-version">Versión del consentimiento</label>
+                                <input type="text" id="privacy-version" maxlength="32" pattern="[A-Za-z0-9._-]{1,32}" required>
+                                <small>Cambiarla vuelve a pedir el consentimiento a todos. Sugerencia: la fecha (AAAA-MM-DD).</small>
+                                <button type="button" class="btn btn-secondary btn-sm" id="privacy-version-today">Usar la fecha de hoy</button>
+                            </div>
+                            <div class="form-group">
+                                <label for="privacy-renew">Renovar el consentimiento cada (días)</label>
+                                <input type="number" id="privacy-renew" min="30" max="395" step="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="privacy-policy-url">Enlace a la política</label>
+                                <input type="text" id="privacy-policy-url" maxlength="120" placeholder="/legal/privacy#cookies">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card settings-card">
+                        <div class="card-header"><h3><i class="fa-solid fa-font"></i> Textos del banner</h3></div>
+                        <div class="card-body">
+                            <div class="form-group"><label for="privacy-text-title">Título</label><input type="text" id="privacy-text-title" maxlength="80"></div>
+                            <div class="form-group"><label for="privacy-text-body">Texto</label><textarea id="privacy-text-body" rows="4" maxlength="800"></textarea></div>
+                            <div class="form-group"><label for="privacy-text-accept_all">Botón aceptar</label><input type="text" id="privacy-text-accept_all" maxlength="40"></div>
+                            <div class="form-group"><label for="privacy-text-reject">Botón rechazar</label><input type="text" id="privacy-text-reject" maxlength="40"></div>
+                            <div class="form-group"><label for="privacy-text-configure">Botón configurar</label><input type="text" id="privacy-text-configure" maxlength="40"></div>
+                            <div class="form-group"><label for="privacy-text-save">Botón guardar elección</label><input type="text" id="privacy-text-save" maxlength="40"></div>
+                            <div class="form-group"><label for="privacy-text-gpc_notice">Aviso de Global Privacy Control</label><textarea id="privacy-text-gpc_notice" rows="2" maxlength="300"></textarea></div>
+                        </div>
+                    </div>
+
+                    <div class="card settings-card">
+                        <div class="card-header"><h3><i class="fa-solid fa-layer-group"></i> Categorías</h3></div>
+                        <div class="card-body" id="privacy-categories"></div>
+                    </div>
+
+                    <div class="card settings-card">
+                        <div class="card-header"><h3><i class="fa-solid fa-code"></i> Scripts no esenciales</h3></div>
+                        <div class="card-body" id="privacy-scripts"></div>
+                    </div>
+                </form>
+            </section>
+
             <!-- Analytics Section -->
             <section id="section-analytics" class="content-section">
                 <!-- Period Selector -->
@@ -3141,6 +3216,7 @@
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/email-routing-admin.js"></script>
+    <script src="/shared/js/backoffice-privacy.js"></script>
     <script src="/shared/js/backoffice-guard.js"></script>
     <script src="/shared/js/logging-loader.js"></script>
     <script src="/shared/js/bio-formatting.js"></script>

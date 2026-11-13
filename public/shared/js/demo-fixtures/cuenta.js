@@ -42,9 +42,9 @@
         /* ---------------------------- destinos ---------------------------- */
         var lemon = id(101), bankUsd = id(102), santander = id(103);
         tables.artist_payout_destinations = [
-            { id: lemon, artist_user_id: artistId, method: 'lemon', label: 'Lemon', holder_name: 'Titular de prueba', currency: 'USD', account_identifier: 'lemon.demo.4821', rail: 'ACH', country_code: 'US', verification_status: 'verified', verified_at: daysAgo(80), is_default: true, active: true, metadata_json: { account_type: 'Cuenta USD en Estados Unidos' }, created_at: daysAgo(90), updated_at: daysAgo(80) },
-            { id: bankUsd, artist_user_id: artistId, method: 'bank_usd', label: 'Cuenta bancaria USD', holder_name: 'Titular de prueba', currency: 'USD', account_identifier: '000123451190', rail: 'ACH', country_code: 'US', verification_status: 'verified', verified_at: daysAgo(60), is_default: false, active: true, metadata_json: {}, created_at: daysAgo(70), updated_at: daysAgo(60) },
-            { id: santander, artist_user_id: artistId, method: 'bank_international', label: 'Banco Santander España', holder_name: 'Titular de prueba', currency: 'EUR', account_identifier: 'ES9100490001512345677734', rail: 'SEPA', country_code: 'ES', verification_status: 'verified', verified_at: daysAgo(40), is_default: false, active: true, metadata_json: {}, created_at: daysAgo(45), updated_at: daysAgo(40) }
+            { id: lemon, artist_user_id: artistId, method: 'lemon', label: 'Lemon', holder_name: 'Titular de prueba', currency: 'USD', account_identifier_last4: '4821', rail: 'ACH', country_code: 'US', verification_status: 'verified', verified_at: daysAgo(80), is_default: true, active: true, metadata_json: { account_type: 'Cuenta USD en Estados Unidos' }, created_at: daysAgo(90), updated_at: daysAgo(80) },
+            { id: bankUsd, artist_user_id: artistId, method: 'bank_usd', label: 'Cuenta bancaria USD', holder_name: 'Titular de prueba', currency: 'USD', account_identifier_last4: '1190', rail: 'ACH', country_code: 'US', verification_status: 'verified', verified_at: daysAgo(60), is_default: false, active: true, metadata_json: {}, created_at: daysAgo(70), updated_at: daysAgo(60) },
+            { id: santander, artist_user_id: artistId, method: 'bank_international', label: 'Banco Santander España', holder_name: 'Titular de prueba', currency: 'EUR', account_identifier_last4: '7734', rail: 'SEPA', country_code: 'ES', verification_status: 'verified', verified_at: daysAgo(40), is_default: false, active: true, metadata_json: {}, created_at: daysAgo(45), updated_at: daysAgo(40) }
         ];
 
         /* --------------------------- movimientos --------------------------- */
@@ -164,7 +164,7 @@
                 artist_user_id: dest.artist_user_id || userId, kind: 'withdrawal', status: 'processing', amount: amount, currency: currency,
                 title: 'Retiro a ' + dest.label, counterparty_name: null, booking_reference: null, quote_id: null,
                 destination_id: dest.id, service_date: null, release_at: null, occurred_at: nowIso, external_reference: null,
-                metadata_json: { requested_by: 'artist' }, updated_at: nowIso
+                metadata_json: { requested_by: 'artist', destination_last4: dest.account_identifier_last4 || null }, updated_at: nowIso
             }])[0];
         };
         ctx.rpcs.set_artist_default_payout_destination = function (args, store) {

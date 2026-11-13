@@ -120,6 +120,9 @@
             discountPct: 0,
             taxPct: 0,
             depositPct: 30,
+            // Vencimiento opcional (13 nov 2026): apagado por defecto; los días
+            // (14 sugeridos) solo cuentan si el artista lo activa.
+            expiryEnabled: false,
             validityDays: 14,
             policy: POLICIES[0].value,
             clientNotes: '',
@@ -168,9 +171,17 @@
         return POLICIES.find(function (p) { return p.value === value; }) || POLICIES[0];
     }
 
-    function conditionsSentence(validityDays, policyValue) {
+    // expiryEnabled === false → la cotización no vence (no se menciona vigencia).
+    function conditionsSentence(validityDays, policyValue, expiryEnabled) {
+        if (expiryEnabled === false) return 'Sin vencimiento. ' + policyFor(policyValue).sentence;
         var days = Math.max(1, Math.round(num(validityDays)) || 14);
         return 'Vigencia: ' + days + ' días. ' + policyFor(policyValue).sentence;
+    }
+
+    // Patch de quotations_db con el vencimiento elegido (se aplica después de
+    // create_manual_quotation). { ok, patch } o { ok: false, error }.
+    function expiryPatch(state) {
+        return VM.expirySettingsPatch(!!(state && state.expiryEnabled), state && state.validityDays);
     }
 
     function styleRecord(style) {
@@ -240,7 +251,10 @@
                 sessions: Math.max(1, Math.round(num(state.sessions)) || 1),
                 session_hours: Math.max(0, num(state.sessionHours)) || null,
                 location: clean(state.location) || null, tentative_date: clean(state.date) || null,
-                priority: state.priority || 'medium'
+                priority: state.priority || 'medium',
+                // Vencimiento opcional: queda en el borrador (jsonb) y se aplica a
+                // quotations_db con expiryPatch() al enviar.
+                expiry_enabled: !!state.expiryEnabled
             },
             line_items: (state.items || []).filter(function (it) { return clean(it.name) || num(it.price) > 0; }).map(function (it) {
                 return { name: clean(it.name), description: clean(it.description) || null, qty: Math.max(0, num(it.qty)), price: Math.max(0, num(it.price)), total: lineTotal(it) };
@@ -315,6 +329,7 @@
         base.taxPct = num(record.tax_pct);
         base.depositPct = record.deposit_pct == null ? 30 : num(record.deposit_pct);
         base.validityDays = record.validity_days || 14;
+        base.expiryEnabled = p.expiry_enabled === true;
         base.policy = policyFor(record.cancellation_policy).value;
         base.clientNotes = record.client_notes || '';
         base.extraTerms = record.extra_terms || '';
@@ -351,7 +366,7 @@
             items: items,
             total: money(totals.total),
             depositLine: 'Seña ' + money(totals.deposit) + ' · Saldo ' + money(totals.balance),
-            conditions: conditionsSentence(state.validityDays, state.policy),
+            conditions: conditionsSentence(state.validityDays, state.policy, !!state.expiryEnabled),
             notes: clean(state.clientNotes),
             terms: clean(state.extraTerms),
             missing: missingMessage(missingRequirements(state))
@@ -418,6 +433,7 @@
         COMPLEXITY_OPTIONS: COMPLEXITY_OPTIONS,
         DURATION_OPTIONS: DURATION_OPTIONS,
         VALIDITY_OPTIONS: VALIDITY_OPTIONS,
+        expiryPatch: expiryPatch,
         PRIORITIES: PRIORITIES,
         POLICIES: POLICIES,
         ORIGINS: ORIGINS,

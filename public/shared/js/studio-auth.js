@@ -45,13 +45,33 @@
         await client.auth.updateUser({ data: { studio_registration: null } }).catch(() => {});
         return finishRegistrationMedia(studio, email);
     }
-    async function resolveStudio(session) {
+    async function resolveStudio(session, { includeManaged = true } = {}) {
         const { data: studio, error } = await WeotziData.Studios.getByUserId(session.user.id);
         if (error) throw error;
         if (studio) return finishRegistrationMedia(studio, session.user.email);
         const draft = session.user.user_metadata?.studio_registration;
         if (draft?.profile && Array.isArray(draft.locations)) return completeRegistration(draft, session.user.email);
-        return null;
+        return includeManaged ? resolveManagedStudio() : null;
+    }
+    // Manager activo de un estudio (studio_artist_memberships role='manager'):
+    // entra al panel solo con Mensajes y Equipo → solicitudes de cambio. Las RPC
+    // vuelven a verificar el acceso en la base; esto solo decide qué se muestra.
+    async function resolveManagedStudio() {
+        if (typeof WeotziData?.Studios?.listMyAccess !== 'function') return null;
+        const { data, error } = await WeotziData.Studios.listMyAccess();
+        if (error) {
+            // Sin la migración 20261113101000 la RPC no existe: se comporta como antes.
+            console.warn('[studio-auth] list_my_studio_access:', error.message || error);
+            return null;
+        }
+        const rows = (Array.isArray(data) ? data : []).filter(row => row && row.access === 'manager' && row.studio_id);
+        if (!rows.length) return null;
+        const wanted = new URLSearchParams(window.location.search).get('studio');
+        const row = rows.find(r => wanted && (r.studio_id === wanted || r.slug === wanted)) || rows[0];
+        return remember({
+            id: row.studio_id, name: row.name, slug: row.slug, logo_image: row.logo_image || null,
+            access: 'manager', managedStudios: rows.map(r => ({ id: r.studio_id, name: r.name, slug: r.slug }))
+        });
     }
     async function checkStudioAuthState() {
         if (checking) return checking;
@@ -66,7 +86,8 @@
                     return null;
                 }
                 if (recoveryMode) return null;
-                const studio = await resolveStudio(session);
+                // En /studio/register un manager sin estudio propio puede registrar el suyo.
+                const studio = await resolveStudio(session, { includeManaged: !path.startsWith('/studio/register') });
                 if (studio) {
                     const showResult = path.startsWith('/studio/register') &&
                         (studio.mediaPending || new URLSearchParams(window.location.search).get('registered') === '1');
@@ -167,7 +188,8 @@
             remember(null);
             window.location.href = appUrl('/studio/login');
         },
-        getSupabase: () => client || requireClient(), getCurrent: () => currentStudioData
+        getSupabase: () => client || requireClient(), getCurrent: () => currentStudioData,
+        isManager: () => currentStudioData?.access === 'manager'
     };
     document.addEventListener('DOMContentLoaded', checkStudioAuthState);
 })();

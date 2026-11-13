@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.2.12] - 2026-11-13
+
+- Cotizaciones: el vencimiento es opcional por cotización (el artista lo activa y elige los días); el job corre cada hora y solo vence las que lo tienen activo. Días ocupados del cotizador: solo cuentan los viajes confirmados.
+- Estudio: los managers activos responden en el inbox y las solicitudes de cambio (sin permisos de dueño). Google Calendar real: OAuth, tokens cifrados, publicación de eventos y bloques "ocupado" desde Google (credenciales por entorno).
+- Legales: Términos y Privacidad v1.0 (con datos societarios a completar). Banner de cookies funcional con bloqueo real de Clarity, Global Privacy Control y configuración en el backoffice; sin envío de IP a terceros. Baja de cuenta solicitada por el usuario y gestionada por soporte con chequeo de bloqueos. Cifrado de números de cuenta de retiro (AES-256-GCM) y secretos de app_settings solo para el servidor. Datos personales de artistas (email, nacimiento, WhatsApp, dirección exacta) ya no legibles públicamente (el registro guarda por la RPC upsert_my_artist_profile). Confirmación de email soportada en todos los altas e inicios de sesión. Emails nuevos por n8n con destinatario y variables resueltos.
+- Migraciones: 20261113100000 quotation_expiry_opt_in, 100500 busy_days_confirmed_trips, 101000 studio_inbox_managers, 102000 google_calendar_sync, 103000 account_deletion_requests, 104000 field_encryption, 105000 privacidad_cookie_consent, 106000 pii_artistas_column_privileges.
+- Validación: node --test 1653/1653; cada migración validada con begin…rollback en flbgmlvfiejfttlawnfu antes de aplicarla.
+- Rollback: controlador a la release 2.2.11 (ab7d8d3); reversas en supabase/rollbacks/ (la de pii restablece la lectura pública previa).
+
+
 ## [2.2.11] - 2026-11-12
 
 - Registro: los chips de estilos del paso 03, los estilos elegidos, la revisión y la edición de perfil (Cuenta y dashboard) salen del catálogo nuevo y no de los nombres viejos de tattoo_styles; animaciones de entrada en Inicio, Crear cuenta y el registro. Monedas: los 24 códigos de los 32 países en todos los selectores del sitio (CurrencyUtils.COUNTRY_CURRENCIES).

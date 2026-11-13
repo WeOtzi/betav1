@@ -21,6 +21,8 @@
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
+    <script src="/shared/js/wo-consent.js" defer></script>
 </head>
 <body class="wo-app cw-page">
 
@@ -347,6 +349,19 @@
         </footer>
     </div>
 
+    <!-- ================= Confirmá tu email (diseño propio con el DS) ================= -->
+    <div id="cw-confirm" class="wo-hidden">
+        <header class="cw-success-topbar">
+            <span class="wo-marks" aria-hidden="true">
+                <span class="wo-mark-square"></span>
+                <span class="wo-mark-circle"></span>
+                <span class="wo-mark-triangle"></span>
+            </span>
+            <span class="cw-wordmark">WE ÖTZI</span>
+        </header>
+        <main id="cw-confirm-main"></main>
+    </div>
+
     <!-- ================= Éxito (415:1677) ================= -->
     <div id="cw-success" class="wo-hidden">
         <header class="cw-success-topbar">
@@ -372,6 +387,7 @@
         </main>
     </div>
 
+    <script src="/shared/js/email-confirmation.js"></script>
     <script src="/shared/js/client-auth.js"></script>
     <script>
     // =========================================================================
@@ -405,6 +421,17 @@
         var stylesCatalog = null;
         var busy = false;
         var saveTimer = null;
+        // ── confirmacion-email: { userId, email, sentAt } mientras falta confirmar.
+        var pendingConfirmation = null;
+        var PHOTO_STASH_KEY = 'client-register-photo';
+        var EC = window.WeotziEmailConfirm || null;
+
+        // Antes de DOMContentLoaded: si hay un registro esperando confirmación,
+        // client-auth.js no redirige al panel y deja que el wizard lo retome.
+        try {
+            var pendingRaw = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+            if (pendingRaw && pendingRaw.pendingConfirmation) window.WO_CLIENT_REGISTER_RESUME = true;
+        } catch (e) { /* sin storage */ }
 
         function $(id) { return document.getElementById(id); }
 
@@ -433,7 +460,8 @@
                     notifDiscovery: state.notifDiscovery,
                     styles: state.styles, intent: state.intent,
                     artistChoice: state.artistChoice,
-                    artistUserId: state.artistUserId, artistLabel: state.artistLabel
+                    artistUserId: state.artistUserId, artistLabel: state.artistLabel,
+                    pendingConfirmation: pendingConfirmation
                 }));
             } catch (e) { /* almacenamiento no disponible: seguimos sin borrador */ }
         }
@@ -455,6 +483,7 @@
                     if (typeof d[k] === 'boolean') state[k] = d[k];
                 });
                 if (Array.isArray(d.styles)) state.styles = d.styles;
+                if (d.pendingConfirmation && d.pendingConfirmation.email) pendingConfirmation = d.pendingConfirmation;
                 if (d.maxStep >= 1 && d.maxStep <= TOTAL_STEPS) state.maxStep = d.maxStep;
                 if (d.step >= 1 && d.step <= TOTAL_STEPS) state.step = d.step;
             } catch (e) { /* borrador corrupto: se ignora */ }
@@ -889,7 +918,91 @@
             $('cw-shell').classList.add('wo-hidden');
             $('cw-shell').style.display = 'none';
             $('cw-success').classList.remove('wo-hidden');
+            clearTimeout(saveTimer); // un guardado diferido no debe revivir el borrador
             try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* sin storage */ }
+            pendingConfirmation = null;
+            window.WO_CLIENT_REGISTER_RESUME = false;
+            if (EC) EC.clearFiles(PHOTO_STASH_KEY);
+        }
+
+        // ---------------- Confirmá tu email ----------------
+        // Con "Confirm email" activo, signUp no abre sesión: se guarda el
+        // borrador (sin contraseña) y la foto en IndexedDB, y el perfil se
+        // completa al volver desde el link de confirmación.
+        function showConfirm() {
+            $('cw-shell').classList.add('wo-hidden');
+            $('cw-shell').style.display = 'none';
+            $('cw-success').classList.add('wo-hidden');
+            $('cw-confirm').classList.remove('wo-hidden');
+            var main = $('cw-confirm-main');
+            if (!EC) {
+                main.innerHTML = '<p class="cw-success-sub">Revisá tu email para confirmar la cuenta.</p>';
+                return;
+            }
+            EC.renderPending(main, {
+                email: pendingConfirmation.email,
+                sentAt: pendingConfirmation.sentAt,
+                client: window._supabase,
+                redirectTo: clientConfirmRedirectUrl(),
+                note: 'Guardamos tu progreso en este navegador. Cuando abras el link, terminamos tu perfil con lo que ya cargaste.',
+                changeEmailMode: 'callback',
+                onChangeEmail: function () {
+                    // La cuenta anterior queda sin confirmar (no se puede usar).
+                    pendingConfirmation = null;
+                    accountUserId = null;
+                    window.WO_CLIENT_REGISTER_RESUME = false;
+                    saveDraft();
+                    $('cw-confirm').classList.add('wo-hidden');
+                    $('cw-shell').classList.remove('wo-hidden');
+                    $('cw-shell').style.display = '';
+                    $('cw-email').disabled = false;
+                    $('cw-password').disabled = false;
+                    $('cw-account-note').classList.add('wo-hidden');
+                    go(1);
+                    showMsg('Escribí el email correcto y tu contraseña para crear la cuenta. El resto de tus datos quedó guardado.', 'info');
+                    $('cw-email').focus();
+                }
+            });
+        }
+
+        async function resumeAfterConfirmation() {
+            var session = null;
+            try {
+                var res = await window._supabase.auth.getSession();
+                session = res && res.data && res.data.session;
+            } catch (e) { session = null; }
+            var sameAccount = session && session.user && (
+                session.user.id === pendingConfirmation.userId ||
+                String(session.user.email || '').toLowerCase() === String(pendingConfirmation.email || '').toLowerCase());
+            if (!sameAccount) { showConfirm(); return; }
+            accountUserId = session.user.id;
+            if (EC) {
+                var files = await EC.takeFiles(PHOTO_STASH_KEY);
+                if (files && files[0]) photoFile = files[0];
+            }
+            $('cw-confirm').classList.add('wo-hidden');
+            $('cw-shell').classList.remove('wo-hidden');
+            $('cw-shell').style.display = '';
+            go(TOTAL_STEPS);
+            showMsg('Tu email está confirmado. Terminando tu perfil…', 'success');
+            setBusy('Guardando tu perfil...');
+            try {
+                await finalizeProfile(accountUserId);
+            } catch (err) {
+                setIdle();
+                if (isUsernameTaken(err)) {
+                    pendingConfirmation = null;
+                    window.WO_CLIENT_REGISTER_RESUME = false;
+                    saveDraft();
+                    lockAccountFields();
+                    go(1);
+                    showMsg('Ese nombre de usuario ya está en uso. Elegí otro y volvé a intentar.', 'error');
+                    return;
+                }
+                console.warn('Perfil incompleto (se puede completar después):', err);
+            }
+            setIdle();
+            showSuccess();
         }
 
         async function submitFinal() {
@@ -912,6 +1025,15 @@
                         username: state.username
                     });
                     accountUserId = user && user.id;
+                    if (user && user.pendingEmailConfirmation) {
+                        accountUserId = null;
+                        pendingConfirmation = { userId: user.id, email: state.email, sentAt: Date.now() };
+                        saveDraft();
+                        if (EC && photoFile) await EC.stashFiles(PHOTO_STASH_KEY, [photoFile]);
+                        setIdle();
+                        showConfirm();
+                        return;
+                    }
                 } catch (err) {
                     console.error('Registro:', err);
                     setIdle();
@@ -986,6 +1108,7 @@
 
             renderShell();
             if (state.step === 3) renderStyles();
+            if (pendingConfirmation) resumeAfterConfirmation();
         });
     })();
     </script>

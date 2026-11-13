@@ -790,11 +790,24 @@ async function handleLogin(e) {
         btn.innerHTML = originalText;
         btn.disabled = false;
         
+        // ── confirmacion-email: cuenta sin confirmar → aviso con "Reenviar email".
+        const EC = window.WeotziEmailConfirm;
+        const loginBox = document.getElementById('login-message');
+        if (EC && loginBox && EC.isEmailNotConfirmedError(error)) {
+            loginBox.className = '';
+            EC.renderLoginNotice(loginBox, {
+                email,
+                client: _supabase,
+                redirectTo: EC.redirectUrl('/register-artist/', { confirmado: '1' })
+            });
+            return;
+        }
+
         let errorMessage = 'Error al iniciar sesion.';
         if (error.message.includes('Invalid login credentials')) {
             errorMessage = 'Email o contrasena incorrectos.';
         }
-        
+
         showLoginMessage(errorMessage, 'error');
     }
 }

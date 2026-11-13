@@ -22,7 +22,47 @@
     }
     var run = D.run;
 
-    var DEST_SELECT = 'id, artist_user_id, method, label, holder_name, currency, account_identifier, rail, country_code, verification_status, verified_at, is_default, active, metadata_json, created_at, updated_at';
+    // ── cifrado ── (ronda 3c) Soporte lee solo los últimos 4 del número de
+    // cuenta; el número completo lo entrega el servidor (revealDestination,
+    // auditado). Si la migración 20261113104000 todavía no está aplicada, cae a
+    // la columna en claro y la recorta acá (mismo dato que antes).
+    var DEST_SELECT = 'id, artist_user_id, method, label, holder_name, currency, account_identifier_last4, rail, country_code, verification_status, verified_at, is_default, active, metadata_json, created_at, updated_at';
+    var DEST_SELECT_LEGACY = 'id, artist_user_id, method, label, holder_name, currency, account_identifier, rail, country_code, verification_status, verified_at, is_default, active, metadata_json, created_at, updated_at';
+
+    function destView(row) {
+        if (!row) return row;
+        var out = Object.assign({}, row);
+        var tail = out.account_identifier_last4 || String(out.account_identifier || '').replace(/[^A-Za-z0-9]/g, '').slice(-4);
+        delete out.account_identifier;
+        delete out.account_identifier_enc;
+        delete out.account_identifier_key_id;
+        out.account_identifier_last4 = tail || null;
+        return out;
+    }
+
+    function missingLast4(err) {
+        return /account_identifier_last4/.test(String(err && (err.message || err.details) || ''));
+    }
+
+    // Corre la consulta con DEST_SELECT y, si falta la columna nueva, con la legada.
+    async function selectDestinations(label, build) {
+        var res;
+        try {
+            res = await run(label, function (c) { return build(c, DEST_SELECT); });
+        } catch (err) {
+            if (!missingLast4(err)) throw err;
+            res = await run(label + '.legacy', function (c) { return build(c, DEST_SELECT_LEGACY); });
+        }
+        return (res.data || []).map(destView);
+    }
+
+    function appPath(path) {
+        if (root.WoDemo && typeof root.WoDemo.appPath === 'function') return root.WoDemo.appPath(path);
+        var base = root.WEOTZI_BASE_PATH
+            ? String(root.WEOTZI_BASE_PATH).replace(/\/$/, '')
+            : (/^\/beta(?:\/|$)/.test(String((root.location && root.location.pathname) || '')) ? '/beta' : '');
+        return base && String(path).indexOf(base + '/') !== 0 ? base + path : path;
+    }
     var DOC_SELECT = 'id, artist_user_id, doc_type, file_name, storage_path, status, uploaded_at, reviewed_at, reviewer_notes';
     var ARTIST_SELECT = 'user_id, name, username, email, country, city, verification_state';
     var DEST_STATUS = { pending: 'pending', verified: 'verified', rejected: 'rejected' };
@@ -35,12 +75,11 @@
     var SupportVerification = {
         // status: 'pending' | 'verified' | 'rejected' | 'all'
         async listDestinations(status) {
-            var res = await run('supportVerification.destinations', function (c) {
-                var q = c.from('artist_payout_destinations').select(DEST_SELECT).eq('active', true);
+            return selectDestinations('supportVerification.destinations', function (c, cols) {
+                var q = c.from('artist_payout_destinations').select(cols).eq('active', true);
                 if (DEST_STATUS[status]) q = q.eq('verification_status', DEST_STATUS[status]);
                 return q.order('created_at', { ascending: true }).limit(300);
             });
-            return res.data || [];
         },
 
         async listDocuments(status) {
@@ -63,7 +102,9 @@
             var ids = Array.from(new Set((userIds || []).filter(Boolean).map(String)));
             if (!ids.length) return [];
             var res = await run('supportVerification.artists', function (c) {
-                return c.from('artists_db').select(ARTIST_SELECT).in('user_id', ids.slice(0, 300));
+                // pii-artistas: email es privada en artists_db; soporte lee la fila
+                // completa por la RPC support_list_artists (chequea is_support_user()).
+                return c.rpc('support_list_artists', { p_user_ids: ids.slice(0, 300) }).select(ARTIST_SELECT);
             });
             return res.data || [];
         },
@@ -100,10 +141,9 @@
         async destinationsByIds(ids) {
             var list = Array.from(new Set((ids || []).filter(Boolean).map(String)));
             if (!list.length) return [];
-            var res = await run('supportVerification.destinationsByIds', function (c) {
-                return c.from('artist_payout_destinations').select(DEST_SELECT).in('id', list.slice(0, 300));
+            return selectDestinations('supportVerification.destinationsByIds', function (c, cols) {
+                return c.from('artist_payout_destinations').select(cols).in('id', list.slice(0, 300));
             });
-            return res.data || [];
         },
 
         // outcome: 'completed' (pagado, con referencia) | 'failed' (con nota).
@@ -120,7 +160,38 @@
             var res = await run('supportVerification.reviewDestination', function (c) {
                 return c.rpc('support_review_payout_destination', { p_destination_id: id, p_decision: decision, p_note: note || null });
             });
-            return rpcRow(res.data);
+            return destView(rpcRow(res.data));
+        },
+
+        // ── cifrado ── número completo del destino, por el servidor (auditado).
+        // purpose: 'verification' | 'withdrawal_settlement'. { available:false } en el preview.
+        async revealDestination(id, purpose) {
+            if (typeof root.fetch !== 'function') return { available: false, value: null };
+            var token = '';
+            try {
+                var client = typeof D.getClient === 'function' ? D.getClient() : null;
+                var sess = client ? await client.auth.getSession() : null;
+                token = (sess && sess.data && sess.data.session && sess.data.session.access_token) || '';
+            } catch (_e) { token = ''; }
+            var headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
+            if (token) headers.Authorization = 'Bearer ' + token;
+            var res;
+            try {
+                res = await root.fetch(appPath('/api/support/payout-destinations/' + encodeURIComponent(id) + '/reveal'), {
+                    method: 'POST', headers: headers, cache: 'no-store', credentials: 'same-origin',
+                    body: JSON.stringify({ purpose: purpose })
+                });
+            } catch (_e) {
+                return { available: false, value: null };
+            }
+            var json = null;
+            try { json = await res.json(); } catch (_e) { json = null; }
+            json = json || {};
+            if ((res.status === 404 && !json.error) || json.preview === true) return { available: false, value: null };
+            if (res.ok && json.success) return { available: true, value: String(json.account_identifier || '') };
+            var err = new Error(json.error || 'No pudimos mostrar el número de cuenta.');
+            err.status = res.status;
+            throw err;
         },
 
         async reviewDocument(id, decision, note) {

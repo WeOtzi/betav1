@@ -29,6 +29,7 @@ const { legacyRedirectFor, legacyLocation } = require('./lib/legacy-routes');
 const { pgrest } = require('./lib/postgrest');
 const termsAcceptance = require('./lib/terms-acceptance'); // ── cotizaciones · P3
 const { resolveBearerUser } = require('./lib/auth/supabase-auth');
+const privacidadCookies = require('./lib/privacidad-cookies'); // ── privacidad
 const { QuotationsRepo } = require('./lib/repos/quotations');
 const { JobBoardRepo } = require('./lib/repos/jobboard');
 const { CurrenciesRepo } = require('./lib/repos/currencies');
@@ -1545,8 +1546,9 @@ app.get('/api/client-info', (req, res) => {
                req.ip ||
                'unknown';
     
+    // ── privacidad ── nunca la IP completa: se guarda en session_logs.user_ip.
     res.json({
-        ip: ip,
+        ip: privacidadCookies.anonymizeIp(ip) || 'unknown',
         timestamp: new Date().toISOString()
     });
 });
@@ -1583,16 +1585,13 @@ app.post('/api/session-log', async (req, res) => {
             const isLocal = !clientIp || clientIp === '::1' || clientIp === '127.0.0.1' || clientIp.startsWith('192.168.') || clientIp.startsWith('10.');
 
             if (!isLocal) {
-                const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,country,city`, {
-                    signal: AbortSignal.timeout(3000)
-                });
-                const geo = await geoRes.json();
-
-                if (geo.status === 'success' && (geo.country || geo.city)) {
+                // ── privacidad ── la IP ya no sale a terceros (antes se consultaba ip-api.com sin TLS).
+                // País aproximado por la zona horaria / idioma del navegador.
+                const country = privacidadCookies.countryFromHints(req.body && req.body.geo_hint);
+                if (country) {
                     await pgrest('session_logs')
                         .eq('id', session_log_id)
-                        .patch({ country: geo.country, city: geo.city }, { returning: false });
-                    console.log(`[Session Log] Geo resolved for ${session_log_id}: ${geo.city}, ${geo.country}`);
+                        .patch({ country }, { returning: false });
                 }
             }
         } catch (err) {
@@ -2235,6 +2234,8 @@ const ADMIN_DATABASE_TABLES = [
     { name: 'artist_account_sessions', description: 'Sesiones de cuenta de artistas' },
     { name: 'artist_integration_connections', description: 'Integraciones de cuenta de artistas' },
     { name: 'artist_account_deletion_requests', description: 'Solicitudes de eliminacion de cuenta' },
+    { name: 'account_deletion_requests', description: 'Bajas de cuenta (cliente, artista, estudio) gestionadas por soporte' },
+    { name: 'account_deletion_events', description: 'Auditoria de las bajas de cuenta' },
     { name: 'artist_verification_documents', description: 'Documentos de verificacion de artistas' },
     { name: 'verification_history', description: 'Historial de verificaciones' },
     // Catalog / artist content
@@ -2802,15 +2803,18 @@ app.post('/api/admin/support-users', async (req, res) => {
 
         const existingUsers = await listAuthUsersByEmail(email);
         let authUser = existingUsers[0] || null;
+        // ── confirmacion-email: también el personal de soporte confirma su email.
+        let supportConfirmationRequired = false;
 
         if (!authUser) {
+            supportConfirmationRequired = await isEmailConfirmationRequired();
             const authResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
                 method: 'POST',
                 headers: getAdminHeaders(serviceRoleKey),
                 body: JSON.stringify({
                     email,
                     password,
-                    email_confirm: true,
+                    ...emailConfirmation.adminCreateConfirmFields(supportConfirmationRequired),
                     user_metadata: { full_name: fullName, role: 'support_user' },
                     app_metadata: { role: 'support_user' }
                 })
@@ -2840,7 +2844,15 @@ app.post('/api/admin/support-users', async (req, res) => {
             }
         });
 
-        res.json({ success: true, user: Array.isArray(rows) ? rows[0] : null });
+        const supportConfirmationSend = supportConfirmationRequired
+            ? await sendServerSignupConfirmation(req, email, 'support')
+            : null;
+        res.json({
+            success: true,
+            user: Array.isArray(rows) ? rows[0] : null,
+            email_confirmation_required: supportConfirmationRequired,
+            email_confirmation_sent: supportConfirmationSend ? supportConfirmationSend.ok : null
+        });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
@@ -5558,7 +5570,42 @@ async function issueStudioClaimUrl(req, { studioId, artistUserId }) {
     }
 }
 
-async function createArtistAuthUser({ email, password, fullName, username, draftId, source }) {
+// ── confirmacion-email ──
+// Las cuentas que crea el servidor (artistas, soporte) respetan el
+// interruptor "Confirm email" de Supabase: con la confirmación activa quedan
+// sin confirmar y se envía el email "Confirm signup" (lib/email-confirmation.js).
+const emailConfirmation = require('./lib/email-confirmation');
+let _emailConfirmationReader = null;
+function isEmailConfirmationRequired() {
+    if (!_emailConfirmationReader) {
+        const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
+        _emailConfirmationReader = emailConfirmation.createConfirmationModeReader({
+            fetchImpl: (...args) => fetch(...args),
+            supabaseUrl,
+            apiKey: process.env.SUPABASE_ANON_KEY || serviceRoleKey,
+            mode: process.env.AUTH_EMAIL_CONFIRMATION,
+            log: (msg) => console.warn(msg)
+        });
+    }
+    return _emailConfirmationReader();
+}
+// Envía (o reenvía) el email de confirmación. Nunca hace fallar el alta: si
+// no sale, la persona lo pide con "Reenviar email" desde el login.
+async function sendServerSignupConfirmation(req, email, role) {
+    const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
+    const pathName = emailConfirmation.CONFIRM_REDIRECT_PATHS[role] || '/';
+    const result = await emailConfirmation.sendSignupConfirmation({
+        fetchImpl: (...args) => fetch(...args),
+        supabaseUrl,
+        apiKey: process.env.SUPABASE_ANON_KEY || serviceRoleKey,
+        email,
+        redirectTo: requestAbsoluteUrl(req, pathName)
+    });
+    if (!result.ok) console.warn(`[email-confirmation] no se pudo enviar el email (${role}): HTTP ${result.status} ${result.error || ''}`);
+    return result;
+}
+
+async function createArtistAuthUser({ email, password, fullName, username, draftId, source, confirmationRequired = false }) {
     const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
     const response = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
         method: 'POST',
@@ -5566,7 +5613,7 @@ async function createArtistAuthUser({ email, password, fullName, username, draft
         body: JSON.stringify({
             email,
             password,
-            email_confirm: true,
+            ...emailConfirmation.adminCreateConfirmFields(confirmationRequired),
             app_metadata: { qa_unverified_email: true, registration_draft_id: draftId },
             user_metadata: {
                 display_name: fullName || 'Artista',
@@ -5806,9 +5853,12 @@ app.post('/api/register/artist-finalize', async (req, res) => {
         }
 
         const fullName = artistRegistration.capitalizeWords(formData.full_name);
+        // ── confirmacion-email: el modo lo decide Supabase (/auth/v1/settings).
+        let emailConfirmationRequired = await isEmailConfirmationRequired();
         if (ownAuthUser) {
             await updateArtistAuthUserPassword(ownAuthUser.id, password);
             authUser = ownAuthUser;
+            emailConfirmationRequired = !ownAuthUser.email_confirmed_at;
         } else {
             authUser = await createArtistAuthUser({
                 email,
@@ -5816,7 +5866,8 @@ app.post('/api/register/artist-finalize', async (req, res) => {
                 fullName,
                 username,
                 draftId,
-                source
+                source,
+                confirmationRequired: emailConfirmationRequired
             });
         }
         if (!authUser || !authUser.id) {
@@ -5863,9 +5914,17 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             ? await issueStudioClaimUrl(req, { studioId: studio.claimableStudioId, artistUserId: authUser.id })
             : null;
 
+        // ── confirmacion-email: recién con todo guardado se envía el email
+        // (si se compensara antes, el link apuntaría a una cuenta borrada).
+        const confirmationSend = emailConfirmationRequired
+            ? await sendServerSignupConfirmation(req, email, 'artist')
+            : null;
+
         return res.json({
             success: true,
             user_id: authUser.id,
+            email_confirmation_required: Boolean(emailConfirmationRequired),
+            email_confirmation_sent: confirmationSend ? confirmationSend.ok : null,
             draft_id: draftId,
             registration_status: artistRegistration.REGISTRATION_STATUS_PENDING_VALIDATION,
             artist: artistRegistration.publicArtistDraft(artist),
@@ -6521,12 +6580,14 @@ app.post('/api/support/artist-decision-notify', async (req, res) => {
 
 
 // ── cotizaciones ──
-// Ronda 3 · P10: vencimiento de cotizaciones. La RPC service-role
-// expire_stale_quotations (migración 20261112160000) pasa a 'expired' las
-// respuestas cuya vigencia venció y el servidor avisa al cliente por email
-// (evento server-only quotation_expired). Dos disparadores:
+// Ronda 3 · P10: vencimiento de cotizaciones, OPCIONAL por cotización
+// (decisión del dueño 13 nov 2026: el artista lo activa y elige los días).
+// La RPC service-role expire_stale_quotations(p_limit, p_opt_in_only)
+// (migración 20261113100000) pasa a 'expired' solo las respuestas con
+// quote_expiry_enabled cuya fecha pasó, y el servidor avisa a esos clientes
+// por email (evento server-only quotation_expired). Dos disparadores:
 //   - POST /api/quotations/maintenance/expire con X-Cron-Token (n8n, como la Store);
-//   - job interno opt-in (QUOTATION_EXPIRY_JOB=on, cada QUOTATION_EXPIRY_INTERVAL_MIN).
+//   - job interno prendido por defecto, cada hora (QUOTATION_EXPIRY_JOB=off lo apaga).
 // Lógica pura y configuración en lib/quotation-expiry.js.
 const quotationExpiry = require('./lib/quotation-expiry');
 const quotationExpiryDeps = {
@@ -6550,7 +6611,7 @@ app.post('/api/quotations/maintenance/expire', async (req, res) => {
         return res.json({ success: true, ...result });
     } catch (error) {
         if (quotationExpiry.isMissingRpcError(error)) {
-            return res.status(503).json({ success: false, error: 'Falta aplicar la migración 20261112160000.' });
+            return res.status(503).json({ success: false, error: `Falta aplicar la migración ${quotationExpiry.MIGRATION}.` });
         }
         console.error('[quotations] maintenance/expire failed:', error.message);
         return res.status(500).json({ success: false, error: 'No pudimos vencer las cotizaciones.' });
@@ -6561,6 +6622,416 @@ if (require.main === module) {
     quotationExpiry.startExpiryJob(quotationExpiryDeps, quotationExpiry.expiryConfig());
 }
 // ── fin cotizaciones ──
+
+// ── gcal ──
+// Ronda 3b: Google Calendar real para artistas (Cuenta 801:571 + calendario).
+// OAuth 2.0 web server flow (scope calendar.events + openid email, offline,
+// prompt=consent, state cifrado + cookie httpOnly + PKCE). Credenciales SOLO
+// por entorno: GOOGLE_OAUTH_CLIENT_ID / _SECRET / _REDIRECT_URI y
+// GCAL_TOKEN_ENC_KEY. Sin ellas, todo responde 503 y la UI lo muestra.
+// Job cada 15 min (GCAL_SYNC_JOB=off lo apaga). Nunca se loguean tokens.
+// Lógica en lib/gcal-oauth.js + lib/gcal-sync.js; datos en lib/repos/google-calendar.js.
+const gcalOauth = require('./lib/gcal-oauth');
+const gcalSync = require('./lib/gcal-sync');
+const { GoogleCalendarRepo } = require('./lib/repos/google-calendar');
+const gcalCfg = gcalOauth.gcalConfig();
+const gcalService = gcalSync.createGcalService({
+    cfg: gcalCfg,
+    google: gcalOauth.createGoogleClient({ cfg: gcalCfg }),
+    db: GoogleCalendarRepo,
+    baseUrl: applicationBase({ headers: {}, get: () => '' }),
+    log: console
+});
+
+function gcalNotConfigured(res) {
+    return res.status(503).json({ success: false, configured: false, error: gcalOauth.NOT_CONFIGURED_MESSAGE });
+}
+
+async function gcalCaller(req, res) {
+    res.set('Cache-Control', 'no-store');
+    if (!gcalCfg.configured) { gcalNotConfigured(res); return null; }
+    const userId = await resolveCallerUserId(req);
+    if (!userId) { res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' }); return null; }
+    return userId;
+}
+
+function gcalSendError(res, err, fallback) {
+    const status = err && err.status && err.status >= 400 && err.status < 600 ? err.status : 500;
+    if (status === 503) return gcalNotConfigured(res);
+    if (status >= 500) console.error('[gcal]', fallback, err && (err.code || err.message));
+    return res.status(status).json({ success: false, error: status < 500 && err.message ? err.message : fallback });
+}
+
+app.get('/api/google-calendar/status', async (req, res) => {
+    const userId = await gcalCaller(req, res);
+    if (!userId) return;
+    try {
+        return res.json({ success: true, configured: true, ...(await gcalService.status(userId)) });
+    } catch (err) {
+        return gcalSendError(res, err, 'No pudimos leer el estado de Google Calendar.');
+    }
+});
+
+app.get('/api/google-calendar/authorize', async (req, res) => {
+    const userId = await gcalCaller(req, res);
+    if (!userId) return;
+    try {
+        const { url, nonce } = await gcalService.authorize(userId);
+        const secure = req.secure || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https'
+            || /^https:/.test(gcalCfg.redirectUri);
+        res.append('Set-Cookie', gcalOauth.nonceCookie(nonce, { secure }));
+        return res.json({ success: true, url });
+    } catch (err) {
+        return gcalSendError(res, err, 'No pudimos iniciar la conexión con Google.');
+    }
+});
+
+app.get('/api/google-calendar/callback', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.set('Referrer-Policy', 'no-referrer');
+    const cookieNonce = gcalOauth.readCookie(req.headers.cookie, gcalOauth.NONCE_COOKIE);
+    res.append('Set-Cookie', gcalOauth.nonceCookie('', { clear: true, secure: /^https:/.test(gcalCfg.redirectUri) }));
+    const query = {
+        code: typeof req.query.code === 'string' ? req.query.code : '',
+        state: typeof req.query.state === 'string' ? req.query.state : '',
+        error: typeof req.query.error === 'string' ? req.query.error : ''
+    };
+    const result = await gcalService.callback(query, cookieNonce);
+    if (result.ok) {
+        gcalService.syncUser(result.userId).catch(() => null); // primera sincronización
+        return res.redirect(302, gcalOauth.accountReturnPath(gcalCfg, 'ok'));
+    }
+    return res.redirect(302, gcalOauth.accountReturnPath(gcalCfg, 'error', result.reason));
+});
+
+app.post('/api/google-calendar/disconnect', async (req, res) => {
+    const userId = await gcalCaller(req, res);
+    if (!userId) return;
+    try {
+        const result = await gcalService.disconnect(userId);
+        return res.json({ success: true, ...result });
+    } catch (err) {
+        return gcalSendError(res, err, 'No pudimos desconectar Google Calendar.');
+    }
+});
+
+// La UI lo pide al guardar un evento (con freno de 20 s por artista).
+app.post('/api/google-calendar/sync', async (req, res) => {
+    const userId = await gcalCaller(req, res);
+    if (!userId) return;
+    try {
+        const result = await gcalService.requestSync(userId);
+        return res.json({ success: true, result });
+    } catch (err) {
+        return gcalSendError(res, err, 'No pudimos sincronizar con Google Calendar.');
+    }
+});
+
+if (require.main === module && gcalCfg.configured && gcalSync.syncJobEnabled()) {
+    gcalSync.startSyncJob(gcalService);
+}
+// ── fin gcal ──
+
+// ── borrado ──
+// Ronda 3c: bajas de cuenta (cliente, artista, dueño de estudio) gestionadas
+// por soporte. El usuario pide y cancela por RPC (request_account_deletion /
+// cancel_account_deletion); soporte revisa por RPC (support_review_account_deletion).
+// El servidor solo: (1) avisa por email el estado actual (una vez por estado,
+// relee la fila con service-role; lo pide el dueño o soporte) y (2) ejecuta el
+// borrado aprobado, recalculando bloqueos y dejando auditoría. Migración
+// 20261113103000; lógica en lib/account-deletion.js.
+const accountDeletion = require('./lib/account-deletion');
+const accountDeletionRelations = require('./lib/artist-relations');
+
+async function accountDeletionRow(id) {
+    const rows = await pgrest('account_deletion_requests').select('*').eq('id', id).limit(1).execute();
+    return (rows && rows[0]) || null;
+}
+
+function accountDeletionMissing(err) {
+    return /account_deletion|PGRST20[25]|42P01|42883/i.test(String((err && err.message) || ''));
+}
+
+app.post('/api/account-deletion/notify', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const id = String((req.body && req.body.id) || '');
+    if (!accountDeletion.isUuid(id)) return res.status(400).json({ success: false, error: 'Falta la solicitud.' });
+    const user = await _getAuthUserFromBearer(req);
+    if (!user?.id) return res.status(401).json({ success: false, error: 'Authentication required' });
+    try {
+        const row = await accountDeletionRow(id);
+        if (!row) return res.status(404).json({ success: false, error: 'No encontramos esa solicitud.' });
+        if (row.user_id !== user.id) {
+            const agent = await _getActiveSupportAgent(req);
+            if (!agent.ok) return res.status(403).json({ success: false, error: 'No podés avisar sobre esta solicitud.' });
+        }
+        // 'completed' lo avisa solo la ejecución.
+        if (row.status === 'completed') return res.json({ success: true, sent: false, skipped: 'completed_by_execute' });
+        const result = await accountDeletion.notifyStatus(row, {
+            sendEmail: (eventId, payload, options) => emailService.sendEmail(eventId, payload, options),
+            baseUrl: applicationBase(req)
+        });
+        return res.json({ success: true, ...result });
+    } catch (err) {
+        if (accountDeletionMissing(err)) return res.status(503).json({ success: false, error: `Falta aplicar la migración ${accountDeletion.MIGRATION}.` });
+        console.error('[borrado] aviso:', err.message);
+        return res.status(500).json({ success: false, error: 'No pudimos enviar el aviso por email.' });
+    }
+});
+
+app.post('/api/support/account-deletions/:id/execute', authLimiter, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const agent = await _getActiveSupportAgent(req);
+    if (!agent.ok) return res.status(agent.status).json({ success: false, error: agent.error });
+    const id = String(req.params.id || '');
+    if (!accountDeletion.isUuid(id)) return res.status(400).json({ success: false, error: 'Solicitud no válida.' });
+    if (!accountDeletion.isConfirmText(req.body && req.body.confirm)) {
+        return res.status(400).json({ success: false, error: `Escribí ${accountDeletion.CONFIRM_WORD} para confirmar.` });
+    }
+    const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
+    if (!supabaseUrl || !serviceRoleKey) return res.status(500).json({ success: false, error: 'Server missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' });
+
+    const audit = (action, fromStatus, toStatus, detail) => pgrest('account_deletion_events').insert([{
+        request_id: id, actor_user_id: agent.supportUserId, actor_role: 'support', action,
+        from_status: fromStatus, to_status: toStatus, detail: detail || {}
+    }], { returning: false }).catch((e) => console.error('[borrado] auditoría:', e.message));
+
+    let row;
+    try {
+        row = await accountDeletionRow(id);
+    } catch (err) {
+        if (accountDeletionMissing(err)) return res.status(503).json({ success: false, error: `Falta aplicar la migración ${accountDeletion.MIGRATION}.` });
+        return res.status(502).json({ success: false, error: 'No pudimos leer la solicitud.' });
+    }
+    let live = null;
+    try {
+        live = await pgrest.raw('rpc/account_deletion_blockers', { method: 'POST', body: { p_user_id: row && row.user_id } });
+    } catch (err) {
+        console.error('[borrado] bloqueos:', err.message);
+    }
+    const gate = accountDeletion.executionGate(row, live);
+    if (!gate.ok) {
+        if (row && gate.blockers) {
+            await pgrest('account_deletion_requests').eq('id', id).eq('status', 'approved')
+                .patch({ status: 'blocked', blockers: live, blockers_checked_at: new Date().toISOString() }, { returning: false })
+                .catch(() => null);
+            await audit('execute_blocked', 'approved', 'blocked', { blockers: gate.blockers.map((b) => b.code) });
+        }
+        return res.status(gate.status).json({ success: false, error: gate.reason, blockers: gate.blockers || undefined });
+    }
+
+    await audit('execute_started', 'approved', 'approved', { by: agent.supportUser && agent.supportUser.email });
+    try {
+        const result = await accountDeletion.executeAccountDeletion(row, {
+            pgrest,
+            artistRelations: accountDeletionRelations,
+            isSuperadminEmail: (e) => appSettings.isSuperadminEmail(String(e || '').toLowerCase()),
+            deleteAuthUser: async (userId) => {
+                const r = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, { method: 'DELETE', headers: getAdminHeaders(serviceRoleKey) });
+                return { ok: r.ok, status: r.status };
+            }
+        });
+        const doneAt = new Date().toISOString();
+        const updated = await pgrest('account_deletion_requests').eq('id', id).eq('status', 'approved').patch({
+            status: 'completed', completed_at: doneAt, completed_by: agent.supportUserId, reason: null,
+            blockers: live, blockers_checked_at: doneAt
+        }, { returning: true });
+        const finalRow = (Array.isArray(updated) && updated[0]) || { ...row, status: 'completed', completed_at: doneAt };
+        await audit('executed', 'approved', 'completed', { steps: result.steps });
+        const notified = await accountDeletion.notifyStatus(finalRow, {
+            sendEmail: (eventId, payload, options) => emailService.sendEmail(eventId, payload, options),
+            baseUrl: applicationBase(req)
+        }).catch((e) => ({ sent: false, error: e.message }));
+        console.log(`[borrado] cuenta ${row.user_id} eliminada por soporte ${agent.supportUserId} (solicitud ${id})`);
+        return res.json({ success: true, request: finalRow, steps: result.steps, notified });
+    } catch (err) {
+        await audit('execute_failed', 'approved', 'approved', { error: String(err.message || '').slice(0, 300), steps: err.steps || [] });
+        console.error('[borrado] ejecución:', err.message, err.cause && err.cause.message);
+        return res.status(err.status || 500).json({ success: false, error: err.message || 'No pudimos ejecutar la baja.', steps: err.steps || [] });
+    }
+});
+// ── fin borrado ──
+
+// ── cifrado ──
+// Ronda 3c: datos sensibles cifrados por el servidor (AES-256-GCM, clave en
+// DATA_ENC_KEY, rotación con DATA_ENC_KEY_ID + DATA_ENC_PREVIOUS_KEYS).
+// Destinos de retiro: el navegador nunca recibe el número de cuenta completo;
+// solo los últimos 4. Verlo entero: el dueño o soporte (con motivo), con
+// auditoría en sensitive_data_access_log. Sin la clave: 503 en alta, edición
+// y "ver completo"; el listado (solo máscaras) y el resto del servidor siguen.
+// Lógica en lib/field-crypto.js + lib/cifrado-payouts.js; datos en
+// lib/repos/payout-destinations.js. Migración 20261113104000_field_encryption.
+const fieldCryptoLib = require('./lib/field-crypto');
+const cifradoPayouts = require('./lib/cifrado-payouts');
+const { PayoutDestinationsRepo } = require('./lib/repos/payout-destinations');
+const dataCrypto = fieldCryptoLib.getFieldCrypto();
+const payoutService = cifradoPayouts.createPayoutDestinationService({ crypto: dataCrypto, db: PayoutDestinationsRepo, log: console });
+const payoutRevealAllowed = cifradoPayouts.createRevealLimiter({ max: 20, windowMs: 10 * 60 * 1000 });
+if (!dataCrypto.configured) {
+    console.warn('[cifrado] DATA_ENC_KEY no configurada: alta/edición de destinos de retiro y "ver completo" responden 503.');
+} else if (dataCrypto.problems.length) {
+    console.warn('[cifrado] configuración:', dataCrypto.problems.join('; '));
+}
+
+async function payoutCaller(req, res) {
+    res.set('Cache-Control', 'no-store');
+    const userId = await resolveCallerUserId(req);
+    if (!userId) { res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' }); return null; }
+    return userId;
+}
+
+function payoutSendError(res, err, fallback) {
+    const { status, body } = cifradoPayouts.errorResponse(err, fallback);
+    // Sin el mensaje crudo: un error de PostgREST puede traer la fila.
+    if (status >= 500 && status !== 503) console.error('[cifrado]', fallback, err && (err.code || (err.status ? 'HTTP ' + err.status : err.name)));
+    return res.status(status).json(body);
+}
+
+app.get('/api/payout-destinations', async (req, res) => {
+    const userId = await payoutCaller(req, res);
+    if (!userId) return;
+    try {
+        return res.json({ success: true, encryption: dataCrypto.configured, destinations: await payoutService.list(userId) });
+    } catch (err) {
+        return payoutSendError(res, err, 'No pudimos cargar tus destinos de retiro.');
+    }
+});
+
+app.post('/api/payout-destinations', async (req, res) => {
+    const userId = await payoutCaller(req, res);
+    if (!userId) return;
+    try {
+        return res.status(201).json({ success: true, destination: await payoutService.create(userId, req.body || {}) });
+    } catch (err) {
+        return payoutSendError(res, err, 'No pudimos guardar el destino.');
+    }
+});
+
+app.patch('/api/payout-destinations/:id', async (req, res) => {
+    const userId = await payoutCaller(req, res);
+    if (!userId) return;
+    try {
+        return res.json({ success: true, destination: await payoutService.update(userId, req.params.id, req.body || {}) });
+    } catch (err) {
+        return payoutSendError(res, err, 'No pudimos guardar el destino.');
+    }
+});
+
+app.delete('/api/payout-destinations/:id', async (req, res) => {
+    const userId = await payoutCaller(req, res);
+    if (!userId) return;
+    try {
+        return res.json({ success: true, destination: await payoutService.remove(userId, req.params.id) });
+    } catch (err) {
+        return payoutSendError(res, err, 'No pudimos eliminar el destino.');
+    }
+});
+
+app.post('/api/payout-destinations/:id/reveal', async (req, res) => {
+    const userId = await payoutCaller(req, res);
+    if (!userId) return;
+    if (!payoutRevealAllowed('owner:' + userId)) return res.status(429).json({ success: false, error: 'Demasiados pedidos. Probá en unos minutos.' });
+    try {
+        return res.json({ success: true, ...(await payoutService.revealForOwner(userId, req.params.id, { purpose: 'owner_view' })) });
+    } catch (err) {
+        return payoutSendError(res, err, 'No pudimos mostrar el número de cuenta.');
+    }
+});
+
+// Soporte: verificación del destino o liquidación de un retiro (motivo obligatorio).
+app.post('/api/support/payout-destinations/:id/reveal', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const agent = await _getActiveSupportAgent(req);
+    if (!agent.ok) return res.status(agent.status).json({ success: false, error: agent.error });
+    if (!payoutRevealAllowed('support:' + agent.supportUserId)) return res.status(429).json({ success: false, error: 'Demasiados pedidos. Probá en unos minutos.' });
+    try {
+        const purpose = req.body && typeof req.body.purpose === 'string' ? req.body.purpose : '';
+        return res.json({ success: true, ...(await payoutService.revealForSupport(agent.supportUserId, req.params.id, { purpose })) });
+    } catch (err) {
+        return payoutSendError(res, err, 'No pudimos mostrar el número de cuenta.');
+    }
+});
+// ── fin cifrado ──
+
+// ── privacidad ──
+// Banner de cookies: configuración pública (solo lectura), edición desde el
+// backoffice (app_settings.cookie_consent_config) y registro del
+// consentimiento de usuarios con sesión. Lógica pura en lib/privacidad-cookies.js.
+const { PrivacyRepo } = require('./lib/repos/privacy');
+
+async function readCookieConsentConfig({ useCache = true } = {}) {
+    let raw = null;
+    try {
+        raw = await appSettings.getSetting(privacidadCookies.CONFIG_KEY, { useCache });
+    } catch (err) {
+        console.warn('[privacidad] lectura de la configuración falló:', err.message);
+    }
+    return privacidadCookies.parseStoredConfig(raw);
+}
+
+app.get('/api/privacy/cookie-config', async (req, res) => {
+    const config = await readCookieConsentConfig();
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ success: true, config: privacidadCookies.toPublicConfig(config, process.env) });
+});
+
+app.get('/api/admin/privacy/cookie-config', async (req, res) => {
+    const auth = await appSettings.verifyAdminCaller(req);
+    if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
+    const config = await readCookieConsentConfig({ useCache: false });
+    let meta = null;
+    try { meta = await appSettings.getSettingMeta(privacidadCookies.CONFIG_KEY); } catch (_) { /* sin fila todavía */ }
+    res.json({
+        success: true,
+        config,
+        stored: Boolean(meta && meta.configured),
+        updated_at: (meta && meta.updated_at) || null,
+        env_clarity_configured: privacidadCookies.isValidClarityId(String(process.env.CLARITY_PROJECT_ID || '').trim())
+    });
+});
+
+app.put('/api/admin/privacy/cookie-config', async (req, res) => {
+    const auth = await appSettings.verifyAdminCaller(req);
+    if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
+    const { config, errors } = privacidadCookies.sanitizeConfig(req.body && req.body.config);
+    if (errors.length) return res.status(400).json({ success: false, error: errors.join(' '), errors });
+    try {
+        await appSettings.setSetting(privacidadCookies.CONFIG_KEY, JSON.stringify(config), auth.userId);
+        appSettings.clearCache(privacidadCookies.CONFIG_KEY);
+        return res.json({ success: true, config });
+    } catch (err) {
+        console.error('[privacidad] guardado falló:', err.message);
+        return res.status(500).json({ success: false, error: 'No se pudo guardar la configuración' });
+    }
+});
+
+app.get('/api/privacy/cookie-consent', async (req, res) => {
+    const user = await resolveBearerUser(req).catch(() => null);
+    if (!user || !user.id) return res.status(401).json({ success: false, error: 'Sesión requerida' });
+    try {
+        const consent = await PrivacyRepo.getCookieConsent(user.id);
+        res.set('Cache-Control', 'no-store');
+        return res.json({ success: true, consent });
+    } catch (err) {
+        console.error('[privacidad] lectura del consentimiento falló:', err.message);
+        return res.status(500).json({ success: false, error: 'No se pudo leer el consentimiento' });
+    }
+});
+
+app.post('/api/privacy/cookie-consent', async (req, res) => {
+    const user = await resolveBearerUser(req).catch(() => null);
+    if (!user || !user.id) return res.status(401).json({ success: false, error: 'Sesión requerida' });
+    const parsed = privacidadCookies.normalizeConsentPayload(req.body);
+    if (!parsed.ok) return res.status(400).json({ success: false, error: parsed.error });
+    try {
+        const result = await PrivacyRepo.saveCookieConsent(user.id, parsed.consent);
+        return res.json({ success: true, consent: parsed.consent, history: result.log });
+    } catch (err) {
+        console.error('[privacidad] guardado del consentimiento falló:', err.message);
+        return res.status(500).json({ success: false, error: 'No se pudo guardar el consentimiento' });
+    }
+});
+// ── fin privacidad ──
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {

@@ -249,6 +249,11 @@
         return `type-${TYPE_META[type] ? type : 'personal'}`;
     }
 
+    // ── gcal ── Bloques importados de Google Calendar: estilo "ocupado".
+    function externalClass(event) {
+        return event && event.external === 'google' ? ' is-external-google' : '';
+    }
+
     function getDisplayEvents() {
         const query = state.search.trim().toLocaleLowerCase('es');
         return state.events.filter((event) => {
@@ -565,7 +570,7 @@
             confirmed: inMonth.filter((event) => event.type === 'confirmed_session').length,
             pending: inMonth.filter((event) => event.type === 'pending_request' || (event.type === 'reservation' && event.status !== 'scheduled')).length,
             blocked: new Set(inMonth
-                .filter((event) => event.type === 'blocked_day')
+                .filter((event) => event.type === 'blocked_day' && !event.external)
                 .map((event) => dateKey(asDate(event.start)))).size,
         };
     }
@@ -616,7 +621,7 @@
             const dayEvents = eventsForDay(date);
             const outside = date.getMonth() !== state.currentDate.getMonth();
             const eventsHtml = dayEvents.slice(0, MONTH_VISIBLE_EVENTS).map((event) => `
-                <button type="button" class="cal-event ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}" title="${escapeAttr(event.title)}">
+                <button type="button" class="cal-event ${eventClass(event.type)}${externalClass(event)}" data-event-id="${escapeAttr(event.id)}" title="${escapeAttr(event.title)}">
                     ${escapeHtml(event.title)}
                 </button>
             `).join('');
@@ -659,7 +664,7 @@
             <div class="cal-time-allday-label">Todo el día</div>
             ${dates.map((date, index) => `
                 <div class="cal-time-allday" data-date="${dateKey(date)}">${allDayByDate[index].map((event) => `
-                    <button type="button" class="cal-event cal-event--allday ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}" title="${escapeAttr(`Todo el día · ${event.title}`)}">${escapeHtml(event.title)}</button>
+                    <button type="button" class="cal-event cal-event--allday ${eventClass(event.type)}${externalClass(event)}" data-event-id="${escapeAttr(event.id)}" title="${escapeAttr(`Todo el día · ${event.title}`)}">${escapeHtml(event.title)}</button>
                 `).join('')}</div>
             `).join('')}
         ` : '';
@@ -715,7 +720,7 @@
         const startLabel = event.allDay ? time : formatTime(start);
         const restLabel = timeLabel.slice(startLabel.length);
         return `
-            <button type="button" class="cal-event ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}"
+            <button type="button" class="cal-event ${eventClass(event.type)}${externalClass(event)}" data-event-id="${escapeAttr(event.id)}"
                     style="top:${top}%;height:${height}%" title="${escapeAttr(`${time} · ${event.title}`)}">
                 <span class="cal-event-time">${escapeHtml(startLabel)}<span class="cal-event-time-rest">${escapeHtml(restLabel)}</span></span><strong>${escapeHtml(event.title)}</strong>${client}
             </button>
@@ -818,7 +823,7 @@
                         const { start, end } = eventDates(event);
                         const context = [TYPE_META[event.type]?.label, event.location, event.quoteCode].filter(Boolean).join(' · ');
                         return `
-                            <button type="button" class="cal-agenda-event ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}">
+                            <button type="button" class="cal-agenda-event ${eventClass(event.type)}${externalClass(event)}" data-event-id="${escapeAttr(event.id)}">
                                 <time>${event.allDay ? 'Todo el día' : `${formatTime(start)}–${formatTime(end)}`}</time>
                                 <i aria-hidden="true"></i>
                                 <span><strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(context)}</small></span>
@@ -838,7 +843,7 @@
         el['upcoming-list'].innerHTML = events.length ? events.map((event) => {
             const { start } = eventDates(event);
             return `
-                <div class="cal-upcoming-item ${eventClass(event.type)}" data-event-id="${escapeAttr(event.id)}" role="button" tabindex="0">
+                <div class="cal-upcoming-item ${eventClass(event.type)}${externalClass(event)}" data-event-id="${escapeAttr(event.id)}" role="button" tabindex="0">
                     <div>
                         <time>${formatShortDate(start)} · ${event.allDay ? 'Todo el día' : formatTime(start)}</time>
                         <strong>${escapeHtml(event.title)}</strong>
@@ -875,7 +880,7 @@
                 window.location.href = appUrl(event.href);
                 return;
             }
-            showToast(`${event.title} · se administra desde Travel.`);
+            showToast(event.readonlyNote || `${event.title} · se administra desde Travel.`);
             return;
         }
         openEditor(event);

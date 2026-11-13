@@ -96,6 +96,19 @@
             const showRegistration = studio.mediaPending || new URLSearchParams(window.location.search).get('confirmed') === '1';
             window.location.href = auth.appUrl(showRegistration ? '/studio/register?registered=1' : '/studio/dashboard');
         } catch (error) {
+            // ── confirmacion-email: cuenta sin confirmar → aviso con "Reenviar email".
+            const EC = window.WeotziEmailConfirm;
+            if (EC && EC.isEmailNotConfirmedError(error)) {
+                setBusy(button, false);
+                status.className = 'studio-status';
+                EC.renderLoginNotice(status, {
+                    email,
+                    client: auth.getSupabase(),
+                    redirectTo: EC.redirectUrl('/studio/login', { confirmed: '1' })
+                });
+                status.focus();
+                return;
+            }
             const message = /invalid login credentials/i.test(error?.message || '')
                 ? 'El email o la contraseña no son correctos. Revisá tus datos e intentá nuevamente.'
                 : error?.message || 'No pudimos iniciar sesión. Revisá tus datos.';

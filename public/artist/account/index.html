@@ -17,12 +17,14 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
-    <link rel="stylesheet" href="/shared/css/artist-account-ds.css?v=20261112-1">
+    <link rel="stylesheet" href="/shared/css/artist-account-ds.css?v=20261113-gcal">
     <link rel="stylesheet" href="/shared/css/wallet-account.css?v=20261028-3">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
+    <script src="/shared/js/wo-consent.js" defer></script>
 </head>
 <body class="wo-app aac-page">
 
@@ -435,9 +437,12 @@
                 <div class="av-sync" data-integration-row="google_calendar">
                     <div class="av-sync-main"><i data-wo-icon="calendar" aria-hidden="true"></i><strong>Google Calendar</strong></div>
                     <div class="av-sync-side">
-                        <span class="av-sync-note" id="av-sync-note">Sincroniza las ubicaciones activas</span>
+                        <span class="av-sync-note" id="av-sync-note" aria-live="polite">Sincroniza las ubicaciones activas</span>
                         <button type="button" class="av-sync-action" data-integration-action="google_calendar">Conectar</button>
                     </div>
+                    <!-- gcal (ronda 3b): cuenta conectada, última sincronización y error. -->
+                    <p class="av-sync-detail" id="av-sync-detail" hidden></p>
+                    <p class="av-sync-error" id="av-sync-error" role="alert" hidden></p>
                 </div>
 
                 <div class="av-travel">
@@ -501,11 +506,10 @@
                 <div class="aac-sessions" id="aac-sessions"></div>
                 <button type="button" class="aac-btn aac-btn--text" id="aac-close-others">Cerrar todas las demás sesiones</button>
 
-                <div class="aac-danger">
+                <!-- borrado (ronda 3c): la baja la gestiona soporte. Lo pinta account-deletion.js. -->
+                <div class="aac-danger" id="aac-delete-host" data-account-deletion="artist" data-title-class="aac-danger-title" data-text-class="aac-danger-text">
                     <p class="aac-danger-title">Eliminar cuenta</p>
-                    <p class="aac-danger-text">Esta acción es permanente. Se elimina tu perfil, portafolio y todo tu historial en We Ötzi.</p>
-                    <button type="button" class="aac-btn aac-btn--text" id="aac-delete-request">Eliminar mi cuenta</button>
-                    <p class="aac-row-note" id="aac-delete-status"></p>
+                    <p class="aac-danger-text">Cargando…</p>
                 </div>
 
                 <div class="aac-recovery">
@@ -822,19 +826,6 @@
         </form>
     </dialog>
 
-    <dialog class="aac-dialog" id="aac-delete-dialog" aria-labelledby="aac-delete-dialog-title">
-        <form method="dialog" class="aac-dialog-card" id="aac-delete-form">
-            <div class="aac-dialog-bar"><h2 class="aac-dialog-bar-title" id="aac-delete-dialog-title" tabindex="-1" autofocus>Solicitar eliminación</h2><button type="button" class="aac-dialog-x" data-dialog-close="aac-delete-dialog" aria-label="Cerrar">×</button></div>
-            <div class="aac-dialog-body">
-                <p class="wal-confirm-text">Registramos la solicitud para que soporte la revise. Tu cuenta no se borra de inmediato.</p>
-                <div class="wal-form-field"><label class="wal-eyebrow" for="aac-delete-reason">Motivo (opcional)</label><textarea class="wal-input wal-textarea" id="aac-delete-reason" rows="3" maxlength="1000"></textarea></div>
-                <label class="aac-check"><input type="checkbox" id="aac-delete-confirm" required> Entiendo que la eliminación aprobada es permanente.</label>
-                <button type="submit" class="wal-cta wal-cta--center wal-cta--danger">Enviar solicitud</button>
-                <button type="button" class="wal-cancel" data-dialog-close="aac-delete-dialog">Cancelar</button>
-            </div>
-        </form>
-    </dialog>
-
     <dialog class="aac-dialog" id="aac-phone-dialog" aria-labelledby="aac-phone-title">
         <form method="dialog" class="aac-dialog-card" id="aac-phone-form" novalidate>
             <div class="aac-dialog-bar"><h2 class="aac-dialog-bar-title" id="aac-phone-title" tabindex="-1" autofocus>Verificación telefónica</h2><button type="button" class="aac-dialog-x" data-dialog-close="aac-phone-dialog" aria-label="Cerrar">×</button></div>
@@ -875,6 +866,9 @@
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/data/account-repo.js?v=20261030-1"></script>
+    <script src="/shared/js/data/account-deletion-repo.js?v=20261113-borrado"></script>
+    <script src="/shared/js/account-deletion.js?v=20261113-borrado"></script>
+    <script src="/shared/js/data/google-calendar-repo.js?v=20261113-gcal"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/gallery-visibility.js?v=20261030-1"></script>
@@ -883,7 +877,7 @@
     <script src="/shared/js/account-availability-model.js?v=20261028-3"></script>
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/wallet-account.js?v=20261112-integracion"></script>
-    <script src="/shared/js/artist-account.js?v=20261112-1"></script>
+    <script src="/shared/js/artist-account.js?v=20261113-gcal"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>
 </html>

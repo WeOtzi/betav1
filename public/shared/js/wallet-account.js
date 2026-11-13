@@ -208,7 +208,7 @@
         let extra = '';
         if (m.kind === 'withdrawal') {
             const dest = state.destinations.find((d) => d.id === m.destinationId);
-            extra = dest ? `${dest.label} ${M.maskIdentifier(dest.account_identifier)}` : 'Transferencia a tu destino';
+            extra = dest ? `${dest.label} ${M.maskDestination(dest)}` : 'Transferencia a tu destino';
             // ── integracion ── referencia (pagado) o motivo (fallido) que dejó soporte.
             if (m.status === 'completed' && m.settlementReference) extra += ` · Ref. ${m.settlementReference}`;
             if (m.status === 'failed' && m.settlementNote) extra += ` · Motivo: ${m.settlementNote}`;
@@ -260,7 +260,7 @@
 
     function destinationLine(d) {
         const method = M.DESTINATION_METHODS[d.method] || {};
-        const last = M.last4(d.account_identifier);
+        const last = M.destinationLast4(d);
         if (d.method === 'bank_international') return `IBAN ${d.currency} · Terminado en ${last}`;
         return `${d.rail || method.rail || 'ACH'} · Terminada en ${last}`;
     }
@@ -269,7 +269,7 @@
         return (d.metadata_json && d.metadata_json.account_type) || (d.method === 'bank_international' ? `Transferencia ${d.rail || 'SEPA'}` : method.detail) || '';
     }
     function quickLabel(d) {
-        return `${d.label} · ${d.rail || (M.DESTINATION_METHODS[d.method] || {}).rail || 'ACH'} · Terminada en ${M.last4(d.account_identifier)}`;
+        return `${d.label} · ${d.rail || (M.DESTINATION_METHODS[d.method] || {}).rail || 'ACH'} · Terminada en ${M.destinationLast4(d)}`;
     }
 
     function renderQuick() {
@@ -408,6 +408,8 @@
         $('wal-dest-add').addEventListener('click', () => openDestinationDialog());
         $('wal-dest-list').addEventListener('click', onDestinationListClick);
         $('wal-dest-form').addEventListener('submit', onDestinationSubmit);
+        $('wal-dest-details-body').addEventListener('click', onDestinationRevealClick);
+        $('wal-dest-details').addEventListener('close', hideRevealed);
 
         $('wal-card-open').addEventListener('click', openCardDialog);
         $('wal-card-form').addEventListener('submit', onCardSubmit);
@@ -434,7 +436,7 @@
         if (error) { showError('wal-quick-error', error); return; }
         state.pendingWithdrawal = { destination: dest, amount };
         $('wal-withdraw-amount').textContent = M.formatMoney(amount, dest.currency);
-        $('wal-withdraw-dest').textContent = `A ${dest.label} ${M.maskIdentifier(dest.account_identifier)} · ${destinationType(dest)}`;
+        $('wal-withdraw-dest').textContent = `A ${dest.label} ${M.maskDestination(dest)} · ${destinationType(dest)}`;
         $('wal-withdraw-dialog').showModal();
     }
 
@@ -510,7 +512,14 @@
         state.selectedMethod = dest ? dest.method : 'lemon';
         $('wal-dest-holder').value = dest ? dest.holder_name : (ctx.profileFullName() || ctx.artist.name || '');
         setDestinationCurrency(dest ? dest.currency : M.DESTINATION_METHODS[state.selectedMethod].currency, true);
-        $('wal-dest-identifier').value = dest ? dest.account_identifier : '';
+        // ── cifrado ── El número completo nunca llega precargado: al editar,
+        // vacío conserva la cuenta guardada (el servidor la tiene cifrada).
+        const identifierInput = $('wal-dest-identifier');
+        identifierInput.value = '';
+        identifierInput.required = !dest;
+        identifierInput.placeholder = dest && M.destinationLast4(dest)
+            ? `Terminada en ${M.destinationLast4(dest)} · dejalo vacío para conservarla`
+            : 'Ingresá el identificador de la cuenta';
         $('wal-dest-dialog-title').textContent = dest ? 'Editar destino de retiro' : 'Agregar destino de retiro';
         $('wal-dest-submit').textContent = dest ? 'Guardar destino' : 'Agregar destino';
         renderMethods();
@@ -527,7 +536,7 @@
             currency: $('wal-dest-currency').value,
             accountIdentifier: $('wal-dest-identifier').value
         };
-        const check = M.validateDestination(input);
+        const check = M.validateDestination(input, { keepIdentifier: !!input.id });
         if (!check.ok) { showError('wal-dest-error', Object.values(check.errors)[0]); return; }
         const method = M.DESTINATION_METHODS[input.method];
         const btn = $('wal-dest-submit');
@@ -600,6 +609,36 @@
         }
     }
 
+    // ── cifrado ── Ver el número completo: solo el dueño, por el servidor
+    // (auditado). Se oculta solo a los 30 s y al cerrar el detalle.
+    let revealTimer = null;
+    function hideRevealed() {
+        clearTimeout(revealTimer);
+        const out = $('wal-dest-reveal-value');
+        const btn = $('wal-dest-reveal');
+        if (out) out.textContent = '';
+        if (btn) { btn.textContent = 'Mostrar'; btn.dataset.revealed = ''; }
+    }
+    async function onDestinationRevealClick(event) {
+        const btn = event.target.closest('[data-dest-reveal]');
+        if (!btn) return;
+        if (btn.dataset.revealed) { hideRevealed(); return; }
+        btn.disabled = true;
+        try {
+            const result = await D.PayoutDestinations.reveal(btn.dataset.destReveal);
+            const out = $('wal-dest-reveal-value');
+            if (!result.available) { toast('No disponible en la vista previa', false); return; }
+            if (out) out.textContent = result.value;
+            btn.textContent = 'Ocultar';
+            btn.dataset.revealed = '1';
+            clearTimeout(revealTimer);
+            revealTimer = setTimeout(hideRevealed, 30000);
+        } catch (err) {
+            console.error('[wallet] ver número completo:', err && err.message);
+            toast(err && err.status === 503 ? 'El cifrado no está configurado en el servidor' : 'No pudimos mostrar el número completo', false);
+        } finally { btn.disabled = false; }
+    }
+
     function openDestinationDetails(dest) {
         if (!dest) return;
         const method = M.DESTINATION_METHODS[dest.method] || {};
@@ -609,13 +648,16 @@
             ['Titular', dest.holder_name],
             ['Moneda', dest.currency],
             ['Cuenta', `${destinationLine(dest)}`],
-            ['Identificador', M.maskIdentifier(dest.account_identifier)],
+            ['Identificador', M.maskDestination(dest)],
             ['Estado', status],
             ['Predeterminada', dest.is_default ? 'Sí' : 'No'],
             ['Agregada', M.formatShortDate(dest.created_at)]
         ];
         $('wal-dest-details-title').textContent = dest.label;
-        $('wal-dest-details-body').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v || '—')}</dd>`).join('');
+        $('wal-dest-details-body').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v || '—')}</dd>`).join('')
+            + (D.PayoutDestinations && typeof D.PayoutDestinations.reveal === 'function'
+                ? `<dt>Número completo</dt><dd><span id="wal-dest-reveal-value" aria-live="polite"></span> <button type="button" class="wal-text-link" id="wal-dest-reveal" data-dest-reveal="${esc(dest.id)}">Mostrar</button></dd>`
+                : '');
         $('wal-dest-details').showModal();
     }
 

@@ -471,10 +471,17 @@
                 </div>
                 <button type="button" data-action="history">Valores anteriores en el historial</button>
             </div>`;
+        // P10: vencimiento opcional (solo mientras la propuesta está abierta).
+        const expiryBlock = pre && !closed ? `
+            <div class="qd-eval-block qd-expiry-panel">
+                ${expiryControl(q, 'qd')}
+                <button class="qd-budget-save qd-expiry-save" type="button" data-action="save-expiry" ${v.readOnly ? 'disabled' : ''}>Guardar vencimiento</button>
+            </div>` : '';
         return `
             <div class="qd-evaluation">
                 <p class="qd-section-label">Tu evaluación</p>
                 ${budgetBlock}
+                ${expiryBlock}
                 <div class="qd-eval-facts">
                     <div class="qd-eval-fact"><span class="qd-label">Tiempo estimado</span><span class="qd-eval-value">${esc(time)}</span></div>
                     <div class="qd-eval-fact"><span class="qd-label">Sesiones</span><span class="qd-eval-value">${esc(sessions || '—')}</span></div>
@@ -855,19 +862,84 @@
         }
     }
 
-    // P10: vigencia de la propuesta. Opciones en días; 14 por defecto (Figma 801:556).
-    const VALIDITY_OPTIONS = [7, 14, 30, 60];
-    function validitySelect(q) {
-        const current = q && q.quote_expires_at && q.artist_responded_at
-            ? Math.round((new Date(q.quote_expires_at) - new Date(q.artist_responded_at)) / 86400000) : 14;
-        const selected = VALIDITY_OPTIONS.includes(current) ? current : 14;
-        return `<select class="wo-select" name="validity" aria-describedby="qd-validity-help">${VALIDITY_OPTIONS.map((d) =>
-            `<option value="${d}"${d === selected ? ' selected' : ''}>${d} días</option>`).join('')}</select>
-            <small class="qd-field-help" id="qd-validity-help">Si el cliente no responde en ese plazo, la cotización vence.</small>`;
+    // P10 · Vencimiento opcional por cotización (decisión del dueño 13 nov 2026):
+    // toggle + días (1–365). Apagado por defecto: nada vence si el artista no
+    // lo activa. El trigger de 20261113100000 calcula quote_expires_at.
+    const EXPIRY_HELP_OFF = 'Apagado: la propuesta no vence. Activalo para que venza si el cliente no responde.';
+    const EXPIRY_HELP_ON = 'Si el cliente no responde en ese plazo, la cotización vence y le avisamos.';
+    function VM() { return window.WoQuotationsViewModel || null; }
+    function expiryDefaults(q) {
+        const vm = VM();
+        const enabled = !!(vm ? vm.expiryEnabled(q) : (q && q.quote_expiry_enabled));
+        const days = enabled ? Number(q.quote_expiry_days) : ((vm && vm.DEFAULT_VALIDITY_DAYS) || 14);
+        return { enabled, days };
     }
-    function validityExpiry(value) {
-        const days = VALIDITY_OPTIONS.includes(Number(value)) ? Number(value) : 14;
-        return new Date(Date.now() + days * 86400000).toISOString();
+    function expiryHelp(q, enabled) {
+        if (!enabled) return EXPIRY_HELP_OFF;
+        const vm = VM();
+        const summary = vm && q ? vm.expirySummary(q) : '';
+        return summary && /^Venc/.test(summary) ? `${summary}. ${EXPIRY_HELP_ON}` : EXPIRY_HELP_ON;
+    }
+    // Control "Vencimiento" (diseño propio con .wo-toggle del DS). `idPrefix`
+    // distingue el panel del detalle y el diálogo; en el diálogo los campos
+    // viajan por FormData (expiry_enabled / expiry_days).
+    function expiryControl(q, idPrefix) {
+        const { enabled, days } = expiryDefaults(q);
+        const help = `${idPrefix}-expiry-help`;
+        return `<div class="qd-expiry" role="group" aria-labelledby="${idPrefix}-expiry-label">
+                <span class="qd-label qd-expiry-title" id="${idPrefix}-expiry-label">Vencimiento</span>
+                <div class="qd-expiry-row">
+                    <label class="qd-expiry-switch" for="${idPrefix}-expiry-enabled">
+                        <span class="wo-toggle"><input type="checkbox" role="switch" id="${idPrefix}-expiry-enabled" name="expiry_enabled" value="1" data-expiry-toggle="${idPrefix}-expiry-days" aria-describedby="${help}"${enabled ? ' checked' : ''}><span class="knob" aria-hidden="true"></span></span>
+                        <span>Activar vencimiento</span>
+                    </label>
+                    <span class="qd-expiry-days">
+                        <input class="wo-input" id="${idPrefix}-expiry-days" name="expiry_days" type="number" inputmode="numeric" min="1" max="365" step="1" value="${esc(days)}" aria-label="Días hasta el vencimiento" aria-describedby="${help}"${enabled ? '' : ' disabled'}>
+                        <span aria-hidden="true">días</span>
+                    </span>
+                </div>
+                <small class="qd-field-help" id="${help}">${esc(expiryHelp(q, enabled))}</small>
+            </div>`;
+    }
+    // Lee el control (FormData del diálogo o el panel) y arma el patch.
+    function readExpiry(enabled, days) {
+        const vm = VM();
+        if (!vm) return { quote_expiry_enabled: !!enabled, quote_expiry_days: enabled ? Number(days) : null };
+        const result = vm.expirySettingsPatch(!!enabled, days);
+        if (!result.ok) throw userError(result.error);
+        return result.patch;
+    }
+    function syncExpiryToggle(toggle) {
+        const days = document.getElementById(toggle.dataset.expiryToggle);
+        if (!days) return;
+        days.disabled = !toggle.checked;
+        if (toggle.checked && !days.value) days.value = String((VM() && VM().DEFAULT_VALIDITY_DAYS) || 14);
+        const help = document.getElementById((toggle.getAttribute('aria-describedby') || '').split(' ')[0]);
+        if (help) help.textContent = toggle.checked ? EXPIRY_HELP_ON : EXPIRY_HELP_OFF;
+    }
+    async function saveExpiry(button) {
+        if (!guardWrite()) return;
+        const toggle = document.getElementById('qd-expiry-enabled');
+        const days = document.getElementById('qd-expiry-days');
+        if (!toggle) return;
+        let patch;
+        try { patch = readExpiry(toggle.checked, days && days.value); }
+        catch (error) { showToast(error.userMessage || 'Revisá los días de vencimiento.', { error: true }); if (days) days.focus(); return; }
+        setBusy(button, true);
+        try {
+            const result = await updateQuote(patch);
+            if (result && Array.isArray(result.dropped) && result.dropped.includes('quote_expiry_enabled')) {
+                showToast('El vencimiento todavía no está disponible.', { error: true });
+                return;
+            }
+            await reloadAll();
+            showToast(patch.quote_expiry_enabled ? `Vencimiento activado: ${patch.quote_expiry_days} días.` : 'Vencimiento desactivado. La propuesta no vence.');
+        } catch (error) {
+            console.error('[quotation-detail] save expiry', error);
+            showToast('No pudimos guardar el vencimiento.', { error: true });
+        } finally {
+            setBusy(button, false);
+        }
     }
 
     function openRespondDialog() {
@@ -886,7 +958,7 @@
                 ${field('Sesiones', `<input class="wo-input" name="sessions" type="number" min="1" max="30" value="${esc(M.intFrom(q.tattoo_estimated_sessions) || 1)}" required>`)}
                 <span></span>
                 ${durationFields(M.minutesFrom(q.artist_session_minutes) || 120)}
-                ${field('Vigencia de la propuesta', validitySelect(q), true)}
+                <div class="wo-field is-wide">${expiryControl(q, 'qd-dialog')}</div>
                 ${field('Disponibilidad', `<input class="wo-input" name="availability" maxlength="140" value="${esc(q.artist_availability || '')}" placeholder="Fines de semana, desde agosto">`, true)}
                 ${q.client_user_id ? field('Mensaje para el cliente (opcional)', '<textarea class="wo-textarea" name="message" maxlength="2000" placeholder="Contale cómo vas a encarar el diseño."></textarea>', true) : ''}
             </div>`,
@@ -904,8 +976,8 @@
                     artist_session_minutes: minutes,
                     artist_availability: (data.availability || '').trim() || null,
                     artist_responded_at: nowIso(),
-                    // P10: vigencia elegida (14 días por defecto, Figma 801:556).
-                    quote_expires_at: validityExpiry(data.validity),
+                    // P10: vencimiento opcional (apagado por defecto); el trigger calcula quote_expires_at.
+                    ...readExpiry(data.expiry_enabled === '1', data.expiry_days),
                     notes: privateNotesValue(),
                 };
                 await updateQuote(patch);
@@ -1336,6 +1408,7 @@
             if (!target) return;
             const action = target.dataset.action;
             if (action === 'save-budget') saveBudget(target);
+            else if (action === 'save-expiry') saveExpiry(target);
             else if (action === 'open-notes') openNotes();
             else if (action === 'history') document.getElementById('qd-history')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             else if (action === 'session-schedule') openScheduleDialog(target.dataset.slot);
@@ -1353,6 +1426,11 @@
         });
         root.addEventListener('input', (event) => {
             if (event.target.id === 'qd-private-notes') scheduleNotesSave();
+        });
+        // P10: el toggle de vencimiento habilita los días (panel y diálogo, que vive fuera de root).
+        document.addEventListener('change', (event) => {
+            const toggle = event.target && event.target.closest && event.target.closest('[data-expiry-toggle]');
+            if (toggle) syncExpiryToggle(toggle);
         });
         root.addEventListener('focusout', (event) => {
             if (event.target.id === 'qd-private-notes') savePrivateNotes();

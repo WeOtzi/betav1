@@ -142,7 +142,7 @@ se abrevian a su constante; los **filtros y el terminal** (`.eq/.in/.or/.order/.
 | `count()` | `.select('*',{count:'exact',head:true})` | Conteo total. |
 | `updateByUserId(userId, patch)` | `.update(patch).eq('user_id',userId)` | Patch por user_id. |
 | `updateByUserIdReturning(userId, patch)` | `.update(patch).eq('user_id',userId).select('user_id')` | Update que devuelve user_id (detectar RLS). |
-| `upsertProfile(artistData)` | `.upsert(artistData,{onConflict:'user_id'}).select()` | Crea/actualiza registro principal (wizard). |
+| `upsertProfile(artistData)` | `rpc('upsert_my_artist_profile',{p_profile})` (security definer, user_id = auth.uid(), lista blanca de columnas) | Crea/actualiza registro principal (wizard). El upsert on_conflict directo falla con privilegios por columna (pii-artistas). |
 
 ## 1.10 `WeotziData.ArtistLocations` (artist_tattoo_locations)
 | Método nuevo | Antes (query inline) | Qué hace |

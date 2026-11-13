@@ -187,6 +187,69 @@ for label, cmd in checks:
 
 ---
 
+## Variables de entorno · Google Calendar (artistas)
+
+La integración con Google Calendar (Cuenta → Disponibilidad y el calendario) se
+configura **solo** con variables de entorno en el `.env` del servidor (nunca en
+el repo ni en `app_settings`). Sin ellas, `/api/google-calendar/*` responde 503
+"Google Calendar no está configurado" y la UI lo muestra sin romperse.
+
+| Variable | Valor | Origen |
+|---|---|---|
+| `GOOGLE_OAUTH_CLIENT_ID` | `….apps.googleusercontent.com` | Google Cloud Console → Credenciales → cliente OAuth "Aplicación web" → *ID de cliente* |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | `GOCSPX-…` | Mismo cliente → *Secreto del cliente* |
+| `GOOGLE_OAUTH_REDIRECT_URI` | `https://beta.weotzi.com/api/google-calendar/callback` (default) | Tiene que coincidir **exacto** con el URI de redireccionamiento autorizado del cliente |
+| `GCAL_TOKEN_ENC_KEY` | 32 bytes en base64 | `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` (cifra los refresh tokens con AES-256-GCM; si cambia, todos reconectan) |
+| `GCAL_SYNC_JOB` | vacío / `off` | `off` apaga el job de sincronización cada 15 min |
+
+Requiere la migración `supabase/migrations/20261113102000_google_calendar_sync.sql`
+(después de `20261112190000`). Cambiar estas variables exige **reiniciar PM2**
+con `--update-env`.
+
+Alta en Google Cloud Console (una vez):
+1. Proyecto propio (p. ej. "We Otzi Calendar") → *APIs y servicios → Biblioteca* → habilitar **Google Calendar API**.
+2. *Pantalla de consentimiento de OAuth*: tipo **Externo**; nombre "We Ötzi"; email de asistencia; logo opcional; página principal `https://weotzi.com`, política de privacidad y términos en weotzi.com; **dominios autorizados** `weotzi.com`; scopes `openid`, `.../auth/userinfo.email` y `https://www.googleapis.com/auth/calendar.events` (sensible). Mientras esté en "Prueba", agregar los emails de los artistas de prueba (máx. 100); para abrirlo a todos, "Publicar" y pedir la verificación de Google por el scope sensible.
+3. *Credenciales → Crear credenciales → ID de cliente de OAuth* → tipo **Aplicación web** → *URI de redireccionamiento autorizados*: `https://beta.weotzi.com/api/google-calendar/callback` (sin barra final). Orígenes de JavaScript: no hacen falta.
+4. Copiar ID y secreto a `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`, generar `GCAL_TOKEN_ENC_KEY` y reiniciar PM2.
+
+---
+
+## Variables de entorno · Cifrado de datos sensibles
+
+El servidor cifra con AES-256-GCM (`lib/field-crypto.js`) los números de cuenta
+de los destinos de retiro (`artist_payout_destinations`) y el `apify_token` de
+`app_settings`. La clave vive **solo** en el `.env` del servidor (nunca en el
+repo, en `app_settings` ni en el navegador). Sin ella, el alta/edición de
+destinos y "ver número completo" responden 503 con un mensaje claro; el resto
+del servidor sigue funcionando.
+
+| Variable | Valor | Uso |
+|---|---|---|
+| `DATA_ENC_KEY` | 32 bytes en base64 | `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` · clave primaria (cifra y descifra) |
+| `DATA_ENC_KEY_ID` | `k1` (default) | id de la clave primaria; va dentro de cada valor cifrado (`wo1:<id>:…`) |
+| `DATA_ENC_PREVIOUS_KEYS` | `k1=<base64>,k0=<base64>` | claves anteriores, solo para descifrar durante una rotación |
+
+**Guardá una copia de `DATA_ENC_KEY` fuera del servidor** (gestor de secretos):
+si se pierde, los números de cuenta cifrados no se pueden recuperar y los
+artistas tienen que volver a cargarlos.
+
+Primera puesta en marcha (en este orden):
+1. Generar `DATA_ENC_KEY`, agregarla al `.env` del servidor y reiniciar PM2 con `--update-env`.
+2. Aplicar `supabase/migrations/20261113104000_field_encryption.sql` (validada antes con begin…rollback).
+3. Desplegar el código.
+4. En el servidor: `node scripts/encrypt-existing-data.cjs` (dry-run, solo conteos) → `--apply` (cifra y verifica fila por fila) → `--verify` (tiene que decir "0 discrepancias").
+5. Solo con el OK del dueño y un backup de la tabla: mover `supabase/pending/20261113104500_drop_plaintext_payout_identifier.sql` a `supabase/migrations/` y aplicarla (borra el dato en claro).
+
+Rotación de la clave:
+1. Generar una clave nueva. En el `.env`: `DATA_ENC_KEY=<nueva>`, `DATA_ENC_KEY_ID=k2`, `DATA_ENC_PREVIOUS_KEYS=k1=<vieja>`. Reiniciar PM2 con `--update-env`.
+2. `node scripts/encrypt-existing-data.cjs --apply` (re-cifra con `k2` todo lo que esté en `k1`; no toca el estado de verificación) y `--verify`.
+3. Cuando `--verify` da 0 discrepancias, quitar la clave vieja de `DATA_ENC_PREVIOUS_KEYS` y reiniciar.
+
+Cada vez que soporte o el artista ven un número completo queda registrado en
+`sensitive_data_access_log` (quién, cuándo, para qué; nunca el dato).
+
+---
+
 ## Reglas para el agente
 
 | Situación                                           | Acción                                      |
