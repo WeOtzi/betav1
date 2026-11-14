@@ -57,6 +57,7 @@ async function checkDashboardAuth() {
         const { data: { session } } = await _supabase.auth.getSession();
         
         if (!session) {
+            rememberPendingQuote();
             window.location.href = '/client/login';
             return;
         }
@@ -1079,11 +1080,44 @@ async function handleProposalAction(button) {
 }
 
 // Deep link de los emails: /client/dashboard?quote=ID abre esa cotización.
-async function openQuotationFromUrl() {
+// Si el cliente llega sin sesión, el login lo devuelve a /client/dashboard sin
+// el ?quote: lo guardamos en sessionStorage (misma pestaña) y lo retomamos.
+const PENDING_QUOTE_KEY = 'wo_client_pending_quote';
+
+function quoteIdFromUrl() {
     try {
         const params = new URLSearchParams((typeof window !== 'undefined' && window.location && window.location.search) || '');
         const quoteId = (params.get('quote') || '').trim();
-        if (!quoteId || quoteId.length > 64) return;
+        return quoteId && quoteId.length <= 64 ? quoteId : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function rememberPendingQuote() {
+    const quoteId = quoteIdFromUrl();
+    if (!quoteId) return;
+    try { window.sessionStorage.setItem(PENDING_QUOTE_KEY, quoteId); } catch (_) { /* sin storage: se pierde el deep link */ }
+}
+
+function takePendingQuote() {
+    try {
+        const value = window.sessionStorage.getItem(PENDING_QUOTE_KEY) || '';
+        window.sessionStorage.removeItem(PENDING_QUOTE_KEY);
+        return value && value.length <= 64 ? value : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+async function openQuotationFromUrl() {
+    try {
+        // Sin sesión (checkDashboardAuth ya está redirigiendo al login) el
+        // pendiente se conserva para la vuelta.
+        if (!currentClient) return;
+        const pending = takePendingQuote();
+        const quoteId = quoteIdFromUrl() || pending;
+        if (!quoteId) return;
         if (!currentQuotations.some(q => q.quote_id === quoteId)) return;
         if (typeof revealQuotationsPanel === 'function') revealQuotationsPanel();
         await viewQuotationDetail(quoteId);

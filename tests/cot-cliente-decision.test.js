@@ -179,8 +179,8 @@ test('POST /decision: aceptar guarda con guardia, avisa a ambas partes y dispara
         assert.deepEqual(calls.emails.map((e) => e.eventId), [ARTIST_EVENT.approve, CLIENT_EVENT.approve]);
         assert.equal(calls.emails[0].payload.artist_email, 'lau@example.com');
         assert.equal(calls.emails[1].payload.client_email, 'cliente@example.com');
-        assert.equal(calls.emails[0].opts.idempotencyKey, 'cot-cliente:decision:WO-7:client_approved:artist');
-        assert.equal(calls.emails[1].opts.idempotencyKey, 'cot-cliente:decision:WO-7:client_approved:client');
+        assert.equal(calls.emails[0].opts.idempotencyKey, 'cot-cliente:decision:WO-7:client_approved:2026-11-10T00:00:00Z:artist');
+        assert.equal(calls.emails[1].opts.idempotencyKey, 'cot-cliente:decision:WO-7:client_approved:2026-11-10T00:00:00Z:client');
         assert.equal(calls.history[0][1], 'client_approved');
         assert.equal(calls.history[0][3].changedBy, 'user-1');
         assert.equal(seen.length, 1);
@@ -309,4 +309,38 @@ test('migración 20261115140000: vínculo al confirmar el email, sin borradores,
     const down = read('supabase/rollbacks/20261115140000_cot_cliente_vinculo_al_confirmar.down.sql');
     assert.match(down, /drop trigger if exists on_email_confirmed_link_client_quotations on auth\.users/);
     assert.match(down, /drop function if exists public\.link_client_quotations_on_email_confirm\(\)/);
+});
+
+// ---------------------------------------------------------------- revisión
+test('revisión: doble clic gana la carrera con la misma decisión → idempotente, sin emails', async () => {
+    const built = deps();
+    let reads = 0;
+    built.d.repo.getForDecision = async () => (reads++ === 0 ? responded() : responded({ quote_status: 'client_approved' }));
+    built.d.repo.decide = async () => null;
+    const res = fakeRes();
+    await createHandlers(built.d).decision({ params: { quoteId: 'WO-7' }, body: { decision: 'approve' } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.already, true);
+    assert.equal(built.calls.emails.length, 0);
+});
+
+test('revisión: la clave de idempotencia cambia con cada propuesta nueva del artista', async () => {
+    const keys = [];
+    for (const at of ['2026-11-10T00:00:00Z', '2026-11-12T09:30:00Z']) {
+        const built = deps();
+        built.d.repo.getForDecision = async () => responded({ artist_responded_at: at });
+        built.d.repo.decide = async (id, patch) => ({ ...responded({ artist_responded_at: at }), ...patch });
+        await createHandlers(built.d).decision({ params: { quoteId: 'WO-7' }, body: { decision: 'reject' } }, fakeRes());
+        keys.push(built.calls.emails[0].opts.idempotencyKey);
+    }
+    assert.notEqual(keys[0], keys[1]);
+});
+
+test('revisión: cotización de invitado con el mismo email pero sin confirmar → 403 email_unverified', () => {
+    const unverified = verifiedUser({ raw: { email_confirmed_at: null } });
+    const out = logic.evaluateDecision({ user: unverified, quotation: responded({ client_user_id: null }), decision: 'approve', now: NOW });
+    assert.equal(out.status, 403);
+    assert.equal(out.code, 'email_unverified');
+    const other = logic.evaluateDecision({ user: unverified, quotation: responded({ client_user_id: null, client_email: 'x@y.com' }), decision: 'approve', now: NOW });
+    assert.equal(other.code, 'not_owner');
 });

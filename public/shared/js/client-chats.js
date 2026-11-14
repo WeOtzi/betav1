@@ -26,9 +26,11 @@
     const STATUS_TAGS = {
         pending:          { label: 'Esperando cotización', cls: 'wo-tag--soft' },
         responded:        { label: 'Esperando tu respuesta', cls: 'wo-tag--highlight' },
-        client_approved:  { label: 'Aprobada',             cls: 'wo-tag--active' },
-        in_progress:      { label: 'En proceso',           cls: 'wo-tag--info' },
-        artist_completed: { label: 'Por finalizar',        cls: 'wo-tag--info' },
+        // Mismas etiquetas que el panel del cliente (client-quote-proposal.js · CC-13).
+        client_approved:  { label: 'Aceptada',             cls: 'wo-tag--active' },
+        in_progress:      { label: 'En curso',             cls: 'wo-tag--info' },
+        en_progreso:      { label: 'En curso',             cls: 'wo-tag--info' },
+        artist_completed: { label: 'Por confirmar',        cls: 'wo-tag--info' },
         completed:        { label: 'Completada',           cls: 'wo-tag--active' },
         client_rejected:  { label: 'Rechazada',            cls: 'wo-tag--archived' },
         cancelled:        { label: 'Cancelada',            cls: 'wo-tag--archived' },
@@ -379,7 +381,7 @@
         if (session) meta.push(`próxima sesión ${DAY_FMT.format(new Date(session.session_date))}`);
         $('cch-banner-meta').textContent = meta.join(' · ');
 
-        const info = STATUS_TAGS[t.quote_status] || { label: t.quote_status || 'Sin estado', cls: 'wo-tag--soft' };
+        const info = STATUS_TAGS[t.quote_status] || { label: 'En revisión', cls: 'wo-tag--soft' };
         const tag = $('cch-banner-status');
         tag.className = 'wo-tag cch-tag-s ' + info.cls;
         tag.textContent = info.label;

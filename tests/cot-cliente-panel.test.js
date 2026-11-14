@@ -138,11 +138,20 @@ test('seña y pagos: estado de la seña, pagado y saldo; sin pasarela inventada'
 });
 
 // ------------------------------------------------------------ dashboard (vm)
-function dashboard({ search = '', withUi = true } = {}) {
+function memoryStorage() {
+    const data = new Map();
+    return {
+        getItem(k) { return data.has(k) ? data.get(k) : null; },
+        setItem(k, v) { data.set(k, String(v)); },
+        removeItem(k) { data.delete(k); },
+    };
+}
+
+function dashboard({ search = '', withUi = true, storage = memoryStorage() } = {}) {
     const nodes = new Map();
     const channel = { on() { return this; }, subscribe() { return this; } };
     const sdk = { auth: { async getSession() { return { data: { session: { access_token: 't', user: { id: 'u1' } } } }; } } };
-    const window = { _supabase: sdk, location: { search } };
+    const window = { _supabase: sdk, location: { search }, sessionStorage: storage };
     if (withUi) window.WoClientQuoteProposal = UI;
     const context = vm.createContext({
         console: { log() {}, warn() {}, error() {} }, Date, URLSearchParams, URL, Intl,
@@ -206,10 +215,35 @@ test('card y detalle escapan datos y no interpolan quote_id en JS', async () => 
 test('deep link ?quote=ID abre el detalle de esa cotización', async () => {
     const { context, nodes } = dashboard({ search: '?quote=WO-R' });
     context.list = [{ quote_id: 'WO-R', quote_status: 'responded', artist_responded_at: '2026-11-10', artist_budget_amount: '1000', artist_budget_currency: 'USD', quote_expires_at: '2099-01-01T00:00:00Z' }];
-    vm.runInContext('currentQuotations = list', context);
+    vm.runInContext('currentQuotations = list; currentClient = { user_id: "u1" }', context);
     await vm.runInContext('openQuotationFromUrl()', context);
     assert.equal(nodes.get('modal-quote-id').textContent, 'WO-R');
     assert.match(nodes.get('quotation-detail-content').innerHTML, /data-proposal-action="approve"/);
+});
+
+test('revisión: el deep link sobrevive al login (sessionStorage) y no se consume sin sesión', async () => {
+    const storage = memoryStorage();
+    // 1) Llega sin sesión con ?quote=WO-R: se guarda y openQuotationFromUrl no lo consume.
+    const first = dashboard({ search: '?quote=WO-R', storage });
+    vm.runInContext('rememberPendingQuote(); currentClient = null;', first.context);
+    await vm.runInContext('openQuotationFromUrl()', first.context);
+    assert.equal(storage.getItem('wo_client_pending_quote'), 'WO-R');
+    // 2) Vuelve del login a /client/dashboard sin ?quote: se abre y se limpia.
+    const second = dashboard({ search: '', storage });
+    second.context.list = [{ quote_id: 'WO-R', quote_status: 'responded', artist_responded_at: '2026-11-10', artist_budget_amount: '1000', artist_budget_currency: 'USD', quote_expires_at: '2099-01-01T00:00:00Z' }];
+    vm.runInContext('currentQuotations = list; currentClient = { user_id: "u1" }', second.context);
+    await vm.runInContext('openQuotationFromUrl()', second.context);
+    assert.equal(second.nodes.get('modal-quote-id').textContent, 'WO-R');
+    assert.equal(storage.getItem('wo_client_pending_quote'), null);
+});
+
+test('revisión: el banner de /client/chats usa las mismas etiquetas que el panel', () => {
+    const js = read('public/shared/js/client-chats.js');
+    assert.match(js, /in_progress:\s*\{ label: 'En curso'/);
+    assert.match(js, /artist_completed: \{ label: 'Por confirmar'/);
+    assert.match(js, /client_approved:\s*\{ label: 'Aceptada'/);
+    assert.doesNotMatch(js, /'En proceso'|'Por finalizar'/);
+    assert.doesNotMatch(js, /label: t\.quote_status/);
 });
 
 test('el dashboard vincula por el servidor en cada carga y no reclama desde el navegador', () => {
