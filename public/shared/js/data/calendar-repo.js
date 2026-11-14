@@ -16,6 +16,9 @@
  *     solo fecha del dashboard se ven de todo el día (reminders-repo.js).
  *   - quotations_db pendientes con fecha preferida: "Solicitud pendiente",
  *     proyección de solo lectura que abre la cotización (calendar-model.js).
+ *   - studio_bookings: citas que un estudio le agendó al artista (CAL-15).
+ *     Solo lectura (las gestiona el estudio), confirmadas o hechas; cuentan
+ *     como turno confirmado (ocupan horario). RLS studio_bookings_artist_select.
  *   - Guest spot / convención con "Agregar también a Travel" crean el viaje
  *     con create_artist_trip (no una fila manual).
  *
@@ -269,6 +272,56 @@
         return events;
     }
 
+    // Cita de un estudio (studio_bookings): la gestiona el estudio desde su
+    // panel; el artista la ve en su agenda como turno confirmado de solo
+    // lectura. Sin email ni teléfono del cliente.
+    function normalizeStudioBooking(booking) {
+        if (!booking || (booking.status !== 'confirmed' && booking.status !== 'completed')) return null;
+        const start = asDate(booking.starts_at);
+        const end = asDate(booking.ends_at);
+        if (!start || !end || end <= start) return null;
+        const studioName = booking.studios?.name || 'un estudio';
+        const clientName = booking.client_name || 'Cliente';
+        const location = booking.studio_locations || {};
+        return {
+            id: `studio_booking:${booking.id}`,
+            baseId: null,
+            sourceType: 'studio_booking',
+            sourceId: String(booking.id),
+            readonly: true,
+            href: null,
+            readonlyNote: `Cita agendada por ${studioName}. La gestiona el estudio: escribile si necesitás cambiarla.`,
+            type: 'confirmed_session',
+            title: `Cita en ${studioName}: ${clientName}`,
+            clientName,
+            start: start.toISOString(),
+            end: end.toISOString(),
+            allDay: false,
+            location: location.label || location.formatted_address || studioName,
+            notes: booking.service_description || '',
+            status: 'scheduled',
+            recurrenceRule: 'none',
+            recurrenceUntil: null,
+            quotationId: null,
+            raw: booking,
+        };
+    }
+
+    async function listStudioBookingsProjection(artistUserId, rangeStart, rangeEnd) {
+        const { data } = await run('calendar.listStudioBookings', (client) =>
+            client.from('studio_bookings')
+                .select('id, studio_id, starts_at, ends_at, status, client_name, service_description, studios(name), studio_locations(label, formatted_address)')
+                .eq('artist_user_id', artistUserId)
+                .in('status', ['confirmed', 'completed'])
+                .lt('starts_at', rangeEnd.toISOString())
+                .gt('ends_at', rangeStart.toISOString())
+                .order('starts_at', { ascending: true })
+        );
+        return (data || [])
+            .map(normalizeStudioBooking)
+            .filter((event) => event && overlaps(asDate(event.start), asDate(event.end), rangeStart, rangeEnd));
+    }
+
     async function listRemindersProjection(artistUserId, rangeStart, rangeEnd) {
         if (!D.Reminders || typeof D.Reminders.list !== 'function') return [];
         const reminders = await D.Reminders.list(artistUserId);
@@ -421,6 +474,7 @@
                 listTripsProjection(artistUserId, rangeStart, rangeEnd),
                 listRemindersProjection(artistUserId, rangeStart, rangeEnd),
                 Promise.resolve(listPendingRequestsProjection(quotations, rangeStart, rangeEnd)),
+                listStudioBookingsProjection(artistUserId, rangeStart, rangeEnd),
             ]);
             projectionResults.forEach((result, index) => {
                 if (result.status === 'rejected') {
@@ -434,6 +488,7 @@
                 ...(projectionResults[1].status === 'fulfilled' ? projectionResults[1].value : []),
                 ...(projectionResults[2].status === 'fulfilled' ? projectionResults[2].value : []),
                 ...(projectionResults[3].status === 'fulfilled' ? projectionResults[3].value : []),
+                ...(projectionResults[4].status === 'fulfilled' ? projectionResults[4].value : []),
             ];
 
             const unique = new Map();
@@ -616,11 +671,12 @@
         },
     };
 
-    // ── gcal ── Google Calendar (ronda 3b): cada escritura que ocupa horario
-    // pide una sincronización (google-calendar-repo.js, con debounce y solo si
-    // hay conexión). Los recordatorios no se publican en Google; los viajes sí
-    // (guest spot / convención), y travel-repo.js pide su propia sincronización.
-    ['create', 'update', 'remove', 'createQuoteSession', 'updateQuoteSession', 'removeQuoteSession'].forEach((name) => {
+    // ── gcal ── Google Calendar: cada escritura de la agenda pide una
+    // sincronización (google-calendar-repo.js, con debounce y solo si hay
+    // conexión). Se publican también los recordatorios (con aviso), las citas
+    // de estudios y los viajes (travel-repo.js pide su propia sincronización).
+    // La base marca además cada cambio (20261115150000) como respaldo.
+    ['create', 'update', 'remove', 'createQuoteSession', 'updateQuoteSession', 'removeQuoteSession', 'saveReminder', 'removeReminder'].forEach((name) => {
         const original = Calendar[name];
         Calendar[name] = async function gcalSyncAfterWrite(...args) {
             const result = await original.apply(this, args);
@@ -629,6 +685,6 @@
         };
     });
 
-    Calendar._internal = { isMissingColumn, cleanPayload, sessionPatch, normalizeSession, normalizeTrip, normalizeDashboardReminder, expandManualRows, remindersToEvents, listPendingRequestsProjection };
+    Calendar._internal = { isMissingColumn, cleanPayload, sessionPatch, normalizeSession, normalizeTrip, normalizeDashboardReminder, normalizeStudioBooking, expandManualRows, remindersToEvents, listPendingRequestsProjection };
     D.Calendar = Calendar;
 })();
