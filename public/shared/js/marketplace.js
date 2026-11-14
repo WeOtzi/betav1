@@ -903,6 +903,9 @@ function syncFilterButtons() {
     if (verifiedBtn) {
         verifiedBtn.classList.toggle('is-set', !!filters.verified);
         verifiedBtn.setAttribute('aria-pressed', String(!!filters.verified));
+        // Sin verificados no se ofrece el filtro (daría 0 resultados), salvo que
+        // ya esté activo: así se puede apagar (REV-3).
+        verifiedBtn.hidden = verifiedCount() === 0 && !filters.verified;
     }
 }
 

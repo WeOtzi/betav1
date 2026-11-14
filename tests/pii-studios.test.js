@@ -102,3 +102,22 @@ test('ninguna página pública pide columnas privadas de studios', () => {
     const list = repo.slice(repo.indexOf('const PUBLIC_COLUMNS = Object.freeze(['), repo.indexOf(']);', repo.indexOf('const PUBLIC_COLUMNS = Object.freeze([')));
     for (const p of PRIVATE.concat(['artist_requirements', 'default_revenue_split_pct'])) assert.ok(!list.includes(`'${p}'`), p);
 });
+
+test('demo: get_my_studio devuelve solo el estudio de la sesión (y nada sin sesión)', () => {
+    const sandbox = { console };
+    sandbox.self = sandbox;
+    vm.runInNewContext(read('public/shared/js/demo-fixtures/pii-studios.js'), sandbox, { filename: 'pii-studios.js' });
+    const ext = sandbox.WoDemoFixtureExtensions['pii-studios'];
+    assert.equal(typeof ext, 'function');
+    const ctx = { rpcs: {} };
+    ext(ctx);
+    const rows = [{ id: 's1', user_id: 'u1', email: 'a@x.test' }, { id: 's2', user_id: 'u2', email: 'b@x.test' }];
+    const store = { rows: (table) => (table === 'studios' ? rows : []) };
+    const own = ctx.rpcs.get_my_studio({}, store, { userId: 'u1' });
+    assert.deepEqual(JSON.parse(JSON.stringify(own)), [rows[0]]);
+    own[0].email = 'cambiado@x.test';
+    assert.equal(rows[0].email, 'a@x.test', 'devuelve copias, no la fila del store');
+    assert.equal(ctx.rpcs.get_my_studio({}, store, {}).length, 0);
+    assert.equal(ctx.rpcs.get_my_studio({}, store, { userId: 'nadie' }).length, 0);
+    assert.ok(require('../public/shared/js/wo-demo-fixtures.js').EXTENSIONS.includes('pii-studios'));
+});

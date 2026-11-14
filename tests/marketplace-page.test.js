@@ -208,3 +208,32 @@ test('marketplace: render de card escapa datos de usuario', () => {
     assert.ok(out.includes('href="/artist/profile?artist=a%26b"'));
     assert.ok(out.includes('Artista verificado'));
 });
+
+test('revisión REV-2: las imágenes de /explore pasan por cssImageUrl (URL segura y sin cerrar url())', () => {
+    const start = exploreJs.indexOf('function cssImageUrl(');
+    assert.ok(start > -1);
+    const body = exploreJs.slice(start, exploreJs.indexOf('\n    }\n', start) + 6);
+    const Core = require('../public/shared/js/marketplace-core.js');
+    const cssImageUrl = new Function('Core', `${body}; return cssImageUrl;`)(Core);
+    assert.equal(cssImageUrl('javascript:alert(1)'), '');
+    assert.equal(cssImageUrl('data:image/png;base64,AAA'), '');
+    assert.equal(cssImageUrl('https://x.test/a b\'"().png' + String.fromCharCode(92) + 'x'), 'https://x.test/a%20b%27%22%28%29.png%5Cx');
+    assert.equal(cssImageUrl('/media/foto.jpg'), '/media/foto.jpg');
+    assert.match(exploreJs, /var imgUrl = cssImageUrl\(a\.profile_picture\);/);
+    assert.ok(exploreJs.includes(String.raw`'style="background-image: url(\'' + escapeHtml(imgUrl) + '\')"'`));
+    assert.match(exploreJs, /var coverUrl = cssImageUrl\(artist\.profile_picture\);/);
+    assert.doesNotMatch(exploreJs, /url\("' \+ artist\.profile_picture/);
+    assert.doesNotMatch(exploreJs, /escapeHtml\(a\.profile_picture\)/);
+});
+
+test('revisión REV-3/4: "Verificados" se oculta sin verificados (salvo activo); grillas con minmax(0,1fr)', () => {
+    assert.match(js, /verifiedBtn\.hidden = verifiedCount\(\) === 0 && !filters\.verified;/);
+    assert.match(css, /\.mk-verified-btn\[hidden\]\{display:none\}/);
+    for (const query of ['max-width:1024px', 'max-width:768px']) {
+        const block = mediaBlock(css, query);
+        assert.doesNotMatch(block, /repeat\(\d+,\s*1fr\)/, `${query}: columnas sin minmax`);
+    }
+    assert.match(mediaBlock(css, 'max-width:1024px'), /\.mk-grid\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)\}/);
+    assert.match(mediaBlock(css, 'max-width:768px'), /\.mk-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\);/);
+    assert.equal(css.split('@media (max-width:1024px){').length, 2, 'un solo bloque ≤1024');
+});

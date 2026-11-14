@@ -70,6 +70,7 @@
 .mk-filter-btn:active{transform:none;box-shadow:none}
 .mk-filter-btn [data-wo-icon]{width:14px;height:14px}
 .mk-filter-label{white-space:nowrap}
+.mk-verified-btn[hidden]{display:none}
 .mk-filter.is-set .mk-filter-btn,.mk-verified-btn.is-set{background:var(--neutral-500);color:var(--neutral-100)}
 .mk-filter-count{font-family:var(--font-mono);font-size:var(--meta-s-size);opacity:var(--opacity-muted)}
 .mk-filter-menu{position:absolute;top:calc(100% + var(--space-1));left:0;z-index:50;min-width:220px;max-width:320px;max-height:320px;overflow-y:auto;
@@ -213,10 +214,9 @@
 
 /* ---------- Responsive ---------- */
 @media (max-width:1024px){
-  .mk-grid{grid-template-columns:repeat(3,1fr)}
-}
-@media (max-width:1024px){
-  .mk-drawer-grid{grid-template-columns:repeat(2,1fr)}
+  /* minmax(0,1fr): un nombre o una imagen larga no ensancha la columna (REV-4). */
+  .mk-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .mk-drawer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:768px){
   .mk-burger{display:inline-flex}
@@ -234,7 +234,7 @@
   .mk-filter-menu-list{overflow-y:auto;overscroll-behavior:contain}
   .mk-filter-opt{min-height:48px}
   body.mk-sheet-open{overflow:hidden}
-  .mk-grid{grid-template-columns:repeat(2,1fr);gap:var(--space-4)}
+  .mk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-4)}
   .mk-results-bar{align-items:flex-start;flex-direction:column}
   .mk-results-tools{width:100%;justify-content:space-between}
   .mk-clear-btn{margin-left:0}

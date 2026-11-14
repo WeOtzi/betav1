@@ -10,6 +10,18 @@
     // Lógica compartida con el marketplace (estilos sin tildes, precio en USD).
     var Core = window.WeotziMarketplaceCore;
 
+    // URL de imagen para background-image:url(): solo http(s) o rutas propias
+    // (Core.safeMediaUrl) y sin caracteres que cierren la función url() o el
+    // atributo style (comillas, paréntesis, barra invertida, espacios → %XX).
+    function cssImageUrl(value) {
+        var safe = Core && typeof Core.safeMediaUrl === 'function' ? Core.safeMediaUrl(value) : '';
+        if (!safe) return '';
+        return safe.replace(/["'()\\\s]/g, function (c) {
+            var hex = c.charCodeAt(0).toString(16).toUpperCase();
+            return '%' + (hex.length < 2 ? '0' + hex : hex);
+        });
+    }
+
     function emptyExploreFilters() {
         return { style: null, country: null, priceRange: null, language: null, experience: null, verified: false };
     }
@@ -461,8 +473,9 @@
             }
 
             var cover = document.getElementById('modal-cover');
-            if (cover) cover.style.backgroundImage = artist.profile_picture
-                ? 'url("' + artist.profile_picture + '")'
+            var coverUrl = cssImageUrl(artist.profile_picture);
+            if (cover) cover.style.backgroundImage = coverUrl
+                ? 'url("' + coverUrl + '")'
                 : 'none';
 
             var stylesEl = document.getElementById('modal-styles');
@@ -607,10 +620,11 @@
 
         listEl.innerHTML = STATE.filtered.map(function (a, idx) {
             var styles = parseStyles(a.styles_array).slice(0, 3);
-            var img = a.profile_picture
-                ? 'style="background-image: url(\'' + escapeHtml(a.profile_picture) + '\')"'
+            var imgUrl = cssImageUrl(a.profile_picture);
+            var img = imgUrl
+                ? 'style="background-image: url(\'' + escapeHtml(imgUrl) + '\')"'
                 : '';
-            var imgClass = a.profile_picture ? '' : ' no-image';
+            var imgClass = imgUrl ? '' : ' no-image';
             var price = priceLabel(a);
             var indexLabel = String(idx + 1).padStart(3, '0');
             var recTag = a.is_recommended
