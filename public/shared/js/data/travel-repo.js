@@ -228,5 +228,18 @@
         },
     };
 
+    // ── gcal ── (2.2.14) Los viajes se publican en Google Calendar: cada
+    // escritura del artista pide una sincronización (debounce y solo con
+    // conexión; sin google-calendar-repo.js cargado no hace nada).
+    ['create', 'update', 'cancel', 'reactivate', 'updateDates'].forEach((name) => {
+        const original = Travel[name];
+        if (typeof original !== 'function') return;
+        Travel[name] = async function gcalSyncAfterTripWrite(...args) {
+            const result = await original.apply(this, args);
+            try { D.GoogleCalendar?.syncSoon?.(); } catch (_error) { /* opcional */ }
+            return result;
+        };
+    });
+
     D.Travel = Travel;
 })();

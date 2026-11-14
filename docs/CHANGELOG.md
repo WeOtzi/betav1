@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.2.14] - 2026-11-14
+
+- Google Calendar: los viajes de Travel (guest spots, convenciones y estudio invitado) también se publican en Google como eventos de todo el día, con ciudad y estado; al cancelarlos se borran de Google. Guardar o editar un viaje pide una sincronización (antes solo el job de 15 min, y los viajes quedaban fuera).
+- Validación: node --test r3b-gcal 32/32 y suite completa en verde con finales de línea LF (como CI).
+- Rollback: controlador a la release 2.2.13 (ac36c05). Sin migraciones.
+
 ## [2.2.13] - 2026-11-14
 
 - Google Calendar solo de ida (We Ötzi → Google): la sincronización publica los eventos del artista y ya no lee su calendario. Se quitan la importación de horarios ocupados, los bloques "Ocupado · Google Calendar" del calendario y su efecto en los días ocupados del cotizador.

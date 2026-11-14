@@ -609,7 +609,8 @@
 
     // ── gcal ── Google Calendar (ronda 3b): cada escritura que ocupa horario
     // pide una sincronización (google-calendar-repo.js, con debounce y solo si
-    // hay conexión). Los recordatorios y viajes no se publican en Google.
+    // hay conexión). Los recordatorios no se publican en Google; los viajes sí
+    // (guest spot / convención), y travel-repo.js pide su propia sincronización.
     ['create', 'update', 'remove', 'createQuoteSession', 'updateQuoteSession', 'removeQuoteSession'].forEach((name) => {
         const original = Calendar[name];
         Calendar[name] = async function gcalSyncAfterWrite(...args) {
