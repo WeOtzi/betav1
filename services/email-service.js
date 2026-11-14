@@ -289,7 +289,7 @@ async function sendViaBillionMail(eventId, payload, override = {}) {
         return {
             ok: false,
             channel: 'billionmail',
-            error: 'Could not resolve a recipient email address from payload'
+            error: 'No hay un email de destino para este correo.'
         };
     }
 

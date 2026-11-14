@@ -72,6 +72,42 @@
         return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3] ? v : '';
     }
 
+    // Hora "HH:MM" (00:00–23:59) o ''.
+    var DEFAULT_TENTATIVE_TIME = '11:00';
+    function normalizeTimeParam(value) {
+        var m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(clean(value));
+        return m ? m[1] + ':' + m[2] : '';
+    }
+
+    // COT-A-14: fecha + hora de la cita tentativa en la zona del navegador del
+    // artista → ISO (UTC). La RPC create_manual_quotation lo usa tal cual; sin
+    // hora cae a las 11:00. '' si la fecha no es válida.
+    function tentativeAt(date, time) {
+        var day = normalizeDateParam(date);
+        if (!day) return '';
+        var hhmm = normalizeTimeParam(time) || DEFAULT_TENTATIVE_TIME;
+        var p = day.split('-');
+        var t = hhmm.split(':');
+        var local = new Date(+p[0], +p[1] - 1, +p[2], +t[0], +t[1], 0, 0);
+        return isFinite(local.getTime()) ? local.toISOString() : '';
+    }
+
+    // COT-A-01: mensaje para el artista cuando la RPC falla (sin texto crudo
+    // de Postgres). Siempre aclara que quedó un borrador local.
+    function createErrorMessage(err) {
+        var draft = ' Guardamos un borrador en este navegador.';
+        var code = String((err && (err.code || (err.cause && err.cause.code))) || '');
+        var detail = String((err && err.cause && err.cause.message) || '').trim();
+        if (code === '23514') return 'No pudimos crear la cotización por un problema de configuración. Avisá a soporte.' + draft;
+        if (code === '23505') return 'Esa referencia ya está en uso. Volvé a abrir la cotización para generar otra.' + draft;
+        if (code === '28000' || code === '42501') return 'Iniciá sesión con tu cuenta de artista para crear cotizaciones.' + draft;
+        // Validaciones propias de la RPC (22023): ya vienen en español.
+        if (code === '22023' && detail && /^[A-ZÁÉÍÓÚÑ¿¡]/.test(detail) && detail.length <= 140) {
+            return 'No pudimos crear la cotización: ' + detail.replace(/\.?$/, '.') + draft;
+        }
+        return 'No pudimos crear la cotización.' + draft;
+    }
+
     // ?volver=<ruta>: solo rutas internas ("/calendar/?view=week"), nunca otro dominio.
     function safeReturnPath(value) {
         var v = clean(value);
@@ -114,6 +150,7 @@
             sessionHours: 3,
             location: opts.location || '',
             date: normalizeDateParam(opts.date),
+            time: normalizeTimeParam(opts.time) || DEFAULT_TENTATIVE_TIME,
             priority: 'medium',
             items: [newItem()],
             currency: String(opts.currency || 'ARS').toUpperCase(),
@@ -251,6 +288,8 @@
                 sessions: Math.max(1, Math.round(num(state.sessions)) || 1),
                 session_hours: Math.max(0, num(state.sessionHours)) || null,
                 location: clean(state.location) || null, tentative_date: clean(state.date) || null,
+                tentative_time: normalizeTimeParam(state.time) || null,
+                tentative_at: tentativeAt(state.date, state.time) || null,
                 priority: state.priority || 'medium',
                 // Vencimiento opcional: queda en el borrador (jsonb) y se aplica a
                 // quotations_db con expiryPatch() al enviar.
@@ -322,6 +361,7 @@
         base.sessionHours = p.session_hours || base.sessionHours;
         base.location = p.location || '';
         base.date = p.tentative_date || '';
+        base.time = normalizeTimeParam(p.tentative_time) || base.time;
         base.priority = p.priority || 'medium';
         var items = Array.isArray(record.line_items) ? record.line_items : [];
         base.items = items.length ? items.map(newItem) : [newItem()];
@@ -442,6 +482,10 @@
         isValidRef: isValidRef,
         parseOrigin: parseOrigin,
         normalizeDateParam: normalizeDateParam,
+        normalizeTimeParam: normalizeTimeParam,
+        tentativeAt: tentativeAt,
+        createErrorMessage: createErrorMessage,
+        DEFAULT_TENTATIVE_TIME: DEFAULT_TENTATIVE_TIME,
         safeReturnPath: safeReturnPath,
         newItem: newItem,
         createInitialState: createInitialState,

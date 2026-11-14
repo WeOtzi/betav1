@@ -343,7 +343,9 @@
                         key: 'quo:' + q.quote_id, type: 'solicitud', icon: 'inbox',
                         title: 'Nueva solicitud',
                         desc: (q.client_full_name || 'Un cliente') + ' pidió una cotización.',
-                        ts: q.created_at, unread: !seen.has('quo:' + q.quote_id), href: '/my-quotations',
+                        // COT-A-03: el aviso in-app abre el detalle de la solicitud.
+                        ts: q.created_at, unread: !seen.has('quo:' + q.quote_id),
+                        href: '/my-quotations/detail?id=' + encodeURIComponent(q.quote_id),
                     };
                 }));
                 pushFeed((quotes || []).filter(function (q) {

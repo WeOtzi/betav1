@@ -34,6 +34,7 @@ const LABELS = {
     artist_current_city: 'Ciudad del artista',
     artist_email: 'Email del artista',
     artist_name: 'Artista',
+    deposit_text: 'Seña',
     reminder_title: 'Recordatorio',
     reminder_when: 'Cuándo',
     reminder_detail: 'Notas',
@@ -273,6 +274,14 @@ const SPECS = {
         eyebrow: 'COTIZACION / APROBADA',
         headline: 'El cliente aprobo tu propuesta.',
         intro: 'La cotizacion avanzo. Usa los datos del resumen para coordinar agenda y confirmar detalles finales.'
+    },
+    // COT-A-11 (beta cerrada): el artista registra el acuerdo → aviso al CLIENTE.
+    'quotation-agreement-client': {
+        eyebrow: 'COTIZACIÓN / ACUERDO',
+        headline: 'Tu tatuaje tiene acuerdo.',
+        intro: '{{artist_name}} registró lo que acordaron. Guardá este resumen: tiene el presupuesto final, la seña, las sesiones y la primera fecha.',
+        ctaLabel: 'Ver mi cotización',
+        ctaVar: 'dashboard_url'
     },
     'quotation-completed': {
         eyebrow: 'COTIZACION / COMPLETADA',

@@ -15,7 +15,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
-const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n'); // CRLF del checkout en Windows
 
 const Currency = require('../public/shared/js/currency-utils.js');
 const RegCore = require('../public/shared/js/acceso-register-final.js');

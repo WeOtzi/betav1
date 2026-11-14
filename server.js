@@ -3326,6 +3326,8 @@ app.post('/api/client/quotations/:quoteId/complete', async (req, res) => {
 
         const completedAt = new Date().toISOString();
         await QuotationsRepo.markCompletedByClient(quotation.id, caller.id, completedAt);
+        const cotNotices = require('./lib/cot-artista-notices'); // COT-A-12: resumen a cliente y artista (una copia por rol)
+        cotNotices.inBackground('completed', () => cotNotices.notifyQuotationCompleted(quotation.quote_id, { baseUrl: applicationBase(req) }));
 
         console.log(`[Client Complete] Client ${caller.id} completed quotation ${quoteId}`);
         return res.json({
@@ -7032,6 +7034,7 @@ app.post('/api/privacy/cookie-consent', async (req, res) => {
     }
 });
 // ── fin privacidad ──
+require('./lib/routes/cot-artista').register(app, { authLimiter }); // ── cot-artista ── avisos de sesión y acuerdo
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {

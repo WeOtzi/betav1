@@ -35,6 +35,12 @@ function normalizeIntake(body, user, artist) {
     return { q, extras };
 }
 
+function notifyArtist(quoteId, req) {
+    const notices = require('../lib/cot-artista-notices');
+    const { applicationBase } = require('./email-request-context');
+    notices.inBackground('artist_new_quotation', () => notices.notifyArtistNewQuotation(quoteId, { baseUrl: applicationBase(req) }));
+}
+
 async function handleIntake(req, res) {
     try {
         const user = await resolveBearerUser(req);
@@ -50,6 +56,8 @@ async function handleIntake(req, res) {
         if (!response.ok) { const detail = await response.json(); console.error('[quotation-intake]',detail.code,detail.message); invalid('No pudimos guardar la cotización. Intentá nuevamente.',502); }
         const result = await response.json();
         res.json({success:true,quote_id:result.quote_id,status:result.status});
+        // COT-A-03: aviso al artista (email server-only artist_new_quotation), una vez por solicitud.
+        if (req.body.mode === 'submit' && result.status === 'pending' && q.artist_id) notifyArtist(result.quote_id, req);
     } catch (e) { res.status(e.status || 500).json({success:false,error:e.status ? e.message : 'No pudimos guardar la cotización.'}); }
 }
 module.exports = {handleIntake,normalizeIntake,CLIENT_FIELDS};

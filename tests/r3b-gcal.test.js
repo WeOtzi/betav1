@@ -13,7 +13,7 @@ const oauth = require('../lib/gcal-oauth');
 const sync = require('../lib/gcal-sync');
 
 const ROOT = path.join(__dirname, '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n'); // CRLF del checkout en Windows
 
 const KEY_B64 = Buffer.alloc(32, 7).toString('base64');
 const ENV = {
