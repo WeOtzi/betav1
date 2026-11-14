@@ -217,7 +217,11 @@
                 closeDialog(overlay);
             } catch (error) {
                 console.error('[quotation-detail] dialog', error);
-                errorEl.textContent = error && error.userMessage ? error.userMessage : (error && error.message && !/^\[/.test(error.message) ? error.message : 'No pudimos guardar. Probá nuevamente.');
+                // Turnos: 23P01 (CALENDAR_OVERLAP / SLOT_TAKEN) con un mensaje legible.
+                const overlap = error && (error.code === '23P01' || /CALENDAR_OVERLAP|SLOT_TAKEN/.test(String(error.message || '')));
+                errorEl.textContent = error && error.userMessage ? error.userMessage
+                    : overlap ? 'Ese horario se superpone con otra sesión, un evento que bloquea o una cita de estudio. Elegí otro horario.'
+                    : (error && error.message && !/^\[/.test(error.message) ? error.message : 'No pudimos guardar. Probá nuevamente.');
                 errorEl.hidden = false;
                 setBusy(submit, false);
             }
@@ -283,6 +287,14 @@
         if (!result.ok) throw userError(result.error);
         return result.patch;
     }
+    // ISO → valor de <input type="datetime-local"> en la hora del navegador.
+    function localInputValue(iso) {
+        const d = iso ? new Date(iso) : null;
+        if (!d || Number.isNaN(d.getTime())) return '';
+        const p = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+
     function readDateTime(value, required) {
         if (!value) {
             if (required) throw userError('Elegí fecha y hora.');
@@ -353,6 +365,8 @@
         });
     }
 
+    // Turnos: quotation-slot-hold.js recarga el detalle después de reservar.
+    window.WoQuotationDetailReload = () => reloadAll();
     async function reloadAll() {
         const fresh = await findQuote().catch(() => null);
         if (fresh) state.quote = fresh;
@@ -772,6 +786,8 @@
         const root = document.getElementById('quotation-detail-root');
         root.innerHTML = [
             identityHtml(v),
+            // Turno pedido desde /turnos (frente turnos): lo pinta quotation-slot-hold.js.
+            '<div id="qd-slot-hold-slot"></div>',
             dossierHtml(v),
             agreementHtml(v),
             sessionsHtml(v),
@@ -999,6 +1015,7 @@
                 ${depositField(q)}
                 ${durationFields(M.minutesFrom(q.artist_session_minutes) || 120)}
                 <div class="wo-field is-wide">${expiryControl(q, 'qd-dialog')}</div>
+                ${window.WoSlotHold ? window.WoSlotHold.respondFieldHtml(q) : ''}
                 ${field('Disponibilidad', `<input class="wo-input" name="availability" maxlength="140" value="${esc(q.artist_availability || '')}" placeholder="Fines de semana, desde agosto">`, true)}
                 ${q.client_user_id ? field('Mensaje para el cliente (opcional)', '<textarea class="wo-textarea" name="message" maxlength="2000" placeholder="Contale cómo vas a encarar el diseño."></textarea>', true) : ''}
             </div>`,
@@ -1023,7 +1040,13 @@
                     ...readExpiry(data.expiry_enabled === '1', data.expiry_days),
                     notes: privateNotesValue(),
                 };
+                // Turnos: "Reservar el turno pedido" crea la sesión y bloquea el turno antes de responder.
+                if (data.reserve_slot === '1' && window.WoSlotHold) await window.WoSlotHold.confirmFor(q);
                 await updateQuote(patch);
+                // Destildado: el turno se libera para otros clientes (no queda apartado hasta que venza).
+                if (data.reserve_slot_offered === '1' && data.reserve_slot !== '1' && window.WoSlotHold) {
+                    await window.WoSlotHold.releaseFor(q, 'artist_declined').catch((error) => console.warn('[quotation-detail] liberar turno', error));
+                }
                 const message = (data.message || '').trim();
                 if (message && q.client_user_id) {
                     // notify:false → el mensaje viaja en artist_responded_quotation (sin correo doble · EM-N7).
@@ -1065,6 +1088,11 @@
         if (!guardWrite()) return;
         const q = state.quote;
         const existing = M.orderedSessions(state.sessions).length;
+        // Turnos: si el turno reservado ya creó la primera sesión, no se pide otra.
+        const holdSessionId = !edit && window.WoSlotHold ? window.WoSlotHold.confirmedSessionId(q) : null;
+        const holdSession = holdSessionId ? state.sessions.find((s) => String(s.id) === String(holdSessionId) && s.status !== 'cancelled') : null;
+        // Turnos: turno pedido todavía apartado → la primera sesión sale de ahí (se precarga y se reserva al confirmar).
+        const heldStart = !edit && !holdSession && window.WoSlotHold && window.WoSlotHold.pendingStart ? window.WoSlotHold.pendingStart(q) : null;
         const sessions = M.agreedSessions(q) || 1;
         const amount = M.numberFrom(q.final_budget_amount != null ? q.final_budget_amount : q.artist_budget_amount);
         openDialog({
@@ -1080,7 +1108,7 @@
                 ${field('Sesiones acordadas', `<input class="wo-input" name="sessions" type="number" min="${Math.max(1, existing)}" max="30" value="${esc(sessions)}" required>`)}
                 ${depositField(q)}
                 ${durationFields(M.minutesFrom(q.artist_session_minutes) || 120)}
-                ${edit ? '' : field('Primera sesión', `<input class="wo-input" name="first" type="datetime-local" required>`, true)}
+                ${edit ? '' : holdSession ? `<p class="wo-help is-wide">Primera sesión: el turno reservado (${esc(window.WoSlotHold.labelFor(q))}).</p>` : field('Primera sesión', `<input class="wo-input" name="first" type="datetime-local" value="${esc(localInputValue(heldStart))}" required>${heldStart ? '<span class="wo-help">Precargada con el turno que pidió el cliente: al confirmar, queda reservado y bloqueado.</span>' : ''}`, true)}
                 ${field('Comentario del acuerdo (opcional)', `<textarea class="wo-textarea" name="comment" maxlength="600" placeholder="Va a llevar un amigo. Solicita anestesia.">${esc(q.final_comment || '')}</textarea>`, true)}
             </div>`,
             onSubmit: async (form, data) => {
@@ -1090,7 +1118,7 @@
                 if (count < existing) throw userError(`Ya hay ${existing} sesiones cargadas: no podés acordar menos.`);
                 const minutes = readMinutes(data);
                 if (minutes < 15) throw userError('La duración por sesión tiene que ser de al menos 15 minutos.');
-                const first = edit ? null : readDateTime(data.first, true);
+                const first = edit ? null : holdSession ? holdSession.session_date : readDateTime(data.first, true);
                 const patch = {
                     final_budget_amount: value,
                     final_budget_currency: data.currency || 'USD',
@@ -1101,9 +1129,26 @@
                     ...readDeposit(data.deposit_pct, value),
                 };
                 if (!edit) patch.quote_status = 'client_approved';
+                // Turnos: con turno apartado, la primera sesión se agenda desde el apartado
+                // (crea la sesión, bloquea el turno y avisa al cliente). Si choca, no se guarda nada.
+                const slotBooking = heldStart && first
+                    ? await window.WoSlotHold.confirmFor(q, { starts_at: first, minutes })
+                    : null;
                 await updateQuote(patch);
                 let created = null;
-                if (!edit) {
+                if (!edit && slotBooking && slotBooking.session_id) {
+                    created = { id: slotBooking.session_id, session_number: slotBooking.session_number };
+                    notify('client_approved_quotation', Object.assign(eventBase(), {
+                        final_budget_amount: value, final_budget_currency: patch.final_budget_currency, final_sessions: count,
+                        first_session_date: first, final_comment: patch.final_comment || '',
+                    }));
+                } else if (!edit && holdSession) {
+                    created = holdSession;
+                    notify('client_approved_quotation', Object.assign(eventBase(), {
+                        final_budget_amount: value, final_budget_currency: patch.final_budget_currency, final_sessions: count,
+                        first_session_date: first, final_comment: patch.final_comment || '',
+                    }));
+                } else if (!edit) {
                     created = await D().QuotationDetail.createSession({
                         quotation_id: q.id, session_number: null, session_date: first,
                         duration_hours: Math.round((minutes / 60) * 100) / 100, status: 'scheduled', notes: null,

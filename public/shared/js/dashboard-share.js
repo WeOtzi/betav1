@@ -72,6 +72,8 @@
         if (!u) return '';
         var hash = dest === 'gallery' ? 'block-gallery' : '';
         if (window.WoArtistPublicUrl) return window.WoArtistPublicUrl.publicProfileUrl(u, base(), { hash: hash });
+        // Turnos (frente turnos): página pública /turnos con los turnos libres.
+        if (dest === 'turnos') return base() + '/turnos?artist=' + encodeURIComponent(u);
         var url = base() + '/artist/profile?artist=' + encodeURIComponent(u);
         return hash ? url + '#' + hash : url;
     }
@@ -120,6 +122,7 @@
     }
     function prettyUrl(url) { return String(url || '').replace(/^https?:\/\//, ''); }
     function shareText(dest) {
+        if (dest === 'turnos') return 'Elegí uno de mis turnos disponibles y pedime tu cotización en We Ötzi';
         return dest === 'gallery'
             ? 'Mirá mi galería de trabajos en We Ötzi'
             : 'Mirá mi perfil de artista en We Ötzi';
@@ -220,7 +223,7 @@
         }
     }
     function fileName(ext) {
-        return 'tarjeta-qr-' + (username() || 'perfil').replace(/[^a-z0-9._-]/gi, '') + (state.dest === 'gallery' ? '-galeria' : '') + '.' + ext;
+        return 'tarjeta-qr-' + (username() || 'perfil').replace(/[^a-z0-9._-]/gi, '') + (state.dest === 'gallery' ? '-galeria' : state.dest === 'turnos' ? '-turnos' : '') + '.' + ext;
     }
     // Tarjeta completa (QR + marcas Bauhaus + WE ÖTZI + URL) como en el Figma.
     function cardCanvas() {
@@ -298,11 +301,11 @@
     /* ------------------------------ render ------------------------------ */
     function tabsHtml() {
         return '<p class="wod-label">QUÉ QUERÉS COMPARTIR</p>' +
-            '<div class="wod-seg wod-seg--2 wod-share-tabs" role="tablist">' +
-                ['profile', 'gallery'].map(function (d) {
+            '<div class="wod-seg wod-seg--3 wod-share-tabs" role="tablist">' +
+                ['profile', 'gallery', 'turnos'].map(function (d) {
                     var on = state.dest === d;
                     return '<button type="button" role="tab" aria-selected="' + on + '" class="wod-seg-btn' + (on ? ' is-on' : '') + '" data-dest="' + d + '">' +
-                        (d === 'profile' ? 'PERFIL' : 'GALERÍA') + '</button>';
+                        (d === 'profile' ? 'PERFIL' : d === 'gallery' ? 'GALERÍA' : 'TURNOS') + '</button>';
                 }).join('') +
             '</div>';
     }
@@ -318,7 +321,7 @@
                 '<div class="wod-share-card-body">' +
                     '<span class="wod-share-avatar">' + (pic ? '<img src="' + esc(pic) + '" alt="">' : esc(initials())) + '</span>' +
                     '<span class="wod-share-id"><strong>' + esc(displayName()) + '</strong>' +
-                    '<small>' + esc(prettyUrl(url)) + ' · ' + (state.dest === 'gallery' ? 'Galería' : 'Perfil público') + '</small></span>' +
+                    '<small>' + esc(prettyUrl(url)) + ' · ' + (state.dest === 'gallery' ? 'Galería' : state.dest === 'turnos' ? 'Turnos disponibles' : 'Perfil público') + '</small></span>' +
                 '</div>' +
             '</div>' +
             '<label class="wod-label wod-share-gap" for="wod-share-url">ENLACE PÚBLICO</label>' +
@@ -479,7 +482,7 @@
         }
         if (trigger) els.trigger = trigger;
         state.panel = panel === 'qr' ? 'qr' : 'share';
-        state.dest = dest === 'gallery' ? 'gallery' : 'profile';
+        state.dest = dest === 'gallery' || dest === 'turnos' ? dest : 'profile';
         placeDrawer();
         render();
         els.scrim.hidden = false;
@@ -514,7 +517,7 @@
         var params = new URLSearchParams(window.location.search);
         var panel = params.get('panel');
         if (panel !== 'compartir' && panel !== 'qr') return;
-        open(panel === 'qr' ? 'qr' : 'share', params.get('destino') === 'galeria' ? 'gallery' : 'profile');
+        open(panel === 'qr' ? 'qr' : 'share', params.get('destino') === 'galeria' ? 'gallery' : params.get('destino') === 'turnos' ? 'turnos' : 'profile');
     }
 
     var booted = false;

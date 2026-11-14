@@ -18,6 +18,7 @@ const crypto = require('node:crypto');
 const { pgrest } = require('../lib/postgrest');
 const { resolveBearerUser } = require('../lib/auth/supabase-auth');
 const cotForm = require('../lib/cot-form');
+const turnosIntake = require('../lib/turnos-intake');
 
 const CLIENT_FIELDS = ['tattoo_body_part','tattoo_body_side','tattoo_idea_description','tattoo_size','tattoo_style','tattoo_color_type','reference_images_count','tattoo_references','tattoo_is_first_tattoo','tattoo_is_cover_up','client_full_name','client_email','client_instagram','client_city_residence','client_travel_willing','city_mismatch_acknowledged','style_mismatch_acknowledged','client_preferred_date','client_flexible_dates','client_budget_amount','client_budget_currency','client_contact_preference','client_whatsapp','client_birth_date','client_age','client_health_conditions','client_allergies','tattoo_estimated_sessions'];
 const ARTIST_SELECT = 'user_id,username,name,email,instagram,styles_array,ubicacion,city,estudios,session_price,registration_status';
@@ -117,18 +118,16 @@ async function callSaveRpc(q, extras) {
     }
 }
 
-/**
- * Guarda (upsert) la cotización del borrador. Devuelve el estado guardado.
- * Lo usan el intake y la publicación en el Job Board.
- */
-async function saveQuotation(body, user, { forceNoArtist = false } = {}) {
+// Normaliza el borrador y resuelve artista, borrador previo y vínculo de cuenta
+// (sin guardar). La usan saveQuotation y el envío con turno (lib/turnos-intake).
+async function prepareQuotation(body, user, { forceNoArtist = false } = {}) {
     const input = body.quotation || {};
     const artist = forceNoArtist ? null : await loadArtist(input.artist_id);
     if (forceNoArtist && body.quotation) body = { ...body, quotation: { ...input, artist_id: null } };
     const { q, extras, references } = normalizeIntake(body, user, artist);
     const previous = await existingDraft(q.quote_id);
     if (previous && previous.job_board_request_id) {
-        return { q, extras, references, artist, previous, result: { quote_id: q.quote_id, status: 'job_board' } };
+        return { q, extras, references, artist, previous, jobBoard: true };
     }
     if (q.client_user_id && !(previous && previous.client_user_id === q.client_user_id)
         && !(await isClientAccount(q.client_user_id))) {
@@ -140,8 +139,18 @@ async function saveQuotation(body, user, { forceNoArtist = false } = {}) {
         && String(previous.client_email || '').toLowerCase() === q.client_email) {
         q.client_user_id = previous.client_user_id;
     }
-    const result = await callSaveRpc(q, extras);
-    return { q, extras, references, artist, previous, result: result || { quote_id: q.quote_id, status: q.quote_status } };
+    return { q, extras, references, artist, previous };
+}
+
+/**
+ * Guarda (upsert) la cotización del borrador. Devuelve el estado guardado.
+ * Lo usan el intake y la publicación en el Job Board.
+ */
+async function saveQuotation(body, user, options = {}) {
+    const prepared = await prepareQuotation(body, user, options);
+    if (prepared.jobBoard) return { ...prepared, result: { quote_id: prepared.q.quote_id, status: 'job_board' } };
+    const result = await callSaveRpc(prepared.q, prepared.extras);
+    return { ...prepared, result: result || { quote_id: prepared.q.quote_id, status: prepared.q.quote_status } };
 }
 
 // Referencias: Storage es la fuente de verdad. Se registran en la cotización
@@ -164,6 +173,44 @@ function sendError(res, e) {
     res.status(status).json({ success: false, error: e.status ? e.message : 'No pudimos guardar la cotización.', ...(e.extra || {}) });
 }
 
+// Envío con turno: misma normalización que el intake; el apartado y el guardado
+// los hace save_web_quotation_with_slot. Después, igual que un envío normal:
+// referencias y confirmación al cliente (afterSubmit). El aviso al artista es
+// booking_slot_requested (lo manda lib/turnos-intake), no artist_new_quotation.
+async function handleSlotSubmit(req, res, body, user, slot, sessionExpired) {
+    const prepared = await prepareQuotation(body, user);
+    if (prepared.jobBoard) {
+        invalid('Esta idea ya está publicada en el Job Board.', 409, { job_board_request_id: prepared.previous.job_board_request_id });
+    }
+    const captured = { status: 200, body: null };
+    const sink = {
+        headersSent: false,
+        status(code) { captured.status = code; return sink; },
+        json(payload) { captured.body = payload; sink.headersSent = true; return sink; }
+    };
+    const { applicationBase } = require('./email-request-context');
+    await turnosIntake.handleSlotIntake(sink, { q: prepared.q, extras: prepared.extras, slot, artist: prepared.artist }, {
+        sendEmail: (...args) => require('./email-service').sendEmail(...args),
+        baseUrl: applicationBase(req)
+    });
+    const out = captured.body || { success: false, error: 'No pudimos guardar la cotización.' };
+    let referencesSaved = true;
+    if (out.success && out.status === 'pending') {
+        try { await persistReferences(prepared.q.quote_id, prepared.references); }
+        catch (error) {
+            referencesSaved = false;
+            console.error('[quotation-intake] referencias de', prepared.q.quote_id, error.message);
+        }
+        const freshlySubmitted = !prepared.previous || prepared.previous.quote_status === 'in_progress';
+        if (freshlySubmitted && typeof hooks.afterSubmit === 'function') {
+            Promise.resolve()
+                .then(() => hooks.afterSubmit({ req, quoteId: prepared.q.quote_id, quote: prepared.q, artist: prepared.artist, references: prepared.references, user }))
+                .catch(error => console.error('[quotation-intake] avisos post-envío:', error.message));
+        }
+    }
+    return res.status(captured.status).json(out.success ? { ...out, session_expired: sessionExpired, references_saved: referencesSaved } : out);
+}
+
 function notifyArtist(quoteId, req) {
     const notices = require('../lib/cot-artista-notices');
     const { applicationBase } = require('./email-request-context');
@@ -177,6 +224,9 @@ async function handleIntake(req, res) {
         // por email) en vez de trabar el wizard con un 401.
         const sessionExpired = !!(req.headers.authorization && !user);
         const body = req.body || {};
+        // ── turnos ── envío final con turno elegido: apartado atómico (lib/turnos-intake.js).
+        const slot = turnosIntake.requestedSlot(body);
+        if (slot) return await handleSlotSubmit(req, res, body, user, slot, sessionExpired);
         const saved = await saveQuotation(body, user);
         const status = saved.result.status;
         if (body.mode === 'submit' && status === 'job_board') {
@@ -205,4 +255,4 @@ async function handleIntake(req, res) {
     } catch (e) { sendError(res, e); }
 }
 
-module.exports = { handleIntake, normalizeIntake, saveQuotation, persistReferences, deriveQuoteId, sendError, hooks, CLIENT_FIELDS };
+module.exports = { handleIntake, normalizeIntake, prepareQuotation, saveQuotation, persistReferences, deriveQuoteId, sendError, hooks, CLIENT_FIELDS };

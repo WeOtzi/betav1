@@ -22,6 +22,7 @@
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css?v=20261028-figma-final-r2">
     <link rel="stylesheet" href="/shared/css/dashboard-live.css?v=20261112-r3">
+    <link rel="stylesheet" href="/shared/css/booking.css?v=20261115-turnos">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
@@ -109,6 +110,11 @@
                     <div class="wo-dash-agenda" id="wod-agenda-rows">
                         <div class="wod-empty">Cargando agenda…</div>
                     </div>
+                </section>
+
+                <!-- Turnos disponibles (frente turnos): semana, mes, 3 meses y año + compartir -->
+                <section class="wo-dash-section wo-dash-section--turnos" id="turnos-disponibles" aria-label="Turnos disponibles">
+                    <div data-booking-summary="dashboard"></div>
                 </section>
 
                 <hr class="wo-divider wo-divider--strong">
@@ -709,7 +715,9 @@
     <script src="/shared/js/dashboard-redesign.js?v=20261112-integracion"></script>
     <script src="/shared/js/dashboard-reminders.js?v=20261028-figma-final"></script>
     <script src="/shared/js/artist-public-url.js?v=20261115-perfil"></script>
-    <script src="/shared/js/dashboard-share.js?v=20261115-perfil"></script>
+    <script src="/shared/js/dashboard-share.js?v=20261115-beta"></script>
+    <script src="/shared/js/data/booking-repo.js?v=20261115-turnos"></script>
+    <script src="/shared/js/booking-summary.js?v=20261115-turnos"></script>
     <!-- Pagos de clientes (grupo pagos): REGISTRAR PAGO + actividad «Pago recibido» -->
     <script src="/shared/js/quotation-payments-model.js?v=20261112-pagos"></script>
     <script src="/shared/js/data/quotation-payments-repo.js?v=20261112-pagos"></script>

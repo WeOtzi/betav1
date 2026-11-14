@@ -6970,6 +6970,8 @@ app.get('/travel/t/:slug', (req, res) => {
 // Perfil público: meta OG del lado servidor y URL corta /<handle> (antes del estático).
 require('./lib/routes/perfil').register(app, { publicDir: path.join(__dirname, 'public') });
 
+require('./lib/routes/turnos').register(app, { gcalService, startJob: require.main === module }); // ── turnos ── reservas online
+
 // Rutas del artista retiradas por el Figma final: redirigen a su reemplazo
 // solo cuando su carpeta ya no existe en public/ (ver lib/legacy-routes.js).
 app.use((req, res, next) => {

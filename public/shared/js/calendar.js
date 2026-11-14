@@ -581,8 +581,11 @@
 
     function updateHeaderSummary() {
         const { confirmed, pending, blocked } = monthCounters();
-        el['calendar-summary'].textContent = `${plural(confirmed, 'turno confirmado', 'turnos confirmados')}, ${plural(pending, 'solicitud esperando respuesta', 'solicitudes esperando respuesta')} y ${plural(blocked, 'día bloqueado', 'días bloqueados')} este mes.`;
+        // Turnos: booking-summary.js publica la capacidad libre del mes.
+        const free = window.WoBookingSummary && window.WoBookingSummary.monthPhrase(window.WoBookingSummary.last);
+        el['calendar-summary'].textContent = `${plural(confirmed, 'turno confirmado', 'turnos confirmados')}, ${plural(pending, 'solicitud esperando respuesta', 'solicitudes esperando respuesta')} y ${plural(blocked, 'día bloqueado', 'días bloqueados')} este mes${free ? ` · ${free}` : ''}.`;
     }
+    document.addEventListener('wo:booking-summary', () => { if (el['calendar-summary'] && state.events) updateHeaderSummary(); });
 
     function renderLegend() {
         el['calendar-legend'].innerHTML = TYPE_ORDER.map((type) => `
@@ -1862,8 +1865,12 @@
             const remote = await window.WeotziData.Calendar.checkConflicts(payload, excludeId);
             const combined = new Map();
             local.forEach((event) => combined.set(`${event.title}:${event.start}`, event));
+            const localStarts = new Set(local.map((event) => asDate(event.start)?.getTime()));
             remote.forEach((event) => {
                 if (state.editingEvent && String(event.id) === String(excludeId)) return;
+                // Sesiones/citas/viajes que el mural ya mostró localmente no se repiten.
+                if (event.event_type !== undefined && !BLOCKING_TYPES.has(event.event_type)
+                    && localStarts.has(asDate(event.starts_at)?.getTime())) return;
                 combined.set(`${event.title}:${new Date(event.starts_at).toISOString()}`, {
                     title: event.title,
                     start: event.starts_at,
@@ -2068,7 +2075,9 @@
         } catch (error) {
             const overlap = error.code === '23P01' || /CALENDAR_OVERLAP|superpone/i.test(error.message || '');
             el['event-form-error'].textContent = overlap
-                ? 'Ese horario se superpone con otro evento. Elegí otro horario o editá el evento existente.'
+                ? (/sesi[oó]n con un cliente|cita de estudio|turno/i.test(`${error.details || ''} ${error.message || ''}`)
+                    ? 'Ese horario se superpone con una sesión con un cliente o una cita de estudio. Elegí otro horario o reprogramá la sesión.'
+                    : 'Ese horario se superpone con otro evento. Elegí otro horario o editá el evento existente.')
                 : (error.message || 'No pudimos guardar el evento.');
         } finally {
             el['save-event'].disabled = false;

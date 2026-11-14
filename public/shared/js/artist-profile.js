@@ -1037,7 +1037,8 @@ function setText(id, value) {
  */
 function setQuoteLinks() {
     const quotationUrl = getQuotationUrl();
-    const reserveUrl = getQuotationFormUrl();
+    // Turnos: con reservas online activas, "Reservar sesión" abre /turnos (profile-turnos.js).
+    const reserveUrl = (window.WoProfileTurnos && window.WoProfileTurnos.reserveUrl) || getQuotationFormUrl();
 
     for (const id of ['quote-cta-top-btn', 'quote-cta-bar-btn']) {
         const el = document.getElementById(id);
