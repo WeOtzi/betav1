@@ -306,46 +306,6 @@
                 && overlaps(asDate(event.start), asDate(event.end), rangeStart, rangeEnd));
     }
 
-    // ── gcal ── Bloques "ocupado" importados de Google Calendar: solo horario,
-    // sin título ajeno; de solo lectura (se editan en Google).
-    function normalizeGoogleBusy(block) {
-        const start = asDate(block && block.starts_at);
-        const end = asDate(block && block.ends_at);
-        if (!start || !end || end <= start) return null;
-        return {
-            id: `google_busy:${block.google_event_id}`,
-            baseId: null,
-            sourceType: 'google_busy',
-            sourceId: String(block.google_event_id),
-            readonly: true,
-            external: 'google',
-            readonlyNote: 'Ocupado en tu Google Calendar · se edita desde Google.',
-            type: 'blocked_day',
-            title: 'Ocupado · Google Calendar',
-            clientName: '',
-            start: start.toISOString(),
-            end: end.toISOString(),
-            allDay: !!block.all_day,
-            location: '',
-            notes: '',
-            status: 'scheduled',
-            recurrenceRule: 'none',
-            recurrenceUntil: null,
-            raw: { block },
-        };
-    }
-
-    async function listGoogleBusyProjection(artistUserId, rangeStart, rangeEnd) {
-        if (!D.GoogleCalendar || typeof D.GoogleCalendar.listBusy !== 'function') return [];
-        try {
-            const blocks = await D.GoogleCalendar.listBusy(artistUserId, rangeStart, rangeEnd);
-            return blocks.map(normalizeGoogleBusy).filter(Boolean);
-        } catch (_error) {
-            // Sin la migración 20261113102000 (o sin conexión) no hay bloques.
-            return [];
-        }
-    }
-
     async function listTripsProjection(artistUserId, rangeStart, rangeEnd) {
         if (!D.Travel) return [];
         const trips = await D.Travel.listForArtist(artistUserId, '*');
@@ -460,7 +420,6 @@
                 listTripsProjection(artistUserId, rangeStart, rangeEnd),
                 listRemindersProjection(artistUserId, rangeStart, rangeEnd),
                 Promise.resolve(listPendingRequestsProjection(quotations, rangeStart, rangeEnd)),
-                listGoogleBusyProjection(artistUserId, rangeStart, rangeEnd),
             ]);
             projectionResults.forEach((result, index) => {
                 if (result.status === 'rejected') {
@@ -474,7 +433,6 @@
                 ...(projectionResults[1].status === 'fulfilled' ? projectionResults[1].value : []),
                 ...(projectionResults[2].status === 'fulfilled' ? projectionResults[2].value : []),
                 ...(projectionResults[3].status === 'fulfilled' ? projectionResults[3].value : []),
-                ...(projectionResults[4].status === 'fulfilled' ? projectionResults[4].value : []),
             ];
 
             const unique = new Map();
@@ -661,6 +619,6 @@
         };
     });
 
-    Calendar._internal = { isMissingColumn, cleanPayload, sessionPatch, normalizeSession, normalizeTrip, normalizeDashboardReminder, expandManualRows, remindersToEvents, listPendingRequestsProjection, normalizeGoogleBusy };
+    Calendar._internal = { isMissingColumn, cleanPayload, sessionPatch, normalizeSession, normalizeTrip, normalizeDashboardReminder, expandManualRows, remindersToEvents, listPendingRequestsProjection };
     D.Calendar = Calendar;
 })();
