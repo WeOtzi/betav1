@@ -47,8 +47,20 @@ El archivo `server.js` expone los siguientes endpoints API:
 
 ### Google Drive Integration
 *   `POST /api/google-drive/test`: Verifica conexión y permisos de carpeta.
-*   `POST /api/google-drive/create-quote-folder`: Crea carpeta para cotización y sube archivos.
-    *   Lógica: Busca carpeta existente -> Si no, crea nueva -> Descarga archivos de URL -> Sube a Drive.
+*   `POST /api/google-drive/create-quote-folder`: re-copia manual (solo superadmin) de las referencias de una cotización a Drive.
+    *   Credenciales y carpeta salen SIEMPRE del `.env` (`GOOGLE_DRIVE_SERVICE_ACCOUNT`, `GOOGLE_DRIVE_FOLDER_ID`); el body solo trae `quoteNumber` y `files` (URLs del folder de la cotización en el bucket `quotation-references`, validadas).
+    *   La copia automática la hace el servidor después de cada envío (`mirrorQuoteFilesToDrive`). Drive es opcional: la fuente de verdad de las referencias es Storage.
+
+### Cotizador web (`/quotation` y pre-cotizador) · `lib/routes/cot-form.js`
+*   `POST /api/quotations/intake`: autosave (`mode: draft`) y envío (`mode: submit`) con service role. La llave del borrador es `submission_key` (UUID v4 del navegador); `quote_id = QN + sha256(submission_key)[0..32]`.
+    *   Envío sin artista → `409 { needs_destination: true }`: nunca queda una cotización enviada sin destino.
+    *   `references`: paths `QN…/ref_<n>_<ts>.<ext>` del folder del propio borrador (máx. 4). El servidor los registra en `quotations_db.reference_images` y `quotations_attachments`.
+    *   Después del envío: `client_quotation_submitted` (llave `quote_id`), `quotation_artist_selected` si el artista salió de las sugerencias (respeta `notification_prefs`), copia opcional a Drive (o a `N8N_REFERENCES_WEBHOOK_URL`/`N8N_WEBHOOK_URL`).
+    *   Sesión vencida: responde `session_expired: true` y guarda como anónima (se vincula por email).
+    *   Pre-cotizador: `source = web_chat`, `quotation_medium = prequote` (el CHECK de `source` no acepta `prequote`).
+*   `POST /api/quotations/suggestions`: artistas sugeridos para una cotización sin artista (`lib/artist-matching.js`: estilo, ciudad/cercanía, presupuesto, verificado). Sin PII.
+*   `POST /api/quotations/intake/job-board`: publica la idea sin artista en el Job Board (requiere sesión de cliente; `401/403 { needs_account: true }`). Idempotente por borrador.
+*   Rate limit propio (no el `apiLimiter` global): 120 por borrador y 1500 por IP cada 15 min en el intake.
 
 ### Pre Cotizador
 *   `POST /api/pre-quote/estimate`: Calcula un estimado aproximado de costo y artistas sugeridos a partir de inputs básicos del tatuaje.
@@ -96,11 +108,11 @@ Contrato completo en [`docs/plans/2026-10-30-store-artista.md`](plans/2026-10-30
 ## 4. Flujos de Datos Críticos
 
 ### Creación de Cotización
-1.  Cliente llena formulario en `/quotation`.
-2.  Frontend guarda datos en Supabase.
-3.  Frontend llama a `/api/google-drive/create-quote-folder` en el backend.
-4.  Backend autentica con Service Account de Google.
-5.  Backend crea estructura de carpetas en Drive y transfiere imágenes.
+1.  Cliente llena formulario en `/quotation`; el borrador vive en localStorage y, con correo, en el servidor (`POST /api/quotations/intake`, debounce 1,5 s).
+2.  Envío: borrador → subida de referencias al bucket `quotation-references` (folder del borrador) → `mode: submit` con los paths.
+3.  Sin artista: el último paso muestra artistas sugeridos (`/api/quotations/suggestions`) o publica la idea en el Job Board (`/api/quotations/intake/job-board`).
+4.  El servidor registra las referencias, manda los avisos y, si está configurado, copia las referencias a Drive.
+5.  El navegador nunca escribe `quotations_db`, `quotations_attachments` ni `quotation_intake_extras` (RLS cerrada en `20261115130000_cot_form_rls_cierre.sql`).
 
 ### Backup y Restauración
 1.  Admin solicita backup desde `/backoffice` o `/installer`.

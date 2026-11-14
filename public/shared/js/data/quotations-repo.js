@@ -178,22 +178,10 @@
             await run('quotations.hardDeleteByQuoteIds', (c) => c.from('quotations_db').delete().in('quote_id', quoteIds));
         },
 
-        // ---- wizard (upsert por quote_id) ----
-        async upsert(payload) {
-            const { data } = await run('quotations.upsert', (c) =>
-                c.from('quotations_db').upsert([payload], { onConflict: 'quote_id' })
-            );
-            return data || [];
-        },
+        // El wizard /quotation no escribe quotations_db desde el navegador: usa
+        // POST /api/quotations/intake (services/quotation-intake.js).
 
         // ---- lookups por email / claim ----
-        async findLatestByEmailForReuse(email, select) {
-            const cols = select || 'quote_id, client_full_name, client_whatsapp, client_birth_date, client_instagram, client_city_residence, client_contact_preference, client_health_conditions, client_allergies';
-            const { data } = await run('quotations.findLatestByEmailForReuse', (c) =>
-                c.from('quotations_db').select(cols).ilike('client_email', email).neq('quote_status', 'in_progress').order('created_at', { ascending: false }).limit(1)
-            );
-            return (data && data[0]) || null;
-        },
         async findUnclaimedByEmail(email) {
             const { data } = await run('quotations.findUnclaimedByEmail', (c) =>
                 c.from('quotations_db').select('quote_id').ilike('client_email', email).is('client_user_id', null)
@@ -406,23 +394,15 @@
     // ============ quotation_intake_extras (key = text quote_id) ============
     // Campos nuevos del wizard rediseñado 2026 (modo de idea, nivel de
     // personalización, notas por referencia). Satélite 1:1 de quotations_db
-    // (migración 20260825160000): insert abierto + borrador anónimo mientras la
-    // cotización padre sigue in_progress, después solo partes y soporte.
+    // (migración 20260825160000). La escribe solo el servidor (save_web_quotation
+    // vía /api/quotations/intake); la lectura es de las partes o soporte
+    // (migración 20261115130000).
     const IntakeExtras = {
         async getByQuoteId(quoteId) {
             const { data } = await run('intakeExtras.getByQuoteId', (c) =>
                 c.from('quotation_intake_extras').select('*').eq('quote_id', quoteId).maybeSingle()
             );
             return data || null;
-        },
-        // Upsert por quote_id. Llamar DESPUÉS del upsert del padre (autosave) o
-        // ANTES de pasarlo a pending (submit): la RLS de UPDATE exige que el
-        // padre exista y siga in_progress para el borrador anónimo.
-        async upsert(payload) {
-            const { data } = await run('intakeExtras.upsert', (c) =>
-                c.from('quotation_intake_extras').upsert([payload], { onConflict: 'quote_id' })
-            );
-            return data || [];
         },
     };
 

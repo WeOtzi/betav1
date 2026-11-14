@@ -151,7 +151,10 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | --- | --- | --- | --- |
 | `POST` | `/api/gemini/generate-image` | Genera imagenes/conceptos con Gemini usando `GEMINI_API_KEY`. | Gemini API |
 | `POST` | `/api/google-drive/test` | Valida acceso a una carpeta de Google Drive. | Google Drive service account |
-| `POST` | `/api/google-drive/create-quote-folder` | Crea carpeta de cotizacion y sube referencias descargadas por URL. | Google Drive |
+| `POST` | `/api/google-drive/create-quote-folder` | Re-copia manual (superadmin) de referencias a Drive; credenciales solo del `.env`. | Google Drive |
+| `POST` | `/api/quotations/intake` | Autosave y envio del cotizador web (service role, llave `submission_key`). | `services/quotation-intake.js` |
+| `POST` | `/api/quotations/suggestions` | Artistas sugeridos para cotizar sin artista (sin PII). | `lib/artist-matching.js` |
+| `POST` | `/api/quotations/intake/job-board` | Publica la idea sin artista en el Job Board (sesion de cliente). | `lib/routes/cot-form.js` |
 | `GET` | `/api/client-info` | Devuelve la IP **anonimizada** (IPv4 /24, IPv6 /48) y timestamp. | Request headers |
 | `POST` | `/api/session-log` | Recibe logs finales via `sendBeacon` y estima el país por zona horaria/idioma del navegador (`geo_hint`), sin enviar la IP a terceros. | Supabase |
 | `GET` | `/api/privacy/cookie-config` | Configuración pública del banner de cookies (`app_settings.cookie_consent_config`). | Supabase |
@@ -162,7 +165,7 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `POST` | `/api/tattoo-styles/ensure` | Busca o crea estilo raiz en `tattoo_styles`. | Supabase REST |
 | `POST` | `/api/admin/generate-backup` | Genera ZIP con datos recibidos, config y archivos de app. | `archiver`, filesystem |
 | `GET` | `/api/admin/backup-tables` | Lista tablas conocidas para backup. | `verifyAdminCaller` |
-| `GET` | `/shared/js/app-config.json` | Sirve configuracion publica con overrides de entorno. | `app-config.json`, env vars |
+| `GET` | `/shared/js/app-config.json` | Sirve configuracion publica con overrides de entorno, saneada (`sanitizePublicConfig`: sin service account, Gemini key, PRESET_PASSWORD ni webhook de referencias). | `app-config.json`, env vars |
 | `POST` | `/api/job-board/accept-application` | Cliente acepta postulacion, crea cotizacion, actualiza solicitud y rechaza otras postulaciones. | Supabase REST/Admin |
 | `POST` | `/api/client/quotations/:quoteId/hide` | Oculta cotizacion para el cliente con `client_deleted_at`. | Supabase Auth/REST |
 | `GET` | `/api/health/all` | Healthcheck de todos los servicios configurados. | Supabase, n8n, Gemini, Maps, Drive, EmailJS, Calendar |
@@ -391,10 +394,10 @@ RPC principales: `create_store_order`, `report_store_payment`, `confirm_store_or
 
 ### Cotizacion cliente-artista
 
-1. Cliente completa `/quotation`.
-2. Frontend crea/actualiza registros en `quotations_db` y adjuntos.
-3. Backend puede crear carpeta en Drive con `/api/google-drive/create-quote-folder`.
-4. n8n envia emails/eventos segun `app-config.json`.
+1. Cliente completa `/quotation` (o llega del pre-cotizador).
+2. El servidor guarda borrador y envio (`/api/quotations/intake`); las referencias van al bucket `quotation-references` y el servidor las registra.
+3. Sin artista: el cliente elige un artista sugerido o publica su idea en el Job Board.
+4. El servidor manda la confirmacion al cliente y, si esta configurado, copia las referencias a Drive.
 5. Artista gestiona la solicitud desde `/my-quotations`.
 6. Cliente revisa estado/chat desde `/client/dashboard`.
 
