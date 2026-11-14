@@ -2081,17 +2081,42 @@
                 const picked = modeState.selected && String(modeState.selected.name || '').toUpperCase() === nameUpper;
                 studioId = picked ? modeState.selected.id : await findOrCreateStudio(name);
             }
+            // ── roster (ROSTER-05): el estudio no se cambia escribiendo
+            // artists_db.studio_id (el guard lo revierte en silencio): se sale
+            // del equipo con end_studio_membership y se pide el alta en el
+            // nuevo con request_studio_membership; el estudio la aprueba.
+            const open = await openStudioLinks();
+            const currentResident = open.find((m) => m.status === 'active' && m.role === 'resident') || null;
+            const sameStudio = !!(currentResident && studioId && currentResident.studio_id === studioId);
+            if (currentResident && !sameStudio) {
+                const oldName = (currentResident.studios && currentResident.studios.name) || 'tu estudio actual';
+                const leaveMsg = withStudio
+                    ? `¿Salir del equipo de ${oldName}? Si no, seguís en ese estudio y además pedís el alta en el nuevo.`
+                    : `Para trabajar como independiente salís del equipo de ${oldName}. ¿Confirmás?`;
+                if (window.confirm(leaveMsg)) {
+                    const ended = await D.StudioMemberships.endMembership(currentResident.id);
+                    if (ended && ended.error) throw ended.error;
+                } else if (!withStudio) {
+                    modalityError(`Seguís en el equipo de ${oldName}. Para pasar a independiente, primero salí del estudio.`);
+                    return;
+                }
+            }
+            const linkedNow = withStudio && sameStudio;
             const patch = {
                 work_type: type,
                 estudios: withStudio ? nameUpper : INDEPENDENT_STUDIO,
-                studio_id: studioId
             };
             await updateArtist(patch);
             extras = { ...(extras || {}), ...patch };
             modeState.selected = withStudio && studioId ? { id: studioId, name } : null;
-            const baseSaved = await syncBaseLocation(type, studioId, nameUpper);
+            // Mientras el estudio no aprueba, la base guarda el nombre sin studio_id.
+            const baseSaved = await syncBaseLocation(type, linkedNow ? studioId : null, nameUpper);
+            let requestNote = '';
+            if (withStudio && studioId && !linkedNow) {
+                requestNote = await requestStudioLink(studioId, name, open);
+            }
             await loadLocations();
-            toast(baseSaved ? 'Modalidad guardada' : 'Guardamos la modalidad, pero no pudimos actualizar tu estudio base', baseSaved);
+            toast(requestNote || (baseSaved ? 'Modalidad guardada' : 'Guardamos la modalidad, pero no pudimos actualizar tu estudio base'), baseSaved);
             assistRefresh('disponibilidad');
         } catch (err) {
             console.error('[account] modalidad:', err);
@@ -2099,6 +2124,37 @@
         } finally {
             btn.disabled = false;
         }
+    }
+
+    // ── roster (ROSTER-05): vínculos abiertos del artista y solicitud de alta.
+    async function openStudioLinks() {
+        if (!D.StudioMemberships || typeof D.StudioMemberships.listOpenForArtist !== 'function') return [];
+        try {
+            const { data, error } = await D.StudioMemberships.listOpenForArtist(user.id);
+            return error ? [] : (data || []);
+        } catch {
+            return [];
+        }
+    }
+
+    async function requestStudioLink(studioId, name, open) {
+        if (open.some((m) => m.studio_id === studioId)) {
+            return `Ya tenés una solicitud o invitación abierta con ${name}. La ves en Invitaciones.`;
+        }
+        if (!D.StudioMemberships || typeof D.StudioMemberships.requestMembership !== 'function') return '';
+        const { data, error } = await D.StudioMemberships.requestMembership({ studioId, role: 'resident' });
+        if (error) {
+            const text = String(error.message || '');
+            if (/Esperá unos días/i.test(text)) return `Guardamos tu modalidad. Esperá unos días antes de volver a pedir el alta en ${name}.`;
+            if (/Ya tenés/i.test(text)) return `Ya tenés una solicitud o vínculo abierto con ${name}.`;
+            console.warn('[account] solicitud de alta:', error);
+            return `Guardamos tu modalidad, pero no pudimos enviar tu solicitud a ${name}. Pedila desde Invitaciones.`;
+        }
+        if (data && data.membership_id) {
+            igApi('/api/artist/studio-notify', { method: 'POST', body: { kind: 'membership_request_created', membership_id: data.membership_id } })
+                .catch((err) => console.warn('[account] aviso al estudio:', err && err.message));
+        }
+        return `Guardamos tu modalidad y enviamos tu solicitud a ${name}. Queda en tu perfil cuando el estudio la apruebe.`;
     }
 
     // ── gcal ── Google Calendar real (ronda 3b): OAuth en el servidor

@@ -62,6 +62,8 @@
             location: (locationsRes.data || [])[0] || null,
             spots: spotsRes.data || [],
             roster: rosterRes.data || [],
+            // ── roster: todas las sedes, para elegir dónde pedir el alta.
+            locations: locationsRes.data || [],
         };
     }
 
@@ -109,6 +111,12 @@
         const website = M.text(studio.website);
         const instagram = M.text(studio.instagram).replace(/^@/, '');
         const writeButton = (extra) => `<button type="button" class="isd-btn isd-btn--accent ${extra || ''}" data-isd-contact ${canWrite ? '' : 'disabled aria-describedby="isd-contact-note"'}>${icon('message-circle')} ${esc(ctaLabel)}</button>`;
+        // ── roster (ROSTER-14): "Quiero sumarme" = solicitud de alta al estudio.
+        const join = joinState(studio);
+        const joinButton = () => (join.canRequest
+            ? `<button type="button" class="isd-btn" data-isd-join>${icon('user-plus')} Quiero sumarme</button>`
+            : '');
+        const joinNote = join.note ? `<p class="isd-note isd-join-note">${esc(join.note)}</p>` : '';
 
         const workRows = [
             ['Oportunidades', opp.summary || 'Sin oportunidades abiertas por ahora'],
@@ -135,8 +143,10 @@
                     ${membership ? `<div class="isd-invite"><i class="isd-square" aria-hidden="true"></i><span>${esc(M.invitationLine(membership, 'detail'))}</span><a href="${esc(href({ invitacion: membership.id }))}" data-inv-nav="invitation" data-invitation="${esc(membership.id)}">Ver invitación →</a></div>` : ''}
                     <div class="isd-cta">
                         ${writeButton()}
+                        ${joinButton()}
                         <a class="isd-maplink" href="${esc(href({ vista: 'mapa', estudio: studio.id }))}" data-inv-nav-map-studio="${esc(studio.id)}">${icon('map-pin')} Ver en el mapa</a>
                     </div>
+                    ${joinNote}
                     ${canWrite ? '' : `<p class="isd-note" id="isd-contact-note">${esc(target.acceptsInquiries ? 'Este estudio todavía no tiene cuenta en We Ötzi. Escribile por Instagram o por su web.' : 'Este estudio no recibe consultas por ahora.')}</p>`}
                 </div>
                 <div class="isd-gallery">
@@ -191,7 +201,134 @@
         host.querySelectorAll('[data-isd-contact]').forEach((button) => {
             button.addEventListener('click', () => openContact(Object.assign(contactTargetFromData(currentData), { trigger: button })));
         });
+        host.querySelectorAll('[data-isd-join]').forEach((button) => {
+            button.addEventListener('click', () => openJoin(button));
+        });
         wireBack(host);
+    }
+
+    /* ---------------------- solicitar el alta (ROSTER-14) ---------------------- */
+    const JOIN_ROLES = { resident: 'Residente', guest: 'Guest', itinerant: 'Itinerante' };
+
+    function joinState(studio) {
+        if (!studio || !studio.id) return { canRequest: false, note: '' };
+        const membership = app().membershipForStudio ? app().membershipForStudio(studio.id) : null;
+        const request = app().requestForStudio ? app().requestForStudio(studio.id) : null;
+        if (request) return { canRequest: false, note: 'Ya le enviaste una solicitud de alta: está esperando la respuesta del estudio.' };
+        if (membership && (membership._state === 'active' || membership._state === 'pending')) return { canRequest: false, note: '' };
+        if (!studio.user_id) return { canRequest: false, note: '' };
+        if (studio.is_active === false) return { canRequest: false, note: '' };
+        return { canRequest: true, note: '' };
+    }
+
+    function joinErrorMessage(error) {
+        const text = String((error && error.message) || '');
+        if (/Ya tenés una solicitud|vínculo abierto/i.test(text)) return 'Ya tenés una solicitud o un vínculo abierto con este estudio.';
+        if (/Esperá unos días/i.test(text)) return 'Esperá unos días antes de volver a pedir el alta en este estudio.';
+        if (/[áéíóúñ]/.test(text) && text.length < 200) return text;
+        return 'No pudimos enviar tu solicitud. Probá de nuevo.';
+    }
+
+    function openJoin(trigger) {
+        if (!currentData || !currentData.studio) return;
+        const studio = currentData.studio;
+        closeContact({ restoreFocus: false });
+        modalReturnFocus = trigger instanceof HTMLElement ? trigger : document.activeElement;
+        const today = M.isoDate(new Date());
+        const locations = currentData.locations || [];
+        const layer = document.createElement('div');
+        layer.className = 'isc-layer';
+        layer.id = 'isc-layer';
+        layer.innerHTML = `
+            <div class="isc-scrim" data-isc-close aria-hidden="true"></div>
+            <div class="isc-dialog" role="dialog" aria-modal="true" aria-labelledby="isj-title" tabindex="-1">
+                <header class="isc-head">
+                    <h2 class="isc-title" id="isj-title">Sumarme a ${esc(studio.name || 'este estudio')}</h2>
+                    <button type="button" class="isc-close" data-isc-close aria-label="Cerrar">${icon('x')}</button>
+                </header>
+                <form class="isc-form" id="isj-form" novalidate>
+                    <div class="isc-body">
+                        <p class="isc-count">El estudio recibe tu solicitud con tu perfil y la aprueba o rechaza. Te avisamos por email.</p>
+                        <fieldset class="isc-field">
+                            <legend class="isc-label">Cómo querés trabajar</legend>
+                            <div class="isc-segmented" role="radiogroup" aria-label="Rol">
+                                ${Object.entries(JOIN_ROLES).map(([value, label], index) => `<label class="isc-seg"><input type="radio" name="role" value="${value}" ${index === 0 ? 'checked' : ''}><span>${esc(label)}</span></label>`).join('')}
+                            </div>
+                        </fieldset>
+                        ${locations.length > 1 ? `<div class="isc-field">
+                            <label class="isc-label" for="isj-location">Sede</label>
+                            <select class="isc-input" id="isj-location" name="location">
+                                <option value="">Cualquier sede</option>
+                                ${locations.map((loc) => `<option value="${esc(loc.id)}">${esc([loc.label, loc.city].filter(Boolean).join(' · ') || 'Sede')}</option>`).join('')}
+                            </select>
+                        </div>` : ''}
+                        <div class="isc-field">
+                            <label class="isc-label" for="isj-start">Desde cuándo · opcional</label>
+                            <input type="date" class="isc-input" id="isj-start" name="start" min="${today}">
+                        </div>
+                        <div class="isc-field">
+                            <label class="isc-label" for="isj-message">Mensaje · opcional</label>
+                            <textarea class="isc-textarea" id="isj-message" name="message" maxlength="1000" placeholder="Contales quién sos, qué estilo trabajás y por qué querés sumarte."></textarea>
+                        </div>
+                        <div class="isc-field">
+                            <label class="isc-label" for="isj-portfolio">Portfolio · opcional</label>
+                            <input type="url" class="isc-input" id="isj-portfolio" name="portfolio" placeholder="https://" maxlength="500" inputmode="url">
+                        </div>
+                        <p class="isc-error" data-error="submit" role="alert" hidden></p>
+                    </div>
+                    <footer class="isc-foot">
+                        <button type="button" class="isc-btn" data-isc-close>Cancelar</button>
+                        <button type="submit" class="isc-btn isc-btn--accent">Enviar solicitud ${icon('arrow-right')}</button>
+                    </footer>
+                </form>
+            </div>`;
+        document.body.appendChild(layer);
+        document.body.classList.add('inv-modal-open');
+        layer.querySelectorAll('[data-isc-close]').forEach((button) => button.addEventListener('click', () => closeContact()));
+        layer.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') { event.preventDefault(); closeContact(); }
+            if (event.key === 'Tab') trapFocus(event, layer);
+        });
+        const form = layer.querySelector('#isj-form');
+        form.addEventListener('submit', (event) => { event.preventDefault(); submitJoin(form, studio); });
+        layer.querySelector('.isc-dialog').focus({ preventScroll: true });
+    }
+
+    async function submitJoin(form, studio) {
+        setError(form, 'submit', '');
+        const portfolio = String(form.elements.portfolio.value || '').trim();
+        if (portfolio && !/^https?:\/\//i.test(portfolio)) {
+            setError(form, 'submit', 'El portfolio tiene que ser un enlace que empiece con http:// o https://.');
+            form.elements.portfolio.focus();
+            return;
+        }
+        if (!D.StudioMemberships || typeof D.StudioMemberships.requestMembership !== 'function') {
+            setError(form, 'submit', 'Esta función todavía no está disponible.');
+            return;
+        }
+        const submit = form.querySelector('[type="submit"]');
+        submit.disabled = true;
+        submit.setAttribute('aria-busy', 'true');
+        const result = await D.StudioMemberships.requestMembership({
+            studioId: studio.id,
+            role: (form.querySelector('input[name="role"]:checked') || {}).value || 'resident',
+            locationId: form.elements.location ? (form.elements.location.value || null) : null,
+            message: String(form.elements.message.value || '').trim() || null,
+            portfolioUrl: portfolio || null,
+            proposedStartDate: form.elements.start.value || null,
+        }).catch((error) => ({ error }));
+        submit.disabled = false;
+        submit.setAttribute('aria-busy', 'false');
+        if (!result || result.error) {
+            setError(form, 'submit', joinErrorMessage(result && result.error));
+            return;
+        }
+        const membershipId = result.data && result.data.membership_id;
+        closeContact();
+        if (membershipId && app().notifyStudio) app().notifyStudio('membership_request_created', membershipId);
+        if (app().reload) await app().reload();
+        if (currentStudioId && String(currentStudioId) === String(studio.id)) render();
+        toast(`Enviamos tu solicitud a ${studio.name || 'el estudio'}. Te avisamos por email cuando responda.`, null);
     }
 
     function wireBack(host) {

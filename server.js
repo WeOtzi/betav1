@@ -29,6 +29,8 @@ const { legacyRedirectFor, legacyLocation } = require('./lib/legacy-routes');
 const { pgrest } = require('./lib/postgrest');
 const termsAcceptance = require('./lib/terms-acceptance'); // ── cotizaciones · P3
 const { resolveBearerUser } = require('./lib/auth/supabase-auth');
+// ── roster: altas de tatuadores en estudios (lib/routes/roster.js).
+const rosterRoutes = require('./lib/routes/roster');
 const privacidadCookies = require('./lib/privacidad-cookies'); // ── privacidad
 const { QuotationsRepo } = require('./lib/repos/quotations');
 const { JobBoardRepo } = require('./lib/repos/jobboard');
@@ -4366,7 +4368,11 @@ app.post('/api/studio/notify', require('./lib/routes/emails').dispatchLimiter, a
                 throw new Error(`Could not load application: ${loadErr.status || loadErr.message}`);
             }
             if (!app) return res.status(404).json({ success: false, error: 'Application not found.' });
-            if (app.status !== decision) return res.status(409).json({ success: false, sent: false, error: 'La decisión no coincide con la postulación guardada.' });
+            // ── roster (ROSTER-13): aceptar deja la postulación 'shortlisted'
+            // (decide_studio_spot_application) y el estudio le envía al artista
+            // una invitación al equipo; para el email cuenta como aceptada.
+            const savedDecision = app.status === 'shortlisted' ? 'accepted' : app.status;
+            if (savedDecision !== decision) return res.status(409).json({ success: false, sent: false, error: 'La decisión no coincide con la postulación guardada.' });
 
             const studio = app.studio_spots?.studios || {};
             const artist = app.artists_db || {};
@@ -4386,7 +4392,7 @@ app.post('/api/studio/notify', require('./lib/routes/emails').dispatchLimiter, a
                     ? `¡Te aceptaron en ${studio.name}!`
                     : `Actualización de tu postulación a ${studio.name}`,
                 body_text: decision === 'accepted'
-                    ? `Hola${artist.name ? ' ' + artist.name : ''},\n\n${studio.name} aceptó tu postulación al spot "${spot.title}". Ya formás parte del roster como ${roleFromKind(spot.kind)}.\n\nVas a ver el estudio bajo tus memberships activas en /artist/invitations. Mucha suerte y buena tinta.`
+                    ? `Hola${artist.name ? ' ' + artist.name : ''},\n\n${studio.name} aceptó tu postulación al spot "${spot.title}" y te envió una invitación para sumarte como ${roleFromKind(spot.kind)}.\n\nAceptala en ${mailBase}/artist/invitations para quedar en el equipo del estudio. Mucha suerte y buena tinta.`
                     : `Hola${artist.name ? ' ' + artist.name : ''},\n\nGracias por postularte al spot "${spot.title}" en ${studio.name}. En esta oportunidad eligieron a otro artista, pero seguí atento al directorio para nuevas oportunidades: ${mailBase}/studio-spots`,
                 links: {
                     studio_profile:   `${mailBase}/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`,
@@ -5214,12 +5220,21 @@ async function createStudioLocation({ studioId, address, isPrimary, label }) {
     }
 }
 
-async function ensureStudioLocationForRegistration(formData, studioId) {
+async function ensureStudioLocationForRegistration(formData, studioId, { studioHasOwner = false } = {}) {
     if (!studioId || !artistRegistration.isStudioWorkType(formData?.work_type)) {
         return { locationId: null };
     }
 
     const selectedLocation = await getStudioLocationById(studioId, formData?.studio_location_id);
+    // ── roster (ROSTER-01): un estudio con dueño administra sus sedes. El
+    // registro de un tatuador solo usa la sede elegida o la que coincide; no
+    // crea sedes ni cambia la principal.
+    if (studioHasOwner) {
+        if (selectedLocation) return { locationId: selectedLocation.id };
+        const ownedAddress = buildStudioAddressPatch(formData?.address);
+        const ownedMatch = ownedAddress ? await findMatchingStudioLocation(studioId, ownedAddress) : null;
+        return { locationId: ownedMatch ? ownedMatch.id : null };
+    }
     if (selectedLocation) {
         const studio = await getStudioRecord(studioId);
         if (!studio?.primary_location_id) {
@@ -5255,14 +5270,32 @@ async function ensureStudioLocationForRegistration(formData, studioId) {
     return { locationId: createdLocation?.id || null };
 }
 
-async function persistRegistrationStudioAssociations({ formData, artistUserId, studioId, studioName }) {
+// ── roster (ROSTER-01/03): el registro deja una SOLICITUD al estudio
+// ('requested', initiated_by='artist') que aprueba el dueño (o soporte); con
+// un enlace de invitación válido se canjea el enlace (puede quedar 'active'
+// si el estudio no pide aprobación). Mientras la solicitud está pendiente la
+// ubicación actual del artista guarda el nombre del estudio sin studio_id.
+async function persistRegistrationStudioAssociations({ formData, artistUserId, studioId, studioName, studioHasOwner = false, invite = null }) {
     if (!artistUserId || !studioId || !artistRegistration.isStudioWorkType(formData?.work_type)) {
-        return { locationId: null };
+        return { locationId: null, membershipId: null, membershipStatus: null };
     }
 
-    const { locationId } = await ensureStudioLocationForRegistration(formData, studioId);
+    const { locationId } = await ensureStudioLocationForRegistration(formData, studioId, { studioHasOwner });
     const address = formData?.address && typeof formData.address === 'object' ? formData.address : {};
     const normalizedStudioName = studioNameForStorage(studioName || formData?.studio_name);
+
+    // Indice unico PARCIAL en vivo (studio_memberships_one_open_per_role): no
+    // se puede usar on_conflict; se busca la membresia abierta y se actualiza
+    // o se inserta (lib/registration-finalize.js).
+    const membership = await rosterRoutes.service().persistRegistrationMembership({
+        upsertOpenStudioMembership: registrationFinalize.upsertOpenStudioMembership,
+        fetchRest: _supabaseFetch,
+        artistUserId,
+        studioId,
+        locationId,
+        formData,
+        invite
+    });
 
     await _supabaseFetch('artist_tattoo_locations?on_conflict=artist_user_id,period_type,sort_order', {
         method: 'POST',
@@ -5271,27 +5304,21 @@ async function persistRegistrationStudioAssociations({ formData, artistUserId, s
             artist_user_id: artistUserId,
             period_type: 'current',
             sort_order: 0,
-            studio_id: studioId,
+            studio_id: membership.status === 'active' ? studioId : null,
             studio_name: normalizedStudioName,
             city: address.city || address.locality || formData?.location_city || formData?.city || null,
             agenda_status: 'open'
         }
     });
 
-    const membership = artistRegistration.buildStudioMembershipPayload({
-        artistUserId,
-        studioId,
+    return {
         locationId,
-        workType: formData.work_type
-    });
-    // Indice unico PARCIAL en vivo (studio_memberships_one_open_per_role): no
-    // se puede usar on_conflict; se busca la membresia abierta y se actualiza
-    // o se inserta (lib/registration-finalize.js).
-    if (membership) {
-        await registrationFinalize.upsertOpenStudioMembership(_supabaseFetch, membership);
-    }
-
-    return { locationId };
+        membershipId: membership.membershipId,
+        membershipStatus: membership.status,
+        viaInvite: membership.viaInvite === true,
+        inviteFailed: membership.inviteFailed === true,
+        alreadyMember: membership.alreadyMember === true
+    };
 }
 
 // PostgREST responde PGRST204 / 42703 si la migracion de columnas nuevas
@@ -5363,8 +5390,18 @@ async function resolveRegistrationStudio(formData, { artistUserId = null, draftI
         return { studioId: null, estudiosValue: null };
     }
 
+    // ── roster (ROSTER-01): el studio_id del cliente solo vale si el estudio
+    // existe y está activo; si no, se cae al find-or-create por nombre.
     if (formData?.studio_id) {
-        return { studioId: formData.studio_id, estudiosValue: studioNameForStorage(studioName), studioName };
+        const chosen = await rosterRoutes.service().validateRegistrationStudio(formData.studio_id);
+        if (chosen) {
+            return {
+                studioId: chosen.id,
+                estudiosValue: studioNameForStorage(chosen.name || studioName),
+                studioName: chosen.name || studioName,
+                studioHasOwner: Boolean(chosen.user_id)
+            };
+        }
     }
 
     const normalized = studioName.toUpperCase();
@@ -5407,7 +5444,8 @@ async function resolveRegistrationStudio(formData, { artistUserId = null, draftI
         estudiosValue: studioNameForStorage(studioName),
         studioName,
         createdStudioId,
-        claimableStudioId
+        claimableStudioId,
+        studioHasOwner: Boolean(existing && existing.user_id)
     };
 }
 
@@ -5656,7 +5694,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
 
     const body = req.body || {};
     const requestedDraftId = artistRegistration.normalizeDraftId(body.draft_id);
-    const formData = body.data && typeof body.data === 'object' ? body.data : {};
+    let formData = body.data && typeof body.data === 'object' ? body.data : {};
     const email = artistRegistration.normalizeEmail(body.email || formData.email);
     const password = String(body.password || formData.signup_password || '');
     const source = artistRegistration.sanitizeRegistrationSource(body.source || formData.registration_source);
@@ -5734,6 +5772,17 @@ app.post('/api/register/artist-finalize', async (req, res) => {
         }
 
         // Desde aca todo lo que falle se compensa (catch de abajo).
+        // ── roster (ROSTER-03): un enlace de invitación válido fuerza el
+        // estudio y la sede del enlace (lo que mande el cliente no cuenta).
+        const studioInviteResolution = await rosterRoutes.service()
+            .resolveRegistrationInvite(formData.studio_invite_token)
+            .catch((inviteErr) => {
+                console.warn('[register finalize] enlace de invitación ilegible:', inviteErr.message);
+                return { ok: false, status: 'invalid' };
+            });
+        if (studioInviteResolution.ok) {
+            formData = rosterRoutes.service().applyInviteToFormData(formData, studioInviteResolution);
+        }
         const studio = await resolveRegistrationStudio(formData, { artistUserId: authUser.id, draftId });
         createdStudioId = studio.createdStudioId || null;
         const { studioId, estudiosValue, studioName } = studio;
@@ -5744,7 +5793,9 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             email,
             source,
             step: 12,
-            studioId,
+            // ── roster: artists_db.studio_id lo completa el trigger cuando la
+            // membresía residente queda activa; una solicitud no lo fija.
+            studioId: null,
             estudiosValue,
             status: artistRegistration.REGISTRATION_STATUS_PENDING_VALIDATION,
             submitted: true
@@ -5761,11 +5812,13 @@ app.post('/api/register/artist-finalize', async (req, res) => {
         const artist = Array.isArray(savedRows) && savedRows[0] ? savedRows[0] : null;
         if (!artist) throw new Error('La fila del borrador cambio durante el registro');
 
-        await persistRegistrationStudioAssociations({
+        const studioMembership = await persistRegistrationStudioAssociations({
             formData,
             artistUserId: authUser.id,
             studioId,
-            studioName: studioName || estudiosValue
+            studioName: studioName || estudiosValue,
+            studioHasOwner: studio.studioHasOwner === true,
+            invite: studioInviteResolution.ok ? studioInviteResolution : null
         });
 
         const claim = studio.claimableStudioId
@@ -5777,6 +5830,16 @@ app.post('/api/register/artist-finalize', async (req, res) => {
         const confirmationSend = emailConfirmationRequired
             ? await sendServerSignupConfirmation(req, email, 'artist')
             : null;
+
+        // ── roster: aviso al dueño del estudio con todo ya guardado (no bloquea
+        // la respuesta ni hace fallar el registro).
+        if (studioMembership.membershipId && !studioMembership.alreadyMember) {
+            const rosterBase = applicationBase(req);
+            const rosterNotice = studioMembership.membershipStatus === 'active'
+                ? rosterRoutes.service().afterRedeem({ status: 'active', membership_id: studioMembership.membershipId }, { base: rosterBase, artistUserId: authUser.id })
+                : rosterRoutes.service().notify('studio_membership_request_created', studioMembership.membershipId, { base: rosterBase });
+            Promise.resolve(rosterNotice).catch((noticeErr) => console.warn('[register finalize] aviso al estudio falló:', noticeErr.message));
+        }
 
         return res.json({
             success: true,
@@ -5792,7 +5855,15 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             studio_id: studioId || null,
             studio_location_verified: studio.claimableStudioId ? false : null,
             studio_claim_url: claim ? claim.url : null,
-            studio_claim_expires_at: claim ? claim.expires_at : null
+            studio_claim_expires_at: claim ? claim.expires_at : null,
+            // ── roster: estado del vínculo con el estudio elegido.
+            studio_name: studioId ? (studioName || null) : null,
+            membership_id: studioMembership.membershipId || null,
+            membership_status: studioMembership.membershipStatus || null,
+            membership_pending: studioMembership.membershipStatus === 'requested',
+            studio_invite_status: formData.studio_invite_token
+                ? (studioMembership.viaInvite ? 'joined' : (studioMembership.inviteFailed ? 'failed' : (studioInviteResolution.status || 'invalid')))
+                : null
         });
     } catch (error) {
         console.error('[register finalize] failed:', error.message);
@@ -6901,6 +6972,8 @@ require('./lib/routes/perfil').register(app, { publicDir: path.join(__dirname, '
 require('./lib/routes/turnos').register(app, { gcalService, startJob: require.main === module }); // ── turnos ── reservas online
 
 require('./lib/routes/estudio-registro').register(app, { applicationBase }); // frente estudio-registro: reclamos y bienvenida
+
+rosterRoutes.register(app, { resolveBearerUser, applicationBase });
 
 // Rutas del artista retiradas por el Figma final: redirigen a su reemplazo
 // solo cuando su carpeta ya no existe en public/ (ver lib/legacy-routes.js).

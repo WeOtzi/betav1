@@ -292,10 +292,20 @@
 
         // Artistas por username/nombre (ilike sobre or) para invitar al roster.
         // Cubre studio-dashboard.js:762. limit configurable.
+        // ── roster (ROSTER-08): el termino se sanea (comas, parentesis,
+        // comodines y barras rompen el filtro or=) y solo devuelve perfiles
+        // con cuenta (los borradores ya los oculta la RLS).
         searchByUsernameOrName(term, limit = 8) {
+            const clean = String(term == null ? '' : term)
+                .replace(/[,()*%\\:"']/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 60);
+            if (clean.length < 2) return Promise.resolve({ data: [], error: null });
             return from('artists_db')
                 .select('user_id, username, name, profile_picture, city, country')
-                .or(`username.ilike.%${term}%,name.ilike.%${term}%`)
+                .or(`username.ilike.%${clean}%,name.ilike.%${clean}%`)
+                .not('user_id', 'is', null)
                 .limit(limit);
         },
 

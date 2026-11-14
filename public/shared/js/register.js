@@ -4776,7 +4776,13 @@ async function finalizePreAuthRegistration(username) {
             source: registrationSource,
             email,
             password,
-            data: { ...formState.data, registration_source: registrationSource }
+            // ── roster (ROSTER-03): enlace de invitación del estudio; el servidor
+            // lo revalida y fuerza el estudio y la sede.
+            data: {
+                ...formState.data,
+                registration_source: registrationSource,
+                studio_invite_token: window.WeOtziStudioInvite ? (window.WeOtziStudioInvite.getToken() || null) : null
+            }
         })
     });
     const finalizeData = await readJsonResponse(finalizeRes);
@@ -5154,6 +5160,7 @@ async function submitFormNow() {
                 btnNext.disabled = false;
                 renderSuccessScreen(postRegistrationUrl);
                 renderStudioClaim(finalizeData.studio_claim_url, finalizeData.studio_claim_expires_at);
+                window.WeOtziStudioInvite?.afterFinalize(finalizeData);
                 renderArtistEmailConfirmation(newEmail);
                 goToStep('success');
                 return;
@@ -5184,7 +5191,11 @@ async function submitFormNow() {
                 postRegistrationUrl = loginUrl;
             }
 
-            await persistSelectedStudioLocation(finalizeData.artist?.studio_id || formState.data.studio_id);
+            // ── roster: con la solicitud pendiente el servidor ya guardó la
+            // ubicación sin studio_id; no se pisa desde el cliente.
+            if (!finalizeData.membership_pending) {
+                await persistSelectedStudioLocation(finalizeData.artist?.studio_id || finalizeData.studio_id || formState.data.studio_id);
+            }
 
             try {
                 await persistPortfolioMedia();
@@ -5234,6 +5245,7 @@ async function submitFormNow() {
             btnNext.disabled = false;
             renderSuccessScreen(postRegistrationUrl);
             const hasStudioClaim = renderStudioClaim(finalizeData.studio_claim_url, finalizeData.studio_claim_expires_at);
+            window.WeOtziStudioInvite?.afterFinalize(finalizeData);
             goToStep('success');
             // Con link de alta del estudio no se redirige solo: el artista
             // tiene que poder copiarlo o compartirlo antes de ir al panel.

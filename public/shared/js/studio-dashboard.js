@@ -86,7 +86,7 @@
         });
         const roster = document.querySelector('.studio-dash-panel[data-panel="roster"]');
         if (roster) {
-            roster.querySelectorAll('.studio-invite-form, #roster-content').forEach(node => node.remove());
+            roster.querySelectorAll('.studio-invite-form, #roster-content, .steam-toolbar, #team-email-invite, #team-requests, .steam-roster, #team-links').forEach(node => node.remove());
             const title = roster.querySelector('.studio-h1');
             if (title) title.innerHTML = 'Solicitudes <span class="accent">de cambio</span>';
             const help = roster.querySelector('.studio-panel-content > .studio-help');
@@ -577,7 +577,7 @@
                            const ar = a.artists_db || {};
                            const styles = (ar.styles_array || []).slice(0, 2).join(', ');
                            const msg = (a.message || '').slice(0, 80) + (a.message && a.message.length > 80 ? '…' : '');
-                           const decided = ['accepted', 'rejected', 'withdrawn'].includes(a.status);
+                           const decided = ['accepted', 'rejected', 'withdrawn', 'shortlisted'].includes(a.status);
                            return `<tr data-id="${escapeAttr(a.id)}">
                                 <td><strong>${escapeHtml(ar.name || ar.username || '—')}</strong>
                                     ${a.portfolio_url ? `<br><a href="${escapeAttr(a.portfolio_url)}" target="_blank" rel="noopener">Ver portfolio <i data-wo-icon="external-link" aria-hidden="true"></i></a>` : ''}
@@ -585,7 +585,7 @@
                                 <td>${escapeHtml(styles)}</td>
                                 <td>${escapeHtml([ar.city, ar.country].filter(Boolean).join(', '))}</td>
                                 <td>${escapeHtml(msg)}</td>
-                                <td><span class="wo-badge wo-badge--s ${a.status === 'accepted' ? 'wo-badge--success' : (a.status === 'rejected' ? 'wo-badge--error' : 'wo-badge--outline')}">${escapeHtml(a.status)}</span></td>
+                                <td><span class="wo-badge wo-badge--s ${a.status === 'accepted' || a.status === 'shortlisted' ? 'wo-badge--success' : (a.status === 'rejected' ? 'wo-badge--error' : 'wo-badge--outline')}">${escapeHtml(APP_STATUS_LABELS[a.status] || a.status)}</span></td>
                                 <td>${decided ? '—' : `
                                     <button class="wo-btn wo-btn--secondary wo-btn--s" data-app-action="accept" data-id="${escapeAttr(a.id)}" data-artist="${escapeAttr(ar.user_id)}" >Aceptar</button>
                                     <button class="wo-btn wo-btn--danger wo-btn--s" data-app-action="reject" data-id="${escapeAttr(a.id)}">Rechazar</button>
@@ -614,6 +614,14 @@
             return;
         }
         let emailSent = false;
+        // ── roster (ROSTER-13): aceptar deja la postulación preseleccionada y
+        // prepara un contrato en borrador, pero NO suma al artista al equipo.
+        // Se le envía una invitación (pending_acceptance) con el rol, la sede,
+        // el reparto y las fechas del spot; queda en el equipo al aceptarla.
+        let invitationNote = '';
+        if (action === 'accept' && artistUserId) {
+            invitationNote = await inviteFromSpot(spot.id, artistUserId);
+        }
 
         // Fire-and-forget email notification. Failure here doesn't roll back
         // the DB change — the operator already committed by clicking accept/reject.
@@ -628,12 +636,50 @@
             console.warn('[studio-dashboard] notify failed (non-fatal):', err);
         }
 
-        const outcome = action === 'accept' ? '¡Aceptado y sumado al roster!' : 'Postulación rechazada.';
+        const outcome = action === 'accept'
+            ? 'Postulación aceptada. ' + (invitationNote || 'Le enviamos al artista la invitación para sumarse a tu equipo.')
+            : 'Postulación rechazada.';
         showStatus('spots-status', emailSent ? 'success' : 'info', outcome + (emailSent
             ? ' Email enviado al artista.' : ' La decisión está guardada; no se pudo enviar el correo al artista.'));
         await openSpotApplications(spot.id);
         await renderMySpots();
         await loadRoster();
+    }
+
+    // ── roster (ROSTER-13): invitación al equipo desde un spot aceptado.
+    // Devuelve el texto para el aviso; nunca lanza.
+    async function inviteFromSpot(spotId, artistUserId) {
+        const roleByKind = { guest_spot: 'guest', itinerant: 'itinerant', resident: 'resident' };
+        try {
+            const { data: full } = await WeotziData.StudioSpots.getById(spotId, 'id, title, kind, location_id, revenue_split_pct, start_date, end_date');
+            const spotRow = full || {};
+            const { data: inserted, error } = await WeotziData.StudioMemberships.inviteArtist({
+                studio_id: studio.id,
+                artist_user_id: artistUserId,
+                location_id: spotRow.location_id || null,
+                role: roleByKind[spotRow.kind] || 'resident',
+                revenue_split_pct: spotRow.revenue_split_pct ?? null,
+                status: 'pending_acceptance',
+                invited_at: new Date().toISOString(),
+                invited_by_user_id: studio.user_id || null
+            });
+            if (error) {
+                if (error.code === '23505') return 'El artista ya tenía un vínculo abierto con tu estudio en ese rol.';
+                console.warn('[studio-dashboard] invitación desde el spot:', error.message);
+                return 'No pudimos crear la invitación al equipo: invitalo desde Equipo.';
+            }
+            if (inserted && inserted.id) {
+                await WeotziData.StudioMemberships.saveInvitationDetails(inserted.id, {
+                    message: 'Aceptamos tu postulación a «' + (spotRow.title || 'nuestro spot') + '». Confirmá la invitación para sumarte al equipo.',
+                    proposed_start_date: spotRow.start_date || null,
+                    proposed_end_date: spotRow.end_date || null
+                });
+            }
+            return 'Le enviamos al artista la invitación para sumarse a tu equipo.';
+        } catch (inviteErr) {
+            console.warn('[studio-dashboard] invitación desde el spot:', inviteErr);
+            return 'No pudimos crear la invitación al equipo: invitalo desde Equipo.';
+        }
     }
 
     function numOrNull(v) {
@@ -675,239 +721,27 @@
     function escapeAttr(v) { return escapeHtml(v); }
 
     // -------------------------------------------------------------
-    // Roster tab — Phase C (full CRUD + invitations)
+    // Roster tab — ── roster: la pestaña Equipo (E-TEAM-01..04, solicitudes
+    // de alta, enlace e invitación por email) vive en studio-dashboard-team.js.
     // -------------------------------------------------------------
-    let _rosterLocations = []; // cached list of studio_locations for the role/sede selects
-    let _inviteHits = [];
-
     async function loadRoster() {
-        // Populate the sede select for invitations.
-        const { data: locs } = await WeotziData.StudioLocations.listActiveByStudio(studio.id, 'id, label, is_primary');
-        _rosterLocations = locs || [];
-
-        const sel = document.getElementById('invite-location');
-        if (sel) {
-            sel.innerHTML = '<option value="">Sin asignar</option>'
-                + _rosterLocations.map(l =>
-                    `<option value="${escapeAttr(l.id)}" ${l.is_primary ? 'selected' : ''}>${escapeHtml(l.label || '(sin etiqueta)')}${l.is_primary ? ' (principal)' : ''}</option>`
-                ).join('');
-        }
-
-        wireInviteSearch();
-
-        await renderRosterTable();
-    }
-
-    function wireInviteSearch() {
-        const input = document.getElementById('invite-search');
-        const suggEl = document.getElementById('invite-suggestions');
-        const sendBtn = document.getElementById('invite-send');
-        let chosen = null;
-
-        if (!input || !suggEl || !sendBtn) return;
-        if (input.dataset.inviteWired === 'true') return;
-        input.dataset.inviteWired = 'true';
-
-        let debounceTimer = null;
-        input.addEventListener('input', () => {
-            const q = input.value.trim();
-            if (debounceTimer) clearTimeout(debounceTimer);
-            chosen = null;
-            if (q.length < 2) { suggEl.hidden = true; suggEl.innerHTML = ''; return; }
-            debounceTimer = setTimeout(async () => {
-                const term = q.replace(/^@/, '');
-                const { data, error } = await WeotziData.Artists.searchByUsernameOrName(term);
-                if (q !== input.value.trim()) return;
-                if (error) { showStatus('roster-status', 'error', 'No se pudieron buscar artistas. Intentá nuevamente.'); return; }
-                _inviteHits = data || [];
-                suggEl.innerHTML = _inviteHits.map(a => `
-                    <button type="button" class="studio-search-result" data-id="${escapeAttr(a.user_id)}">
-                        <strong>${escapeHtml(a.name || a.username)}</strong>
-                        <span class="wo-help">@${escapeHtml(a.username || '')} · ${escapeHtml([a.city, a.country].filter(Boolean).join(', ') || '—')}</span>
-                    </button>
-                `).join('') || '<em class="wo-help">Sin resultados.</em>';
-                suggEl.hidden = false;
-                suggEl.querySelectorAll('[data-id]').forEach(row => {
-                    row.addEventListener('click', () => {
-                        chosen = row.dataset.id;
-                        input.value = row.querySelector('strong').textContent;
-                        suggEl.hidden = true;
-                    });
-                });
-            }, 200);
-        });
-
-        sendBtn.addEventListener('click', async () => {
-            if (!chosen) {
-                showStatus('roster-status', 'error', 'Elegí un artista de las sugerencias.');
-                return;
-            }
-            const role     = document.getElementById('invite-role').value;
-            const location = document.getElementById('invite-location').value || null;
-            sendBtn.disabled = true;
-            sendBtn.innerHTML = 'Enviando…';
-
-            const { data: insertedRows, error } = await WeotziData.StudioMemberships.inviteArtist({
-                studio_id:       studio.id,
-                artist_user_id:  chosen,
-                location_id:     location,
-                role,
-                status:          'pending_acceptance',
-                invited_at:      new Date().toISOString(),
-                invited_by_user_id: studio.user_id || null
-            });
-
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = '<i data-wo-icon="user-plus" aria-hidden="true"></i> Invitar';
-
-            if (error) {
-                if (error.code === '23505') {
-                    showStatus('roster-status', 'error', 'Ese artista ya tiene una membership de ese rol con tu estudio.');
-                } else {
-                    showStatus('roster-status', 'error', error.message);
-                }
-                return;
-            }
-
-            // Notify the artist by email (fire-and-forget).
-            const newId = insertedRows && insertedRows.id;
-            let emailSent = false;
-            if (newId) {
-                try {
-                    await notifyStudio({ kind: 'roster_invite', membership_id: newId });
-                    emailSent = true;
-                } catch (err) {
-                    console.warn('[studio-dashboard] roster invite notify failed (non-fatal):', err);
-                }
-            }
-
-            input.value = '';
-            chosen = null;
-            showStatus('roster-status', emailSent ? 'success' : 'info', emailSent
-                ? 'Invitación enviada. Le mandamos un email al artista.'
-                : 'Invitación guardada y disponible en el panel del artista. No se pudo enviar el correo.');
-            await renderRosterTable();
+        const team = window.WeOtziStudioTeam;
+        if (!team) throw new Error('No pudimos cargar el módulo de equipo. Recargá la página.');
+        await team.init({
+            studio,
+            supabase,
+            showStatus,
+            publishSummary,
+            notifyStudio,
+            getAccessToken,
+            appUrl: (path) => window.WeOtziStudioAuth.appUrl(path)
         });
     }
 
-    async function renderRosterTable() {
-        const container = document.getElementById('roster-content');
-        publishSummary('roster', 'loading');
-        container.innerHTML = '<p class="wo-help" role="status">Cargando equipo…</p>';
-        const { data: members, error } = await WeotziData.StudioMemberships.listRoster(studio.id);
-
-        if (error) {
-            publishSummary('roster', 'error', undefined, error);
-            container.innerHTML = '<p class="wo-error-msg" role="alert">No pudimos cargar el equipo. ' + escapeHtml(error.message) + '</p>'; return;
-        }
-        publishSummary('roster', 'ready', members || []);
-        if (!members || members.length === 0) {
-            container.innerHTML = '<p class="wo-help">Aún no hay miembros. Invitá artistas con el formulario de arriba.</p>';
-            return;
-        }
-
-        const rows = members.map(m => {
-            const a = m.artists_db || {};
-            const display = a.name || a.username || '—';
-            const sedeName = (_rosterLocations.find(l => l.id === m.location_id) || {}).label || '—';
-            const sedeOpts = '<option value="">— Sin asignar —</option>'
-                + _rosterLocations.map(l => `<option value="${escapeAttr(l.id)}" ${l.id === m.location_id ? 'selected' : ''}>${escapeHtml(l.label || '(sin etiqueta)')}</option>`).join('');
-            const roleOpts = ['resident','itinerant','guest','manager'].map(r =>
-                `<option value="${r}" ${r === m.role ? 'selected' : ''}>${KIND_TO_LABEL[r] || r}</option>`).join('');
-
-            return `
-                <tr data-id="${escapeAttr(m.id)}" data-artist-user-id="${escapeAttr(a.user_id || '')}" data-artist-name="${escapeAttr(display)}">
-                    <td>
-                        <strong>${escapeHtml(display)}</strong>
-                        <br><small class="studio-member-meta">@${escapeHtml(a.username || '')}</small>
-                        <br><small class="studio-member-meta">${escapeHtml([a.city, a.country].filter(Boolean).join(', ') || '—')}</small>
-                    </td>
-                    <td>
-                        <span class="wo-badge wo-badge--s wo-badge--outline">${escapeHtml(KIND_TO_LABEL[m.role] || m.role)}</span><br>
-                        <select class="wo-select" data-field="role" aria-label="Rol de ${escapeAttr(display)}">${roleOpts}</select>
-                    </td>
-                    <td>
-                        <select class="wo-select" data-field="location_id" aria-label="Sede de ${escapeAttr(display)}">${sedeOpts}</select>
-                    </td>
-                    <td>
-                        <input class="wo-input" data-field="revenue_split_pct" type="number" min="0" max="100" step="1" aria-label="Reparto porcentual de ${escapeAttr(display)}" value="${m.revenue_split_pct ?? ''}">
-                    </td>
-                    <td>
-                        <span class="wo-badge wo-badge--s ${m.status === 'active' ? 'wo-badge--success' : 'wo-badge--outline'}">${escapeHtml(m.status)}</span>
-                    </td>
-                    <td>
-                        <button class="wo-btn wo-btn--secondary wo-btn--s" data-action="save"     data-id="${escapeAttr(m.id)}" >Guardar</button>
-                        ${m.status === 'active'
-                            ? `<button class="wo-btn wo-btn--danger wo-btn--s" data-action="end" data-id="${escapeAttr(m.id)}">Desvincular</button>`
-                            : (m.status === 'pending_acceptance'
-                                ? `<button class="wo-btn wo-btn--danger wo-btn--s" data-action="cancel" data-id="${escapeAttr(m.id)}">Cancelar</button>`
-                                : `<button class="wo-btn wo-btn--secondary wo-btn--s" data-action="resume" data-id="${escapeAttr(m.id)}" >Reactivar</button>`)
-                        }
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        container.innerHTML = `
-            <div class="studio-table-scroll" role="region" aria-label="Equipo del estudio" tabindex="0"><table class="wo-table studio-roster-table">
-                <thead><tr>
-                    <th>Artista</th><th>Rol</th><th>Sede</th><th>Split %</th><th>Estado</th><th>Acciones</th>
-                </tr></thead>
-                <tbody>${rows}</tbody>
-            </table></div>
-        `;
-        container.querySelectorAll('button[data-action]').forEach(btn => {
-            btn.addEventListener('click', () => onRosterAction(btn));
-        });
-    }
-
-    async function onRosterAction(btn) {
-        const id     = btn.dataset.id;
-        const action = btn.dataset.action;
-        const tr = btn.closest('tr');
-        const artistUserId = tr.dataset.artistUserId || '';
-        const artistName = tr.dataset.artistName || 'Artista';
-
-        if (action === 'save') {
-            const role         = tr.querySelector('select[data-field="role"]').value;
-            const location_id  = tr.querySelector('select[data-field="location_id"]').value || null;
-            const splitInput   = tr.querySelector('input[data-field="revenue_split_pct"]').value;
-            const split        = splitInput === '' ? null : Number(splitInput);
-            if (split !== null && (!Number.isFinite(split) || split < 0 || split > 100)) {
-                showStatus('roster-status', 'error', 'El reparto debe estar entre 0 y 100.'); return;
-            }
-            const { error } = await WeotziData.StudioMemberships.updateMembership(id, { role, location_id, revenue_split_pct: split });
-            if (error) showStatus('roster-status', 'error', error.message);
-            else { showStatus('roster-status', 'success', 'Cambios guardados.'); await renderRosterTable(); }
-        } else if (action === 'end') {
-            if (!confirm('¿Desvincular a este artista? Su perfil queda intacto.')) return;
-            const { error } = await WeotziData.StudioMemberships.endMembership(id);
-            if (error) showStatus('roster-status', 'error', error.message);
-            else {
-                showStatus('roster-status', 'success', 'Membership finalizada.');
-                if (artistUserId && window.WeOtziReviews && confirm('Quieres calificar al artista ahora?')) {
-                    window.WeOtziReviews.openReviewModal({
-                        title: 'Calificar artista',
-                        reviewerType: 'studio',
-                        contextType: 'studio_membership',
-                        contextId: id,
-                        revieweeType: 'artist',
-                        revieweeUserId: artistUserId,
-                        revieweeDisplayName: artistName
-                    });
-                }
-                await renderRosterTable();
-            }
-        } else if (action === 'cancel') {
-            const { error } = await WeotziData.StudioMemberships.deleteMembership(id);
-            if (error) showStatus('roster-status', 'error', error.message);
-            else { showStatus('roster-status', 'success', 'Invitación cancelada.'); await renderRosterTable(); }
-        } else if (action === 'resume') {
-            const { error } = await WeotziData.StudioMemberships.resumeMembership(id);
-            if (error) showStatus('roster-status', 'error', error.message);
-            else { showStatus('roster-status', 'success', 'Membership reactivada.'); await renderRosterTable(); }
-        }
-    }
+    // ── roster: estados de postulación en español.
+    const APP_STATUS_LABELS = {
+        pending: 'Nueva', viewed: 'Vista', shortlisted: 'Aceptada · invitación enviada', accepted: 'Aceptada', rejected: 'Rechazada', withdrawn: 'Retirada'
+    };
 
     const KIND_TO_LABEL = {
         resident: 'Residente', itinerant: 'Itinerante', guest: 'Guest', manager: 'Manager'
