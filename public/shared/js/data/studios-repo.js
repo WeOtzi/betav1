@@ -891,6 +891,102 @@
         },
     };
 
+    // ===================== registro de estudios y sedes =====================
+    // Frente estudio-registro (beta cerrada, nov 2026). RPC del alta, de las
+    // coincidencias, del reclamo de fichas sin dueño y de las sedes. Mismo
+    // contrato que el resto del repo: devuelven { data, error } sin lanzar.
+    // Las que dependen de una migración opcional degradan con
+    // `unavailable: true` cuando la RPC o la tabla todavía no existen.
+    const REG_MISSING_SCHEMA = ['PGRST200', 'PGRST202', 'PGRST204', 'PGRST205', '42703', '42883', '42P01'];
+    const regRpc = (name, args) => client().rpc(name, args);
+    async function regSoft(run, empty) {
+        try {
+            const result = await run();
+            const code = result && result.error ? String(result.error.code || '') : '';
+            if (code && REG_MISSING_SCHEMA.includes(code)) return { data: empty, error: null, unavailable: true };
+            return result;
+        } catch (error) {
+            return { data: empty, error };
+        }
+    }
+    async function regSessionUserId() {
+        try {
+            const auth = client() && client().auth;
+            if (!auth || typeof auth.getSession !== 'function') return null;
+            const { data } = await auth.getSession();
+            return data && data.session && data.session.user ? data.session.user.id : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    Object.assign(Studios, {
+        // Alta transaccional del estudio y sus sedes (o alta con link ?alta=).
+        // p_profile lleva terms_accepted/terms_version (20261115210000).
+        completeRegistration(profile, locations) {
+            return regRpc('complete_studio_registration', { p_profile: profile, p_locations: locations });
+        },
+
+        // Estudios iguales (exact), parecidos (similar) o con el mismo Instagram.
+        // Cada fila trae owned, verified, artist_created y sedes activas.
+        findMatches(name, instagram) {
+            const text = String(name == null ? '' : name).trim();
+            const handle = String(instagram == null ? '' : instagram).trim();
+            if (text.length < 2 && !handle) return Promise.resolve({ data: [], error: null });
+            return regSoft(async () => {
+                const result = await regRpc('find_studio_matches', { p_name: text.length >= 2 ? text : null, p_instagram: handle || null });
+                return result && !result.error && !Array.isArray(result.data) ? { ...result, data: [] } : result;
+            }, []);
+        },
+
+        // Fichas del catálogo sin dueño (≥ 2 caracteres).
+        listUnownedStudios(query) {
+            const text = String(query == null ? '' : query).trim();
+            if (text.length < 2) return Promise.resolve({ data: [], error: null });
+            return regSoft(() => regRpc('list_unowned_studios', { p_query: text }), []);
+        },
+
+        // Reclamo de una ficha sin dueño con aceptación de Términos. Sin la
+        // migración de términos (sobrecarga de 5 argumentos) reintenta con la
+        // firma anterior para no bloquear el reclamo durante el deploy.
+        async requestClaim(studioId, evidence, contactName, contactPhone, termsVersion) {
+            const base = {
+                p_studio_id: studioId, p_evidence: evidence,
+                p_contact_name: contactName || null, p_contact_phone: contactPhone || null
+            };
+            const result = await regRpc('request_studio_claim', { ...base, p_terms_version: termsVersion || null });
+            const code = result && result.error ? String(result.error.code || '') : '';
+            if (termsVersion && (code === 'PGRST202' || code === '42883')) return regRpc('request_studio_claim', base);
+            return result;
+        },
+
+        // Último reclamo de la cuenta (la RLS deja ver todo a soporte: se filtra por uid).
+        async getMyClaim() {
+            const uid = await regSessionUserId();
+            if (!uid) return { data: null, error: null };
+            return regSoft(() => from('studio_claim_requests')
+                .select('id, studio_id, user_id, status, evidence, contact_name, contact_phone, created_at, decided_at, decision_note, studios:studio_id ( id, name, slug, city, country, logo_image )')
+                .eq('user_id', uid)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle(), null);
+        },
+    });
+
+    Object.assign(StudioLocations, {
+        // Crea o edita una sede (RPC dueño: principal única, principal activa,
+        // geocoded_at solo con coordenadas). locationId null = sede nueva.
+        save(studioId, locationId, payload) {
+            return regRpc('save_studio_location', { p_studio_id: studioId, p_location_id: locationId || null, p_location: payload });
+        },
+
+        // Borra una sede (la RPC impide borrar la última sede activa). Las FK de
+        // membresías, spots y reservas quedan en NULL.
+        remove(studioId, locationId) {
+            return regRpc('remove_studio_location', { p_studio_id: studioId, p_location_id: locationId });
+        },
+    });
+
     D.Studios = Studios;
     D.StudioLocations = StudioLocations;
     D.StudioMemberships = StudioMemberships;
