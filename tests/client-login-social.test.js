@@ -15,7 +15,16 @@ function loadPageActions() {
     return { context, elements };
 }
 
-for (const provider of ['Instagram', 'Facebook']) {
+// acceso (ACC-13): Facebook ya es OAuth real (handleClientFacebookLogin en
+// client-auth.js); Instagram sigue sin proveedor y muestra el aviso honesto.
+test('Facebook y Email del login de cliente autentican de verdad', () => {
+    const html = fs.readFileSync(path.join(__dirname, '../public/client/login/index.html'), 'utf8');
+    assert.match(html, /onclick="handleClientFacebookLogin\(\)"/);
+    assert.match(html, /onclick="handleClientMagicLink\(\)"/);
+    assert.doesNotMatch(html, /handleClientSocialUnavailable\('Facebook'\)/);
+});
+
+for (const provider of ['Instagram']) {
     test(`${provider} shows an honest unavailable notice without authenticating`, () => {
         const { context, elements } = loadPageActions();
         context.handleClientSocialUnavailable(provider);

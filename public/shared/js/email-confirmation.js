@@ -62,6 +62,90 @@
         return 'No pudimos reenviar el email. Probá de nuevo en unos minutos.';
     }
 
+    // ── acceso: enlace mágico. Con shouldCreateUser:false Supabase responde
+    // "Signups not allowed for otp" si el email no tiene cuenta: se trata como
+    // éxito para no revelar qué emails existen (anti-enumeración).
+    function isNeutralOtpError(err) {
+        if (!err) return false;
+        const code = String(err.code || err.error_code || '').toLowerCase();
+        if (code === 'otp_disabled' || code === 'user_not_found' || code === 'signup_disabled') return true;
+        return /signups? not allowed|user not found|otp_disabled|signup.*disabled/i.test(String(err.message || err.msg || ''));
+    }
+
+    // Resultado de signInWithOtp para la UI: { ok, message, kind }.
+    function magicLinkOutcome(err, email) {
+        const who = escapeHtml(String(email || '').trim());
+        const neutral = 'Si ' + who + ' tiene una cuenta, te enviamos un link de acceso. Revisá tu correo (también spam).';
+        if (!err || isNeutralOtpError(err)) return { ok: true, kind: 'success', message: neutral };
+        if (isRateLimitError(err)) {
+            return { ok: false, kind: 'error', message: 'Ya te enviamos un link hace muy poco. Esperá un minuto y probá de nuevo.' };
+        }
+        return { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Probá de nuevo en un momento o ingresá con tu contraseña.' };
+    }
+
+    // ── acceso: links de Supabase vencidos o ya usados. Supabase vuelve con
+    // #error=access_denied&error_code=otp_expired&error_description=… (o en la
+    // query). Los antivirus de correo suelen abrir el link antes que la persona.
+    function parseAuthLinkError(hash, search) {
+        const read = (raw) => {
+            const s = String(raw || '').replace(/^[#?]/, '');
+            if (!s || !/(^|&)(error|error_code|error_description)=/.test(s)) return null;
+            try { return new URLSearchParams(s); } catch (_) { return null; }
+        };
+        const params = read(hash) || read(search);
+        if (!params) return null;
+        const error = params.get('error') || '';
+        const code = params.get('error_code') || '';
+        const description = (params.get('error_description') || '').replace(/\+/g, ' ').slice(0, 300);
+        if (!error && !code) return null;
+        const expired = /otp_expired|expired/i.test(code + ' ' + description) ||
+            (error === 'access_denied' && /invalid|expired|used/i.test(description || 'expired'));
+        return { error, code, description, expired };
+    }
+
+    function linkErrorCopy(linkError, context) {
+        const ctx = context || {};
+        const what = ctx.what || 'link';
+        if (!linkError) return null;
+        if (linkError.expired) {
+            return {
+                title: 'El ' + what + ' venció o ya se usó',
+                text: 'Por seguridad cada link sirve una sola vez y vence en poco tiempo. A veces el antivirus del correo lo abre antes que vos. ' +
+                    (ctx.hint || 'Pedí uno nuevo y abrilo apenas llegue.')
+            };
+        }
+        return {
+            title: 'No pudimos validar el ' + what,
+            text: (ctx.hint || 'Pedí uno nuevo y abrilo apenas llegue.')
+        };
+    }
+
+    const INITIAL_LINK_ERROR = (function () {
+        try {
+            const loc = root && root.location;
+            return loc ? parseAuthLinkError(loc.hash, loc.search) : null;
+        } catch (_) { return null; }
+    })();
+
+    // Lee el error del link de esta carga (capturado al cargar el script, antes
+    // de que otro código toque la URL) y, con clean, lo quita de la barra.
+    function readAuthLinkError(opts) {
+        const o = opts || {};
+        let found = INITIAL_LINK_ERROR;
+        try {
+            const loc = root && root.location;
+            if (!found && loc) found = parseAuthLinkError(loc.hash, loc.search);
+            if (found && o.clean !== false && loc && root.history && typeof root.history.replaceState === 'function') {
+                const qs = new URLSearchParams(String(loc.search || '').replace(/^\?/, ''));
+                ['error', 'error_code', 'error_description'].forEach(function (k) { qs.delete(k); });
+                const q = qs.toString();
+                const hashHasError = /(^#?|&)(error|error_code)=/.test(String(loc.hash || ''));
+                root.history.replaceState(root.history.state, '', loc.pathname + (q ? '?' + q : '') + (hashHasError ? '' : (loc.hash || '')));
+            }
+        } catch (_) { /* URL sin limpiar: no bloquea */ }
+        return found;
+    }
+
     function cooldownLeft(lastSentAt, now, seconds) {
         const span = (seconds == null ? RESEND_COOLDOWN_SECONDS : seconds) * 1000;
         const last = Number(lastSentAt || 0);
@@ -390,8 +474,51 @@
         return container.firstElementChild;
     }
 
+    /**
+     * Aviso de link vencido o ya usado (DS). opts: { linkError, what?, hint?,
+     * actions?: [{ label, onClick?(statusEl, button), href?, kind? }], focus? }
+     */
+    function renderLinkErrorNotice(container, opts) {
+        if (!container) return null;
+        const o = opts || {};
+        const copy = linkErrorCopy(o.linkError || { expired: true }, { what: o.what, hint: o.hint });
+        ensureStyles();
+        const actions = Array.isArray(o.actions) ? o.actions : [];
+        container.innerHTML =
+            '<div class="wo-ec-notice wo-ec-notice--link" role="alert">' +
+                '<p class="wo-ec-notice-title">' + escapeHtml(copy.title) + '</p>' +
+                '<p class="wo-ec-notice-text">' + escapeHtml(copy.text) + '</p>' +
+                (actions.length ? '<div class="wo-ec-actions">' + actions.map(function (a, i) {
+                    const cls = 'wo-btn wo-btn--' + (a.kind || (i === 0 ? 'secondary' : 'ghost')) + ' wo-btn--s';
+                    return a.href
+                        ? '<a class="' + cls + '" href="' + escapeHtml(a.href) + '" data-ec-action="' + i + '">' + escapeHtml(a.label) + '</a>'
+                        : '<button type="button" class="' + cls + '" data-ec-action="' + i + '">' + escapeHtml(a.label) + '</button>';
+                }).join('') + '</div>' : '') +
+                '<p class="wo-ec-status" role="status" aria-live="polite" data-ec-status></p>' +
+            '</div>';
+        container.hidden = false;
+        if (container.style) container.style.display = '';
+        const status = container.querySelector('[data-ec-status]');
+        actions.forEach(function (a, i) {
+            const el = container.querySelector('[data-ec-action="' + i + '"]');
+            if (el && typeof a.onClick === 'function') {
+                el.addEventListener('click', function (event) {
+                    if (!a.href) event.preventDefault();
+                    a.onClick(status, el);
+                });
+            }
+        });
+        return container.firstElementChild;
+    }
+
     return {
         RESEND_COOLDOWN_SECONDS: RESEND_COOLDOWN_SECONDS,
+        isNeutralOtpError: isNeutralOtpError,
+        magicLinkOutcome: magicLinkOutcome,
+        parseAuthLinkError: parseAuthLinkError,
+        linkErrorCopy: linkErrorCopy,
+        readAuthLinkError: readAuthLinkError,
+        renderLinkErrorNotice: renderLinkErrorNotice,
         PENDING_MAX_AGE_MS: PENDING_MAX_AGE_MS,
         needsConfirmation: needsConfirmation,
         isExistingAccountSignup: isExistingAccountSignup,

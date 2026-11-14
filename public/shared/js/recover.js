@@ -25,10 +25,68 @@
     };
 
     // ---------- Supabase ----------
+    // Respaldo con la URL y la anon key públicas (las mismas que usan
+    // artist-login.js y client-auth.js) por si ConfigManager no llega a cargar
+    // app-config.json. Nunca se usa una key de servicio en el navegador.
+    const FALLBACK_SUPABASE_URL = 'https://flbgmlvfiejfttlawnfu.supabase.co';
+    const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
+    const CONFIG_WAIT_MS = 6000;
+
     function sb() {
-        return window.ConfigManager && typeof window.ConfigManager.getSupabaseClient === 'function'
+        const fromConfig = window.ConfigManager && typeof window.ConfigManager.getSupabaseClient === 'function'
             ? window.ConfigManager.getSupabaseClient()
             : null;
+        if (fromConfig) return fromConfig;
+        if (window._supabase && window._supabase.auth) return window._supabase;
+        if (window.supabase && typeof window.supabase.createClient === 'function') {
+            const url = (window.CONFIG && window.CONFIG.supabase && window.CONFIG.supabase.url) || FALLBACK_SUPABASE_URL;
+            const key = (window.CONFIG && window.CONFIG.supabase && window.CONFIG.supabase.anonKey) || FALLBACK_SUPABASE_ANON_KEY;
+            try {
+                window._supabase = window.supabase.createClient(url, key);
+                return window._supabase;
+            } catch (_) { return null; }
+        }
+        return null;
+    }
+
+    // ACC-05: app-config.json carga asíncrono; sin esperarlo, getSupabaseClient()
+    // devuelve null y el link del email dejaba a la persona en el paso 1.
+    async function configReady() {
+        const CM = window.ConfigManager;
+        if (!CM || typeof CM.ready !== 'function') return;
+        let timer = null;
+        try {
+            await Promise.race([
+                Promise.resolve(CM.ready()).catch(() => null),
+                new Promise((resolve) => { timer = setTimeout(resolve, CONFIG_WAIT_MS); })
+            ]);
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+    }
+
+    // ¿Esta carga es la vuelta del link de recuperación?
+    function isRecoveryReturn(params) {
+        if (params.get('recovery') === '1') return true;
+        return /(?:^|&)type=recovery(?:&|$)/.test(String(window.location.hash || '').replace(/^#/, ''));
+    }
+
+    // ACC-17: link vencido o ya usado → aviso y pedir un código nuevo.
+    function showLinkError(linkError) {
+        const box = $('rc-link-notice');
+        const EC = window.WeotziEmailConfirm;
+        if (!box) return;
+        if (!EC || typeof EC.renderLinkErrorNotice !== 'function') {
+            box.textContent = 'El link para restablecer la contraseña venció o ya se usó. Pedí un código nuevo.';
+            box.hidden = false;
+            return;
+        }
+        EC.renderLinkErrorNotice(box, {
+            linkError,
+            what: 'link para restablecer tu contraseña',
+            hint: 'Escribí tu email y pedí un código nuevo: lo podés ingresar acá sin abrir el link.'
+        });
+        box.hidden = false;
     }
 
     // ---------- Helpers de DOM ----------
@@ -415,9 +473,14 @@
         return appPath(backToLoginPath());
     }
 
-    function init() {
+    async function init() {
         // Prefill desde ?email= y link de retorno según origen (?from=artist|client).
         const params = new URLSearchParams(window.location.search);
+        // Se lee antes de cualquier await: supabase-js limpia el hash al leer la sesión.
+        const recoveryReturn = isRecoveryReturn(params);
+        const linkError = window.WeotziEmailConfirm && typeof window.WeotziEmailConfirm.readAuthLinkError === 'function'
+            ? window.WeotziEmailConfirm.readAuthLinkError()
+            : null;
         const prefill = (params.get('email') || '').trim();
         if (prefill) $('rc-email').value = prefill;
         $('rc-back-login').href = backToLoginUrl();
@@ -456,11 +519,16 @@
             if (previewStep === 2) startResendCountdown();
             return;
         }
+        if (linkError) {
+            showLinkError(linkError);
+            return;
+        }
         // Supabase validates the recovery token; ordinary sessions do not advance
         // unless this page was explicitly opened as the recovery-link destination.
+        await configReady();
         const client = sb();
         const acceptRecoverySession = (session) => {
-            if (!session?.user) return;
+            if (!session?.user || state.verified) return;
             state.email = session.user.email || '';
             state.verified = true;
             renderStep(3);
@@ -469,7 +537,7 @@
         client?.auth.onAuthStateChange((event, session) => {
             if (event === 'PASSWORD_RECOVERY') acceptRecoverySession(session);
         });
-        if (params.get('recovery') === '1' && client) {
+        if (recoveryReturn && client) {
             client.auth.getSession().then(({ data }) => acceptRecoverySession(data?.session));
         }
     }

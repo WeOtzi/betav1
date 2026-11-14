@@ -6,8 +6,13 @@
     const appUrl = path => basePath + path;
     let currentStudioData = null;
     let checking = null;
-    const recoveryMode = new URLSearchParams(window.location.search).get('recovery') === '1'
-        || /(?:^|&)type=recovery(?:&|$)/.test(window.location.hash.slice(1));
+    // ── acceso (ACC-17): link vencido o ya usado (#error=…otp_expired). Se lee
+    // antes de que supabase-js toque la URL; con error no se entra al modo
+    // "Nueva contraseña" (no hay sesión de recuperación que lo respalde).
+    const linkError = window.WeotziEmailConfirm?.readAuthLinkError?.({ clean: false })
+        || (/(?:^|[#&?])error(?:_code)?=/.test(window.location.hash + '&' + window.location.search) ? { expired: true } : null);
+    const recoveryMode = !linkError && (new URLSearchParams(window.location.search).get('recovery') === '1'
+        || /(?:^|&)type=recovery(?:&|$)/.test(window.location.hash.slice(1)));
     function requireClient() {
         client = window.WeotziData?.getClient?.() || window._supabase || client;
         if (!client) throw new Error('No pudimos conectar. Recargá la página e intentá nuevamente.');
@@ -165,6 +170,33 @@
         if (error) throw error;
         return true;
     }
+    // ── acceso (ER-17): enlace mágico para estudios, igual que el de artistas.
+    // shouldCreateUser:false → nunca crea cuentas. Vuelve a /studio/login con la
+    // sesión y checkStudioAuthState lleva al panel. Devuelve { ok, message, kind }
+    // con el mensaje neutro también si el email no tiene cuenta.
+    async function sendStudioMagicLink(email) {
+        await ready();
+        const clean = String(email || '').trim().toLowerCase();
+        if (!/^\S+@\S+\.\S+$/.test(clean)) throw new Error('Escribí un email válido.');
+        let error = null;
+        try {
+            const res = await requireClient().auth.signInWithOtp({
+                email: clean,
+                options: { shouldCreateUser: false, emailRedirectTo: window.location.origin + appUrl('/studio/login') }
+            });
+            error = res && res.error;
+        } catch (err) { error = err || new Error('network'); }
+        const EC = window.WeotziEmailConfirm;
+        if (EC?.magicLinkOutcome) {
+            const out = EC.magicLinkOutcome(error, clean);
+            // studio-login.js muestra texto plano (textContent): sin entidades HTML.
+            return { ...out, message: out.ok ? 'Si ' + clean + ' tiene una cuenta, te enviamos un link de acceso. Revisá tu correo (también spam).' : out.message };
+        }
+        if (error && !/signups? not allowed|user not found|otp_disabled/i.test(String(error.message || ''))) {
+            return { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Probá de nuevo en un momento.' };
+        }
+        return { ok: true, kind: 'success', message: 'Si ' + clean + ' tiene una cuenta, te enviamos un link de acceso. Revisá tu correo.' };
+    }
     async function changePassword(password) {
         await ready();
         if (password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
@@ -181,6 +213,7 @@
     window.WeOtziStudioAuth = {
         check: checkStudioAuthState, login: loginStudio, register: registerStudio,
         requestPasswordReset: requestStudioPasswordReset, changePassword, verifyRecoveryCode,
+        sendMagicLink: sendStudioMagicLink, linkError: () => linkError,
         isRecovery: () => recoveryMode, ready, appUrl,
         logout: async () => {
             const { error } = await requireClient().auth.signOut();

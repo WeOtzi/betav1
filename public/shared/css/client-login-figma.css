@@ -43,6 +43,15 @@
 .client-login-page .form-message:empty{margin:0}
 .client-login-page .ca-social-notice{width:100%;margin-top:var(--space-4);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
 .client-login-page .ca-social-notice p{margin:0 0 var(--space-2)}
+/* acceso · "¿Olvidaste tu contraseña?" igual que .wo-auth-forgot del artista (área táctil 44px). */
+.client-login-page .ca-forgot{align-self:flex-end;display:inline-flex;align-items:center;min-height:44px;margin:-12px 0 -12px;padding:0;background:transparent;border:0;cursor:pointer;font-family:var(--font-body);font-size:13.326px;font-weight:var(--weight-bold);letter-spacing:.96px;text-transform:uppercase;color:var(--text-muted)}
+.client-login-page .ca-forgot:hover{color:var(--ink);text-decoration:underline;text-underline-offset:.2em}
+.client-login-page .ca-forgot:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+/* acceso · aviso de Términos para Google/Facebook. */
+.client-login-page .ca-legal{margin:var(--space-4) 0 0;font-size:12.216px;line-height:1.5;letter-spacing:.2px;color:var(--text-muted);overflow-wrap:anywhere}
+.client-login-page .ca-legal a{color:var(--ink);text-decoration:underline;text-underline-offset:.15em}
+.client-login-page .ca-legal a:hover{color:var(--red-700)}
+.client-login-page #form-message .wo-ec-notice{margin-top:var(--space-4)}
 
 /* Align the browser font baseline with Figma's 69px text boxes. */
 @media(min-width:1101px){.client-login-page .ca-hero-title{transform:translate(-1px,-3.5px)}}

@@ -326,7 +326,10 @@ test('client-auth: returnTo en el login, el signUp y Google; artistas aceptados'
     assert.match(src, /emailRedirectTo: clientConfirmRedirectUrl\(\)/);
     assert.match(src, /confirmado: '1', returnTo: readReturnTo\(\) \|\| ''/);
     assert.match(src, /withReturnTo\(clientAppPath\('\/client\/login'\), returnTo\)/, 'Google vuelve al login con returnTo');
-    assert.match(src, /: window\.location\.origin \+ '\/client\/dashboard';/, 'Google sin returnTo, igual que antes');
+    // acceso: Google, Facebook y el enlace mágico vuelven siempre a /client/login
+    // (crea el perfil, sella Términos y redirige al panel o a la Store).
+    assert.match(src, /const redirectTo = clientAuthRedirectUrl\(\);/, 'Google usa la vuelta común al login');
+    assert.match(src, /if \(readReturnTo\(\) \|\| onClientLoginPage\(\)\) window\.location\.href = postAuthDestination\(\);/, 'sin returnTo, al panel');
     const login = src.slice(src.indexOf('async function handleClientLogin'), src.indexOf('async function handleGoogleLogin'));
     assert.doesNotMatch(login, /window\.location\.href = '\/client\/dashboard'/);
     assert.equal((login.match(/window\.location\.href = postAuthDestination\(\)/g) || []).length, 3);
