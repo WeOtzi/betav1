@@ -2103,6 +2103,7 @@
         $('av-sync-detail')?.addEventListener('click', (event) => {
             if (event.target.closest('[data-gcal-disconnect]')) handleIntegrationAction('google_calendar', { disconnect: true });
         });
+        $('av-gcal-disconnect-form')?.addEventListener('submit', submitGcalDisconnect);
         handleGcalReturn();
     }
 
@@ -2150,6 +2151,8 @@
             const parts = [];
             if (st.google_email) parts.push(`<strong>${esc(st.google_email)}</strong>`);
             parts.push(st.last_sync_at ? `Última sincronización: ${esc(gcalWhen(st.last_sync_at))}` : 'Primera sincronización en curso…');
+            // CAL-14: la zona con la que se publican los horarios en Google.
+            if (st.timezone) parts.push(`Zona horaria: ${esc(String(st.timezone).replace(/_/g, ' '))}`);
             if (!st.readonly) parts.push('<button type="button" class="av-sync-link" data-gcal-disconnect>Desconectar</button>');
             detailHtml = parts.join(' · ');
             errorText = st.last_error || '';
@@ -2194,24 +2197,76 @@
         const st = gcalState || {};
         if (st.configured === false) { toast('Google Calendar todavía no está disponible', false); return; }
         const wantsDisconnect = !!(opts.disconnect || (st.connected && !st.needs_reauth));
-        if (wantsDisconnect && !window.confirm('¿Querés desconectar Google Calendar? Dejamos de sincronizar tu agenda y revocamos el acceso de We Ötzi. Los eventos que ya están en Google quedan ahí.')) return;
+        // CAL-13: el diálogo deja elegir si se quitan de Google los eventos próximos.
+        if (wantsDisconnect) { openGcalDisconnect(); return; }
         gcalBusy = true;
         renderSync();
         try {
-            if (wantsDisconnect) {
-                await D.GoogleCalendar.disconnect();
-                toast('Google Calendar desconectado');
-                await refreshGcal();
-            } else {
-                const url = await D.GoogleCalendar.authorizeUrl();
-                window.location.assign(url);
-                return;
-            }
+            const url = await D.GoogleCalendar.authorizeUrl();
+            window.location.assign(url);
+            return;
         } catch (error) {
             console.error('[account] Google Calendar:', error && error.message);
             toast(error && error.configured === false
                 ? 'Google Calendar todavía no está disponible'
-                : (wantsDisconnect ? 'No pudimos desconectar Google Calendar. Probá de nuevo.' : 'No pudimos iniciar la conexión con Google. Probá de nuevo.'), false);
+                : 'No pudimos iniciar la conexión con Google. Probá de nuevo.', false);
+        } finally {
+            gcalBusy = false;
+            renderSync();
+        }
+    }
+
+    function openGcalDisconnect() {
+        const dialog = $('av-gcal-disconnect-dialog');
+        if (!dialog || typeof dialog.showModal !== 'function') {
+            // Sin <dialog> (navegador viejo): confirmación simple, sin quitar eventos.
+            if (window.confirm('¿Querés desconectar Google Calendar? Dejamos de publicar tu agenda y revocamos el acceso de We Ötzi.')) {
+                disconnectGcal(false);
+            }
+            return;
+        }
+        $('av-gcal-remove-events').checked = false;
+        $('av-gcal-disconnect-error').hidden = true;
+        dialog.showModal();
+    }
+
+    async function submitGcalDisconnect(event) {
+        event.preventDefault();
+        const removeEvents = !!$('av-gcal-remove-events')?.checked;
+        const submit = $('av-gcal-disconnect-submit');
+        if (submit) submit.disabled = true;
+        const ok = await disconnectGcal(removeEvents);
+        if (submit) submit.disabled = false;
+        if (ok) {
+            $('av-gcal-disconnect-dialog')?.close();
+        } else {
+            const errEl = $('av-gcal-disconnect-error');
+            errEl.textContent = 'No pudimos desconectar Google Calendar. Probá de nuevo.';
+            errEl.hidden = false;
+        }
+    }
+
+    async function disconnectGcal(removeEvents) {
+        if (gcalBusy) return false;
+        gcalBusy = true;
+        renderSync();
+        try {
+            const result = await D.GoogleCalendar.disconnect({ removeEvents });
+            let message = 'Google Calendar desconectado';
+            if (removeEvents && result) {
+                if (result.removeError) message += '. No pudimos quitar los eventos de Google: borralos desde Google Calendar.';
+                else if (result.remainingEvents) message += `. Quitamos ${result.removedEvents || 0} eventos; quedaron ${result.remainingEvents} en Google.`;
+                else message += `. Quitamos ${result.removedEvents || 0} eventos próximos de Google.`;
+            }
+            toast(message, !(result && result.removeError));
+            await refreshGcal();
+            return true;
+        } catch (error) {
+            console.error('[account] Google Calendar:', error && error.message);
+            toast(error && error.configured === false
+                ? 'Google Calendar todavía no está disponible'
+                : 'No pudimos desconectar Google Calendar. Probá de nuevo.', false);
+            return false;
         } finally {
             gcalBusy = false;
             renderSync();
@@ -2850,6 +2905,12 @@
         setCountrySelect(s.country || artist.country || '');
         $('aac-setting-city').value = s.city || artist.city || '';
         tzSel.value = s.timezone && tzList.includes(s.timezone) ? s.timezone : detectedTz;
+        // CAL-14: si nunca se guardó, se guarda la zona que se muestra (la del
+        // navegador). Sin toast: Google Calendar y los días ocupados la usan.
+        if (!appSettings().timezone) {
+            savePrefs('app_settings', { timezone: tzSel.value })
+                .catch((err) => console.warn('[account] zona horaria:', err && err.message));
+        }
         $('aac-dateformat').value = s.date_format;
         $('aac-timeformat').value = s.time_format;
         $('aac-language').value = s.language;

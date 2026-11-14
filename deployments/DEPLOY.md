@@ -201,6 +201,7 @@ el repo ni en `app_settings`). Sin ellas, `/api/google-calendar/*` responde 503
 | `GOOGLE_OAUTH_REDIRECT_URI` | `https://beta.weotzi.com/api/google-calendar/callback` (default) | Tiene que coincidir **exacto** con el URI de redireccionamiento autorizado del cliente |
 | `GCAL_TOKEN_ENC_KEY` | 32 bytes en base64 | `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` (cifra los refresh tokens con AES-256-GCM; si cambia, todos reconectan) |
 | `GCAL_SYNC_JOB` | vacío / `off` | `off` apaga el job de sincronización cada 15 min |
+| `GCAL_DIRTY_POLL_MS` | vacío / ms / `0` | Cada cuánto se publican los cambios marcados por la base (`dirty_at`, migración 20261115150000). Vacío = 30000; `0` lo apaga. Ver `docs/GCAL_SINCRONIZACION.md` |
 
 Requiere la migración `supabase/migrations/20261113102000_google_calendar_sync.sql`
 (después de `20261112190000`). Cambiar estas variables exige **reiniciar PM2**

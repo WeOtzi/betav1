@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
-    <link rel="stylesheet" href="/shared/css/artist-account-ds.css?v=20261113-gcal">
+    <link rel="stylesheet" href="/shared/css/artist-account-ds.css?v=20261115-gcal">
     <link rel="stylesheet" href="/shared/css/wallet-account.css?v=20261028-3">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
@@ -814,6 +814,26 @@
         </form>
     </dialog>
 
+    <!-- gcal: desconectar Google Calendar (CAL-13). Solo de ida: no se lee Google. -->
+    <dialog class="aac-dialog" id="av-gcal-disconnect-dialog" aria-labelledby="av-gcal-disconnect-title" aria-describedby="av-gcal-disconnect-desc">
+        <form method="dialog" class="aac-dialog-card" id="av-gcal-disconnect-form">
+            <div class="aac-dialog-bar">
+                <h2 class="aac-dialog-bar-title" id="av-gcal-disconnect-title" tabindex="-1" autofocus>Desconectar Google Calendar</h2>
+                <button type="button" class="aac-dialog-x" data-dialog-close="av-gcal-disconnect-dialog" aria-label="Cerrar">×</button>
+            </div>
+            <div class="aac-dialog-body">
+                <p class="wal-form-help" id="av-gcal-disconnect-desc">Dejamos de publicar tu agenda de We Ötzi en Google y revocamos el acceso. Si volvés a conectar la misma cuenta, retomamos los mismos eventos sin duplicarlos.</p>
+                <label class="aac-check" for="av-gcal-remove-events">
+                    <input type="checkbox" id="av-gcal-remove-events">
+                    <span>Quitar también de mi Google Calendar los eventos próximos de We Ötzi. Los que ya pasaron quedan como historial.</span>
+                </label>
+                <p class="wal-quick-error" id="av-gcal-disconnect-error" role="alert" hidden></p>
+                <button type="submit" class="wal-cta wal-cta--center" id="av-gcal-disconnect-submit">Desconectar</button>
+                <button type="button" class="wal-cancel" data-dialog-close="av-gcal-disconnect-dialog">Cancelar</button>
+            </div>
+        </form>
+    </dialog>
+
     <dialog class="aac-dialog" id="aac-mfa-dialog" aria-labelledby="aac-mfa-dialog-title">
         <form method="dialog" class="aac-dialog-card" id="aac-mfa-form">
             <div class="aac-dialog-bar"><h2 class="aac-dialog-bar-title" id="aac-mfa-dialog-title" tabindex="-1" autofocus>Autenticación en dos pasos</h2><button type="button" class="aac-dialog-x" data-dialog-close="aac-mfa-dialog" aria-label="Cerrar">×</button></div>
@@ -868,7 +888,7 @@
     <script src="/shared/js/data/account-repo.js?v=20261030-1"></script>
     <script src="/shared/js/data/account-deletion-repo.js?v=20261113-borrado"></script>
     <script src="/shared/js/account-deletion.js?v=20261113-borrado"></script>
-    <script src="/shared/js/data/google-calendar-repo.js?v=20261114-gcal"></script>
+    <script src="/shared/js/data/google-calendar-repo.js?v=20261115-gcal"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/gallery-visibility.js?v=20261030-1"></script>
@@ -877,7 +897,7 @@
     <script src="/shared/js/account-availability-model.js?v=20261028-3"></script>
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/wallet-account.js?v=20261112-integracion"></script>
-    <script src="/shared/js/artist-account.js?v=20261113-gcal"></script>
+    <script src="/shared/js/artist-account.js?v=20261115-gcal"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>
 </html>

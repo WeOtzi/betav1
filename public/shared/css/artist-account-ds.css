@@ -267,6 +267,11 @@ body.aac-page{margin:0;background:var(--surface-page)}
 .av-sync-error{padding:8px 12px;background:var(--status-error-bg);color:var(--status-error-fg)}
 .av-sync-link{padding:0;border:0;background:none;font:inherit;color:var(--text-heading);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .av-sync-link:hover{color:var(--blue-400)}
+/* gcal (CAL-13): diálogo de desconexión con opción de quitar los eventos próximos. */
+#av-gcal-disconnect-form .aac-check{margin:var(--space-4) 0;line-height:1.45;cursor:pointer}
+#av-gcal-disconnect-form .aac-check input{flex:none;width:18px;height:18px;margin:1px 0 0;accent-color:var(--blue-400);cursor:pointer}
+#av-gcal-disconnect-form .aac-check input:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+
 .av-travel{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-4);margin-top:var(--space-8);padding:21px 23px;background:var(--neutral-100);border:var(--border-hairline) solid var(--border-subtle)}
 .av-travel-copy{display:flex;flex-direction:column;gap:5px;max-width:32.5rem}
 .av-travel-copy strong{font-family:var(--font-body);font-size:14.5px;color:var(--text-heading)}

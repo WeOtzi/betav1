@@ -201,7 +201,9 @@
 
     function orderedSessions(sessions) {
         return (Array.isArray(sessions) ? sessions : [])
-            .filter(function (s) { return s && s.status !== 'cancelled'; })
+            // COT-A-15: no_show (el cliente no se presentó) tampoco cuenta como
+            // activa; queda en el historial como "No se presentó".
+            .filter(function (s) { return s && s.status !== 'cancelled' && s.status !== 'no_show'; })
             .slice()
             .sort(function (a, b) {
                 var na = intFrom(a.session_number), nb = intFrom(b.session_number);
@@ -496,6 +498,11 @@
 
         orderedSessions(sessions).forEach(function (s, i) {
             if (s.status === 'completed') push(sessionDoneAt(s, now), sessionDoneCopy(s, intFrom(s.session_number) || i + 1), 'session-' + (s.id || i));
+        });
+        (Array.isArray(sessions) ? sessions : []).forEach(function (s, i) {
+            if (!s || s.status !== 'no_show' || !toDate(s.session_date)) return;
+            var n = intFrom(s.session_number);
+            push(s.session_date, (n ? 'Sesión ' + n + ': ' : '') + 'No se presentó.', 'session-noshow-' + (s.id || i));
         });
         (Array.isArray(disputes) ? disputes : []).forEach(function (d) {
             push(d.created_at, 'Cliente inició una disputa. Entrega retenida.', 'dispute-' + d.id);

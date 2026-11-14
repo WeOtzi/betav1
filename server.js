@@ -6629,7 +6629,8 @@ if (require.main === module) {
 // prompt=consent, state cifrado + cookie httpOnly + PKCE). Credenciales SOLO
 // por entorno: GOOGLE_OAUTH_CLIENT_ID / _SECRET / _REDIRECT_URI y
 // GCAL_TOKEN_ENC_KEY. Sin ellas, todo responde 503 y la UI lo muestra.
-// Job cada 15 min (GCAL_SYNC_JOB=off lo apaga). Nunca se loguean tokens.
+// Job cada 15 min (GCAL_SYNC_JOB=off lo apaga) + cambios marcados por la base
+// cada GCAL_DIRTY_POLL_MS (30 s, 20261115150000). Nunca se loguean tokens.
 // Lógica en lib/gcal-oauth.js + lib/gcal-sync.js; datos en lib/repos/google-calendar.js.
 const gcalOauth = require('./lib/gcal-oauth');
 const gcalSync = require('./lib/gcal-sync');
@@ -6642,6 +6643,8 @@ const gcalService = gcalSync.createGcalService({
     baseUrl: applicationBase({ headers: {}, get: () => '' }),
     log: console
 });
+// Otros módulos del servidor piden la sincronización con gcalSync.notifyChange(artistId).
+gcalSync.setSharedService(gcalService);
 
 function gcalNotConfigured(res) {
     return res.status(503).json({ success: false, configured: false, error: gcalOauth.NOT_CONFIGURED_MESSAGE });
@@ -6708,7 +6711,8 @@ app.post('/api/google-calendar/disconnect', async (req, res) => {
     const userId = await gcalCaller(req, res);
     if (!userId) return;
     try {
-        const result = await gcalService.disconnect(userId);
+        // removeEvents: quita de Google los eventos de We Ötzi que todavía no pasaron.
+        const result = await gcalService.disconnect(userId, { removeEvents: req.body?.removeEvents === true });
         return res.json({ success: true, ...result });
     } catch (err) {
         return gcalSendError(res, err, 'No pudimos desconectar Google Calendar.');
