@@ -152,11 +152,16 @@ test('server.js registra el módulo cot-form y el apiLimiter global lo saltea', 
     assert.match(server, /require\('\.\/lib\/routes\/cot-form'\)\.register\(app, \{ driveMirror: mirrorQuoteFilesToDrive \}\)/);
     assert.match(server, /isOwnLimitedPath\(req\)/);
     assert.doesNotMatch(server, /app\.post\('\/api\/quotations\/intake', require/);
-    for (const url of ['/api/quotations/intake', '/beta/api/quotations/intake', '/api/quotations/suggestions', '/api/quotations/intake/job-board?x=1']) {
-        assert.equal(routes.isOwnLimitedPath({ originalUrl: url }), true, url);
+    // req con forma de Express montado en app.use('/api/'): baseUrl '/api', path sin query.
+    for (const p of ['/quotations/intake', '/quotations/suggestions', '/quotations/intake/job-board', '/quotations/intake/', '/Quotations/Intake']) {
+        assert.equal(routes.isOwnLimitedPath({ baseUrl: '/api', path: p }), true, p);
     }
-    assert.equal(routes.isOwnLimitedPath({ originalUrl: '/api/quotations/intake-admin' }), false);
-    assert.equal(routes.isOwnLimitedPath({ originalUrl: '/api/email/client_quotation_submitted' }), false);
+    assert.equal(routes.isOwnLimitedPath({ baseUrl: '/api', path: '/quotations/intake-admin' }), false);
+    assert.equal(routes.isOwnLimitedPath({ baseUrl: '/api', path: '/email/client_quotation_submitted' }), false);
+    // Un query string con la ruta exceptuada no saltea el límite global (RUT-1).
+    assert.equal(routes.isOwnLimitedPath({ baseUrl: '/api', path: '/gemini/generate-image', originalUrl: '/api/gemini/generate-image?x=/api/quotations/intake' }), false);
+    assert.equal(routes.isOwnLimitedPath({ originalUrl: '/api/quotations/intake' }), false);
+    assert.equal(routes.isOwnLimitedPath(undefined), false);
 });
 
 test('rate limit: por borrador (submission_key) y techo amplio por IP', () => {

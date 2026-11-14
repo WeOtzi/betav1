@@ -7109,17 +7109,8 @@ function collectPublicRoutes(dir = path.join(__dirname, 'public'), routePrefix =
 }
 
 function collectRegisteredRoutes() {
-    return app._router.stack
-        .filter(layer => layer.route && layer.route.path)
-        .flatMap(layer => {
-            const methods = Object.keys(layer.route.methods)
-                .map(method => method.toUpperCase())
-                .sort()
-                .join(',');
-            return [{ methods, path: layer.route.path }];
-        })
-        .filter(route => route.path.startsWith('/api/') || route.path.startsWith('/shared/'))
-        .sort((a, b) => `${a.path} ${a.methods}`.localeCompare(`${b.path} ${b.methods}`));
+    // Rutas-array (p. ej. /artist/profile de perfil.js) o RegExp: ver lib/registered-routes.js.
+    return require('./lib/registered-routes').listRegisteredRoutes(app._router.stack);
 }
 
 function logRouteList(title, routes, formatter) {
