@@ -77,6 +77,50 @@
         }
     }
 
+    // Avisos que resuelve lib/routes/cot-artista.js (COT-A-05/11/20): el
+    // servidor relee la cotización y la sesión guardadas y manda una copia por
+    // rol (cliente y artista), cada una con sus enlaces. Nunca lanza.
+    var SESSION_EVENTS = ['session_scheduled', 'session_rescheduled', 'session_cancelled', 'session_completed'];
+
+    async function post(path, body, label) {
+        if (isPreview()) return { ok: true, skipped: true, preview: true };
+        try {
+            var token = await accessToken();
+            if (!token) return { ok: false, skipped: true, error: 'sin sesión' };
+            var response = await fetch(basePath() + path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                body: JSON.stringify(body || {})
+            });
+            var data = null;
+            try { data = await response.json(); } catch (_) { /* sin cuerpo */ }
+            var ok = response.ok && !(data && data.success === false);
+            if (!ok) console.warn('[client-notices] ' + label + ':', (data && data.error) || response.status);
+            return { ok: ok, status: response.status, results: data && data.results };
+        } catch (error) {
+            console.warn('[client-notices] ' + label + ':', error && error.message);
+            return { ok: false, error: error && error.message };
+        }
+    }
+
+    function quotePath(quote, suffix) {
+        return '/api/cot-artista/quotations/' + encodeURIComponent(quote.quote_id) + suffix;
+    }
+
+    /** Aviso de sesión agendada/reprogramada/cancelada/realizada (cliente y artista). */
+    function notifySession(quote, eventId, sessionId) {
+        if (!quote || !quote.quote_id || sessionId == null || SESSION_EVENTS.indexOf(eventId) === -1) {
+            return Promise.resolve({ ok: false, skipped: true });
+        }
+        return post(quotePath(quote, '/session-notice'), { event: eventId, session_id: sessionId }, eventId);
+    }
+
+    /** Aviso al cliente de que el artista confirmó el acuerdo. */
+    function notifyAgreement(quote) {
+        if (!quote || !quote.quote_id) return Promise.resolve({ ok: false, skipped: true });
+        return post(quotePath(quote, '/agreement-notice'), {}, 'artist_confirmed_agreement');
+    }
+
     /** Aviso por cambio de estado (rechazo/cancelación, entrega lista). */
     function notifyStatusChange(quote, nextStatus, previousStatus) {
         var eventId = eventForStatus(nextStatus, previousStatus);
@@ -95,6 +139,9 @@
         eventForStatus: eventForStatus,
         send: send,
         notifyStatusChange: notifyStatusChange,
-        notifyDisputeResponse: notifyDisputeResponse
+        notifyDisputeResponse: notifyDisputeResponse,
+        SESSION_EVENTS: SESSION_EVENTS,
+        notifySession: notifySession,
+        notifyAgreement: notifyAgreement
     };
 }));

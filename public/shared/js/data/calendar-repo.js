@@ -169,7 +169,8 @@
             allDay: false,
             location: session.location || 'Estudio propio',
             notes: session.notes || '',
-            status: session.status === 'cancelled' ? 'cancelled' : 'scheduled',
+            // no_show (el cliente no vino) libera el horario igual que cancelled.
+            status: session.status === 'cancelled' || session.status === 'no_show' ? 'cancelled' : 'scheduled',
             sessionStatus: session.status || 'scheduled',
             recurrenceRule: 'none',
             recurrenceUntil: null,
@@ -522,14 +523,22 @@
             return writeSession('createQuoteSession', patch, (body) => Sessions.create(body));
         },
 
-        async updateQuoteSession(sessionId, payload) {
+        // opts.rescheduled: cambió la fecha/hora de un turno ya agendado → queda
+        // 'rescheduled' (el detalle lo muestra "Reprogramada" y el aviso
+        // session_rescheduled exige ese estado). COT-A-05.
+        async updateQuoteSession(sessionId, payload, opts = {}) {
             const Sessions = requireSessions();
-            return writeSession('updateQuoteSession', sessionPatch(payload), (body) => Sessions.update(sessionId, body));
+            const patch = sessionPatch(payload);
+            if (opts.rescheduled) patch.status = 'rescheduled';
+            return writeSession('updateQuoteSession', patch, (body) => Sessions.update(sessionId, body));
         },
 
+        // COT-A-05: "Eliminar" un turno con cliente lo CANCELA (no se borra): queda
+        // en el historial de la cotización, sale del calendario y de Google
+        // Calendar, y se puede avisar al cliente (session_cancelled).
         async removeQuoteSession(sessionId) {
             const Sessions = requireSessions();
-            await Sessions.delete(sessionId);
+            await Sessions.updateStatus(sessionId, 'cancelled');
         },
 
         // ---- Recordatorios (artist_reminders) ----

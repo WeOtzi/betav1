@@ -268,6 +268,24 @@
       "preferences_url"
     ]
   },
+  "quotation-agreement-client": {
+    "file": "templates/email/billionmail/quotation-agreement-client.html",
+    "variables": [
+      "artist_name",
+      "client_name",
+      "deposit_text",
+      "final_budget_amount",
+      "final_budget_currency",
+      "final_comment",
+      "final_sessions",
+      "first_session_date",
+      "quote_id",
+      "tattoo_body_part",
+      "tattoo_size",
+      "tattoo_style",
+      "dashboard_url"
+    ]
+  },
   "quotation-completed": {
     "file": "templates/email/billionmail/quotation-completed.html",
     "variables": [

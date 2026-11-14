@@ -320,6 +320,7 @@
                         ${field('Duración por sesión', `<span class="qn-select"><select id="qn-f-hours" data-qn-field="sessionHours">${options(M.DURATION_OPTIONS.map((h) => ({ value: h, label: `${h} ${h === 1 ? 'hora' : 'horas'}` })), state.sessionHours)}</select></span>`, 'qn-f-hours')}
                         ${field('Estudio o ubicación', `<span class="qn-select"><select id="qn-f-location" data-qn-field="location">${options(locations, state.location, { placeholder: 'Elegir ubicación' })}</select></span>`, 'qn-f-location')}
                         ${field('Fecha tentativa', `<input id="qn-f-date" class="qn-input" type="date" data-qn-field="date" value="${esc(state.date)}">`, 'qn-f-date')}
+                        ${field('Hora tentativa', `<input id="qn-f-time" class="qn-input" type="time" step="900" data-qn-field="time" value="${esc(state.time || '')}">`, 'qn-f-time')}
                         ${field('Prioridad', segmented('priority', M.PRIORITIES, state.priority, 'Prioridad'))}
                     </div>
 
@@ -481,7 +482,7 @@
             if (record && record.status === 'sent') toast('Esa cotización ya fue enviada.', 'info');
             else toast('No encontramos ese borrador. Empezamos una cotización nueva.', 'info');
         }
-        return M.createInitialState({ origin: opts.origin, currency, date: opts.date });
+        return M.createInitialState({ origin: opts.origin, currency, date: opts.date, time: opts.time });
     }
 
     // "Cancelar" vuelve a donde estaba el artista (calendario, dashboard...) cuando
@@ -816,7 +817,9 @@
             }
             removeLocalDraft(snapshot.ref);
             const uploads = await uploadFiles(quoteId);
-            try {
+            // COT-A-13: sin email del cliente no hay a quién avisar (antes salía
+            // un error crudo del dispatcher).
+            if (quotePayload.client_email) try {
                 const artist = page() && page().getArtist();
                 const event = window.ConfigManager && window.ConfigManager.sendN8NEvent && window.ConfigManager.sendN8NEvent('artist_responded_quotation', {
                     quote_id: quoteId,
@@ -847,8 +850,7 @@
                 toast('Para crear cotizaciones manuales falta aplicar la actualización de la base de datos. Guardamos la cotización como borrador en este navegador.', 'error');
             } else {
                 console.error('[quotation-new] crear', err);
-                const detail = err && err.cause && err.cause.message ? ` (${err.cause.message})` : '';
-                toast('No pudimos crear la cotización' + detail + '. Guardamos un borrador en este navegador.', 'error');
+                toast(M.createErrorMessage(err), 'error');
             }
         }
     }
@@ -1061,7 +1063,7 @@
     // ---------------------------------------------------------------- arranque
     function paramsOpts() {
         const params = new URLSearchParams(window.location.search);
-        return { origin: params.get('origen'), draftRef: params.get('borrador'), step: params.get('step'), date: params.get('fecha'), returnTo: params.get('volver'), pushUrl: false };
+        return { origin: params.get('origen'), draftRef: params.get('borrador'), step: params.get('step'), date: params.get('fecha'), time: params.get('hora'), returnTo: params.get('volver'), pushUrl: false };
     }
 
     document.addEventListener('click', (event) => {

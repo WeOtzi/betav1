@@ -294,6 +294,13 @@ const SPECS = {
         intro: 'Revisamos tu documentación y tu perfil ya muestra la insignia de verificación de We Ötzi.',
         ctaLabel: 'Ver mi cuenta', ctaVar: 'account_url'
     },
+    // COT-A-11: el artista registra el acuerdo → aviso al cliente.
+    'quotation-agreement-client': {
+        subject: 'Tu tatuaje con {{artist_name}} tiene acuerdo', preheader: 'Guardá este resumen: presupuesto final, seña, sesiones y la primera fecha que acordaron.',
+        eyebrow: 'ACUERDO CONFIRMADO', greeting: 'Hola, {{client_name}}.', headline: 'Tu tatuaje tiene acuerdo',
+        intro: '{{artist_name}} registró lo que acordaron. Guardá este resumen: tiene el presupuesto final, la seña, las sesiones y la primera fecha.',
+        ctaLabel: 'Ver mi cotización', ctaVar: 'dashboard_url'
+    },
     'quotation-approved': {
         subject: '{{client_name}} aprobó tu propuesta', preheader: 'La cotización avanzó. Coordiná la agenda y confirmá los detalles finales desde el expediente.',
         eyebrow: 'PROPUESTA APROBADA', greeting: 'Hola, {{artist_name}}.', headline: 'Tu propuesta fue aprobada',

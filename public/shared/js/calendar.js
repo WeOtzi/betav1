@@ -1667,6 +1667,7 @@
         if (quote) {
             payload.quotation_id = quote.id;
             payload.quote_code = links()?.quoteCode(quote) || null;
+            payload.quote_ref = quote.quote_id || null; // avisos de sesión (COT-A-05)
         }
         return payload;
     }
@@ -1898,21 +1899,68 @@
         el['save-event'].innerHTML = `${escapeHtml(text)} <i data-wo-icon="arrow-right" aria-hidden="true"></i>`;
     }
 
+    // COT-A-05: avisos de turnos con cliente (agendado, reprogramado, cancelado)
+    // a cliente y artista. Los resuelve el servidor desde lo guardado; si el
+    // correo falla, el turno ya quedó guardado y solo se muestra un aviso suave.
+    function sessionQuoteRef(event, payload) {
+        return (payload && payload.quote_ref)
+            || event?.raw?.quotation?.quote_id
+            || null;
+    }
+
+    function noticeSession(eventId, quoteRef, sessionId) {
+        const notices = window.QuotationClientNotices;
+        if (!notices || typeof notices.notifySession !== 'function' || !quoteRef || sessionId == null) return;
+        Promise.resolve(notices.notifySession({ quote_id: quoteRef }, eventId, sessionId))
+            .then((result) => {
+                if (result && result.ok === false && !result.skipped) {
+                    showToast('El turno quedó guardado, pero no pudimos confirmar el aviso al cliente.', true);
+                }
+            })
+            .catch(() => {});
+    }
+
+    function isOpenSession(event) {
+        const status = String(event?.sessionStatus || 'scheduled').toLowerCase();
+        return status === 'scheduled' || status === 'rescheduled';
+    }
+
+    function sameInstant(a, b) {
+        const left = asDate(a);
+        const right = asDate(b);
+        return !!left && !!right && left.getTime() === right.getTime();
+    }
+
     async function persist(kind, payload) {
         const Calendar = window.WeotziData.Calendar;
-        if (kind === 'session') return Calendar.createQuoteSession(payload);
+        if (kind === 'session') {
+            const created = await Calendar.createQuoteSession(payload);
+            noticeSession('session_scheduled', sessionQuoteRef(null, payload), created && created.id);
+            return created;
+        }
         return Calendar.create(state.user.id, payload);
     }
 
     async function persistUpdate(kind, event, payload) {
         const Calendar = window.WeotziData.Calendar;
-        if (kind === 'session') return Calendar.updateQuoteSession(event.baseId, payload);
+        if (kind === 'session') {
+            // Solo un turno vigente pasa a "reprogramado": una sesión realizada
+            // (o ausente) conserva su estado aunque se corrija la fecha.
+            const rescheduled = isOpenSession(event) && !sameInstant(event.start, payload.starts_at);
+            const result = await Calendar.updateQuoteSession(event.baseId, payload, { rescheduled });
+            if (rescheduled) noticeSession('session_rescheduled', sessionQuoteRef(event, payload), event.baseId);
+            return result;
+        }
         return Calendar.update(event.baseId, state.user.id, payload);
     }
 
-    async function persistRemove(event) {
+    async function persistRemove(event, opts = {}) {
         const Calendar = window.WeotziData.Calendar;
-        if (event.sourceType === 'quotation_session') return Calendar.removeQuoteSession(event.baseId);
+        if (event.sourceType === 'quotation_session') {
+            await Calendar.removeQuoteSession(event.baseId);
+            if (opts.notify) noticeSession('session_cancelled', sessionQuoteRef(event), event.baseId);
+            return;
+        }
         if (event.sourceType === 'artist_reminder') {
             return Calendar.removeReminder(state.user.id, event.baseId, event.raw?.attachments || []);
         }
@@ -2031,15 +2079,22 @@
     async function deleteCurrentEvent() {
         const editing = state.editingEvent;
         if (!editing) return;
-        const message = editing.sourceType === 'quotation_session'
-            ? `¿Eliminar “${editing.title}”? La sesión también se quita del detalle de ${editing.quoteCode || 'la cotización'}.`
+        const isSession = editing.sourceType === 'quotation_session';
+        // Una sesión realizada es parte del trabajo entregado: no se cancela
+        // desde el calendario (se gestiona en el detalle de la cotización).
+        if (isSession && !isOpenSession(editing)) {
+            showToast('Esta sesión ya se registró. Gestionala desde el detalle de la cotización.', true);
+            return;
+        }
+        const message = isSession
+            ? `¿Cancelar “${editing.title}”? La sesión queda cancelada en ${editing.quoteCode || 'la cotización'} y le avisamos al cliente.`
             : `¿Eliminar “${editing.title}”?${editing.recurrenceRule === 'weekly' ? ' Se borran todas las repeticiones.' : ''}`;
         if (!window.confirm(message)) return;
         el['delete-event'].disabled = true;
         try {
-            await persistRemove(editing);
-            if (editing.sourceType === 'quotation_session' || editing.quotationId) invalidateQuotes();
-            showToast('Evento eliminado.');
+            await persistRemove(editing, { notify: isSession });
+            if (isSession || editing.quotationId) invalidateQuotes();
+            showToast(isSession ? 'Sesión cancelada. Le avisamos al cliente.' : 'Evento eliminado.');
             closeEditor();
             await loadEvents();
         } catch (error) {

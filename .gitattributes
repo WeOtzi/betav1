@@ -4,3 +4,6 @@
 
 # Preserve vendored asset bytes and their upstream checksums on Windows.
 scripts/release/preview-assets/** -text
+
+# Migraciones SQL siempre con LF (los tests las leen como texto; COT-A-16).
+*.sql text eol=lf

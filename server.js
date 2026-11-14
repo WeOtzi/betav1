@@ -3332,6 +3332,8 @@ app.post('/api/client/quotations/:quoteId/complete', async (req, res) => {
         await QuotationsRepo.markCompletedByClient(quotation.id, caller.id, completedAt);
         // ── emails ── resumen final a ambos + pedido de reseña (no bloquea la respuesta).
         void require('./lib/routes/emails').notifyQuotationCompleted(quoteId, { baseUrl: applicationBase(req) }).catch(() => {});
+        const cotNotices = require('./lib/cot-artista-notices'); // COT-A-12: resumen a cliente y artista (una copia por rol)
+        cotNotices.inBackground('completed', () => cotNotices.notifyQuotationCompleted(quotation.quote_id, { baseUrl: applicationBase(req) }));
 
         console.log(`[Client Complete] Client ${caller.id} completed quotation ${quoteId}`);
         return res.json({
@@ -7016,6 +7018,7 @@ app.post('/api/privacy/cookie-consent', async (req, res) => {
     }
 });
 // ── fin privacidad ──
+require('./lib/routes/cot-artista').register(app); // ── cot-artista ── avisos de sesión y acuerdo (límite propio)
 
 // ── emails ── verificación por email, recordatorio de sesión 24 h y avisos de arranque.
 require('./lib/routes/emails').register(app, { pgrest, getActiveSupportAgent: _getActiveSupportAgent, applicationBase, safeTokenEqual: storeOrders.safeTokenEqual, startJobs: require.main === module });
