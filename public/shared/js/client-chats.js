@@ -45,7 +45,6 @@
         client_rejected:  { label: 'Rechazada',            cls: 'wo-tag--archived' },
         cancelled:        { label: 'Cancelada',            cls: 'wo-tag--archived' },
         expired:          { label: 'Vencida',              cls: 'wo-tag--archived' },
-        expired:          { label: 'Vencida',              cls: 'wo-tag--archived' },
     };
     const APPLICATION_TAGS = {
         pending:     { label: 'Propuesta recibida', cls: 'wo-tag--highlight' },

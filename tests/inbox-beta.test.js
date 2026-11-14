@@ -183,6 +183,7 @@ test('repos: envío devuelve la fila guardada, adjuntos, sesiones del cliente y 
     const inbox = read('public/shared/js/data/inbox-repo.js');
     assert.match(inbox, /c\.rpc\('list_client_inbox_threads'\)/);
     assert.match(inbox, /sendN8NEvent\('inbox_message_received', \{\s*thread_id: threadId, message_id: message\.id,/);
+    assert.equal((inbox.match(/sendN8NEvent\('inbox_message_received'/g) || []).length, 1, 'un solo aviso por mensaje');
 
     const support = read('public/shared/js/data/support-client-repo.js');
     assert.match(support, /\/api\/support-chat\/conversation/);

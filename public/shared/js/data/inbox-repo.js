@@ -83,18 +83,11 @@
             const { data } = await D.run('inbox.sendMessage', (c) =>
                 c.rpc('send_inbox_message', payload)
             );
+            // EM-07: un solo aviso por email al otro participante (el servidor
+            // resuelve el hilo y el destinatario, espera un rato, no avisa si ya
+            // se leyó y manda como mucho uno cada 15 min). Nunca rompe el envío.
             const saved = Array.isArray(data) ? data[0] : data;
-            if (saved && saved.id && typeof window !== 'undefined' && window.ConfigManager && window.ConfigManager.sendN8NEvent) {
-                // EM-07: aviso por email al otro participante. El servidor resuelve
-                // el hilo y el destinatario, espera un rato, no avisa si ya se
-                // leyó y manda como mucho uno cada 15 min. Nunca rompe el envío.
-                try {
-                    void Promise.resolve(window.ConfigManager.sendN8NEvent('inbox_message_received', {
-                        message_id: saved.id, thread_id: saved.thread_id || threadId
-                    })).catch(() => {});
-                } catch (_) { /* el aviso es secundario */ }
-            }
-            notifyRecipient(threadId, data);
+            notifyRecipient((saved && saved.thread_id) || threadId, data);
             return data;
         },
 
