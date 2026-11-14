@@ -2172,7 +2172,8 @@ async function saveArtist(event) {
         estilo: getVal('artist-estilo'),
 
         embajador: getVal('artist-embajador'),
-        verification_state: getVal('artist-verification-state'),
+        // verif-artista: un estado legado fuera de la lista deja el select vacío; no se pisa.
+        verification_state: getVal('artist-verification-state') || undefined,
         is_recommended: getVal('artist-is-recommended'),
         email_confirmed: getVal('artist-email-confirmed'),
         vacation_start: getVal('artist-vacation-start') || null,

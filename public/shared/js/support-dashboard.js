@@ -578,9 +578,9 @@ function renderArtistRow(artist, index) {
 
     return `
         <div class="quote-row data-row" style="opacity: 0; transform: translateY(20px); transition: all 0.4s; transition-delay: ${index * 0.03}s">
-            <div class="client-cell"><span class="client-name">${name}</span></div>
-            <div style="font-family: 'Space Mono'; font-size: 0.75rem; color: var(--bauhaus-blue);">@${username}</div>
-            <div style="font-size: 0.8rem; word-break: break-all;">${email}</div>
+            <div class="client-cell"><span class="client-name">${escapeHtml(name)}</span></div>
+            <div style="font-family: 'Space Mono'; font-size: 0.75rem; color: var(--bauhaus-blue);">@${escapeHtml(username)}</div>
+            <div style="font-size: 0.8rem; word-break: break-all;">${escapeHtml(email)}</div>
             <div>${getVerificationBadge(verification)}</div>
             <div>${getEmbajadorBadge(embajador)}</div>
             <div><button class="action-btn detail-btn" onclick="inspectRecord('artists', '${artist.user_id}')">MANAGE</button></div>
@@ -885,15 +885,11 @@ function renderArtistDrawer(artist) {
             <div class="drawer-form-group">
                 <label>Verification Status</label>
                 <div style="margin-bottom: 0.75rem;">${getVerificationBadge(artist.verification_state || 'No')}</div>
-                <select onchange="updateArtistField('${artist.user_id}', 'verification_state', this.value)">
-                    <option value="No" ${artist.verification_state === 'No' || !artist.verification_state ? 'selected' : ''}>NOT VERIFIED</option>
-                    <option value="Requested" ${artist.verification_state === 'Requested' ? 'selected' : ''}>REQUESTED</option>
-                    <option value="In Progress" ${artist.verification_state === 'In Progress' ? 'selected' : ''}>IN PROGRESS</option>
-                    <option value="In Analysis" ${artist.verification_state === 'In Analysis' ? 'selected' : ''}>IN ANALYSIS</option>
-                    <option value="Yes" ${artist.verification_state === 'Yes' ? 'selected' : ''}>VERIFIED</option>
-                    <option value="Denied" ${artist.verification_state === 'Denied' ? 'selected' : ''}>DENIED</option>
-                    <option value="Canceled" ${artist.verification_state === 'Canceled' ? 'selected' : ''}>CANCELED</option>
-                </select>
+                <!-- verif-artista: la decisión pasa por la RPC con motivo, historial y aviso
+                     al artista (pestaña Verificaciones), no por un PATCH directo del estado. -->
+                <button type="button" class="action-btn" data-verif-artist="${escapeHtml(artist.user_id || '')}"
+                    onclick="window.SupportVerificationQueue && window.SupportVerificationQueue.openArtist(this.dataset.verifArtist)">REVISAR VERIFICACIÓN →</button>
+                <p style="margin: 0.5rem 0 0; font-size: 0.85rem;">Documentos, historial y decisión con motivo. El artista recibe el resultado por email.</p>
             </div>
             <div class="drawer-form-group">
                 <label>Ambassador Status</label>

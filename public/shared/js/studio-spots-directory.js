@@ -70,7 +70,7 @@
         if (session) {
             const { data: row } = await WeotziData.Artists.getByUserId(
                 session.user.id,
-                'user_id, username, name, city, ubicacion, styles_array, profile_picture, gallery_images, portafolio'
+                'user_id, username, name, city, ubicacion, styles_array, profile_picture, gallery_images, portafolio, verification_state'
             );
             artist = row || null;
             if (artist) loadArtistStats();
@@ -111,7 +111,9 @@
         const parts = [];
         if (artistStats.rating != null) parts.push(artistStats.rating.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
         if (artistStats.works != null) parts.push(artistStats.works + ' trabajo' + (artistStats.works === 1 ? '' : 's'));
-        return parts.join(' · ') || 'Perfil verificado';
+        // verif-artista (VER-A9): "Verificado" solo con la misma regla del sello del perfil.
+        if (artist && artist.verification_state === 'Yes') parts.push('Verificado');
+        return parts.join(' · ') || 'Perfil en We Ötzi';
     }
 
     // Misma línea con la estrella Feather (outline) delante del rating.

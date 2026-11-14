@@ -64,7 +64,8 @@
     ];
 
     // Tipo, nombre y si es obligatorio (identidad y domicilio; bioseguridad
-    // suma confianza pero es opcional). isVerified() sigue mirando identidad.
+    // suma confianza pero es opcional). isVerified() = verification_state 'Yes'
+    // (misma regla que el sello del perfil público, artist-profile.js).
     const DOC_TYPES = [
         ['identidad', 'Documento de identidad', true],
         ['bioseguridad', 'Certificado de bioseguridad', false],
@@ -121,6 +122,8 @@
     let notifMatrix = {};
     let verifAvailable = false;
     let verifDocs = [];
+    // Última decisión de soporte sobre el perfil (verification_history): motivo al denegar.
+    let lastVerifDecision = null;
     let currentSessionId = null;
     let accountSessions = [];
     let verifiedMfaFactors = [];
@@ -2701,8 +2704,16 @@
         return verifDocs.find((d) => d.doc_type === 'identidad') || null;
     }
 
+    // verif-artista (VER-A3): la insignia solo aparece con verification_state 'Yes'
+    // (artist-profile.js), así que la cuenta usa la misma regla.
     function isVerified() {
-        return artist?.verification_state === 'Yes' || docStatus(identityDoc()) === 'verified';
+        return artist?.verification_state === 'Yes';
+    }
+
+    // Identidad y domicilio aprobados por soporte (falta la revisión final del perfil).
+    function requiredDocsApproved() {
+        return DOC_TYPES.every(([type, , required]) => !required
+            || docStatus(verifDocs.find((d) => d.doc_type === type) || null) === 'verified');
     }
 
     // Obligatorios sin cargar: un documento cuenta si existe y no fue rechazado.
@@ -2720,25 +2731,39 @@
         const box = $('aac-verif-alert');
         let cls = '';
         let icon = 'check-circle';
-        let title = 'Identidad verificada';
-        let detail = idDoc?.reviewed_at ? `Confirmada el ${formatLongDate(idDoc.reviewed_at)}.` : 'Tu perfil muestra la insignia de verificado.';
+        let title = 'Perfil verificado';
+        const approvedAt = lastVerifDecision?.action === 'approved' ? lastVerifDecision.created_at : null;
+        let detail = `${approvedAt ? `Confirmado el ${formatLongDate(approvedAt)}. ` : ''}Tu perfil público muestra la insignia de verificado.`;
         let action = '';
+        const requestBtn = '<button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="aac-verif-request">Solicitar verificación</button>';
+        const reason = lastVerifDecision && ['rejected', 'revoked'].includes(lastVerifDecision.action) && lastVerifDecision.notes
+            ? ` Motivo: ${String(lastVerifDecision.notes).trim().replace(/[.!?…]+$/, '')}.` : '';
 
         if (!isVerified()) {
             if (['Requested', 'In Progress', 'In Analysis'].includes(state)) {
                 cls = ' aac-verif-box--info'; icon = 'clock';
-                title = 'Verificación en proceso';
-                detail = 'Estamos revisando tu solicitud. Te avisamos por email cuando termine.';
-            } else if (state === 'Denied' || docStatus(idDoc) === 'rejected') {
+                if (requiredDocsApproved()) {
+                    title = 'Documentos aprobados · falta la revisión final';
+                    detail = 'Soporte ya aprobó tus documentos. Falta la revisión final de tu perfil: te avisamos por email y en tus notificaciones.';
+                } else {
+                    title = 'Verificación en proceso';
+                    detail = 'Estamos revisando tu solicitud. Te avisamos por email y en tus notificaciones cuando termine.';
+                }
+            } else if (state === 'Denied' || state === 'rejected' || docStatus(idDoc) === 'rejected') {
                 cls = ' aac-verif-box--error'; icon = 'alert-circle';
                 title = 'Verificación denegada';
-                detail = 'Revisá tus documentos y volvé a solicitarla. El documento de identidad y el comprobante de domicilio son obligatorios; el certificado de bioseguridad es opcional.';
-                action = '<button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="aac-verif-request">Solicitar verificación</button>';
+                detail = `${reason.trim() ? reason.trim() + ' ' : ''}Revisá tus documentos y volvé a solicitarla. El documento de identidad y el comprobante de domicilio son obligatorios; el certificado de bioseguridad es opcional.`;
+                action = requestBtn;
             } else {
                 cls = ' aac-verif-box--warning'; icon = 'alert-circle';
-                title = 'Todavía no verificaste tu identidad';
-                detail = 'Subí tu documento de identidad y un comprobante de domicilio (obligatorios) y solicitá la verificación. El certificado de bioseguridad es opcional y suma confianza.';
-                action = '<button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="aac-verif-request">Solicitar verificación</button>';
+                if (lastVerifDecision?.action === 'revoked') {
+                    title = 'Tu perfil quedó sin verificar';
+                    detail = `${reason.trim() ? reason.trim() + ' ' : ''}Podés volver a solicitar la verificación con tu documento de identidad y tu comprobante de domicilio.`;
+                } else {
+                    title = 'Todavía no verificaste tu identidad';
+                    detail = 'Subí tu documento de identidad y un comprobante de domicilio (obligatorios) y solicitá la verificación. El certificado de bioseguridad es opcional y suma confianza.';
+                }
+                action = requestBtn;
             }
         }
 
@@ -2748,22 +2773,34 @@
             ${action}
         </div>`;
 
-        $('aac-verif-request')?.addEventListener('click', async () => {
-            const missing = verifAvailable ? missingRequiredDocs() : [];
-            if (missing.length) {
-                toast(`Antes de solicitarla, subí tu ${missing.join(' y tu ')}.`, false);
-                return;
-            }
-            try {
+        $('aac-verif-request')?.addEventListener('click', (event) => requestVerification(event.currentTarget));
+    }
+
+    // verif-artista (VER-A5): la solicitud la valida el servidor (documentos,
+    // historial y aviso a soporte). En el demo se simula sobre el emulador.
+    async function requestVerification(btn) {
+        const missing = verifAvailable ? missingRequiredDocs() : [];
+        if (missing.length) {
+            toast(`Antes de solicitarla, subí tu ${missing.join(' y tu ')}.`, false);
+            return;
+        }
+        if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+        try {
+            if (isDemo() || !D.ArtistVerification) {
                 await updateArtist({ verification_state: 'Requested' });
-                renderVerification();
-                toast('Solicitud de verificación enviada');
-                assistRefresh('verificacion');
-            } catch (err) {
-                console.error('[account] solicitar verificación:', err);
-                toast('No pudimos enviar la solicitud', false);
+            } else {
+                const result = await D.ArtistVerification.request();
+                artist.verification_state = result.state || 'Requested';
             }
-        });
+            renderVerification();
+            toast('Solicitud de verificación enviada. Soporte la revisa y te avisamos por email.');
+            assistRefresh('verificacion');
+        } catch (err) {
+            console.error('[account] solicitar verificación:', err);
+            const message = err && err.status && err.status < 500 && err.message ? err.message : 'No pudimos enviar la solicitud. Probá de nuevo en unos minutos.';
+            toast(message, false);
+            if (btn && btn.isConnected) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+        }
     }
 
     async function loadVerifDocs() {
@@ -2776,6 +2813,9 @@
         } catch (err) {
             console.warn('[account] documentos:', err);
             verifAvailable = false;
+        }
+        if (D.ArtistVerification && !isDemo()) {
+            lastVerifDecision = await D.ArtistVerification.lastDecision(user.id);
         }
         renderVerification();
         renderDocs();

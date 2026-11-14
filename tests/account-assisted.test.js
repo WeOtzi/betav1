@@ -206,7 +206,9 @@ test('runtime: cada guardado exitoso dispara wo:assist-refresh con la sección',
     assert.match(fnBody(js, 'async function saveModality()'), /assistRefresh\('disponibilidad'\)/);
     assert.match(fnBody(js, 'function renderNotifMatrix()'), /assistRefresh\('notificaciones'\)/);
     assert.equal((fnBody(js, 'function renderDocs()').match(/assistRefresh\('verificacion'\)/g) || []).length, 2, 'subir y eliminar documento');
-    assert.match(fnBody(js, 'function renderVerification()'), /assistRefresh\('verificacion'\)/);
+    // verif-artista: el botón de renderVerification() llama a requestVerification().
+    assert.match(fnBody(js, 'function renderVerification()'), /requestVerification\(event\.currentTarget\)/);
+    assert.match(fnBody(js, 'async function requestVerification(btn)'), /assistRefresh\('verificacion'\)/);
     assert.match(fnBody(js, 'async function setupSettings()'), /assistRefresh\('configuracion'\)/);
     const banner = js.slice(js.indexOf("wireDrop($('aac-banner-drop')"), js.indexOf("$('aac-profile-save').addEventListener"));
     assert.equal((banner.match(/assistRefresh\('perfil'\)/g) || []).length, 2, 'banner y foto');
@@ -350,12 +352,13 @@ test('runtime: AccountProfile.getExtras trae la modalidad y el estudio', async (
     for (const col of ['whatsapp_number', 'work_type', 'estudios', 'studio_id', 'subscribed_newsletter']) assert.ok(columns.includes(col), col);
 });
 
-test('verificación: identidad y domicilio obligatorios, bioseguridad opcional; isVerified intacto', () => {
+test('verificación: identidad y domicilio obligatorios, bioseguridad opcional; isVerified = sello del perfil', () => {
     const types = docTypes();
     assert.deepEqual(types.map(([type, , required]) => [type, required]), [['identidad', true], ['bioseguridad', false], ['domicilio', true]]);
     const docs = fnBody(js, 'function renderDocs()');
     assert.match(docs, /required \? 'Obligatorio' : 'Opcional'/);
-    assert.match(fnBody(js, 'function isVerified()'), /return artist\?\.verification_state === 'Yes' \|\| docStatus\(identityDoc\(\)\) === 'verified';/);
+    // verif-artista (VER-A3): misma regla que el sello de artist-profile.js.
+    assert.match(fnBody(js, 'function isVerified()'), /return artist\?\.verification_state === 'Yes';/);
     const verif = fnBody(js, 'function renderVerification()');
     assert.match(verif, /documento de identidad y un comprobante de domicilio \(obligatorios\)/);
     assert.match(verif, /bioseguridad es opcional/);

@@ -3962,20 +3962,17 @@ function updateVerificationUI(state) {
     renderTopBanner();
 }
 
+// verif-artista (VER-A5): la verificación se pide SOLO desde Cuenta ·
+// Verificación, donde se cargan los documentos y el servidor valida la
+// solicitud. El modal legado ya no escribe verification_state: redirige.
+const VERIFICATION_ACCOUNT_PATH = '/artist/account#verificacion';
+
+function goToVerificationAccount() {
+    window.location.href = dashboardAppPath(VERIFICATION_ACCOUNT_PATH);
+}
+
 function openVerificationModal() {
-    // Check if user can request verification
-    const currentState = artistData?.verification_state || 'No';
-    const stateConfig = VERIFICATION_STATES[currentState];
-    
-    if (!stateConfig.canRequest) {
-        showStatusMessage(`Tu solicitud ya esta ${stateConfig.text.toLowerCase()}.`, 'info');
-        return;
-    }
-    
-    const modal = document.getElementById('verification-modal');
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-    clearVerificationMessage();
+    goToVerificationAccount();
 }
 
 function closeVerificationModal() {
@@ -4003,54 +4000,9 @@ function clearVerificationMessage() {
     messageDiv.className = 'form-message';
 }
 
-async function submitVerificationRequest() {
-    const submitBtn = document.getElementById('submit-verification-btn');
-    
-    if (!currentUser || !artistData) {
-        showVerificationMessage('Error: No se pudo identificar tu cuenta.', 'error');
-        return;
-    }
-    
-    // Disable button and show loading
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = `
-        <span>Enviando solicitud...</span>
-    `;
-    
-    try {
-        // Update verification_state to "Requested"
-        const { error } = await WeotziData.Artists.updateByUserId(currentUser.id, { verification_state: 'Requested' });
-
-        if (error) throw error;
-
-        // Update local data
-        artistData.verification_state = 'Requested';
-        
-        // Update UI
-        updateVerificationUI('Requested');
-        
-        // Show success message
-        showVerificationMessage('Solicitud enviada correctamente. Nuestro equipo se pondra en contacto contigo pronto.', 'success');
-        
-        // Close modal after delay
-        setTimeout(() => {
-            closeVerificationModal();
-            showStatusMessage('Solicitud de verificacion enviada.', 'success');
-        }, 2500);
-        
-    } catch (error) {
-        console.error('Error submitting verification request:', error);
-        showVerificationMessage('Error al enviar la solicitud. Intenta de nuevo.', 'error');
-        
-        // Restore button
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = `
-            Solicitar Verificacion
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-            </svg>
-        `;
-    }
+// Legado (botón del modal en el HTML): ya no hace PATCH; lleva a Cuenta · Verificación.
+function submitVerificationRequest() {
+    goToVerificationAccount();
 }
 
 // ============================================
