@@ -1049,12 +1049,19 @@
 
         // Keep counters and decisions fresh without requiring a page reload.
         var refreshing = false;
+        var refreshQueued = false;
         async function refresh() {
-            if (refreshing || document.hidden) return;
+            if (document.hidden) return;
+            // Un aviso realtime que llega durante una recarga no se pierde:
+            // queda encolado y se recarga una vez más al terminar.
+            if (refreshing) { refreshQueued = true; return; }
             refreshing = true;
             try { await loadAll(); safeRender(); }
             catch (e) { console.warn('[wo-menu] refrescar:', e && e.message); }
-            finally { refreshing = false; }
+            finally {
+                refreshing = false;
+                if (refreshQueued) { refreshQueued = false; refresh(); }
+            }
         }
         window.setInterval(refresh, 60000);
         document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });

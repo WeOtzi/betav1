@@ -89,6 +89,12 @@ test('INB-06: hilo sintético y cotizaciones para iniciar conversación', () => 
     ];
     const startable = Model.startableQuotes(quotes, [{ quote_id: 'Q-2' }]).map((q) => q.quote_id);
     assert.deepEqual(startable, ['Q-31']);
+    // Revisión: in_progress con respuesta del artista es trabajo en curso (se
+    // puede escribir); sin respuesta ni precio es el borrador del cotizador.
+    const working = { quote_id: 'Q-8', artist_id: 'a', client_user_id: 'c', quote_status: 'in_progress', artist_responded_at: '2026-11-01T10:00:00Z' };
+    assert.deepEqual(Model.startableQuotes([working, quotes[3]], []).map((q) => q.quote_id), ['Q-8']);
+    assert.equal(Model.isDraftQuote(quotes[3]), true);
+    assert.equal(Model.isDraftQuote({ final_budget_amount: '300' }), false);
 });
 
 test('INB-11: fila para iniciar soporte sin conversación o con la última cerrada', () => {
@@ -137,7 +143,7 @@ test('INB-02/07: migración de chat_messages (grants, check, trigger, adjuntos, 
     assert.match(sql, /add column if not exists message_kind text not null default 'text'/);
     assert.match(sql, /before insert on public\.chat_messages/);
     assert.match(sql, /new\.is_read := false/);
-    assert.match(sql, /invalid attachment path/);
+    assert.match(sql, /ruta de adjunto inválida/);
     assert.match(sql, /drop policy if exists users_update_read_status[\s\S]*with check \(is_read = true\)/);
     assert.match(sql, /'chat-attachments', 'chat-attachments', false, 15728640/);
     assert.match(sql, /chat_attachments_party_insert[\s\S]*\(storage\.foldername\(name\)\)\[2\] = \(select auth\.uid\(\)\)::text/);

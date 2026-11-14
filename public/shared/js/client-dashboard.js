@@ -1048,7 +1048,7 @@ async function sendChatMessage() {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session) return;
         
-        await WeotziData.Chat.sendMessage({
+        const saved = await WeotziData.Chat.sendMessage({
             quoteId: currentQuotationId,
             senderType: 'client',
             senderId: session.user.id,
@@ -1057,12 +1057,13 @@ async function sendChatMessage() {
 
         // Clear input
         input.value = '';
-        
-        // Chat.sendMessage dispatches the persisted message notification.
 
-        
-        // The realtime subscription will handle adding the message to the UI
-        
+        // Chat.sendMessage dispatches the persisted message notification.
+        // Se pinta la fila guardada (id real) sin esperar al realtime; el eco
+        // del mismo INSERT se descarta por data-message-id (INB-04).
+        const savedMessage = Array.isArray(saved) ? saved[0] : saved;
+        if (savedMessage && savedMessage.id) addMessageToChat(savedMessage);
+
     } catch (error) {
         console.error('Error sending message:', error);
         alert('Error al enviar el mensaje');

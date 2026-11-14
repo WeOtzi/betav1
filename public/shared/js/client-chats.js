@@ -58,6 +58,7 @@
     let chatThreads = [];        // filas de chat_threads
     let inboxThreads = [];       // filas de list_client_inbox_threads
     let quotes = [];             // cotizaciones propias (iniciar conversación / tarjeta)
+    let deepLinkQuotes = [];     // cotizaciones abiertas por ?quote= sin conversación todavía
     let artistsById = {};        // user_id → fila de artists_db (afiliación/ciudad)
     let sessionsByQid = {};      // quotation_id_int → próxima sesión futura
     let referencesByQuote = {};  // quote_id → referencias (quotations_attachments)
@@ -155,7 +156,13 @@
         quotes.forEach(q => { quoteById[q.quote_id] = q; });
         const quoteRows = chatThreads.map(t => quoteRow(Object.assign({}, quoteById[t.quote_id] || {}, t)));
         const startable = M ? M.startableQuotes(quotes, chatThreads) : [];
-        startable.forEach(q => {
+        // Un hilo abierto por enlace profundo (aunque su estado no esté entre
+        // los "para iniciar") sobrevive a los refrescos de la lista hasta que
+        // la vista chat_threads trae el real.
+        const withThread = new Set(chatThreads.map(t => t.quote_id));
+        deepLinkQuotes = deepLinkQuotes.filter(q => !withThread.has(q.quote_id));
+        const startableIds = new Set(startable.map(q => q.quote_id));
+        startable.concat(deepLinkQuotes.filter(q => !startableIds.has(q.quote_id))).forEach(q => {
             const synthetic = M.syntheticQuoteThread(q);
             if (synthetic) quoteRows.push(quoteRow(Object.assign({}, q, synthetic)));
         });
@@ -980,8 +987,9 @@
                 quote = await D.Quotations.getForClientByQuoteId(quoteId).catch(() => null);
             }
             if (!quote || quote.client_user_id !== uid || !M) return false;
-            const synthetic = M.syntheticQuoteThread(quote);
-            rows.push(quoteRow(Object.assign({}, quote, synthetic)));
+            deepLinkQuotes.push(quote);
+            rows = buildRows();
+            if (!findRow('quote:' + quoteId)) return false;
             showShell(true);
             renderList();
             enrichArtists();

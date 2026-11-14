@@ -169,15 +169,25 @@
         };
     }
 
+    // in_progress es también el borrador del cotizador del cliente (mismo
+    // criterio que quotation-detail-model.js): sin respuesta, precio ni
+    // sesiones del artista es un borrador, no un trabajo en curso.
+    function isDraftQuote(quote) {
+        return !quote.artist_responded_at && !hasAmount(quote.final_budget_amount) && !quote.final_sessions;
+    }
+
     // Cotizaciones activas del cliente que todavía no tienen conversación:
-    // se ofrecen como "Iniciar conversación".
+    // se ofrecen como "Iniciar conversación". Un trabajo en curso
+    // (in_progress con respuesta del artista) también: es cuando más se
+    // coordinan las sesiones.
     function startableQuotes(quotes, threads) {
         const withThread = new Set((threads || []).map((thread) => thread && thread.quote_id).filter(Boolean));
         return (quotes || []).filter((quote) => {
             if (!quote || !quote.quote_id || withThread.has(quote.quote_id)) return false;
             if (!quote.artist_id || !quote.client_user_id) return false;
             const status = String(quote.quote_status || '').toLowerCase();
-            if (status === 'in_progress' || CLOSED_STATUSES.includes(status)) return false;
+            if (CLOSED_STATUSES.includes(status)) return false;
+            if (status === 'in_progress' && isDraftQuote(quote)) return false;
             if (quote.client_deleted_at) return false;
             return true;
         });
@@ -232,6 +242,7 @@
         artistCategoryForQuote,
         syntheticQuoteThread,
         startableQuotes,
+        isDraftQuote,
         needsSupportStarter,
         initials,
         referenceThumb,

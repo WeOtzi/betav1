@@ -76,7 +76,7 @@ begin
     v_prefix := coalesce(new.quotation_id, '') || '/' || coalesce(new.sender_id::text, '') || '/';
     if left(new.attachment_path, char_length(v_prefix)) <> v_prefix
        or position('..' in new.attachment_path) > 0 then
-      raise exception 'invalid attachment path' using errcode = '42501';
+      raise exception 'ruta de adjunto inválida' using errcode = '42501';
     end if;
     new.attachment_name := left(coalesce(nullif(btrim(new.attachment_name), ''), 'archivo'), 200);
     new.message_kind := case
