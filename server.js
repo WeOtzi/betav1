@@ -2587,11 +2587,14 @@ app.get('/api/admin/artists', async (req, res) => {
 // Columns the studio edit form may write. id / user_id / primary_location_id /
 // timestamps / computed columns are intentionally excluded so the editor can
 // never corrupt ownership or relational pointers.
+// is_verified NO va acá: la verificación se decide en la cola de
+// verificaciones (lib/routes/verif-estudio.js), que sincroniza
+// verification_status, verified_at y la solicitud.
 const STUDIO_EDITABLE_COLUMNS = new Set([
     'name', 'slug', 'email', 'tagline', 'bio', 'cover_image', 'logo_image',
     'photo_feed_items', 'founded_year', 'languages',
     'instagram', 'tiktok', 'whatsapp', 'contact_phone', 'phone', 'website',
-    'google_maps_url', 'is_seeking_artists', 'is_verified', 'is_active',
+    'google_maps_url', 'is_seeking_artists', 'is_active',
     'profile_complete', 'ubicacion'
 ]);
 
@@ -7032,6 +7035,8 @@ app.post('/api/privacy/cookie-consent', async (req, res) => {
     }
 });
 // ── fin privacidad ──
+
+require('./lib/routes/verif-estudio').register(app); // verificación de estudios
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {

@@ -108,6 +108,7 @@ function showSection(sectionId) {
         'quotations': 'Cotizaciones',
         'artists': 'Gestion de Artistas',
         'studios': 'Gestion de Estudios',
+        'studio-verifications': 'Verificaciones de estudios', // backoffice-studio-verifications.js
         'questions': 'Configurar Preguntas',
         'styles': 'Estilos de Tatuaje',
         'settings': 'Configuracion',
@@ -2586,7 +2587,7 @@ async function saveStudio(event) {
         contact_phone: getVal('studio-contact-phone') || null,
         phone: getVal('studio-phone') || null,
         website: getVal('studio-website') || null,
-        is_verified: getVal('studio-is-verified'),
+        // is_verified: solo desde Verificaciones de estudios (el servidor lo ignora).
         is_active: getVal('studio-is-active'),
         profile_complete: getVal('studio-profile-complete')
     };
@@ -7204,7 +7205,7 @@ async function saveStudioGeneral(event) {
         tagline: getVal('sd-tagline') || null,
         bio: getVal('sd-bio') || null,
         languages: csvToArray(getVal('sd-languages')),
-        is_verified: getVal('sd-is-verified'),
+        // is_verified: solo desde Verificaciones de estudios (el servidor lo ignora).
         is_active: getVal('sd-is-active'),
         profile_complete: getVal('sd-profile-complete'),
         is_seeking_artists: getVal('sd-is-seeking-artists')

@@ -258,7 +258,7 @@
   function renderStudioProductNav(active, options) {
     var navigation = [
       { id: 'resumen', label: 'RESUMEN' }, { id: 'mensajes', label: 'MENSAJES' }, { id: 'perfil', label: 'PERFIL' },
-      { id: 'sedes', label: 'SEDES' }, { id: 'roster', label: 'EQUIPO' },
+      { id: 'verificacion', label: 'VERIFICACIÓN' }, { id: 'sedes', label: 'SEDES' }, { id: 'roster', label: 'EQUIPO' },
       { id: 'spots', label: 'SPOTS' }, { id: 'travel', label: 'VISITAS' },
       { id: 'ops', label: 'OPERACIONES' }, { id: 'inventory', label: 'INVENTARIO' },
       { id: 'suppliers', label: 'PROVEEDORES' }, { id: 'sponsors', label: 'SPONSORS' },

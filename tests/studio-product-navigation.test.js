@@ -34,7 +34,7 @@ function load() {
     return { registry, document };
 }
 
-test('studio product navigation exposes only real studio tabs on desktop and all thirteen on mobile', () => {
+test('studio product navigation exposes only real studio tabs on desktop and all fourteen on mobile (verificación incluida)', () => {
     const { registry } = load();
     const nav = new (registry.get('weotzi-product-nav'))();
     nav.setAttribute('context', 'studio');
@@ -43,7 +43,7 @@ test('studio product navigation exposes only real studio tabs on desktop and all
     const mobile = /<nav id="studio-mobile-menu"[\s\S]*?<\/nav>/.exec(html)[0];
     const destinations = fragment => Array.from(fragment.matchAll(/data-tab="([^"]+)"/g), match => match[1]);
     assert.deepEqual(destinations(desktop), ['resumen', 'mensajes', 'spots', 'ops', 'inventory', 'analytics']);
-    assert.deepEqual(destinations(mobile), ['resumen', 'mensajes', 'perfil', 'sedes', 'roster', 'spots', 'travel', 'ops', 'inventory', 'suppliers', 'sponsors', 'analytics', 'cuenta']);
+    assert.deepEqual(destinations(mobile), ['resumen', 'mensajes', 'perfil', 'verificacion', 'sedes', 'roster', 'spots', 'travel', 'ops', 'inventory', 'suppliers', 'sponsors', 'analytics', 'cuenta']);
     assert.match(html, /id="logout-btn"/);
     assert.match(html, /href="#cuenta" data-tab="cuenta"/);
     assert.match(desktop, /data-tab="resumen" aria-current="page"/);

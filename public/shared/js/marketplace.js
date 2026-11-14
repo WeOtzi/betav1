@@ -964,6 +964,7 @@ function renderStudios(studios) {
                         <span class="mk-card-avatar" aria-hidden="true">${getInitials(studio.name)}</span>
                         <div class="mk-card-id">
                             <h3 class="mk-card-name">${name}</h3>
+                            ${studio.is_verified === true ? '<span class="mk-studio-verified" title="Estudio verificado por We Ötzi"><i data-wo-icon="check" aria-hidden="true"></i>Verificado</span>' : ''}
                         </div>
                     </div>
                     <div class="mk-card-metarow">
