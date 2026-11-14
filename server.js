@@ -7044,6 +7044,8 @@ app.get('/travel/t/:slug', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'travel', 'share', 'index.html'));
 });
 
+require('./lib/routes/turnos').register(app, { gcalService, startJob: require.main === module }); // ── turnos ── reservas online
+
 // Rutas del artista retiradas por el Figma final: redirigen a su reemplazo
 // solo cuando su carpeta ya no existe en public/ (ver lib/legacy-routes.js).
 app.use((req, res, next) => {

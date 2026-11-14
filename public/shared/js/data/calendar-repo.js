@@ -268,6 +268,42 @@
         return events;
     }
 
+    // ── turnos ── "Solicitud de turno": apartado pendiente de una reserva online
+    // (artist_booking_holds vía el servidor). Va en su hora real, de solo
+    // lectura, y abre la cotización. Sin booking-repo.js o sin servidor: [].
+    async function listHoldsProjection(rangeStart, rangeEnd) {
+        if (!D.Booking || typeof D.Booking.listHolds !== 'function') return [];
+        const holds = await D.Booking.listHolds(rangeStart.toISOString(), rangeEnd.toISOString());
+        return (holds || []).map((hold) => {
+            const start = asDate(hold.starts_at);
+            const end = asDate(hold.ends_at);
+            if (!start || !end) return null;
+            const client = String(hold.client_name || '').trim() || 'Cliente';
+            return {
+                id: `booking_hold:${hold.id}`,
+                baseId: null,
+                sourceType: 'booking_hold',
+                sourceId: String(hold.id),
+                readonly: true,
+                href: `/my-quotations/detail?id=${encodeURIComponent(hold.quotation_id)}`,
+                type: 'pending_request',
+                title: `Solicitud de turno — ${client}`,
+                clientName: client,
+                start: start.toISOString(),
+                end: end.toISOString(),
+                allDay: false,
+                location: '',
+                notes: hold.expires_label ? `Turno apartado hasta ${hold.expires_label}.` : 'Turno apartado.',
+                status: 'pending',
+                recurrenceRule: 'none',
+                recurrenceUntil: null,
+                quotationId: String(hold.quotation_id),
+                quoteCode: hold.quote_id || null,
+                raw: hold,
+            };
+        }).filter((event) => event && overlaps(asDate(event.start), asDate(event.end), rangeStart, rangeEnd));
+    }
+
     async function listRemindersProjection(artistUserId, rangeStart, rangeEnd) {
         if (!D.Reminders || typeof D.Reminders.list !== 'function') return [];
         const reminders = await D.Reminders.list(artistUserId);
@@ -420,6 +456,7 @@
                 listTripsProjection(artistUserId, rangeStart, rangeEnd),
                 listRemindersProjection(artistUserId, rangeStart, rangeEnd),
                 Promise.resolve(listPendingRequestsProjection(quotations, rangeStart, rangeEnd)),
+                listHoldsProjection(rangeStart, rangeEnd),
             ]);
             projectionResults.forEach((result, index) => {
                 if (result.status === 'rejected') {
@@ -433,7 +470,13 @@
                 ...(projectionResults[1].status === 'fulfilled' ? projectionResults[1].value : []),
                 ...(projectionResults[2].status === 'fulfilled' ? projectionResults[2].value : []),
                 ...(projectionResults[3].status === 'fulfilled' ? projectionResults[3].value : []),
+                ...(projectionResults[4].status === 'fulfilled' ? projectionResults[4].value : []),
             ];
+            // Una cotización con turno apartado se ve en su hora, no como "todo el día".
+            const heldQuotes = new Set(events.filter((event) => event.sourceType === 'booking_hold').map((event) => event.quotationId));
+            for (let i = events.length - 1; i >= 0; i -= 1) {
+                if (events[i].sourceType === 'pending_request' && heldQuotes.has(events[i].quotationId)) events.splice(i, 1);
+            }
 
             const unique = new Map();
             events.forEach((event) => {

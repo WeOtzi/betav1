@@ -2,6 +2,7 @@
 const crypto = require('node:crypto');
 const { pgrest } = require('../lib/postgrest');
 const { resolveBearerUser } = require('../lib/auth/supabase-auth');
+const turnosIntake = require('../lib/turnos-intake');
 
 const CLIENT_FIELDS = ['tattoo_body_part','tattoo_body_side','tattoo_idea_description','tattoo_size','tattoo_style','tattoo_color_type','reference_images_count','tattoo_references','tattoo_is_first_tattoo','tattoo_is_cover_up','client_full_name','client_email','client_instagram','client_city_residence','client_travel_willing','city_mismatch_acknowledged','style_mismatch_acknowledged','client_preferred_date','client_flexible_dates','client_budget_amount','client_budget_currency','client_contact_preference','client_whatsapp','client_birth_date','client_age','client_health_conditions','client_allergies','tattoo_estimated_sessions'];
 function invalid(message, status = 400) { const e = new Error(message); e.status = status; throw e; }
@@ -43,6 +44,9 @@ async function handleIntake(req, res) {
         if (id && !/^[0-9a-f-]{36}$/i.test(id)) invalid('Artista no válido.');
         const artist = id ? await pgrest('artists_db').select('user_id,username,name,email,instagram,styles_array,ubicacion,city,estudios,session_price,registration_status').eq('user_id',id).limit(1).single().execute() : null;
         const {q,extras} = normalizeIntake(req.body || {},user,artist);
+        // ── turnos ── envío final con turno elegido: apartado atómico (lib/turnos-intake.js).
+        const slot = turnosIntake.requestedSlot(req.body);
+        if (slot) return await turnosIntake.handleSlotIntake(res, {q,extras,slot,artist}, {sendEmail:(...args) => require('./email-service').sendEmail(...args), baseUrl:require('./email-request-context').applicationBase(req)});
         const response = await fetch(process.env.SUPABASE_URL + '/rest/v1/rpc/save_web_quotation', {
             method:'POST', headers:{apikey:process.env.SUPABASE_SERVICE_ROLE_KEY,Authorization:'Bearer '+process.env.SUPABASE_SERVICE_ROLE_KEY,'Content-Type':'application/json'},
             body:JSON.stringify({p_quote:q,p_extras:extras})

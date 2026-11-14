@@ -843,8 +843,12 @@
             sheet.querySelectorAll('[data-qn-submit]').forEach((b) => { b.classList.remove('is-busy'); b.textContent = 'Crear y enviar cotización'; });
             const user = page() && page().getUser();
             writeLocalDraft(M.buildDraftRecord(snapshot, { artistId: user && user.id }));
+            const overlapText = `${err && err.code || ''} ${err && err.message || ''} ${err && err.cause && (err.cause.code || '') || ''} ${err && err.cause && err.cause.message || ''}`;
             if (err && err.missingSchema) {
                 toast('Para crear cotizaciones manuales falta aplicar la actualización de la base de datos. Guardamos la cotización como borrador en este navegador.', 'error');
+            } else if (/23P01|CALENDAR_OVERLAP|SLOT_TAKEN/.test(overlapText)) {
+                // Turnos: la sesión pisa otra sesión, un evento que bloquea o una cita de estudio.
+                toast('La fecha de la sesión se superpone con otra sesión, un evento que bloquea o una cita de estudio. Elegí otro horario. Guardamos un borrador en este navegador.', 'error');
             } else {
                 console.error('[quotation-new] crear', err);
                 const detail = err && err.cause && err.cause.message ? ` (${err.cause.message})` : '';

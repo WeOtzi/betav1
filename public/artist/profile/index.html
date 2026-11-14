@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/artist-profile.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
+    <link rel="stylesheet" href="/shared/css/booking.css?v=20261115-turnos">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
@@ -277,6 +278,17 @@
             </div>
         </section>
 
+        <!-- 08b · Próximos turnos (frente turnos): oculta sin reservas online o sin turnos libres -->
+        <section class="profile-band bk-profile-band" id="turnos" aria-labelledby="turnos-title" hidden>
+            <div class="profile-shell">
+                <div class="bk-profile-head">
+                    <h2 class="section-title" id="turnos-title">Próximos turnos</h2>
+                    <a class="wo-link-arrow" id="turnos-all" href="/turnos">Ver todos los turnos →</a>
+                </div>
+                <ul class="bk-profile-days" id="turnos-days"></ul>
+            </div>
+        </section>
+
         <!-- 09 · Portafolio -->
         <section class="profile-band gallery-band reveal-block" id="block-gallery">
             <div class="profile-shell">
@@ -360,6 +372,10 @@
     <script src="/shared/js/artist-vacation.js"></script>
     <script src="/shared/js/gallery-visibility.js"></script>
     <script src="/shared/js/artist-profile.js"></script>
+    <script src="/shared/js/account-availability-model.js?v=20261115-turnos"></script>
+    <script src="/shared/js/booking-slots-model.js?v=20261115-turnos"></script>
+    <script src="/shared/js/data/booking-repo.js?v=20261115-turnos"></script>
+    <script src="/shared/js/profile-turnos.js?v=20261115-turnos"></script>
 </body>
 
 </html>

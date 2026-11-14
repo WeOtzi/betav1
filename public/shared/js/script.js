@@ -605,6 +605,8 @@ function initApp() {
     // affecting regular /quotation visits.
     const initialUrlParams = new URLSearchParams(window.location.search);
     const prequoteSource = initialUrlParams.get('source') === 'prequote';
+    // Turnos: ?slot=<ISO>&dur=<min> (o ?date=&time=) desde /turnos (quotation-slot.js).
+    if (window.WoQuotationSlot) window.WoQuotationSlot.captureFromUrl(initialUrlParams);
     // /inicio · "Recomiéndame tatuador": ?idea=explorar preselecciona
     // "Quiero explorar opciones" (Figma 01). Un borrador recuperado lo pisa.
     if (initialUrlParams.get('idea') === 'explorar') formData.tattoo_idea_mode = 'explorar';
@@ -686,6 +688,8 @@ async function handleUrlArtist(username) {
             formData.artist_portfolio = artist.portafolio || formatInstagramUrl(artist.instagram);
             formData.no_artist = false;
             formData.quote_id = generateQuoteId();
+            // Turnos: valida el turno de la URL y carga si el artista toma reservas online.
+            if (window.WoQuotationSlot) window.WoQuotationSlot.onArtist(formData);
 
             // Con artista en la URL se muestra la confirmación como pantalla
             // previa (no numerada): el Figma no tiene búsqueda de artista.
@@ -1288,7 +1292,7 @@ function renderSizeCards(q) {
 // Figma 06 · FECHA: chips + calendario mensual embebido.
 function renderDateControl(q) {
     const current = formData[q.field] || '';
-    return `
+    return `${window.WoQuotationSlot ? window.WoQuotationSlot.cardHtml(formData) : ''}
         <div class="q-chips" id="date-chips">
             ${FIGMA_DATE_CHIPS.map((chip) => `
                 <button type="button" class="q-chip ${current === chip.label ? 'is-active' : ''}"
@@ -1470,6 +1474,7 @@ function selectDateChip(label, flexible) {
     formData.client_preferred_date = label;
     formData.client_flexible_dates = !!flexible;
     formData._preferred_date_iso = null;
+    if (window.WoQuotationSlot) window.WoQuotationSlot.onDatePicked(null);
     document.querySelectorAll('[data-date-chip]').forEach((el) => {
         el.classList.toggle('is-active', el.dataset.dateChip === label);
     });
@@ -1479,6 +1484,7 @@ function selectDateChip(label, flexible) {
 
 function pickCalendarDay(iso) {
     const [year, month, day] = iso.split('-').map(Number);
+    if (window.WoQuotationSlot) window.WoQuotationSlot.onDatePicked(iso);
     formData.client_preferred_date = `${day} ${MONTHS_SHORT_ES[month - 1]} ${year}`;
     formData._preferred_date_iso = iso;
     formData.client_flexible_dates = false;
@@ -1500,6 +1506,9 @@ function shiftCalendarMonth(delta) {
 const _artistBusyDays = { key: '', index: null, pending: '' };
 
 function getArtistBusyDays(year, month) {
+    // Turnos (CAL-09): con reservas online, los días salen de los turnos libres.
+    const slotIndex = window.WoQuotationSlot ? window.WoQuotationSlot.busyIndex(formData, year, month) : undefined;
+    if (slotIndex !== undefined) return slotIndex;
     const artistId = formData.artist_id;
     const repo = window.WeotziData && window.WeotziData.CalendarPublic;
     const Model = window.WeotziCalendarModel;
@@ -1594,7 +1603,7 @@ function renderInlineCalendar() {
             </button>
         </div>
         <div class="q-cal-dow">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d) => `<span>${d}</span>`).join('')}</div>
-        <div class="q-cal-grid">${cells.join('')}</div>${vacationNote}${busyNote}`;
+        <div class="q-cal-grid">${cells.join('')}</div>${vacationNote}${busyNote}${window.WoQuotationSlot ? window.WoQuotationSlot.daySlotsHtml(formData) : ''}`;
 }
 
 // ---------- Lógica post-render por pregunta ----------
@@ -1952,6 +1961,8 @@ function saveWebQuotation(mode) {
     if (!formData.submission_key) formData.submission_key = crypto.randomUUID();
     saveDraftToLocalStorage();
     const body = { submission_key: formData.submission_key, mode, quotation: preparePayload(), extras: prepareIntakeExtrasPayload() };
+    // Turnos: el turno elegido viaja solo en el envío final (el servidor crea el apartado).
+    if (window.WoQuotationSlot) Object.assign(body, window.WoQuotationSlot.payload(formData, mode));
     const request = _intakeQueue.catch(() => {}).then(async () => {
         const client = window.ConfigManager.getSupabaseClient();
         const { data } = await client.auth.getSession();
@@ -1959,7 +1970,7 @@ function saveWebQuotation(mode) {
         if (data?.session?.access_token) headers.Authorization = 'Bearer ' + data.session.access_token;
         const response = await fetch((window.WEOTZI_BASE_PATH || '') + '/api/quotations/intake', {method:'POST',headers,body:JSON.stringify(body)});
         const result = await response.json();
-        if (!response.ok || !result.success) throw new Error(result.error || 'No se pudo guardar la cotización');
+        if (!response.ok || !result.success) throw Object.assign(new Error(result.error || 'No se pudo guardar la cotización'), { code: result.code || null, payload: result });
         formData.quote_id = result.quote_id;
         saveDraftToLocalStorage();
         return result;
@@ -3393,6 +3404,8 @@ async function submitQuotation() {
         }
         // Ensure the parent exists before reference attachments are saved.
         await saveWebQuotation('draft');
+        // Turnos: antes de subir referencias, confirma que el turno sigue libre.
+        if (window.WoQuotationSlot) await window.WoQuotationSlot.precheck(formData);
         // Finalize status
         formData.quote_status = 'pending';
 
@@ -3614,6 +3627,8 @@ async function submitQuotation() {
         if (submitBtn) submitBtn.disabled = false;
         hideLoading();
         console.error('Submit error:', error);
+        // Turnos: 409 "ese turno ya no está disponible" → alternativas o enviar sin turno.
+        if (window.WoQuotationSlot && window.WoQuotationSlot.handleSubmitError(error, () => submitQuotation())) return;
         alert('Hubo un error al enviar la solicitud. Intentá de nuevo.');
     }
 }

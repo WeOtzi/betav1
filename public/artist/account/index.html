@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="/shared/css/instagram-import.css">
     <link rel="stylesheet" href="/shared/css/artist-account-ds.css?v=20261113-gcal">
     <link rel="stylesheet" href="/shared/css/wallet-account.css?v=20261028-3">
+    <link rel="stylesheet" href="/shared/css/booking.css?v=20261115-turnos">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
 
@@ -432,6 +433,9 @@
                     </div>
                 </div>
                 <p class="av-help">Las vacaciones pausan la agenda en todas tus ubicaciones.</p>
+
+                <!-- Reservas online / turnos (frente turnos): opt-in + reglas de turno + enlace -->
+                <section data-booking-settings id="reservas-online"></section>
 
                 <span class="aac-eyebrow av-eyebrow">Sincronización externa</span>
                 <div class="av-sync" data-integration-row="google_calendar">
@@ -878,6 +882,8 @@
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/wallet-account.js?v=20261112-integracion"></script>
     <script src="/shared/js/artist-account.js?v=20261113-gcal"></script>
+    <script src="/shared/js/data/booking-repo.js?v=20261115-turnos"></script>
+    <script src="/shared/js/booking-settings-panel.js?v=20261115-turnos"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>
 </html>
