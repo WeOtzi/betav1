@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.2.15] - 2026-11-14
+
+- Google Calendar: arreglo de 2.2.14. El check de artist_google_calendar_event_links no aceptaba vínculos trip:, así que cada sincronización volvía a crear el viaje en Google (duplicados) y mostraba "1 evento no se pudo sincronizar". Migración 20261114120000 gcal_links_trips (aplicada en vivo). Además, si no se puede guardar el vínculo de un evento recién creado, se borra en Google para no dejar huérfanos.
+- Validación: r3b-gcal 34/34; suite completa en CI.
+- Rollback: controlador a la release 2.2.14 (a5d6f0f) y supabase/rollbacks/20261114120000_gcal_links_trips.down.sql.
+
 ## [2.2.14] - 2026-11-14
 
 - Google Calendar: los viajes de Travel (guest spots, convenciones y estudio invitado) también se publican en Google como eventos de todo el día, con ciudad y estado; al cancelarlos se borran de Google. Guardar o editar un viaje pide una sincronización (antes solo el job de 15 min, y los viajes quedaban fuera).
