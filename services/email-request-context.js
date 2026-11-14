@@ -99,6 +99,18 @@ function publicQuote(quote) {
     return out;
 }
 
+/**
+ * Texto del extracto de un mensaje de chat. Si es solo un adjunto (message =
+ * '' desde 20261115170000), el mismo texto que la vista chat_threads (CHAT-01).
+ */
+function chatPreviewText(message) {
+    const text = String((message && message.message) || '').trim();
+    if (text) return text;
+    if (!message || !message.attachment_path) return '';
+    return (message.message_kind === 'image' ? 'Imagen adjunta' : 'Adjunto')
+        + (message.attachment_name ? `: ${message.attachment_name}` : '');
+}
+
 async function latestChatMessage(quoteId, senderId, deps) {
     if (deps.latestMessage) return deps.latestMessage(quoteId, senderId);
     return (await pgrest('chat_messages').select('*').eq('quotation_id', quoteId).eq('sender_id', senderId)
@@ -288,7 +300,9 @@ async function resolveEmailContext(req, eventId, input, deps = {}) {
         // Un correo por conversación, destinatario y ventana de 15 min.
         const recipientRole = eventId === 'chat_message_to_client' ? 'client' : 'artist';
         entity = `chat:${quote.quote_id}:${recipientRole}:${messageWindow(message.created_at)}`;
-        persisted.message_preview = String(message.message || '').slice(0, 280);
+        // Un mensaje que es solo un adjunto (message = '') usa el mismo texto que
+        // la vista chat_threads, así el correo no sale con el extracto vacío (CHAT-01).
+        persisted.message_preview = chatPreviewText(message).slice(0, 280);
         persisted.message_id = message.id;
         defer = {
             delayMs: MESSAGE_EMAIL_DELAY_MS,
@@ -361,6 +375,7 @@ module.exports = {
     applicationBase,
     withLinks,
     messageWindow,
+    chatPreviewText,
     SERVER_ONLY_EVENTS,
     PRIVATE_QUOTE_COLUMNS,
     MESSAGE_EMAIL_WINDOW_MS,

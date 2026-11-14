@@ -145,15 +145,19 @@ const EVENTS = {
     client_quotation_submitted: {
         name: 'Cliente: cotización enviada',
         templateHint: 'quotation-confirmation-client',
-        description: 'Confirmación al cliente de que su cotización fue enviada al artista (y aviso de nueva solicitud al artista).',
+        description: 'Confirmación al cliente de que su cotización fue enviada al artista (y aviso al admin). El artista recibe su propio aviso (artist_new_quotation, quotation_artist_selected o booking_slot_requested).',
         recipient: p => p.client_email,
-        // Por el relé: un correo por destinatario (confirmación al cliente,
-        // nueva solicitud al artista y, si está configurado, aviso al admin).
+        // Por el relé: un correo por destinatario (confirmación al cliente y, si
+        // está configurado, aviso al admin). Al artista NO: el servidor ya le
+        // manda su aviso propio por el mismo hecho (EMAIL-DUP-01).
         recipientRoles: p => [
             { role: 'client', email: p.client_email, user_id: p.client_user_id, name: p.client_name },
-            { role: 'artist', email: p.artist_email, user_id: p.artist_id, name: p.artist_name },
             { role: 'admin', email: process.env.QUOTATION_ADMIN_EMAIL || '' }
         ],
+        // El flujo n8n de este evento también le escribe al artista («Email
+        // Notificacion Artista»). Con el relé configurado y sin override en
+        // email_routing, sale por el relé para no duplicar el aviso al artista.
+        preferRelay: true,
         attribs: p => ({
             ...p,
             client_name: p.client_name,

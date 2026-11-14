@@ -195,7 +195,9 @@ test('COT-A-05/11: el detalle avisa sesiones y acuerdo por las rutas nuevas (sin
     const detail = read('public/shared/js/quotation-detail-figma.js');
     assert.doesNotMatch(detail, /notify\('client_approved_quotation'/);
     assert.doesNotMatch(detail, /notify\('session_/);
-    assert.match(detail, /noticeAgreement\(\)\.then\(\(\) => noticeSession\('session_scheduled', sessionId\)\)/);
+    // EMAIL-DUP-03: el acuerdo inicial ya informa la primera sesión (un solo aviso al cliente).
+    assert.doesNotMatch(detail, /noticeAgreement\(\)\.then\(\(\) => noticeSession\('session_scheduled'/);
+    assert.match(detail, /confirmFor\(q, \{ starts_at: first, minutes, from_agreement: true \}\)/);
 });
 
 test('QuotationClientNotices.notifySession/notifyAgreement llaman a las rutas del frente', async () => {
@@ -462,4 +464,35 @@ test('revisión: el email al artista por solicitud nueva tiene CTA al detalle', 
     }
     const p = notices.newQuotationPayload({ quote_id: 'QN9', artist_email: 'a@b.c' }, 'https://x.test/beta');
     assert.equal(p.quotation_url, 'https://x.test/beta/my-quotations/detail?quote=QN9');
+});
+
+test('EMAIL-NEW-01: cada copia lleva el destinatario de su rol', () => {
+    const copies = notices.rolePayloads({
+        quote_id: 'QN1', client_email: 'c@x.com', client_user_id: 'cli-1', client_name: 'Ana',
+        artist_email: 'a@x.com', artist_id: 'art-1', artist_name: 'Leo',
+        recipient_email: 'c@x.com', recipient_name: 'Ana'
+    }, BASE);
+    assert.equal(copies.client.recipient_email, 'c@x.com');
+    assert.equal(copies.client.recipient_user_id, 'cli-1');
+    assert.equal(copies.client.recipient_name, 'Ana');
+    assert.equal(copies.artist.recipient_role, 'artist');
+    assert.equal(copies.artist.recipient_email, 'a@x.com');
+    assert.equal(copies.artist.recipient_user_id, 'art-1');
+    assert.equal(copies.artist.recipient_name, 'Leo');
+});
+
+test('EMAIL-NEW-01: la copia del artista solo sale por el relé', async () => {
+    const ctx = async () => ({ ok: true, idempotencyKey: 'QN1:session:3:t', payload: { quote_id: 'QN1', client_email: 'c@x.com', artist_email: 'a@x.com', status: 'cancelled' } });
+    const viaN8n = fakeSend();
+    const n8n = await notices.handleSessionNotice({}, 'QN1', { event: 'session_cancelled', session_id: '3' }, {
+        useDefaults: false, baseUrl: BASE, sendEmail: viaN8n.sendEmail, resolveEmailContext: ctx, resolveChannel: async () => 'n8n'
+    });
+    assert.equal(n8n.ok, true);
+    assert.deepEqual(viaN8n.sent.map((s) => s.options.idempotencyKey), ['QN1:session:3:t:client']);
+    assert.equal(n8n.results.artist.reason, 'canal_sin_copia_artista');
+    const viaRelay = fakeSend();
+    await notices.handleSessionNotice({}, 'QN1', { event: 'session_cancelled', session_id: '3' }, {
+        useDefaults: false, baseUrl: BASE, sendEmail: viaRelay.sendEmail, resolveEmailContext: ctx, resolveChannel: async () => 'smtp_relay'
+    });
+    assert.deepEqual(viaRelay.sent.map((s) => s.options.idempotencyKey), ['QN1:session:3:t:client', 'QN1:session:3:t:artist']);
 });

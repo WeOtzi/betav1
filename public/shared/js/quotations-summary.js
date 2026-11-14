@@ -137,6 +137,14 @@
             </ol>${closing}`;
     }
 
+    // Un mensaje que es solo un adjunto (message = '') muestra qué se adjuntó (CHAT-03).
+    function messageText(m) {
+        const text = String((m && m.message) || '').trim();
+        if (text) return text;
+        if (!m || !m.attachment_path) return '';
+        return (m.message_kind === 'image' ? 'Imagen adjunta' : 'Archivo adjunto') + (m.attachment_name ? `: ${m.attachment_name}` : '');
+    }
+
     function messagesHtml() {
         const messages = (extras.messages || []).slice(-2);
         if (!messages.length) return '<p class="qs-muted">Todavía no hay mensajes con este cliente.</p>';
@@ -145,7 +153,7 @@
             return `
                 <div class="qs-msg${mine ? ' qs-msg--mine' : ''}">
                     <span class="qs-msg-meta">${mine ? 'Vos' : 'Cliente'} · ${esc(VM.timeLabel(m.created_at))}</span>
-                    <p class="qs-msg-bubble">${esc(m.message || '')}</p>
+                    <p class="qs-msg-bubble">${esc(messageText(m))}</p>
                 </div>`;
         }).join('')}</div>`;
     }

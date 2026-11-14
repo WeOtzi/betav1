@@ -298,3 +298,18 @@ test('reseña del cliente: relee verified_reviews y avisa al artista una vez por
     const reviewsJs = require('node:fs').readFileSync(require.resolve('../public/shared/js/reviews.js'), 'utf8');
     assert.match(reviewsJs, /sendN8NEvent\('client_left_rating', \{ quote_id: String\(options\.contextId\) \}\)/);
 });
+
+test('EMAIL-DUP-01: client_quotation_submitted no le escribe al artista y prefiere el relé', async () => {
+    const mapping = require('../services/email-event-mapping');
+    const roles = mapping.getEvent('client_quotation_submitted').recipientRoles(fixtureFor('client_quotation_submitted')).map(r => r.role);
+    assert.ok(!roles.includes('artist'), 'el artista recibe su aviso propio');
+    assert.ok(roles.includes('client'));
+    const { SPECS } = require('../lib/email-render/specs');
+    assert.equal((SPECS.client_quotation_submitted.roles || {}).artist, undefined);
+    // Relé configurado (N8N_EMAIL_RELAY_URL) y sin override del evento: relé.
+    assert.equal(await service.resolveChannel('client_quotation_submitted', { channel: 'n8n', channel_source: 'default' }, {}), 'smtp_relay');
+    // Con override explícito en email_routing para este evento, se respeta n8n.
+    assert.equal(await service.resolveChannel('client_quotation_submitted', { channel: 'n8n', channel_source: 'event', n8n_webhook_url: 'https://n8n.example.test/webhook/x' }, {}), 'n8n');
+    // Otro evento con webhook propio no cambia de canal.
+    assert.equal(await service.resolveChannel('session_scheduled', { channel: 'n8n', n8n_webhook_url: 'https://n8n.example.test/webhook/s' }, {}), 'n8n');
+});

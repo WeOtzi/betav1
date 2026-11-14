@@ -212,7 +212,8 @@
                 '<span>Reservar el turno pedido: ' + esc(hold.label) + '</span></label>' +
                 '<p class="wo-help" id="qd-reserve-slot-help">Si lo destildás, el turno se libera y vuelve a estar disponible para otros clientes.</p></div>';
         },
-        // options: { starts_at, minutes } para agendarlo en otro horario.
+        // options: { starts_at, minutes } para agendarlo en otro horario;
+        // from_agreement: true si el aviso al cliente lo manda el acuerdo.
         confirmFor: function (q, options) {
             var hold = holdOf(q);
             if (!pendingLike(hold)) return Promise.resolve(null);

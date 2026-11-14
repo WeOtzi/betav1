@@ -104,7 +104,7 @@ test('detalle: responder sin reservar libera el apartado y el acuerdo reserva el
     assert.match(js, /WoSlotHold\.pendingStart\(q\)/);
     // La reserva va antes de aprobar: si el turno choca, no queda un acuerdo a medias.
     const agreement = js.slice(js.indexOf('function openAgreementDialog'));
-    const reserve = agreement.indexOf('confirmFor(q, { starts_at: first, minutes })');
+    const reserve = agreement.indexOf('confirmFor(q, { starts_at: first, minutes, from_agreement: true })');
     assert.ok(reserve > 0);
     assert.ok(reserve < agreement.indexOf('await updateQuote(patch);'));
     const hold = read('public/shared/js/quotation-slot-hold.js');
@@ -119,4 +119,12 @@ test('migración: un borrador que se reenvía reemplaza su apartado anterior (si
         sql.indexOf('create or replace function public.confirm_artist_slot_hold'));
     assert.match(fn, /released_reason = 'resubmitted'/);
     assert.ok(fn.indexOf("'resubmitted'") < fn.indexOf('insert into public.artist_booking_holds'));
+});
+
+test('EMAIL-DUP-03: el turno confirmado desde el acuerdo no manda booking_slot_confirmed', () => {
+    const route = read('lib/routes/turnos.js');
+    assert.match(route, /const fromAgreement = body\.from_agreement === true;/);
+    assert.match(route, /if \(result && !result\.already && !fromAgreement\) \{/);
+    const repo = read('public/shared/js/data/booking-repo.js');
+    assert.match(repo, /options\.from_agreement \? \{ from_agreement: true \} : \{\}/);
 });

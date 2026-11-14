@@ -740,6 +740,20 @@
             </section>`;
     }
 
+    // Mensaje que es solo un adjunto (message = '' desde 20261115170000): se
+    // muestra qué se adjuntó y se abre en el Inbox (CHAT-02).
+    function attachmentLabel(message) {
+        if (!message || !message.attachment_path) return '';
+        return (message.message_kind === 'image' ? 'Imagen adjunta' : 'Archivo adjunto')
+            + (message.attachment_name ? `: ${message.attachment_name}` : '');
+    }
+    function messageBodyHtml(message) {
+        const text = String(message.message || '').trim() ? `<p>${esc(message.message)}</p>` : '';
+        const attachment = message.attachment_path
+            ? `<p><a href="${esc(inboxUrl())}">${esc(`${attachmentLabel(message)} · ver en Inbox`)}</a></p>`
+            : '';
+        return text + attachment || '<p></p>';
+    }
     function messagesListHtml(q) {
         if (!state.messages.length) {
             return q.client_user_id
@@ -752,7 +766,7 @@
             return `
                 <article class="qd-message${artist ? ' qd-message--artist' : ''}">
                     <span class="qd-message-meta">${esc(author)} · ${esc(M.chatStamp(message.created_at))}</span>
-                    <p>${esc(message.message || '')}</p>
+                    ${messageBodyHtml(message)}
                 </article>`;
         }).join('');
     }
@@ -1130,16 +1144,17 @@
                 };
                 if (!edit) patch.quote_status = 'client_approved';
                 // Turnos: con turno apartado, la primera sesión se agenda desde el apartado
-                // (crea la sesión, bloquea el turno y avisa al cliente). Si choca, no se guarda nada.
+                // (crea la sesión y bloquea el turno). Si choca, no se guarda nada. El aviso
+                // al cliente es el del acuerdo (from_agreement: sin booking_slot_confirmed).
                 const slotBooking = heldStart && first
-                    ? await window.WoSlotHold.confirmFor(q, { starts_at: first, minutes })
+                    ? await window.WoSlotHold.confirmFor(q, { starts_at: first, minutes, from_agreement: true })
                     : null;
                 await updateQuote(patch);
                 let created = null;
                 if (!edit && slotBooking && slotBooking.session_id) {
                     created = { id: slotBooking.session_id, session_number: slotBooking.session_number };
-                    // COT-A-11: el acuerdo se avisa al cliente por la ruta del frente; la
-                    // sesión del turno la avisa el apartado (booking_slot_*).
+                    // COT-A-11: el acuerdo (con la primera sesión) es el único aviso al
+                    // cliente; el turno se confirmó con from_agreement (EMAIL-DUP-03).
                     noticeAgreement();
                 } else if (!edit && holdSession) {
                     created = holdSession;
@@ -1151,9 +1166,9 @@
                     });
                     // COT-A-11: el acuerdo lo confirma el artista → el aviso va al
                     // CLIENTE (antes salía client_approved_quotation al propio artista).
-                    // La sesión se avisa después, con una copia por rol.
-                    const sessionId = created && created.id;
-                    noticeAgreement().then(() => noticeSession('session_scheduled', sessionId));
+                    // El acuerdo ya informa la primera sesión: no se manda además
+                    // session_scheduled por el mismo hecho (EMAIL-DUP-03).
+                    noticeAgreement();
                 }
                 await reloadAll();
                 showToast(edit ? 'Acuerdo actualizado.' : 'Acuerdo confirmado y primera sesión agendada.', edit ? {} : { link: { href: calendarUrl(first, { session: created && created.id, quote: true }), label: 'Ver en el calendario →' } });

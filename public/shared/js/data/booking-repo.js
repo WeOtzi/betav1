@@ -93,7 +93,11 @@
         },
         confirmHold(holdId, options = {}) {
             return api(`/api/turnos/holds/${encodeURIComponent(holdId)}/confirm`, {
-                method: 'POST', body: { starts_at: options.starts_at || null, minutes: options.minutes || null },
+                method: 'POST',
+                body: Object.assign(
+                    { starts_at: options.starts_at || null, minutes: options.minutes || null },
+                    options.from_agreement ? { from_agreement: true } : {}
+                ),
                 fallback: 'No pudimos reservar el turno.',
             });
         },

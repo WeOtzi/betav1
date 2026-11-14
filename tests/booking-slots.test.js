@@ -308,3 +308,9 @@ test('migración y reversa: idempotente, con lock por artista y sin escrituras d
     assert.match(down, /create or replace function public\.prevent_artist_calendar_overlap\(\)/);
     assert.match(down, /create or replace function public\.list_artist_public_busy_days/);
 });
+
+test('EMAIL-NEW-02: el CTA del turno confirmado lleva a la cotización del cliente', () => {
+    const p = notify.confirmedPayload({ artist: { name: 'Ana' }, quote: { quote_id: 'QN 1', client_full_name: 'C', client_email: 'c@x.test' }, startsAt: '2026-11-23T13:00:00Z', endsAt: '2026-11-23T16:00:00Z', tz: AR, baseUrl: 'https://beta.weotzi.com/' });
+    assert.equal(p.quotation_url, 'https://beta.weotzi.com/client/dashboard?quote=QN%201');
+    assert.equal(notify.confirmedPayload({ quote: null, startsAt: '2026-11-23T13:00:00Z', endsAt: '2026-11-23T16:00:00Z', tz: AR, baseUrl: 'https://beta.weotzi.com' }).quotation_url, 'https://beta.weotzi.com/client/dashboard');
+});

@@ -180,7 +180,10 @@ async function getRoutingForEvent(eventId) {
     const entry = all[eventId] || {};
     let channel = entry.channel || defaultChannel(all);
     if (!VALID_CHANNELS.includes(channel)) channel = defaultChannel(all);
-    return { ...(global.relay_url ? { relay_url: global.relay_url } : {}), ...entry, channel };
+    // channel_source: 'event' si email_routing fija el canal de ESTE evento
+    // (resolveChannel respeta ese override aunque el evento prefiera el relé).
+    const channelSource = entry.channel && VALID_CHANNELS.includes(entry.channel) ? 'event' : 'default';
+    return { ...(global.relay_url ? { relay_url: global.relay_url } : {}), ...entry, channel, channel_source: channelSource };
 }
 
 /**
@@ -656,11 +659,18 @@ function logResult(eventId, channel, result, durationMs) {
  * Canal efectivo: forceChannel > email_routing > default. Un evento en 'n8n'
  * que no tiene webhook propio sale por el relé si está configurado (así
  * instagram_verification_code, studio_*, inbox y recordatorios no se pierden).
+ * Un evento con preferRelay (su flujo n8n duplica un aviso que el servidor ya
+ * manda) sale por el relé si está configurado, salvo que email_routing fije
+ * el canal de ese evento (routing.channel_source === 'event').
  */
 async function resolveChannel(eventId, routing, options = {}) {
     if (options.forceChannel && VALID_CHANNELS.includes(options.forceChannel)) return options.forceChannel;
+    routing = routing || {};
     let channel = routing.channel || DEFAULT_CHANNEL;
     if (channel === 'n8n') {
+        const event = eventMapping.getEvent(eventId);
+        const preferRelay = !!(event && event.preferRelay) && routing.channel_source !== 'event';
+        if (preferRelay && await isRelayConfigured(routing)) return 'smtp_relay';
         const hook = await _resolveN8NWebhook(eventId, routing.n8n_webhook_url);
         if (!hook && await isRelayConfigured(routing)) channel = 'smtp_relay';
     }
