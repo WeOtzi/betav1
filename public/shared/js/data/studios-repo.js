@@ -281,7 +281,7 @@
         // Cubre explore-map.js:653. Embed FK studios:studio_id(...).
         listPrimaryWithStudioForMap() {
             return from('studio_locations')
-                .select('id, studio_id, label, is_primary, latitude, longitude, formatted_address, city, country, studios:studio_id(id, slug, name, tagline, cover_image, instagram, website)')
+                .select('id, studio_id, label, is_primary, latitude, longitude, formatted_address, city, country, studios:studio_id(id, slug, name, tagline, cover_image, instagram, website, is_verified)')
                 .eq('is_active', true)
                 .eq('is_primary', true)
                 .not('latitude', 'is', null);
@@ -340,7 +340,7 @@
         // Cubre studio-profile.js:95.
         listActiveRosterWithArtists(studioId) {
             return from('studio_artist_memberships')
-                .select('role, status, artists_db ( user_id, username, name, profile_picture, styles_array, session_price )')
+                .select('role, status, location_id, artists_db ( user_id, username, name, profile_picture, styles_array, session_price )')
                 .eq('studio_id', studioId)
                 .eq('status', 'active');
         },

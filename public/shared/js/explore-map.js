@@ -727,6 +727,7 @@
                 cover:     loc.studios && loc.studios.cover_image,
                 instagram: loc.studios && loc.studios.instagram,
                 website:   loc.studios && loc.studios.website,
+                is_verified: Boolean(loc.studios && loc.studios.is_verified === true),
                 location_label:    loc.label,
                 formatted_address: loc.formatted_address,
                 city:      loc.city,
@@ -790,9 +791,10 @@
         STATE.studios.forEach(function (s) {
             var lat = Number(s.latitude), lng = Number(s.longitude);
             if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-            var html = '<div class="bauhaus-pin bauhaus-pin-studio" title="' + escapeHtml(s.formatted_address || '') + '">'
+            var html = '<div class="bauhaus-pin bauhaus-pin-studio" title="' + escapeHtml((s.is_verified ? 'Estudio verificado · ' : '') + (s.formatted_address || '')) + '">'
                      + '<i data-wo-icon="home" class="pin-ico" aria-hidden="true"></i>'
                      + '<span>' + escapeHtml(s.name) + '</span>'
+                     + (s.is_verified ? '<i data-wo-icon="check" class="pin-verified" aria-label="Verificado"></i>' : '')
                      + '</div>';
             var overlay = new STATE.studioOverlayClass(
                 new google.maps.LatLng(lat, lng),

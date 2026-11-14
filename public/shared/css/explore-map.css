@@ -653,3 +653,6 @@
     .explore-filters-toggle,
     .bauhaus-pin { transition: none; }
 }
+
+/* Sello de estudio verificado en el pin (verif-estudio) */
+.bauhaus-pin-studio .pin-verified { display: inline-flex; width: 12px; height: 12px; flex: none; }

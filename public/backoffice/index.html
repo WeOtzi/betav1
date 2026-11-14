@@ -61,6 +61,10 @@
                     <span>Reclamos de estudios</span>
                     <span class="badge-sm" data-bo-pending-count hidden></span>
                 </a>
+                    <i class="fa-solid fa-certificate"></i>
+                    <span>Verificaciones</span>
+                    <span id="bsv-nav-count" aria-label="Verificaciones de estudios pendientes" hidden>0</span>
+                </a>
                 <a href="#" class="nav-item" data-section="questions">
                     <i class="fa-solid fa-list-check"></i>
                     <span>Preguntas</span>
@@ -555,6 +559,11 @@
                 <div id="bo-studio-claims-root"></div>
             </section>
 
+            <!-- Verificaciones de estudios (backoffice-studio-verifications.js) -->
+            <section id="section-studio-verifications" class="content-section" aria-label="Verificaciones de estudios">
+                <div id="bo-studio-verifications-root"></div>
+            </section>
+
             <section id="section-studio-detail" class="content-section">
                 <div class="studio-detail-header">
                     <button class="btn btn-secondary btn-sm" onclick="closeStudioDetail()">
@@ -631,10 +640,11 @@
                                 <div class="form-group">
                                     <label>Verificado</label>
                                     <label class="toggle-switch">
-                                        <input type="checkbox" id="sd-is-verified">
+                                        <input type="checkbox" id="sd-is-verified" disabled aria-describedby="sd-is-verified-hint">
                                         <span class="toggle-slider"></span>
                                         <span class="toggle-text">Estudio verificado</span>
                                     </label>
+                                    <small class="form-hint" id="sd-is-verified-hint">Se decide en Verificaciones de estudios (aprobar, pedir corrección o retirar el sello).</small>
                                 </div>
                                 <div class="form-group">
                                     <label>Activo</label>
@@ -2704,10 +2714,11 @@
                             <div class="form-group">
                                 <label>Verificado</label>
                                 <label class="toggle-switch">
-                                    <input type="checkbox" id="studio-is-verified">
+                                    <input type="checkbox" id="studio-is-verified" disabled aria-describedby="studio-is-verified-hint">
                                     <span class="toggle-slider"></span>
                                     <span class="toggle-text">Estudio verificado</span>
                                 </label>
+                                <small class="form-hint" id="studio-is-verified-hint">Se decide en Verificaciones de estudios.</small>
                             </div>
                             <div class="form-group">
                                 <label>Activo</label>
@@ -3237,6 +3248,7 @@
     <script src="/shared/js/admin.js?v=20260603-sede-link"></script>
     <!-- Reclamos de estudios (frente estudio-registro) -->
     <script src="/shared/js/backoffice-studio-claims.js?v=20261115-reclamos"></script>
+    <script src="/shared/js/backoffice-studio-verifications.js"></script>
 </body>
 
 </html>

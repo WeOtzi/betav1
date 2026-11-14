@@ -4,86 +4,161 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estudio · We Ötzi</title>
-    <meta name="description" content="Perfil público de estudio en We Ötzi.">
+    <meta name="description" content="Perfil público de estudio de tatuajes en We Ötzi: equipo, sedes, galería y reseñas.">
+    <meta property="og:type" content="profile">
+    <meta property="og:title" id="og-title" content="Estudio en We Ötzi">
+    <meta property="og:description" id="og-description" content="Conocé el equipo, las sedes y el trabajo de este estudio.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <link rel="stylesheet" href="/shared/css/styles.css">
-    <link rel="stylesheet" href="/shared/css/explore-map.css">
-    <link rel="stylesheet" href="/shared/css/studio.css">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
+    <link rel="stylesheet" href="/shared/css/studio-profile-ds.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/wo-icons.js" defer></script>
     <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
     <script src="/shared/js/wo-consent.js" defer></script>
 </head>
-<body data-theme="light">
-    <div class="studio-page">
-        <header class="studio-masthead">
-            <a href="/explore" class="nav-btn" aria-label="Volver al mapa"><i class="fa-solid fa-arrow-left"></i></a>
-            <div class="studio-masthead-title">
-                <span class="studio-masthead-eyebrow">Estudio · Perfil</span>
-                <span class="studio-masthead-wordmark" id="profile-name-display">Estudio</span>
-            </div>
-            <nav class="studio-masthead-actions">
-                <a href="/marketplace">Marketplace</a>
-                <a href="/explore">Mapa</a>
-                <a href="/studio/login">Soy estudio</a>
+<body class="wo-app sp-page" data-theme="light">
+    <a class="sp-skip" href="#sp-main">Ir al contenido</a>
+
+    <!-- Barra pública (Figma 91wY · E-PROFILE-02 / E-CODE-PUBLIC-*) -->
+    <header class="wo-topbar sp-topbar">
+        <div class="wo-topbar-left">
+            <a href="/" class="wo-topbar-brand" aria-label="We Ötzi, inicio">
+                <span class="sp-marks" aria-hidden="true"><i class="sp-mark sp-mark--sq"></i><i class="sp-mark sp-mark--ci"></i><i class="sp-mark sp-mark--tr"></i></span>
+                WE ÖTZI
+            </a>
+            <nav class="wo-topbar-nav sp-nav" aria-label="Navegación principal">
+                <a href="/explore" class="wo-topbar-item">Explorar</a>
+                <a href="/marketplace" class="wo-topbar-item is-active" aria-current="page">Estudios</a>
+                <a href="/marketplace" class="wo-topbar-item">Artistas</a>
             </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <a href="/inicio" class="wo-btn wo-btn--secondary wo-btn--s sp-login">Ingresar</a>
+        </div>
+    </header>
+
+    <main id="sp-main" class="sp-shell" tabindex="-1">
+        <!-- Encabezado: kicker, título con sello, subtítulo -->
+        <header class="sp-head">
+            <p class="sp-kicker">Identidad pública / Estudios</p>
+            <div class="sp-title-row">
+                <h1 class="sp-title" id="sp-title">Cargando estudio…</h1>
+                <span class="sp-seal" id="sp-seal" title="Estudio verificado por We Ötzi" hidden>
+                    <i data-wo-icon="check" aria-hidden="true"></i>Estudio verificado
+                </span>
+            </div>
+            <p class="sp-sub" id="sp-sub"></p>
+            <span class="sp-tag" id="sp-tag" hidden></span>
         </header>
 
-        <section class="studio-profile-cover" id="profile-cover">
-            <div class="overlay">
-                <div>
-                    <span class="studio-section-kicker" style="color:#fff;opacity:.85;" id="profile-tagline">—</span>
-                    <h1 class="studio-profile-name" id="profile-h1">Estudio</h1>
+        <div class="sp-status" id="sp-loading" role="status">
+            <span class="wo-spinner" aria-hidden="true"></span><span>Cargando el perfil del estudio…</span>
+        </div>
+
+        <!-- E-CODE-PUBLIC-05 · No encontramos este estudio -->
+        <section class="sp-grid" id="sp-not-found" hidden>
+            <div class="sp-col">
+                <div class="sp-actions">
+                    <a class="wo-btn wo-btn--primary" href="/explore">Explorar estudios</a>
+                    <a class="wo-btn wo-btn--secondary" href="/inicio">Ir al inicio</a>
                 </div>
-                <div id="profile-cover-actions" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
             </div>
+            <aside class="sp-aside"><h2>Información</h2><p>Comprobá el enlace o buscá el estudio en el mapa.</p></aside>
         </section>
 
-        <main class="studio-shell">
-            <div class="studio-profile-grid">
-                <div>
-                    <p class="studio-section-kicker">Sobre el estudio</p>
-                    <h2 class="studio-h2">Identidad</h2>
-                    <p class="studio-bio" id="profile-bio">—</p>
+        <!-- Perfil (E-PROFILE-02) y E-CODE-PUBLIC-06 cuando todavía no hay datos -->
+        <div id="sp-profile" hidden>
+            <figure class="sp-cover" id="sp-cover" hidden></figure>
 
-                    <p class="studio-section-kicker" style="margin-top:24px;">Estilos del equipo</p>
-                    <h2 class="studio-h2">Lenguaje visual</h2>
-                    <div class="studio-styles-pill-row" id="profile-styles">—</div>
+            <div class="sp-grid">
+                <div class="sp-col">
+                    <!-- Perfil en preparación (E-CODE-PUBLIC-06) -->
+                    <ul class="sp-rows" id="sp-preparing" hidden></ul>
 
-                    <p class="studio-section-kicker" style="margin-top:24px;">Roster</p>
-                    <h2 class="studio-h2">Artistas <span style="color:var(--primary-red);font-style:italic;">en residencia</span></h2>
-                    <div class="studio-roster-cards" id="profile-roster"><em>Cargando…</em></div>
-
-                    <p class="studio-section-kicker" style="margin-top:24px;">Galería</p>
-                    <h2 class="studio-h2">El estudio</h2>
-                    <div class="studio-photos-grid" id="profile-photos"></div>
-
-                    <section id="profile-sponsors-section" hidden>
-                        <p class="studio-section-kicker" style="margin-top:24px;">Sponsors</p>
-                        <h2 class="studio-h2">Marcas <span style="color:var(--primary-red);font-style:italic;">aliadas</span></h2>
-                        <div class="studio-sponsor-rail" id="profile-sponsors"></div>
+                    <!-- Nuestro equipo -->
+                    <section class="sp-section" id="equipo" aria-labelledby="sp-team-title">
+                        <h2 class="sp-h2" id="sp-team-title">Nuestro equipo</h2>
+                        <div class="sp-filters" id="sp-filters">
+                            <div class="sp-field">
+                                <label class="sp-label" for="sp-filter-location">Sede</label>
+                                <select id="sp-filter-location" class="wo-input wo-select"><option value="">Todas las sedes</option></select>
+                            </div>
+                            <div class="sp-field">
+                                <label class="sp-label" for="sp-filter-style">Filtro estilos</label>
+                                <select id="sp-filter-style" class="wo-input wo-select"><option value="">Todos los estilos</option></select>
+                            </div>
+                        </div>
+                        <ul class="sp-rows" id="sp-team" aria-live="polite"></ul>
                     </section>
 
-                    <section id="studio-reviews-section" style="margin-top:24px;">
+                    <!-- Banda del estudio -->
+                    <section class="sp-band" id="sp-band" aria-label="Datos del estudio">
+                        <span class="sp-band-mark" id="sp-band-mark" aria-hidden="true">E</span>
+                        <div class="sp-band-body">
+                            <p class="sp-band-name" id="sp-band-name"></p>
+                            <p id="sp-band-place"></p>
+                            <p id="sp-band-tagline"></p>
+                        </div>
+                    </section>
+
+                    <!-- Accesos (secciones y canales) -->
+                    <nav class="sp-actions sp-actions--wrap" id="sp-links" aria-label="Secciones y contacto del estudio"></nav>
+
+                    <!-- Conocé el estudio (E-CODE-PUBLIC-01) -->
+                    <section class="sp-section" id="acerca" aria-labelledby="sp-about-title">
+                        <h2 class="sp-h2" id="sp-about-title">Conocé el estudio</h2>
+                        <ul class="sp-rows" id="sp-about"></ul>
+                    </section>
+
+                    <!-- Encontranos (E-CODE-PUBLIC-02 · Mapa de sedes) -->
+                    <section class="sp-section" id="sedes" aria-labelledby="sp-locations-title">
+                        <h2 class="sp-h2" id="sp-locations-title">Nuestras sedes</h2>
+                        <div class="sp-map-card">
+                            <div id="studio-map" class="sp-map" role="region" aria-label="Mapa de sedes del estudio"></div>
+                            <p class="sp-map-caption" id="sp-map-caption"></p>
+                        </div>
+                        <ol class="sp-rows sp-rows--numbered" id="sp-locations"></ol>
+                    </section>
+
+                    <!-- El espacio (E-CODE-PUBLIC-03) -->
+                    <section class="sp-section" id="galeria" aria-labelledby="sp-gallery-title">
+                        <h2 class="sp-h2" id="sp-gallery-title">El espacio</h2>
+                        <div class="sp-gallery" id="sp-gallery"></div>
+                    </section>
+
+                    <!-- Marcas que acompañan (E-CODE-PUBLIC-04) -->
+                    <section class="sp-section" id="marcas" aria-labelledby="sp-brands-title" hidden>
+                        <h2 class="sp-h2" id="sp-brands-title">Marcas que acompañan al estudio</h2>
+                        <ul class="sp-rows" id="sp-brands"></ul>
+                    </section>
+
+                    <!-- Reseñas verificadas -->
+                    <section class="sp-section" id="resenas" aria-label="Reseñas del estudio">
                         <div id="studio-reviews"></div>
                     </section>
                 </div>
 
-                <aside>
-                    <p class="studio-section-kicker">Sedes</p>
-                    <h2 class="studio-h2">¿Dónde nos encontrás?</h2>
-                    <div id="studio-map" class="studio-map" role="application" aria-label="Mapa de sedes"></div>
-                    <div id="profile-locations" class="studio-locations-list" style="margin-top:18px;"></div>
-
-                    <div class="studio-meta-grid" id="profile-meta" style="margin-top:18px;"></div>
+                <aside class="sp-aside" id="sp-aside">
+                    <h2 id="sp-aside-title">Tu próximo tatuaje</h2>
+                    <p id="sp-aside-text">Conocé al equipo residente y a los artistas que nos visitan. Elegí el estilo que buscás y revisá su disponibilidad.</p>
+                    <a class="wo-btn wo-btn--primary sp-aside-cta" id="sp-aside-cta" href="/quotation">Cotizá tu tatuaje</a>
                 </aside>
             </div>
-        </main>
-    </div>
+        </div>
+    </main>
+
+    <footer class="sp-footer">
+        <span class="sp-footer-brand">WE ÖTZI</span>
+        <a href="https://weotzi.com/faqs/" target="_blank" rel="noopener">Centro de ayuda</a>
+        <span><a href="/legal/privacy">Privacidad</a> · <a href="/legal/terms">Términos y condiciones</a></span>
+        <button type="button" class="sp-footer-btn" data-wo-cookie-settings>Configuración de cookies</button>
+    </footer>
 
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
