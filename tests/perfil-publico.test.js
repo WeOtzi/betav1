@@ -292,6 +292,9 @@ test('resolveAppBase: PUBLIC_APP_URL manda; si no, host saneado y https fuera de
     assert.equal(resolveAppBase({ headers: { host: 'beta.weotzi.com' }, protocol: 'http' }, {}), 'https://beta.weotzi.com');
     assert.equal(resolveAppBase({ headers: { host: 'localhost:4545' }, protocol: 'http', weotziBasePath: '/beta' }, {}), 'http://localhost:4545/beta');
     assert.equal(resolveAppBase({ headers: { host: 'evil"><script>' }, protocol: 'http' }, {}), 'https://beta.weotzi.com');
+    // Producción: un Host ajeno no llega al canonical cacheado.
+    assert.equal(resolveAppBase({ headers: { host: 'evil.example' }, protocol: 'http' }, { NODE_ENV: 'production' }), 'https://beta.weotzi.com');
+    assert.equal(resolveAppBase({ headers: { host: 'weotzi.com' }, protocol: 'http', weotziBasePath: '/beta' }, { NODE_ENV: 'production' }), 'https://weotzi.com/beta');
 });
 
 test('el lookup se cachea: dos pedidos seguidos, una consulta', async () => {
