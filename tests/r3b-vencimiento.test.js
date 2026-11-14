@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n'); // CRLF del checkout en Windows
 
 const VM = require('../public/shared/js/quotations-view-model.js');
 const M = require('../public/shared/js/quotation-new-model.js');
@@ -221,7 +221,9 @@ test('UI: control "Vencimiento" en el detalle, el diálogo de respuesta y la cot
     assert.match(detail, /data-action="save-expiry"/);
     assert.match(detail, /\$\{expiryControl\(q, 'qd-dialog'\)\}/);
     assert.doesNotMatch(detail, /Vigencia de la propuesta|validityExpiry/);
-    assert.match(read('public/my-quotations/detail/index.html'), /quotations-view-model\.js\?v=20261113-venc/);
+    // Cache-busting posterior a 20261113-venc (la versión sigue subiendo con cada cambio).
+    const vmVersion = (read('public/my-quotations/detail/index.html').match(/quotations-view-model\.js\?v=(\d{8})-/) || [])[1];
+    assert.ok(vmVersion && vmVersion >= '20261113', 'quotations-view-model.js con versión de cache 20261113 o posterior');
     const qn = read('public/shared/js/quotation-new.js');
     assert.match(qn, /function expiryFieldHtml\(\)/);
     assert.match(qn, /D\(\)\.Quotations\.updateById\(result\.id, expiry\.patch\)/);

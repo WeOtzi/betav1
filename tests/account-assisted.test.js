@@ -206,7 +206,9 @@ test('runtime: cada guardado exitoso dispara wo:assist-refresh con la sección',
     assert.match(fnBody(js, 'async function saveModality()'), /assistRefresh\('disponibilidad'\)/);
     assert.match(fnBody(js, 'function renderNotifMatrix()'), /assistRefresh\('notificaciones'\)/);
     assert.equal((fnBody(js, 'function renderDocs()').match(/assistRefresh\('verificacion'\)/g) || []).length, 2, 'subir y eliminar documento');
-    assert.match(fnBody(js, 'function renderVerification()'), /assistRefresh\('verificacion'\)/);
+    // verif-artista: el botón de renderVerification() llama a requestVerification().
+    assert.match(fnBody(js, 'function renderVerification()'), /requestVerification\(event\.currentTarget\)/);
+    assert.match(fnBody(js, 'async function requestVerification(btn)'), /assistRefresh\('verificacion'\)/);
     assert.match(fnBody(js, 'async function setupSettings()'), /assistRefresh\('configuracion'\)/);
     const banner = js.slice(js.indexOf("wireDrop($('aac-banner-drop')"), js.indexOf("$('aac-profile-save').addEventListener"));
     assert.equal((banner.match(/assistRefresh\('perfil'\)/g) || []).length, 2, 'banner y foto');
@@ -300,7 +302,9 @@ test('runtime: Mi perfil guarda el WhatsApp normalizado y el email por auth', ()
     assert.match(sync, /updateArtist\(\{ email: CM\.normalizeEmail\(user\.email\) \}\)/);
 });
 
-test('runtime: guardar la modalidad escribe work_type, estudios y studio_id y sincroniza el estudio base', () => {
+// ── roster (ROSTER-05): studio_id ya no se escribe desde el cliente (el guard
+// vivo lo revertía en silencio); un estudio nuevo es una solicitud de alta.
+test('runtime: guardar la modalidad escribe work_type y estudios, pide el alta y sincroniza el estudio base', () => {
     assert.match(js, /const INDEPENDENT_STUDIO = 'Sin estudio\/Independiente';/);
     assert.match(js, /const PRIVATE_STUDIO_NAME = 'ESTUDIO PRIVADO';/);
     assert.match(js, /const WORK_TYPES = \['studio', 'independent', 'both'\];/);
@@ -308,10 +312,12 @@ test('runtime: guardar la modalidad escribe work_type, estudios y studio_id y si
     const save = fnBody(js, 'async function saveModality()');
     assert.match(save, /work_type: type,/);
     assert.match(save, /estudios: withStudio \? nameUpper : INDEPENDENT_STUDIO,/);
-    assert.match(save, /studio_id: studioId/);
+    assert.doesNotMatch(save, /studio_id: studioId/);
+    assert.match(save, /requestStudioLink\(studioId, name, open\)/);
+    assert.match(save, /D\.StudioMemberships\.endMembership\(currentResident\.id\)/);
     assert.match(save, /await updateArtist\(patch\)/);
     assert.match(save, /findOrCreateStudio\(name\)/);
-    assert.match(save, /syncBaseLocation\(type, studioId, nameUpper\)/);
+    assert.match(save, /syncBaseLocation\(type, linkedNow \? studioId : null, nameUpper\)/);
     assert.match(save, /await loadLocations\(\)/);
 
     const find = fnBody(js, 'async function findOrCreateStudio(name)');
@@ -350,12 +356,13 @@ test('runtime: AccountProfile.getExtras trae la modalidad y el estudio', async (
     for (const col of ['whatsapp_number', 'work_type', 'estudios', 'studio_id', 'subscribed_newsletter']) assert.ok(columns.includes(col), col);
 });
 
-test('verificación: identidad y domicilio obligatorios, bioseguridad opcional; isVerified intacto', () => {
+test('verificación: identidad y domicilio obligatorios, bioseguridad opcional; isVerified = sello del perfil', () => {
     const types = docTypes();
     assert.deepEqual(types.map(([type, , required]) => [type, required]), [['identidad', true], ['bioseguridad', false], ['domicilio', true]]);
     const docs = fnBody(js, 'function renderDocs()');
     assert.match(docs, /required \? 'Obligatorio' : 'Opcional'/);
-    assert.match(fnBody(js, 'function isVerified()'), /return artist\?\.verification_state === 'Yes' \|\| docStatus\(identityDoc\(\)\) === 'verified';/);
+    // verif-artista (VER-A3): misma regla que el sello de artist-profile.js.
+    assert.match(fnBody(js, 'function isVerified()'), /return artist\?\.verification_state === 'Yes';/);
     const verif = fnBody(js, 'function renderVerification()');
     assert.match(verif, /documento de identidad y un comprobante de domicilio \(obligatorios\)/);
     assert.match(verif, /bioseguridad es opcional/);

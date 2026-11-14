@@ -1542,7 +1542,8 @@ const ConfigManager = (function () {
                     setting_value: JSON.stringify(events),
                     setting_type: 'json',
                     description: 'n8n webhook events configuration for email notifications',
-                    is_public: true,
+                    // EM-N5: las URLs de los webhooks no son públicas (soporte las lee con su sesión).
+                    is_public: false,
                     updated_at: new Date().toISOString()
                 }], { onConflict: 'setting_key' });
 
@@ -1630,17 +1631,24 @@ const ConfigManager = (function () {
                 headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
                 body: JSON.stringify({ data: payload || {} })
             });
-            const result = await response.json();
+            const result = await response.json().catch(() => ({}));
+            const quiet = /^(chat_message_|inbox_|client_left_rating$)/.test(String(eventId || ''));
+            // Omitido por preferencia, en cola, ya reclamado o pendiente de
+            // confirmación: no es un error del usuario (EM-N2 / INB-15).
+            const benign = response.ok && ((result.skipped === true && result.delivery_status !== 'disabled')
+                || result.delivery_status === 'skipped_by_preference' || result.queued === true
+                || result.deduplicated === true || result.uncertain === true || response.status === 202);
+            if (benign) return { ...result, success: !result.uncertain };
             if (!response.ok || result.success === false || result.skipped) {
                 const error = result.error || 'No se pudo confirmar el correo.';
-                window.showToast?.(error, 'error');
+                if (!quiet) window.showToast?.(error, 'error');
                 window.dispatchEvent(new CustomEvent('weotzi:email-failed', { detail: { eventId, error } }));
                 return { ...result, success: false, error };
             }
             return result;
         } catch (_) {
             const error = 'No se pudo confirmar el envío del correo.';
-            window.showToast?.(error, 'error');
+            if (!/^(chat_message_|inbox_|client_left_rating$)/.test(String(eventId || ''))) window.showToast?.(error, 'error');
             return { success: false, uncertain: true, error };
         }
     }

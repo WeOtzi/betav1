@@ -64,7 +64,8 @@
     ];
 
     // Tipo, nombre y si es obligatorio (identidad y domicilio; bioseguridad
-    // suma confianza pero es opcional). isVerified() sigue mirando identidad.
+    // suma confianza pero es opcional). isVerified() = verification_state 'Yes'
+    // (misma regla que el sello del perfil público, artist-profile.js).
     const DOC_TYPES = [
         ['identidad', 'Documento de identidad', true],
         ['bioseguridad', 'Certificado de bioseguridad', false],
@@ -121,6 +122,8 @@
     let notifMatrix = {};
     let verifAvailable = false;
     let verifDocs = [];
+    // Última decisión de soporte sobre el perfil (verification_history): motivo al denegar.
+    let lastVerifDecision = null;
     let currentSessionId = null;
     let accountSessions = [];
     let verifiedMfaFactors = [];
@@ -756,9 +759,15 @@
         $('aac-username').removeAttribute('aria-invalid');
         setFieldError('aac-contact-whatsapp', '');
 
-        const username = $('aac-username').value.trim().toLowerCase();
-        if (!username || !/^[a-z0-9._-]{3,40}$/.test(username)) {
-            errEl.textContent = 'El nombre de usuario lleva entre 3 y 40 caracteres: letras, números, punto, guion o guion bajo.';
+        // El usuario arma la URL pública (beta.weotzi.com/<usuario>): la base
+        // exige letras minúsculas y números, hasta 30, más .wo (migración
+        // 20261115110000). Se acepta escribirlo con @ o sin .wo.
+        const typed = $('aac-username').value.trim().toLowerCase().replace(/^@+/, '').replace(/\.wo$/, '');
+        const currentUsername = (artist.username || '').toLowerCase();
+        const username = typed ? `${typed}.wo` : '';
+        const usernameChanged = username !== currentUsername;
+        if (!typed || (usernameChanged && !/^[a-z0-9]{3,30}$/.test(typed))) {
+            errEl.textContent = 'Tu usuario lleva entre 3 y 30 letras minúsculas o números, sin espacios ni símbolos (se le suma .wo).';
             errEl.hidden = false;
             $('aac-username').setAttribute('aria-invalid', 'true');
             $('aac-username').focus();
@@ -781,7 +790,7 @@
         }
         btn.disabled = true;
         try {
-            if (username !== (artist.username || '').toLowerCase()) {
+            if (usernameChanged) {
                 const { data: taken } = await D.Artists.isUsernameAvailable(username, user.id);
                 if (taken && taken.length) {
                     errEl.textContent = 'Ese nombre de usuario ya está en uso.';
@@ -818,6 +827,16 @@
             assistRefresh('perfil');
         } catch (err) {
             console.error('[account] guardar perfil:', err);
+            // La base valida el usuario (trigger guard_artist_username + índice único).
+            const code = String(err?.code || '');
+            if (code === '23505' || code === '23514' || code === '23502') {
+                errEl.textContent = code === '23505'
+                    ? 'Ese nombre de usuario ya está en uso.'
+                    : 'Tu usuario lleva entre 3 y 30 letras minúsculas o números, sin espacios ni símbolos (se le suma .wo).';
+                errEl.hidden = false;
+                $('aac-username').setAttribute('aria-invalid', 'true');
+                $('aac-username').focus();
+            }
             toast('No pudimos guardar los cambios', false);
         } finally {
             btn.disabled = false;
@@ -2062,17 +2081,42 @@
                 const picked = modeState.selected && String(modeState.selected.name || '').toUpperCase() === nameUpper;
                 studioId = picked ? modeState.selected.id : await findOrCreateStudio(name);
             }
+            // ── roster (ROSTER-05): el estudio no se cambia escribiendo
+            // artists_db.studio_id (el guard lo revierte en silencio): se sale
+            // del equipo con end_studio_membership y se pide el alta en el
+            // nuevo con request_studio_membership; el estudio la aprueba.
+            const open = await openStudioLinks();
+            const currentResident = open.find((m) => m.status === 'active' && m.role === 'resident') || null;
+            const sameStudio = !!(currentResident && studioId && currentResident.studio_id === studioId);
+            if (currentResident && !sameStudio) {
+                const oldName = (currentResident.studios && currentResident.studios.name) || 'tu estudio actual';
+                const leaveMsg = withStudio
+                    ? `¿Salir del equipo de ${oldName}? Si no, seguís en ese estudio y además pedís el alta en el nuevo.`
+                    : `Para trabajar como independiente salís del equipo de ${oldName}. ¿Confirmás?`;
+                if (window.confirm(leaveMsg)) {
+                    const ended = await D.StudioMemberships.endMembership(currentResident.id);
+                    if (ended && ended.error) throw ended.error;
+                } else if (!withStudio) {
+                    modalityError(`Seguís en el equipo de ${oldName}. Para pasar a independiente, primero salí del estudio.`);
+                    return;
+                }
+            }
+            const linkedNow = withStudio && sameStudio;
             const patch = {
                 work_type: type,
                 estudios: withStudio ? nameUpper : INDEPENDENT_STUDIO,
-                studio_id: studioId
             };
             await updateArtist(patch);
             extras = { ...(extras || {}), ...patch };
             modeState.selected = withStudio && studioId ? { id: studioId, name } : null;
-            const baseSaved = await syncBaseLocation(type, studioId, nameUpper);
+            // Mientras el estudio no aprueba, la base guarda el nombre sin studio_id.
+            const baseSaved = await syncBaseLocation(type, linkedNow ? studioId : null, nameUpper);
+            let requestNote = '';
+            if (withStudio && studioId && !linkedNow) {
+                requestNote = await requestStudioLink(studioId, name, open);
+            }
             await loadLocations();
-            toast(baseSaved ? 'Modalidad guardada' : 'Guardamos la modalidad, pero no pudimos actualizar tu estudio base', baseSaved);
+            toast(requestNote || (baseSaved ? 'Modalidad guardada' : 'Guardamos la modalidad, pero no pudimos actualizar tu estudio base'), baseSaved);
             assistRefresh('disponibilidad');
         } catch (err) {
             console.error('[account] modalidad:', err);
@@ -2080,6 +2124,37 @@
         } finally {
             btn.disabled = false;
         }
+    }
+
+    // ── roster (ROSTER-05): vínculos abiertos del artista y solicitud de alta.
+    async function openStudioLinks() {
+        if (!D.StudioMemberships || typeof D.StudioMemberships.listOpenForArtist !== 'function') return [];
+        try {
+            const { data, error } = await D.StudioMemberships.listOpenForArtist(user.id);
+            return error ? [] : (data || []);
+        } catch {
+            return [];
+        }
+    }
+
+    async function requestStudioLink(studioId, name, open) {
+        if (open.some((m) => m.studio_id === studioId)) {
+            return `Ya tenés una solicitud o invitación abierta con ${name}. La ves en Invitaciones.`;
+        }
+        if (!D.StudioMemberships || typeof D.StudioMemberships.requestMembership !== 'function') return '';
+        const { data, error } = await D.StudioMemberships.requestMembership({ studioId, role: 'resident' });
+        if (error) {
+            const text = String(error.message || '');
+            if (/Esperá unos días/i.test(text)) return `Guardamos tu modalidad. Esperá unos días antes de volver a pedir el alta en ${name}.`;
+            if (/Ya tenés/i.test(text)) return `Ya tenés una solicitud o vínculo abierto con ${name}.`;
+            console.warn('[account] solicitud de alta:', error);
+            return `Guardamos tu modalidad, pero no pudimos enviar tu solicitud a ${name}. Pedila desde Invitaciones.`;
+        }
+        if (data && data.membership_id) {
+            igApi('/api/artist/studio-notify', { method: 'POST', body: { kind: 'membership_request_created', membership_id: data.membership_id } })
+                .catch((err) => console.warn('[account] aviso al estudio:', err && err.message));
+        }
+        return `Guardamos tu modalidad y enviamos tu solicitud a ${name}. Queda en tu perfil cuando el estudio la apruebe.`;
     }
 
     // ── gcal ── Google Calendar real (ronda 3b): OAuth en el servidor
@@ -2103,6 +2178,7 @@
         $('av-sync-detail')?.addEventListener('click', (event) => {
             if (event.target.closest('[data-gcal-disconnect]')) handleIntegrationAction('google_calendar', { disconnect: true });
         });
+        $('av-gcal-disconnect-form')?.addEventListener('submit', submitGcalDisconnect);
         handleGcalReturn();
     }
 
@@ -2150,6 +2226,8 @@
             const parts = [];
             if (st.google_email) parts.push(`<strong>${esc(st.google_email)}</strong>`);
             parts.push(st.last_sync_at ? `Última sincronización: ${esc(gcalWhen(st.last_sync_at))}` : 'Primera sincronización en curso…');
+            // CAL-14: la zona con la que se publican los horarios en Google.
+            if (st.timezone) parts.push(`Zona horaria: ${esc(String(st.timezone).replace(/_/g, ' '))}`);
             if (!st.readonly) parts.push('<button type="button" class="av-sync-link" data-gcal-disconnect>Desconectar</button>');
             detailHtml = parts.join(' · ');
             errorText = st.last_error || '';
@@ -2194,24 +2272,76 @@
         const st = gcalState || {};
         if (st.configured === false) { toast('Google Calendar todavía no está disponible', false); return; }
         const wantsDisconnect = !!(opts.disconnect || (st.connected && !st.needs_reauth));
-        if (wantsDisconnect && !window.confirm('¿Querés desconectar Google Calendar? Dejamos de sincronizar tu agenda y revocamos el acceso de We Ötzi. Los eventos que ya están en Google quedan ahí.')) return;
+        // CAL-13: el diálogo deja elegir si se quitan de Google los eventos próximos.
+        if (wantsDisconnect) { openGcalDisconnect(); return; }
         gcalBusy = true;
         renderSync();
         try {
-            if (wantsDisconnect) {
-                await D.GoogleCalendar.disconnect();
-                toast('Google Calendar desconectado');
-                await refreshGcal();
-            } else {
-                const url = await D.GoogleCalendar.authorizeUrl();
-                window.location.assign(url);
-                return;
-            }
+            const url = await D.GoogleCalendar.authorizeUrl();
+            window.location.assign(url);
+            return;
         } catch (error) {
             console.error('[account] Google Calendar:', error && error.message);
             toast(error && error.configured === false
                 ? 'Google Calendar todavía no está disponible'
-                : (wantsDisconnect ? 'No pudimos desconectar Google Calendar. Probá de nuevo.' : 'No pudimos iniciar la conexión con Google. Probá de nuevo.'), false);
+                : 'No pudimos iniciar la conexión con Google. Probá de nuevo.', false);
+        } finally {
+            gcalBusy = false;
+            renderSync();
+        }
+    }
+
+    function openGcalDisconnect() {
+        const dialog = $('av-gcal-disconnect-dialog');
+        if (!dialog || typeof dialog.showModal !== 'function') {
+            // Sin <dialog> (navegador viejo): confirmación simple, sin quitar eventos.
+            if (window.confirm('¿Querés desconectar Google Calendar? Dejamos de publicar tu agenda y revocamos el acceso de We Ötzi.')) {
+                disconnectGcal(false);
+            }
+            return;
+        }
+        $('av-gcal-remove-events').checked = false;
+        $('av-gcal-disconnect-error').hidden = true;
+        dialog.showModal();
+    }
+
+    async function submitGcalDisconnect(event) {
+        event.preventDefault();
+        const removeEvents = !!$('av-gcal-remove-events')?.checked;
+        const submit = $('av-gcal-disconnect-submit');
+        if (submit) submit.disabled = true;
+        const ok = await disconnectGcal(removeEvents);
+        if (submit) submit.disabled = false;
+        if (ok) {
+            $('av-gcal-disconnect-dialog')?.close();
+        } else {
+            const errEl = $('av-gcal-disconnect-error');
+            errEl.textContent = 'No pudimos desconectar Google Calendar. Probá de nuevo.';
+            errEl.hidden = false;
+        }
+    }
+
+    async function disconnectGcal(removeEvents) {
+        if (gcalBusy) return false;
+        gcalBusy = true;
+        renderSync();
+        try {
+            const result = await D.GoogleCalendar.disconnect({ removeEvents });
+            let message = 'Google Calendar desconectado';
+            if (removeEvents && result) {
+                if (result.removeError) message += '. No pudimos quitar los eventos de Google: borralos desde Google Calendar.';
+                else if (result.remainingEvents) message += `. Quitamos ${result.removedEvents || 0} eventos; quedaron ${result.remainingEvents} en Google.`;
+                else message += `. Quitamos ${result.removedEvents || 0} eventos próximos de Google.`;
+            }
+            toast(message, !(result && result.removeError));
+            await refreshGcal();
+            return true;
+        } catch (error) {
+            console.error('[account] Google Calendar:', error && error.message);
+            toast(error && error.configured === false
+                ? 'Google Calendar todavía no está disponible'
+                : 'No pudimos desconectar Google Calendar. Probá de nuevo.', false);
+            return false;
         } finally {
             gcalBusy = false;
             renderSync();
@@ -2237,10 +2367,12 @@
             notifMatrix.promociones.email = extras.subscribed_newsletter;
         }
 
+        // EM-13: push y SMS todavía no existen → deshabilitados ("Próximamente").
+        const soon = (channel) => channel === 'push' || channel === 'sms';
         const cell = (key, label, channel, name) => `
-            <span class="aac-matrix-cell">
+            <span class="aac-matrix-cell"${soon(channel) ? ' title="Próximamente"' : ''}>
                 <label class="aac-switch">
-                    <input type="checkbox" data-notif-event="${key}" data-notif-channel="${channel}" ${notifMatrix[key][channel] ? 'checked' : ''} aria-label="Avisos de ${label.toLowerCase()} por ${name}">
+                    <input type="checkbox" data-notif-event="${key}" data-notif-channel="${channel}" ${!soon(channel) && notifMatrix[key][channel] ? 'checked' : ''}${soon(channel) ? ' disabled aria-disabled="true"' : ''} aria-label="Avisos de ${label.toLowerCase()} por ${name}${soon(channel) ? ' (próximamente)' : ''}">
                     <span class="aac-switch-knob" aria-hidden="true"></span>
                 </label>
             </span>`;
@@ -2254,7 +2386,7 @@
 
         $('aac-notif-rows').addEventListener('change', async (event) => {
             const input = event.target.closest('[data-notif-event]');
-            if (!input) return;
+            if (!input || input.disabled) return;
             notifMatrix[input.dataset.notifEvent][input.dataset.notifChannel] = input.checked;
             try {
                 await savePrefs('notification_prefs', notifMatrix);
@@ -2628,8 +2760,16 @@
         return verifDocs.find((d) => d.doc_type === 'identidad') || null;
     }
 
+    // verif-artista (VER-A3): la insignia solo aparece con verification_state 'Yes'
+    // (artist-profile.js), así que la cuenta usa la misma regla.
     function isVerified() {
-        return artist?.verification_state === 'Yes' || docStatus(identityDoc()) === 'verified';
+        return artist?.verification_state === 'Yes';
+    }
+
+    // Identidad y domicilio aprobados por soporte (falta la revisión final del perfil).
+    function requiredDocsApproved() {
+        return DOC_TYPES.every(([type, , required]) => !required
+            || docStatus(verifDocs.find((d) => d.doc_type === type) || null) === 'verified');
     }
 
     // Obligatorios sin cargar: un documento cuenta si existe y no fue rechazado.
@@ -2647,25 +2787,39 @@
         const box = $('aac-verif-alert');
         let cls = '';
         let icon = 'check-circle';
-        let title = 'Identidad verificada';
-        let detail = idDoc?.reviewed_at ? `Confirmada el ${formatLongDate(idDoc.reviewed_at)}.` : 'Tu perfil muestra la insignia de verificado.';
+        let title = 'Perfil verificado';
+        const approvedAt = lastVerifDecision?.action === 'approved' ? lastVerifDecision.created_at : null;
+        let detail = `${approvedAt ? `Confirmado el ${formatLongDate(approvedAt)}. ` : ''}Tu perfil público muestra la insignia de verificado.`;
         let action = '';
+        const requestBtn = '<button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="aac-verif-request">Solicitar verificación</button>';
+        const reason = lastVerifDecision && ['rejected', 'revoked'].includes(lastVerifDecision.action) && lastVerifDecision.notes
+            ? ` Motivo: ${String(lastVerifDecision.notes).trim().replace(/[.!?…]+$/, '')}.` : '';
 
         if (!isVerified()) {
             if (['Requested', 'In Progress', 'In Analysis'].includes(state)) {
                 cls = ' aac-verif-box--info'; icon = 'clock';
-                title = 'Verificación en proceso';
-                detail = 'Estamos revisando tu solicitud. Te avisamos por email cuando termine.';
-            } else if (state === 'Denied' || docStatus(idDoc) === 'rejected') {
+                if (requiredDocsApproved()) {
+                    title = 'Documentos aprobados · falta la revisión final';
+                    detail = 'Soporte ya aprobó tus documentos. Falta la revisión final de tu perfil: te avisamos por email y en tus notificaciones.';
+                } else {
+                    title = 'Verificación en proceso';
+                    detail = 'Estamos revisando tu solicitud. Te avisamos por email y en tus notificaciones cuando termine.';
+                }
+            } else if (state === 'Denied' || state === 'rejected' || docStatus(idDoc) === 'rejected') {
                 cls = ' aac-verif-box--error'; icon = 'alert-circle';
                 title = 'Verificación denegada';
-                detail = 'Revisá tus documentos y volvé a solicitarla. El documento de identidad y el comprobante de domicilio son obligatorios; el certificado de bioseguridad es opcional.';
-                action = '<button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="aac-verif-request">Solicitar verificación</button>';
+                detail = `${reason.trim() ? reason.trim() + ' ' : ''}Revisá tus documentos y volvé a solicitarla. El documento de identidad y el comprobante de domicilio son obligatorios; el certificado de bioseguridad es opcional.`;
+                action = requestBtn;
             } else {
                 cls = ' aac-verif-box--warning'; icon = 'alert-circle';
-                title = 'Todavía no verificaste tu identidad';
-                detail = 'Subí tu documento de identidad y un comprobante de domicilio (obligatorios) y solicitá la verificación. El certificado de bioseguridad es opcional y suma confianza.';
-                action = '<button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="aac-verif-request">Solicitar verificación</button>';
+                if (lastVerifDecision?.action === 'revoked') {
+                    title = 'Tu perfil quedó sin verificar';
+                    detail = `${reason.trim() ? reason.trim() + ' ' : ''}Podés volver a solicitar la verificación con tu documento de identidad y tu comprobante de domicilio.`;
+                } else {
+                    title = 'Todavía no verificaste tu identidad';
+                    detail = 'Subí tu documento de identidad y un comprobante de domicilio (obligatorios) y solicitá la verificación. El certificado de bioseguridad es opcional y suma confianza.';
+                }
+                action = requestBtn;
             }
         }
 
@@ -2675,22 +2829,34 @@
             ${action}
         </div>`;
 
-        $('aac-verif-request')?.addEventListener('click', async () => {
-            const missing = verifAvailable ? missingRequiredDocs() : [];
-            if (missing.length) {
-                toast(`Antes de solicitarla, subí tu ${missing.join(' y tu ')}.`, false);
-                return;
-            }
-            try {
+        $('aac-verif-request')?.addEventListener('click', (event) => requestVerification(event.currentTarget));
+    }
+
+    // verif-artista (VER-A5): la solicitud la valida el servidor (documentos,
+    // historial y aviso a soporte). En el demo se simula sobre el emulador.
+    async function requestVerification(btn) {
+        const missing = verifAvailable ? missingRequiredDocs() : [];
+        if (missing.length) {
+            toast(`Antes de solicitarla, subí tu ${missing.join(' y tu ')}.`, false);
+            return;
+        }
+        if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+        try {
+            if (isDemo() || !D.ArtistVerification) {
                 await updateArtist({ verification_state: 'Requested' });
-                renderVerification();
-                toast('Solicitud de verificación enviada');
-                assistRefresh('verificacion');
-            } catch (err) {
-                console.error('[account] solicitar verificación:', err);
-                toast('No pudimos enviar la solicitud', false);
+            } else {
+                const result = await D.ArtistVerification.request();
+                artist.verification_state = result.state || 'Requested';
             }
-        });
+            renderVerification();
+            toast('Solicitud de verificación enviada. Soporte la revisa y te avisamos por email.');
+            assistRefresh('verificacion');
+        } catch (err) {
+            console.error('[account] solicitar verificación:', err);
+            const message = err && err.status && err.status < 500 && err.message ? err.message : 'No pudimos enviar la solicitud. Probá de nuevo en unos minutos.';
+            toast(message, false);
+            if (btn && btn.isConnected) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+        }
     }
 
     async function loadVerifDocs() {
@@ -2703,6 +2869,9 @@
         } catch (err) {
             console.warn('[account] documentos:', err);
             verifAvailable = false;
+        }
+        if (D.ArtistVerification && !isDemo()) {
+            lastVerifDecision = await D.ArtistVerification.lastDecision(user.id);
         }
         renderVerification();
         renderDocs();
@@ -2850,6 +3019,12 @@
         setCountrySelect(s.country || artist.country || '');
         $('aac-setting-city').value = s.city || artist.city || '';
         tzSel.value = s.timezone && tzList.includes(s.timezone) ? s.timezone : detectedTz;
+        // CAL-14: si nunca se guardó, se guarda la zona que se muestra (la del
+        // navegador). Sin toast: Google Calendar y los días ocupados la usan.
+        if (!appSettings().timezone) {
+            savePrefs('app_settings', { timezone: tzSel.value })
+                .catch((err) => console.warn('[account] zona horaria:', err && err.message));
+        }
         $('aac-dateformat').value = s.date_format;
         $('aac-timeformat').value = s.time_format;
         $('aac-language').value = s.language;

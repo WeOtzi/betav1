@@ -28,3 +28,13 @@ weotzi-onboarding-header,weotzi-onboarding-footer{display:block}
  .wo-onboarding-footer strong{width:100%}
  .wo-onboarding-footer>span{max-width:230px}
 }
+
+/* Pasos completos con ✓ (como .ra-nav-item.is-done del registro de artistas). */
+.wo-onboarding-nav button{display:inline-flex;align-items:center;gap:6px;min-height:44px}
+.wo-onboarding-nav button.is-done{color:var(--blue-400)}
+.wo-onboarding-check{display:none;width:9px;height:5px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg) translateY(-2px)}
+.wo-onboarding-nav button.is-done .wo-onboarding-check{display:inline-block}
+.wo-onboarding-done-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.wo-onboarding-nav button:not(.is-done) .wo-onboarding-done-label{display:none}
+.wo-onboarding-nav button:focus-visible,.wo-onboarding-footer a:focus-visible{outline:2px solid var(--blue-300);outline-offset:2px}
+.wo-onboarding-footer span a{color:inherit}

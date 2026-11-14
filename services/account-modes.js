@@ -9,6 +9,19 @@ function canClaimByEmail(user, quotation) {
 function clientProfile(user) {
     return { user_id: user.id, email: user.email, full_name: user.raw?.user_metadata?.full_name || user.raw?.user_metadata?.name || user.email.split('@')[0], email_verified: Boolean(user.raw?.email_confirmed_at) && user.raw?.app_metadata?.qa_unverified_email !== true };
 }
+// ── acceso (ACC-08): el artista que pasa a modo cliente ya aceptó los mismos
+// Términos al registrarse; se reutiliza esa aceptación (dato del servidor).
+// Best-effort: un fallo acá no impide cambiar de modo.
+async function carryArtistTermsToClient(userId) {
+    try {
+        const { AccesoRepo } = require('../lib/repos/acceso');
+        const { termsFromArtist } = require('../lib/acceso');
+        const terms = termsFromArtist(await AccesoRepo.getArtistProfile(userId));
+        if (terms) await AccesoRepo.stampClientTerms(userId, terms);
+    } catch (e) {
+        console.warn('[account-mode] términos del cliente:', e.message);
+    }
+}
 async function activate(req, res) {
     const user = await resolveBearerUser(req);
     if (!user) return res.status(401).json({ error: 'Iniciá sesión para cambiar de modo.' });
@@ -18,6 +31,7 @@ async function activate(req, res) {
         if (mode === 'client') {
             // Ignore user-supplied identity and never overwrite an existing profile.
             await pgrest.raw('clients_db?on_conflict=user_id', { method: 'POST', prefer: 'resolution=ignore-duplicates,return=minimal', body: clientProfile(user) });
+            await carryArtistTermsToClient(user.id);
             return res.json({ success: true, mode, url: '/client/dashboard' });
         }
         const rows = await pgrest('artists_db').select('user_id,registration_status').eq('user_id',user.id).limit(1).execute();

@@ -514,21 +514,24 @@ test('isNewAccount: ventana de 14 días inclusive', () => {
     assert.equal(isNewAccount(new Date(NOW.getTime() - DAY), NOW.getTime()), true);
 });
 
-test('buildProfileUrl: saca el sufijo .wo y respeta la base /beta', () => withEnv(NO_APP_URL, () => {
-    assert.equal(buildProfileUrl('laura.wo', 'https://beta.weotzi.com'), 'https://beta.weotzi.com/artist/profile?artist=laura');
-    assert.equal(buildProfileUrl('lau.marth.WO', 'https://weotzi.com/beta/'), 'https://weotzi.com/beta/artist/profile?artist=lau.marth');
-    assert.equal(buildProfileUrl('laura', 'https://weotzi.com/beta'), 'https://weotzi.com/beta/artist/profile?artist=laura');
+test('buildProfileUrl: URL corta /<handle> (sin .wo) que respeta la base /beta', () => withEnv(NO_APP_URL, () => {
+    assert.equal(buildProfileUrl('laura.wo', 'https://beta.weotzi.com'), 'https://beta.weotzi.com/laura');
+    // Un usuario viejo que no cumple el formato no tiene URL corta: alias largo.
+    assert.equal(buildProfileUrl('lau.marth.WO', 'https://weotzi.com/beta/'), 'https://weotzi.com/beta/artist/profile?artist=lau.marth.wo');
+    assert.equal(buildProfileUrl('laura', 'https://weotzi.com/beta'), 'https://weotzi.com/beta/laura');
+    // Un handle que choca con una ruta de la app usa el alias largo.
+    assert.equal(buildProfileUrl('explore.wo', 'https://beta.weotzi.com'), 'https://beta.weotzi.com/artist/profile?artist=explore.wo');
     assert.equal(buildProfileUrl('', 'https://weotzi.com'), null);
     assert.equal(buildProfileUrl(null, 'https://weotzi.com'), null);
     assert.equal(buildProfileUrl('laura.wo', { headers: { host: 'localhost:3000' }, weotziBasePath: '/beta' }),
-        'http://localhost:3000/beta/artist/profile?artist=laura');
+        'http://localhost:3000/beta/laura');
     assert.equal(buildProfileUrl('laura.wo', { headers: { host: 'localhost:3000' } }),
-        'http://localhost:3000/artist/profile?artist=laura');
+        'http://localhost:3000/laura');
     assert.equal(buildProfileUrl('laura.wo', { headers: { host: 'evil.example' }, weotziBasePath: '/beta' }),
-        'https://weotzi.com/beta/artist/profile?artist=laura', 'el Host de la request no es confiable');
+        'https://beta.weotzi.com/laura', 'el Host de la request no es confiable (PP-12: fallback beta.weotzi.com)');
     withEnv({ PUBLIC_APP_URL: 'https://beta.weotzi.com/' }, () => {
         assert.equal(buildProfileUrl('laura.wo', { headers: { host: 'localhost:3000' }, weotziBasePath: '/beta' }),
-            'https://beta.weotzi.com/artist/profile?artist=laura');
+            'https://beta.weotzi.com/laura');
     });
 }));
 
@@ -595,7 +598,7 @@ test('GET: responde la forma del contrato', () => withEnv(NO_APP_URL, async () =
     assert.equal(body.is_new, true);
     assert.equal(body.account_created_at, '2026-10-25T10:00:00.000Z');
     assert.equal(body.new_window_days, 14);
-    assert.equal(body.profile_url, 'http://localhost:3000/beta/artist/profile?artist=laura');
+    assert.equal(body.profile_url, 'http://localhost:3000/beta/laura');
     assert.deepEqual(body.onboarding, JSON.parse(JSON.stringify(DEFAULT_ONBOARDING)));
     assert.equal(body.steps.length, 8);
     assert.equal(body.completed, true);

@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
+const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8').replace(/\r\n/g, '\n'); // CRLF del checkout en Windows
 
 const registerJs = read('public/shared/js/register.js');
 const finalJs = read('public/shared/js/acceso-register-final.js');

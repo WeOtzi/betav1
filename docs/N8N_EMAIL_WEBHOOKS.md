@@ -8,6 +8,111 @@ We Otzi utiliza webhooks de n8n para enviar notificaciones por email en diferent
 
 **Remitente de emails**: `isai@weotzi.com` (configurado en n8n)
 
+## Relé genérico de envío (`smtp_relay`) — recomendado para la beta
+
+Desde la beta cerrada el servidor **arma el correo completo** (asunto, HTML
+responsive con la base común de `lib/email-render/layout.js`, versión de texto
+plano y headers) y lo entrega a **un único webhook** de n8n que solo lo manda
+por SMTP. Así los eventos sin webhook propio (`instagram_verification_code`,
+`studio_*`, `inbox_message_received`, `session_reminder_24h`, …) salen igual,
+cada destinatario recibe su versión (cliente / artista) y los valores ya van
+escapados y formateados en español.
+
+**Configuración** (servidor): `N8N_EMAIL_RELAY_URL` (o `app_settings.email_relay_url`,
+privada) y `N8N_EMAIL_RELAY_TOKEN` (o `N8N_WEBHOOK_SECRET`). Elegir el canal por
+evento en `app_settings.email_routing` (`{"<evento>": {"channel": "smtp_relay"}}`,
+o `{"*": {"channel": "smtp_relay"}}` para todos) desde Backoffice → Email routing.
+Un evento en `n8n` **sin** webhook propio sale por el relé automáticamente si el
+relé está configurado.
+
+**Request** (`POST`, un correo = un request = un destinatario):
+
+```http
+POST <N8N_EMAIL_RELAY_URL>
+Content-Type: application/json
+X-Weotzi-Webhook-Token: <secreto>
+
+{
+  "event_id": "session_scheduled",
+  "event_name": "Sesión: agendada",
+  "category": "calendar",            // transactional | quotations | messages | calendar | account | studios
+  "role": "client",                  // destinatario: client | artist | studio | admin | support
+  "from_name": "We Ötzi",
+  "to": "persona@example.com",       // siempre UNA dirección
+  "reply_to": "soporte@weotzi.com",  // solo si SUPPORT_EMAIL está definido
+  "subject": "Sesión agendada: sábado, 21 de noviembre de 2026",
+  "html": "<!DOCTYPE html>…",        // listo para enviar, < 90 KB
+  "text": "WE ÖTZI\n\nHola, Lucía.\n…",
+  "headers": {
+    "X-Weotzi-Event": "session_scheduled",
+    "List-Unsubscribe": "<https://beta.weotzi.com/client/profile#notificaciones>, <mailto:soporte@weotzi.com?subject=…>"
+  },
+  "idempotency_key": "WO-2026-0142:session:…:client"   // si viene, n8n puede deduplicar
+}
+```
+
+**Workflow esperado** ("We Ötzi · Enviar email"): `Webhook` (POST, Header Auth
+con la credencial existente de `X-Weotzi-Webhook-Token`, responde con *Respond to
+Webhook*) → `Send Email` (SMTP de notificaciones: To `{{$json.body.to}}`,
+Subject `{{$json.body.subject}}`, HTML `{{$json.body.html}}`, Text
+`{{$json.body.text}}`, Reply-To `{{$json.body.reply_to}}`, headers extra
+`{{$json.body.headers}}` si el nodo lo permite) → `Respond to Webhook` con
+`{ "messageId": "{{$json.messageId}}" }`.
+
+**Respuesta**: `200` + `{ "messageId": "…" }` = aceptado por SMTP. Sin
+`messageId`, con `{ "error" }`, `success:false` o 5xx el envío queda
+**incierto** y no se reintenta solo (`email_delivery_ledger`). `401/403` sin
+ejecutar = rechazo seguro (se puede reintentar). Una respuesta HTML se toma como
+error.
+
+**Seguridad**: un POST sin el header correcto tiene que responder `403`. El
+webhook nunca debe aceptar HTML del navegador: solo lo llama el servidor.
+
+### Antes del deploy de la beta cerrada (revisión de integración, 15 nov 2026)
+
+- **El relé es obligatorio** (EMAIL-RELAY-01). Al 15 nov 2026 no existe ni el
+  workflow ni `app_settings.email_relay_url`. Sin él, 20 eventos sin webhook
+  propio devuelven `ok:false` («No hay webhook de n8n ni relé»):
+  `artist_new_quotation`, `artist_confirmed_agreement`,
+  `quotation_artist_selected`, `client_quotation_accepted_receipt`,
+  `client_quotation_rejected_receipt`, `booking_slot_requested`,
+  `booking_slot_confirmed`, `booking_slot_hold_expired`,
+  `artist_verification_requested`, `studio_registration_completed`,
+  `studio_claim_decided`, `studio_verification_decision`,
+  `studio_membership_request_created`, `studio_membership_request_decision`,
+  `studio_artist_invite_email`, `studio_invite_link_joined`,
+  `studio_invitation_response`, `inbox_message_received`,
+  `session_reminder_24h` e `instagram_verification_code`.
+  Pasos: (1) crear y activar el workflow de arriba (sin `messageId` el envío
+  queda incierto); (2) aplicar `20261115180000_emails_settings_privados.sql` y
+  después cargar `email_relay_url` (privada) o `N8N_EMAIL_RELAY_URL` en el
+  `.env` de producción; (3) probar con `POST /api/email/test` forzando
+  `smtp_relay` y confirmar `delivery_status = smtp_accepted`.
+- **`client_quotation_submitted` prefiere el relé** (EMAIL-DUP-01): su flujo n8n
+  también le escribe al artista, que ya recibe su aviso propio
+  (`artist_new_quotation`, `quotation_artist_selected` o
+  `booking_slot_requested`). Con el relé configurado y sin override de ese
+  evento en `email_routing`, sale por el relé (cliente y admin, sin artista).
+  Si se fuerza `n8n` para ese evento, desactivar el nodo «Email Notificacion
+  Artista» del workflow de notificaciones.
+- **Copia del artista de `session_*` y `quotation_completed_summary`**
+  (EMAIL-NEW-01): solo sale si el canal efectivo del evento es `smtp_relay`; los
+  flujos n8n de esos eventos son de un solo destinatario (el cliente). Para que
+  el artista reciba su copia, pasar esos eventos a `smtp_relay` en
+  `email_routing` una vez configurado el relé.
+- **Recordatorio de sesión: una sola vía** (EMAIL-DUP-02). El job
+  `session_reminder_24h` (lib/session-reminders.js, cada 30 min) arranca por
+  defecto. Antes de configurar el relé, desactivar el nodo «Email Session
+  Reminder» del workflow «We Otzi Digest & Reports», o definir
+  `SESSION_REMINDERS_JOB=off` en producción y no programar
+  `POST /api/sessions/reminders/dispatch`.
+
+> Los webhooks por evento siguen funcionando (canal `n8n`). Desde ahora su body
+> trae además `rendered: { subject, html, text, headers }` (el mismo correo del
+> relé) y `data` / `vars` llegan **escapados** (EM-N4) y sin datos de salud.
+> Las URLs de los webhooks ya no son públicas (`app_settings.n8n_events`
+> privado; migración `20261115180000_emails_settings_privados.sql`).
+
 ## Eventos Disponibles
 
 | ID del Evento | Nombre | Descripcion |

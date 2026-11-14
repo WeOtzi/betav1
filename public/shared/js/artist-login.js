@@ -185,13 +185,79 @@ document.addEventListener('DOMContentLoaded', () => {
     const emailInput = document.getElementById('login-email');
     if (prefillEmail && emailInput) emailInput.value = prefillEmail;
 
-    if (window.location.hash.includes('access_token') || params.has('code')) {
+    if (ARTIST_AUTH_CALLBACK_AT_LOAD || window.location.hash.includes('access_token') || params.has('code')) {
         handleArtistOAuthCallback();
         return;
     }
 
+    // ── acceso: link vencido o ya usado (confirmación o enlace mágico).
+    const linkError = window.WeotziEmailConfirm?.readAuthLinkError?.() || null;
+    if (linkError || params.get('enlace') === 'vencido') {
+        showArtistLinkError(linkError || { expired: true }, params.get('confirmado') === '1');
+    }
+
     checkArtistAuthState();
 });
+
+// Se mira al cargar el script: supabase-js limpia el hash al leer la sesión.
+const ARTIST_AUTH_CALLBACK_AT_LOAD = (() => {
+    try {
+        return /access_token=/.test(window.location.hash || '') || new URLSearchParams(window.location.search || '').has('code');
+    } catch (_) { return false; }
+})();
+
+// Aviso DS con la acción que corresponde: reenviar la confirmación o pedir
+// otro enlace mágico (con el email que esté escrito arriba).
+function showArtistLinkError(linkError, isConfirmation) {
+    const EC = window.WeotziEmailConfirm;
+    const box = document.getElementById('form-message');
+    if (!EC || !box) {
+        showFormMessage('El link venció o ya se usó. Pedí uno nuevo o ingresá con tu contraseña.', 'error');
+        return;
+    }
+    const emailInput = document.getElementById('login-email');
+    const readEmail = (status) => {
+        const email = String(emailInput?.value || '').trim().toLowerCase();
+        if (!EC.isValidEmail(email)) {
+            status.className = 'wo-ec-status is-error';
+            status.textContent = 'Escribí tu email arriba y volvé a tocar el botón.';
+            emailInput?.focus();
+            return '';
+        }
+        return email;
+    };
+    box.className = 'wo-auth-message';
+    EC.renderLinkErrorNotice(box, {
+        linkError,
+        what: isConfirmation ? 'link de confirmación' : 'link de acceso',
+        hint: isConfirmation
+            ? 'Si ya confirmaste tu email, ingresá con tu contraseña. Si no, pedí uno nuevo.'
+            : 'Pedí otro link de acceso o ingresá con tu contraseña.',
+        actions: [isConfirmation
+            ? {
+                label: 'Reenviar email de confirmación',
+                onClick: async (status, button) => {
+                    const email = readEmail(status);
+                    if (!email) return;
+                    button.disabled = true;
+                    status.className = 'wo-ec-status';
+                    status.textContent = 'Enviando…';
+                    const res = await EC.resend(_supabase, email, EC.redirectUrl('/register-artist/', { confirmado: '1' }));
+                    status.className = 'wo-ec-status ' + (res.ok ? 'is-success' : 'is-error');
+                    status.textContent = res.message;
+                    button.disabled = false;
+                }
+            }
+            : {
+                label: 'Enviarme otro link',
+                onClick: async (status) => {
+                    if (!readEmail(status)) return;
+                    await handleArtistSocialLogin('email');
+                }
+            }]
+    });
+    box.hidden = false;
+}
 
 // ============================================
 // Auth State Management
@@ -214,6 +280,12 @@ async function checkArtistAuthState() {
             // Atajo desde /registerclosedbeta: "Continuá con Facebook".
             if (onLoginPage && params.get('oauth') === 'facebook') {
                 handleArtistSocialLogin('facebook');
+            }
+            // Vuelta del link de confirmación abierto en otro navegador (sin
+            // sesión acá): el email ya quedó confirmado.
+            if (onLoginPage && params.get('confirmado') === '1' && params.get('enlace') !== 'vencido'
+                && !window.WeotziEmailConfirm?.readAuthLinkError?.({ clean: false })) {
+                showFormMessage('Tu email está confirmado. Ingresá con tu contraseña.', 'success');
             }
             return;
         }
@@ -557,6 +629,15 @@ function oauthRedirectUrl() {
         + (returnTo ? ('?returnTo=' + encodeURIComponent(returnTo)) : '');
 }
 
+function artistMagicLinkOutcome(error, email) {
+    const EC = window.WeotziEmailConfirm;
+    if (EC?.magicLinkOutcome) return EC.magicLinkOutcome(error, email);
+    if (/signups? not allowed|user not found|otp_disabled/i.test(String(error?.message || ''))) {
+        return { ok: true, kind: 'success', message: `Si ${escapeHtml(email)} tiene una cuenta, te enviamos un link de acceso. Revisá tu correo.` };
+    }
+    return { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Probá de nuevo en un momento o ingresá con tu contraseña.' };
+}
+
 async function handleArtistSocialLogin(provider) {
     clearFormMessage();
 
@@ -590,8 +671,11 @@ async function handleArtistSocialLogin(provider) {
             if (error) throw error;
             showFormMessage(`Si ${escapeHtml(email)} tiene una cuenta, te enviamos un link de acceso. Revisá tu correo.`, 'success');
         } catch (error) {
-            console.warn('Artist email link error:', error);
-            showFormMessage('No pudimos enviar el link de acceso. Probá de nuevo en un momento o ingresá con tu contraseña.', 'error');
+            // ACC-11: "Signups not allowed for otp" (email sin cuenta) responde
+            // igual que el éxito para no revelar qué emails existen.
+            const outcome = artistMagicLinkOutcome(error, email);
+            if (!outcome.ok) console.warn('Artist email link error:', error);
+            showFormMessage(outcome.message, outcome.kind);
         } finally {
             setSocialBusy('email', false);
         }

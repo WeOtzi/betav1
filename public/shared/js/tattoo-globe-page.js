@@ -127,6 +127,9 @@
     }
     async function loadSessionAndDirectory() {
         try {
+            // Este script es defer: corre antes de que ConfigManager termine de
+            // leer app-config.json. Sin ready() no hay cliente Supabase (MK-01).
+            if (window.ConfigManager && typeof window.ConfigManager.ready === 'function') await window.ConfigManager.ready();
             const client = window.ConfigManager?.getSupabaseClient();
             const { data, error } = client ? await client.auth.getSession() : { data: null };
             if (error) throw error;

@@ -228,8 +228,30 @@
         // Perfil publico por username con match exacto + .maybeSingle() (pagina
         // publica del artista). columns FIJAS via ARTIST_PUBLIC_FIELDS por defecto,
         // o explicitas. Cubre artist-profile.js:946.
-        getPublicByExactUsername(username, columns = '*') {
-            return from('artists_db').select(publicOnly(columns)).eq('username', username).maybeSingle();
+        //
+        // Perfil público (auditoría PP-06): el usuario va en minúsculas, solo
+        // filas publicadas (la dueña de un borrador 'incompleto' con el mismo
+        // usuario también lo ve por RLS) y limit(1) en vez de maybeSingle, que
+        // fallaba con dos filas. Devuelve { data: fila|null, error }.
+        async getPublicByExactUsername(username, columns = '*') {
+            const value = String(username || '').trim().toLowerCase();
+            const { data, error } = await from('artists_db')
+                .select(publicOnly(columns))
+                .eq('username', value)
+                .or('registration_status.is.null,registration_status.neq.incompleto')
+                .limit(1);
+            return { data: Array.isArray(data) && data[0] ? data[0] : null, error: error || null };
+        },
+
+        // Perfil público por user_id (enlaces viejos con ?id=<uuid>). Mismo
+        // contrato que getPublicByExactUsername.
+        async getPublicByUserId(userId, columns = '*') {
+            const { data, error } = await from('artists_db')
+                .select(publicOnly(columns))
+                .eq('user_id', String(userId || ''))
+                .or('registration_status.is.null,registration_status.neq.incompleto')
+                .limit(1);
+            return { data: Array.isArray(data) && data[0] ? data[0] : null, error: error || null };
         },
 
         // Busqueda de un artista por username para el feed de galeria; exact=true
@@ -270,10 +292,20 @@
 
         // Artistas por username/nombre (ilike sobre or) para invitar al roster.
         // Cubre studio-dashboard.js:762. limit configurable.
+        // ── roster (ROSTER-08): el termino se sanea (comas, parentesis,
+        // comodines y barras rompen el filtro or=) y solo devuelve perfiles
+        // con cuenta (los borradores ya los oculta la RLS).
         searchByUsernameOrName(term, limit = 8) {
+            const clean = String(term == null ? '' : term)
+                .replace(/[,()*%\\:"']/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 60);
+            if (clean.length < 2) return Promise.resolve({ data: [], error: null });
             return from('artists_db')
                 .select('user_id, username, name, profile_picture, city, country')
-                .or(`username.ilike.%${term}%,name.ilike.%${term}%`)
+                .or(`username.ilike.%${clean}%,name.ilike.%${clean}%`)
+                .not('user_id', 'is', null)
                 .limit(limit);
         },
 

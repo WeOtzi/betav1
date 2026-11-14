@@ -23,6 +23,27 @@
  * verifies that every eventId used via emailService.sendEmail exists in this map.
  */
 
+const { publicBaseUrl } = require('../lib/email-format');
+const { loadEmailEvents } = require('./email-events');
+
+// Datos que nunca salen hacia un proveedor de correo (salud, nacimiento):
+// EM-17 / INB-16. buildAttribs los descarta para TODOS los eventos.
+const SENSITIVE_ATTRIBS = new Set(['client_health_conditions', 'client_allergies', 'client_birth_date',
+    'health_conditions', 'allergies', 'birth_date', 'medical_details', 'has_medical_conditions']);
+
+// Destinatarios por rol (un correo por persona, con links y textos de su rol).
+const clientArtistRoles = p => [
+    { role: 'client', email: p.client_email, user_id: p.client_user_id, name: p.client_name },
+    { role: 'artist', email: p.artist_email, user_id: p.artist_user_id || p.artist_id, name: p.artist_name }
+];
+
+// Lista blanca de variables del aviso de chat (INB-16): nada de la fila completa.
+const chatAttribs = p => ({
+    artist_name: p.artist_name, client_name: p.client_name, quote_id: p.quote_id,
+    message_preview: p.message_preview, chat_url: p.chat_url, recipient_name: p.recipient_name,
+    artist_email: p.artist_email, client_email: p.client_email
+});
+
 // Instagram handles always reach the template as "@handle" (one leading @), or the
 // fallback text when the payload has none.
 function atHandle(value, fallback) {
@@ -49,6 +70,7 @@ function accountDeletionEvent(name, description) {
 }
 
 const EVENTS = {
+    // Server-only: los arma POST /api/studio/notify con datos verificados.
     studio_roster_invite: {
         name: 'Estudio: invitación al equipo',
         templateHint: 'studio-notification',
@@ -100,8 +122,8 @@ const EVENTS = {
             city: p.city || 'No proporcionado',
             quote_id: p.quote_id || '-',
             artist_name: p.artist_name || '-',
-            dashboard_url: p.dashboard_url || 'https://weotzi.chat/client/dashboard',
-            login_url: p.login_url || 'https://weotzi.chat/client/login'
+            dashboard_url: p.dashboard_url || `${publicBaseUrl()}/client/dashboard`,
+            login_url: p.login_url || `${publicBaseUrl()}/client/login`
         })
     },
 
@@ -123,8 +145,19 @@ const EVENTS = {
     client_quotation_submitted: {
         name: 'Cliente: cotización enviada',
         templateHint: 'quotation-confirmation-client',
-        description: 'Confirmación al cliente de que su cotización fue enviada al artista.',
+        description: 'Confirmación al cliente de que su cotización fue enviada al artista (y aviso al admin). El artista recibe su propio aviso (artist_new_quotation, quotation_artist_selected o booking_slot_requested).',
         recipient: p => p.client_email,
+        // Por el relé: un correo por destinatario (confirmación al cliente y, si
+        // está configurado, aviso al admin). Al artista NO: el servidor ya le
+        // manda su aviso propio por el mismo hecho (EMAIL-DUP-01).
+        recipientRoles: p => [
+            { role: 'client', email: p.client_email, user_id: p.client_user_id, name: p.client_name },
+            { role: 'admin', email: process.env.QUOTATION_ADMIN_EMAIL || '' }
+        ],
+        // El flujo n8n de este evento también le escribe al artista («Email
+        // Notificacion Artista»). Con el relé configurado y sin override en
+        // email_routing, sale por el relé para no duplicar el aviso al artista.
+        preferRelay: true,
         attribs: p => ({
             ...p,
             client_name: p.client_name,
@@ -187,6 +220,10 @@ const EVENTS = {
         templateHint: 'dispute-artist-response',
         description: 'Aviso al cliente (y a soporte si SUPPORT_EMAIL está configurado) cuando el artista responde una disputa.',
         recipients: p => [p.client_email, p.support_email].filter(Boolean),
+        recipientRoles: p => [
+            { role: 'client', email: p.client_email, user_id: p.client_user_id, name: p.client_name },
+            { role: 'support', email: p.support_email }
+        ],
         attribs: p => ({ ...p })
     },
     // Server-only: lo envía el job de vencimiento (lib/quotation-expiry.js).
@@ -200,7 +237,9 @@ const EVENTS = {
     quotation_completed_summary: {
         name: 'Cotización completada (resumen)',
         templateHint: 'quotation-completed',
+        description: 'Resumen final al cliente y al artista cuando el cliente confirma la entrega (lo envía el servidor).',
         recipients: p => [p.client_email, p.artist_email].filter(Boolean),
+        recipientRoles: clientArtistRoles,
         attribs: p => ({ ...p })
     },
     client_left_rating: {
@@ -248,13 +287,13 @@ const EVENTS = {
         name: 'Chat: mensaje al artista',
         templateHint: 'chat-message-artist',
         recipient: p => p.artist_email,
-        attribs: p => ({ ...p })
+        attribs: chatAttribs
     },
     chat_message_to_client: {
         name: 'Chat: mensaje al cliente',
         templateHint: 'chat-message-client',
         recipient: p => p.client_email,
-        attribs: p => ({ ...p })
+        attribs: chatAttribs
     },
 
     // ===== Sessions =====
@@ -262,24 +301,28 @@ const EVENTS = {
         name: 'Sesión: agendada',
         templateHint: 'session-scheduled',
         recipients: p => [p.client_email, p.artist_email].filter(Boolean),
+        recipientRoles: clientArtistRoles,
         attribs: p => ({ ...p })
     },
     session_rescheduled: {
         name: 'Sesión: reprogramada',
         templateHint: 'session-rescheduled',
         recipients: p => [p.client_email, p.artist_email].filter(Boolean),
+        recipientRoles: clientArtistRoles,
         attribs: p => ({ ...p })
     },
     session_completed: {
         name: 'Sesión: completada',
         templateHint: 'session-completed',
         recipients: p => [p.client_email, p.artist_email].filter(Boolean),
+        recipientRoles: clientArtistRoles,
         attribs: p => ({ ...p })
     },
     session_cancelled: {
         name: 'Sesión: cancelada',
         templateHint: 'session-cancelled',
         recipients: p => [p.client_email, p.artist_email].filter(Boolean),
+        recipientRoles: clientArtistRoles,
         attribs: p => ({ ...p })
     },
 
@@ -374,6 +417,43 @@ const EVENTS = {
 
 };
 
+// Eventos por frente (services/email-events/*.js): se suman a EVENTS. Si un
+// id ya existe, el archivo del frente completa/pisa la definición base.
+const EXTENSIONS = loadEmailEvents();
+for (const [id, def] of Object.entries(EXTENSIONS.events)) {
+    EVENTS[id] = EVENTS[id] ? { ...EVENTS[id], ...def } : def;
+}
+
+/** Ids marcados serverOnly en services/email-events (los suma email-request-context). */
+function serverOnlyEventIds() {
+    return Object.keys(EVENTS).filter(id => EVENTS[id] && EVENTS[id].serverOnly === true);
+}
+
+function normalizeEmail(value) {
+    if (typeof value !== 'string') return '';
+    const x = value.trim().toLowerCase();
+    return x.length <= 254 && /^[^\s@<>;,]+@[^\s@<>;,]+\.[^\s@<>;,]+$/.test(x) ? x : '';
+}
+
+/**
+ * Destinatarios por rol: [{ role, email, user_id?, name? }] normalizados y sin
+ * repetidos. Vacío si el evento no define recipientRoles.
+ */
+function resolveRecipientRoles(eventId, payload) {
+    const event = getEvent(eventId);
+    if (!event || typeof event.recipientRoles !== 'function') return [];
+    const seen = new Set();
+    const out = [];
+    for (const entry of event.recipientRoles(payload || {}) || []) {
+        if (!entry || !entry.role) continue;
+        const email = normalizeEmail(entry.email);
+        if (!email || seen.has(email)) continue;
+        seen.add(email);
+        out.push({ ...entry, email });
+    }
+    return out;
+}
+
 /**
  * Get the configuration for an event id.
  * @param {string} eventId
@@ -399,9 +479,7 @@ function resolveRecipients(eventId, payload) {
     } else {
         list = [];
     }
-    return [...new Set(list.filter(x => typeof x === 'string')
-        .map(x => x.trim().toLowerCase())
-        .filter(x => x.length <= 254 && /^[^\s@<>;,]+@[^\s@<>;,]+\.[^\s@<>;,]+$/.test(x)))];
+    return [...new Set(list.map(normalizeEmail).filter(Boolean))];
 }
 
 /**
@@ -417,7 +495,8 @@ function buildAttribs(eventId, payload) {
     if (!event) return {};
     const raw = typeof event.attribs === 'function' ? event.attribs(payload || {}) : (payload || {});
     const out = {};
-    for (const [k, v] of Object.entries(raw)) {
+    for (const [k, v] of Object.entries(raw || {})) {
+        if (SENSITIVE_ATTRIBS.has(k)) continue;
         if (v === undefined || v === null) {
             out[k] = '';
         } else if (typeof v === 'object') {
@@ -438,14 +517,20 @@ function listEvents() {
         id,
         name: EVENTS[id].name,
         templateHint: EVENTS[id].templateHint,
-        description: EVENTS[id].description || ''
+        description: EVENTS[id].description || '',
+        server_only: EVENTS[id].serverOnly === true
     }));
 }
 
 module.exports = {
     getEvent,
     resolveRecipients,
+    resolveRecipientRoles,
+    normalizeEmail,
     buildAttribs,
     listEvents,
+    serverOnlyEventIds,
+    SENSITIVE_ATTRIBS,
+    EXTENSION_SOURCES: EXTENSIONS.sources,
     EVENTS
 };

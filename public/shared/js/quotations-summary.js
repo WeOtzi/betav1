@@ -137,6 +137,14 @@
             </ol>${closing}`;
     }
 
+    // Un mensaje que es solo un adjunto (message = '') muestra qué se adjuntó (CHAT-03).
+    function messageText(m) {
+        const text = String((m && m.message) || '').trim();
+        if (text) return text;
+        if (!m || !m.attachment_path) return '';
+        return (m.message_kind === 'image' ? 'Imagen adjunta' : 'Archivo adjunto') + (m.attachment_name ? `: ${m.attachment_name}` : '');
+    }
+
     function messagesHtml() {
         const messages = (extras.messages || []).slice(-2);
         if (!messages.length) return '<p class="qs-muted">Todavía no hay mensajes con este cliente.</p>';
@@ -145,7 +153,7 @@
             return `
                 <div class="qs-msg${mine ? ' qs-msg--mine' : ''}">
                     <span class="qs-msg-meta">${mine ? 'Vos' : 'Cliente'} · ${esc(VM.timeLabel(m.created_at))}</span>
-                    <p class="qs-msg-bubble">${esc(m.message || '')}</p>
+                    <p class="qs-msg-bubble">${esc(messageText(m))}</p>
                 </div>`;
         }).join('')}</div>`;
     }
@@ -167,7 +175,7 @@
                 <button type="button" class="qs-btn qs-btn--ink" data-qs-action="accept"${actions.accept ? '' : ' disabled'}${actions.accept && actions.accept.needsDialog ? ' title="Completá presupuesto, sesiones y duración antes de enviar"' : ''}><i data-wo-icon="check" aria-hidden="true"></i>${esc(actions.accept && actions.accept.label !== 'Aceptar' ? actions.accept.label : 'Aceptar')}</button>
                 <button type="button" class="qs-btn qs-btn--accent" data-qs-action="schedule"><i data-wo-icon="calendar" aria-hidden="true"></i>Agendar</button>
                 <button type="button" class="qs-btn qs-btn--direct" data-qs-action="contact"${canContact ? '' : ' disabled'}><i data-wo-icon="message-circle" aria-hidden="true"></i>Contactar</button>
-                <button type="button" class="qs-btn qs-btn--danger" data-qs-action="reject"${actions.reject ? '' : ' disabled'}><i data-wo-icon="x" aria-hidden="true"></i>Rechazar</button>
+                <button type="button" class="qs-btn qs-btn--danger" data-qs-action="reject"${actions.reject ? '' : ' disabled'}${actions.reject && actions.reject.withdraw ? ` aria-label="${esc(actions.reject.label)}" title="${esc(actions.reject.label)}"` : ''}><i data-wo-icon="x" aria-hidden="true"></i>${actions.reject && actions.reject.withdraw ? 'Retirar' : 'Rechazar'}</button>
             </div>
             <a class="qs-btn qs-btn--outline qs-btn--block" href="${detail}">Ver detalle completo<i data-wo-icon="arrow-right" aria-hidden="true"></i></a>`;
     }
@@ -385,9 +393,12 @@
             const r = VM.summaryActions(quote).reject;
             if (!r) return;
             const notice = r.patch.quote_status === 'cancelled' ? ' Le avisamos al cliente.' : '';
-            if (!window.confirm('¿Querés rechazar esta solicitud? Esta acción quedará en el historial' + (notice ? ' y el cliente recibe un aviso.' : '.'))) return;
+            const question = r.withdraw
+                ? '¿Querés retirar tu propuesta? La cotización se cancela, queda en el historial'
+                : '¿Querés rechazar esta solicitud? Esta acción quedará en el historial';
+            if (!window.confirm(question + (notice ? ' y el cliente recibe un aviso.' : '.'))) return;
             const previous = quote.quote_status;
-            const ok = await patchQuote(r.patch, 'Solicitud rechazada.' + notice);
+            const ok = await patchQuote(r.patch, (r.withdraw ? 'Propuesta retirada.' : 'Solicitud rechazada.') + notice);
             if (ok) noticeClient(quote, r.patch.quote_status, previous);
             return ok;
         }
@@ -431,6 +442,11 @@
         }
         // Responder sin monto ni condiciones no sirve al cliente: va al diálogo.
         if (value === 'responded' && VM.RESPOND_NEEDS_DIALOG) return goRespond(quote);
+        // El acuerdo pide presupuesto final, sesiones y primera sesión (COT-A-07).
+        if (value === 'client_approved') {
+            window.location.href = page().appUrl(VM.agreementUrl(quote));
+            return;
+        }
         const patch = value === 'responded' ? responsePatch(quote) : { quote_status: value };
         if (value === 'artist_completed') patch.artist_completed_at = new Date().toISOString();
         const previous = quote.quote_status;

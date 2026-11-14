@@ -16,8 +16,6 @@
         "presetPassword": ""
     },
     "n8n": {
-        "webhookUrl": "https://chatbot-we-otzi-n8n.jubcpl.easypanel.host/webhook/8bc207a6-ee21-4150-9a92-211a68b19544",
-        "driveFolderId": "1sBpYYrMPiyIwiXcKCcOnSPPZOJM4vq3W",
         "events": [
             {
                 "id": "artist_registration_completed",

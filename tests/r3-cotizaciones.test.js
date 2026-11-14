@@ -29,16 +29,19 @@ test('P6: el selector de estado solo ofrece transiciones que acepta el trigger v
     }
     assert.deepEqual(VM.STATUS_TRANSITIONS.client_approved, ['in_progress', 'cancelled']);
     assert.deepEqual(VM.STATUS_TRANSITIONS.in_progress, ['artist_completed', 'cancelled']);
-    assert.deepEqual(VM.STATUS_TRANSITIONS.artist_completed, ['in_progress', 'completed', 'cancelled']);
+    // COT-A-07: completed lo decide el cliente (POST /api/client/quotations/:id/complete).
+    assert.deepEqual(VM.STATUS_TRANSITIONS.artist_completed, ['in_progress', 'cancelled']);
     assert.equal(VM.canTransition('client_approved', 'expired'), false, 'el trigger rechaza client_approved → expired');
     assert.deepEqual(VM.statusOptions('in_progress').map((o) => o.value), ['in_progress', 'artist_completed', 'cancelled']);
 });
 
 test('P6: la copia del trigger coincide con la migración/función documentada', () => {
-    // Copia literal leída del proyecto vivo (12 nov 2026). Si el trigger cambia,
+    // Copia literal de la migración 20261115120100_quotation_transitions_artist
+    // (validada contra el proyecto vivo el 15 nov 2026). Si el trigger cambia,
     // actualizar DB_STATUS_TRANSITIONS y este test juntos.
     assert.deepEqual(VM.DB_STATUS_TRANSITIONS.pending, ['responded', 'expired', 'cancelled']);
-    assert.deepEqual(VM.DB_STATUS_TRANSITIONS.responded, ['client_approved', 'client_rejected', 'expired']);
+    assert.deepEqual(VM.DB_STATUS_TRANSITIONS.responded, ['client_approved', 'client_rejected', 'expired', 'cancelled']);
+    assert.deepEqual(VM.DB_STATUS_TRANSITIONS.expired, ['responded', 'cancelled']);
     assert.deepEqual(VM.DB_STATUS_TRANSITIONS.completed, []);
 });
 
@@ -87,7 +90,7 @@ test('P8: el rechazo solo se avisa si la cotización guardada está rechazada y 
         deps(artist, { quotations_db: baseQuote, artists_db: { user_id: 'artist-id', email: 'artist@example.com', name: 'Ana' } }));
     assert.equal(ok.ok, true);
     assert.equal(ok.payload.client_email, 'client@example.com');
-    assert.equal(ok.payload.dashboard_url, 'https://weotzi.com/beta/client/dashboard');
+    assert.equal(ok.payload.dashboard_url, 'https://beta.weotzi.com/client/dashboard');
     const stale = await resolveEmailContext(request, 'artist_rejected_quotation', { quote_id: 'WO-7' },
         deps(artist, { quotations_db: { ...baseQuote, quote_status: 'pending' } }));
     assert.equal(stale.status, 409);

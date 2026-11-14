@@ -104,6 +104,19 @@
             else notices.notifyStatusChange(state.quote, kind, extra);
         } catch (_) { /* el aviso nunca rompe la acción */ }
     }
+    // Avisos de sesión y de acuerdo (COT-A-05/11/20): los resuelve el servidor
+    // desde lo guardado y manda una copia por rol (cliente y artista), cada
+    // una con sus enlaces. Silencioso: nunca rompe la acción ya guardada.
+    function noticeSession(eventId, sessionId) {
+        const notices = window.QuotationClientNotices;
+        if (!notices || typeof notices.notifySession !== 'function' || state.scenario || !state.quote || sessionId == null) return;
+        try { notices.notifySession(state.quote, eventId, sessionId); } catch (_) { /* el aviso nunca rompe la acción */ }
+    }
+    function noticeAgreement() {
+        const notices = window.QuotationClientNotices;
+        if (!notices || typeof notices.notifyAgreement !== 'function' || state.scenario || !state.quote) return Promise.resolve();
+        try { return Promise.resolve(notices.notifyAgreement(state.quote)).catch(() => {}); } catch (_) { return Promise.resolve(); }
+    }
     function notify(eventId, payload) {
         try {
             const pending = window.ConfigManager && window.ConfigManager.sendN8NEvent
@@ -204,7 +217,11 @@
                 closeDialog(overlay);
             } catch (error) {
                 console.error('[quotation-detail] dialog', error);
-                errorEl.textContent = error && error.userMessage ? error.userMessage : (error && error.message && !/^\[/.test(error.message) ? error.message : 'No pudimos guardar. Probá nuevamente.');
+                // Turnos: 23P01 (CALENDAR_OVERLAP / SLOT_TAKEN) con un mensaje legible.
+                const overlap = error && (error.code === '23P01' || /CALENDAR_OVERLAP|SLOT_TAKEN/.test(String(error.message || '')));
+                errorEl.textContent = error && error.userMessage ? error.userMessage
+                    : overlap ? 'Ese horario se superpone con otra sesión, un evento que bloquea o una cita de estudio. Elegí otro horario.'
+                    : (error && error.message && !/^\[/.test(error.message) ? error.message : 'No pudimos guardar. Probá nuevamente.');
                 errorEl.hidden = false;
                 setBusy(submit, false);
             }
@@ -259,6 +276,25 @@
         if (amount == null || amount <= 0) throw userError('Ingresá un monto válido.');
         return amount;
     }
+    // COT-A-09: seña opcional en la respuesta y en el acuerdo (0–100 %). Vacío
+    // o 0 = sin seña. El monto se calcula sobre el presupuesto del diálogo.
+    function depositField(q) {
+        const pct = q && q.artist_deposit_pct != null && q.artist_deposit_pct !== '' ? M.numberFrom(q.artist_deposit_pct) : null;
+        return field('Seña (%)', `<input class="wo-input" name="deposit_pct" type="number" inputmode="decimal" min="0" max="100" step="1" value="${esc(pct != null ? pct : '')}" placeholder="Sin seña" aria-describedby="qd-deposit-help"><small class="qd-field-help" id="qd-deposit-help">Opcional. Porcentaje del presupuesto que pedís para reservar.</small>`);
+    }
+    function readDeposit(raw, total) {
+        const result = M.depositPatch(raw, total);
+        if (!result.ok) throw userError(result.error);
+        return result.patch;
+    }
+    // ISO → valor de <input type="datetime-local"> en la hora del navegador.
+    function localInputValue(iso) {
+        const d = iso ? new Date(iso) : null;
+        if (!d || Number.isNaN(d.getTime())) return '';
+        const p = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+
     function readDateTime(value, required) {
         if (!value) {
             if (required) throw userError('Elegí fecha y hora.');
@@ -329,6 +365,8 @@
         });
     }
 
+    // Turnos: quotation-slot-hold.js recarga el detalle después de reservar.
+    window.WoQuotationDetailReload = () => reloadAll();
     async function reloadAll() {
         const fresh = await findQuote().catch(() => null);
         if (fresh) state.quote = fresh;
@@ -385,6 +423,14 @@
             const el = document.getElementById(id);
             if (el) el.hidden = !toggle[id];
         });
+        // COT-A-08: en una vencida "Aceptar" vuelve a cotizar.
+        const accept = document.getElementById('qd-accept');
+        if (accept) {
+            const label = v.stage === 'expired' ? 'Volver a cotizar' : 'Aceptar';
+            const textNode = Array.from(accept.childNodes).reverse().find((n) => n.nodeType === 3 && n.textContent.trim());
+            if (textNode) textNode.textContent = label;
+            else accept.appendChild(document.createTextNode(label));
+        }
         const contact = document.getElementById('qd-contact');
         if (contact) contact.href = inboxUrl();
         const back = document.getElementById('qd-back');
@@ -565,6 +611,11 @@
             if (action === 'complete') return `<button class="qd-btn qd-btn--success" type="button" data-action="session-complete" data-session-id="${esc(s.id)}" data-slot="${slot.number}">Marcar realizada</button>`;
             if (action === 'schedule') return `<button class="qd-btn qd-btn--info" type="button" data-action="session-schedule" data-slot="${slot.number}">Agendar sesión</button>`;
             return '';
+        }).join('') + (M.sessionManageActions ? M.sessionManageActions(v.stage, slot, new Date()) : []).map((action) => {
+            // COT-A-05 / COT-A-15: acciones secundarias (texto, sin competir con las del Figma).
+            if (action === 'no_show') return `<button class="qd-inline-link" type="button" data-action="session-no-show" data-session-id="${esc(s.id)}" data-slot="${slot.number}">No se presentó</button>`;
+            if (action === 'cancel') return `<button class="qd-inline-link" type="button" data-action="session-cancel" data-session-id="${esc(s.id)}" data-slot="${slot.number}">Cancelar sesión</button>`;
+            return '';
         }).join('');
         const correction = s && /corrección/i.test(s.notes || '');
         return `
@@ -689,6 +740,20 @@
             </section>`;
     }
 
+    // Mensaje que es solo un adjunto (message = '' desde 20261115170000): se
+    // muestra qué se adjuntó y se abre en el Inbox (CHAT-02).
+    function attachmentLabel(message) {
+        if (!message || !message.attachment_path) return '';
+        return (message.message_kind === 'image' ? 'Imagen adjunta' : 'Archivo adjunto')
+            + (message.attachment_name ? `: ${message.attachment_name}` : '');
+    }
+    function messageBodyHtml(message) {
+        const text = String(message.message || '').trim() ? `<p>${esc(message.message)}</p>` : '';
+        const attachment = message.attachment_path
+            ? `<p><a href="${esc(inboxUrl())}">${esc(`${attachmentLabel(message)} · ver en Inbox`)}</a></p>`
+            : '';
+        return text + attachment || '<p></p>';
+    }
     function messagesListHtml(q) {
         if (!state.messages.length) {
             return q.client_user_id
@@ -701,7 +766,7 @@
             return `
                 <article class="qd-message${artist ? ' qd-message--artist' : ''}">
                     <span class="qd-message-meta">${esc(author)} · ${esc(M.chatStamp(message.created_at))}</span>
-                    <p>${esc(message.message || '')}</p>
+                    ${messageBodyHtml(message)}
                 </article>`;
         }).join('');
     }
@@ -735,6 +800,8 @@
         const root = document.getElementById('quotation-detail-root');
         root.innerHTML = [
             identityHtml(v),
+            // Turno pedido desde /turnos (frente turnos): lo pinta quotation-slot-hold.js.
+            '<div id="qd-slot-hold-slot"></div>',
             dossierHtml(v),
             agreementHtml(v),
             sessionsHtml(v),
@@ -947,18 +1014,22 @@
         const q = state.quote;
         const budgetInput = document.getElementById('qd-budget');
         const amount = (budgetInput && budgetInput.value.trim()) || (M.numberFrom(q.artist_budget_amount) != null ? M.groupThousands(M.numberFrom(q.artist_budget_amount)) : '');
+        const requote = q.quote_status === 'expired' || q.quote_status === 'client_rejected';
         openDialog({
-            title: 'Aceptar y enviar presupuesto',
-            intro: 'El cliente recibe tu presupuesto, las sesiones y la duración estimada. Podés ajustarlo antes del acuerdo final.',
+            title: requote ? 'Volver a cotizar' : 'Aceptar y enviar presupuesto',
+            intro: requote
+                ? 'Mandale al cliente una propuesta nueva: presupuesto, sesiones, seña y duración estimada.'
+                : 'El cliente recibe tu presupuesto, las sesiones, la seña y la duración estimada. Podés ajustarlo antes del acuerdo final.',
             submitLabel: 'Enviar respuesta',
             submitClass: 'wo-btn--accent',
             body: `<div class="qd-dialog-grid">
                 ${field('Presupuesto', `<input class="wo-input" name="amount" inputmode="decimal" value="${esc(amount)}" placeholder="410.000" required>`)}
                 ${field('Moneda', currencySelect(q.artist_budget_currency || q.client_budget_currency))}
                 ${field('Sesiones', `<input class="wo-input" name="sessions" type="number" min="1" max="30" value="${esc(M.intFrom(q.tattoo_estimated_sessions) || 1)}" required>`)}
-                <span></span>
+                ${depositField(q)}
                 ${durationFields(M.minutesFrom(q.artist_session_minutes) || 120)}
                 <div class="wo-field is-wide">${expiryControl(q, 'qd-dialog')}</div>
+                ${window.WoSlotHold ? window.WoSlotHold.respondFieldHtml(q) : ''}
                 ${field('Disponibilidad', `<input class="wo-input" name="availability" maxlength="140" value="${esc(q.artist_availability || '')}" placeholder="Fines de semana, desde agosto">`, true)}
                 ${q.client_user_id ? field('Mensaje para el cliente (opcional)', '<textarea class="wo-textarea" name="message" maxlength="2000" placeholder="Contale cómo vas a encarar el diseño."></textarea>', true) : ''}
             </div>`,
@@ -968,6 +1039,7 @@
                 if (!sessions) throw userError('Indicá cuántas sesiones estimás.');
                 const minutes = readMinutes(data);
                 if (minutes < 15) throw userError('La duración por sesión tiene que ser de al menos 15 minutos.');
+                const deposit = readDeposit(data.deposit_pct, value);
                 const patch = {
                     quote_status: 'responded',
                     artist_budget_amount: value,
@@ -976,14 +1048,23 @@
                     artist_session_minutes: minutes,
                     artist_availability: (data.availability || '').trim() || null,
                     artist_responded_at: nowIso(),
+                    // COT-A-09: seña opcional (porcentaje y monto en la moneda del presupuesto).
+                    ...deposit,
                     // P10: vencimiento opcional (apagado por defecto); el trigger calcula quote_expires_at.
                     ...readExpiry(data.expiry_enabled === '1', data.expiry_days),
                     notes: privateNotesValue(),
                 };
+                // Turnos: "Reservar el turno pedido" crea la sesión y bloquea el turno antes de responder.
+                if (data.reserve_slot === '1' && window.WoSlotHold) await window.WoSlotHold.confirmFor(q);
                 await updateQuote(patch);
+                // Destildado: el turno se libera para otros clientes (no queda apartado hasta que venza).
+                if (data.reserve_slot_offered === '1' && data.reserve_slot !== '1' && window.WoSlotHold) {
+                    await window.WoSlotHold.releaseFor(q, 'artist_declined').catch((error) => console.warn('[quotation-detail] liberar turno', error));
+                }
                 const message = (data.message || '').trim();
                 if (message && q.client_user_id) {
-                    await D().Chat.sendMessage({ quoteId: q.quote_id, senderType: 'artist', senderId: state.user.id, message })
+                    // notify:false → el mensaje viaja en artist_responded_quotation (sin correo doble · EM-N7).
+                    await D().Chat.sendMessage({ quoteId: q.quote_id, senderType: 'artist', senderId: state.user.id, message, notify: false })
                         .catch((error) => console.warn('[quotation-detail] respond message', error));
                 }
                 notify('artist_responded_quotation', Object.assign(eventBase(), {
@@ -1021,6 +1102,11 @@
         if (!guardWrite()) return;
         const q = state.quote;
         const existing = M.orderedSessions(state.sessions).length;
+        // Turnos: si el turno reservado ya creó la primera sesión, no se pide otra.
+        const holdSessionId = !edit && window.WoSlotHold ? window.WoSlotHold.confirmedSessionId(q) : null;
+        const holdSession = holdSessionId ? state.sessions.find((s) => String(s.id) === String(holdSessionId) && s.status !== 'cancelled') : null;
+        // Turnos: turno pedido todavía apartado → la primera sesión sale de ahí (se precarga y se reserva al confirmar).
+        const heldStart = !edit && !holdSession && window.WoSlotHold && window.WoSlotHold.pendingStart ? window.WoSlotHold.pendingStart(q) : null;
         const sessions = M.agreedSessions(q) || 1;
         const amount = M.numberFrom(q.final_budget_amount != null ? q.final_budget_amount : q.artist_budget_amount);
         openDialog({
@@ -1034,9 +1120,9 @@
                 ${field('Presupuesto final', `<input class="wo-input" name="amount" inputmode="decimal" value="${esc(amount != null ? M.groupThousands(amount) : '')}" required>`)}
                 ${field('Moneda', currencySelect(currencyOf(q)))}
                 ${field('Sesiones acordadas', `<input class="wo-input" name="sessions" type="number" min="${Math.max(1, existing)}" max="30" value="${esc(sessions)}" required>`)}
-                <span></span>
+                ${depositField(q)}
                 ${durationFields(M.minutesFrom(q.artist_session_minutes) || 120)}
-                ${edit ? '' : field('Primera sesión', `<input class="wo-input" name="first" type="datetime-local" required>`, true)}
+                ${edit ? '' : holdSession ? `<p class="wo-help is-wide">Primera sesión: el turno reservado (${esc(window.WoSlotHold.labelFor(q))}).</p>` : field('Primera sesión', `<input class="wo-input" name="first" type="datetime-local" value="${esc(localInputValue(heldStart))}" required>${heldStart ? '<span class="wo-help">Precargada con el turno que pidió el cliente: al confirmar, queda reservado y bloqueado.</span>' : ''}`, true)}
                 ${field('Comentario del acuerdo (opcional)', `<textarea class="wo-textarea" name="comment" maxlength="600" placeholder="Va a llevar un amigo. Solicita anestesia.">${esc(q.final_comment || '')}</textarea>`, true)}
             </div>`,
             onSubmit: async (form, data) => {
@@ -1046,27 +1132,43 @@
                 if (count < existing) throw userError(`Ya hay ${existing} sesiones cargadas: no podés acordar menos.`);
                 const minutes = readMinutes(data);
                 if (minutes < 15) throw userError('La duración por sesión tiene que ser de al menos 15 minutos.');
-                const first = edit ? null : readDateTime(data.first, true);
+                const first = edit ? null : holdSession ? holdSession.session_date : readDateTime(data.first, true);
                 const patch = {
                     final_budget_amount: value,
                     final_budget_currency: data.currency || 'USD',
                     final_sessions: count,
                     final_comment: (data.comment || '').trim() || null,
                     artist_session_minutes: minutes,
+                    // COT-A-09: la seña acordada se recalcula sobre el presupuesto final.
+                    ...readDeposit(data.deposit_pct, value),
                 };
                 if (!edit) patch.quote_status = 'client_approved';
+                // Turnos: con turno apartado, la primera sesión se agenda desde el apartado
+                // (crea la sesión y bloquea el turno). Si choca, no se guarda nada. El aviso
+                // al cliente es el del acuerdo (from_agreement: sin booking_slot_confirmed).
+                const slotBooking = heldStart && first
+                    ? await window.WoSlotHold.confirmFor(q, { starts_at: first, minutes, from_agreement: true })
+                    : null;
                 await updateQuote(patch);
                 let created = null;
-                if (!edit) {
+                if (!edit && slotBooking && slotBooking.session_id) {
+                    created = { id: slotBooking.session_id, session_number: slotBooking.session_number };
+                    // COT-A-11: el acuerdo (con la primera sesión) es el único aviso al
+                    // cliente; el turno se confirmó con from_agreement (EMAIL-DUP-03).
+                    noticeAgreement();
+                } else if (!edit && holdSession) {
+                    created = holdSession;
+                    noticeAgreement();
+                } else if (!edit) {
                     created = await D().QuotationDetail.createSession({
                         quotation_id: q.id, session_number: null, session_date: first,
                         duration_hours: Math.round((minutes / 60) * 100) / 100, status: 'scheduled', notes: null,
                     });
-                    notify('client_approved_quotation', Object.assign(eventBase(), {
-                        final_budget_amount: value, final_budget_currency: patch.final_budget_currency, final_sessions: count,
-                        first_session_date: first, final_comment: patch.final_comment || '',
-                    }));
-                    notify('session_scheduled', Object.assign(eventBase(), { session_id: created && created.id, session_date: first, session_number: String((created && created.session_number) || 1), duration_hours: String(minutes / 60) }));
+                    // COT-A-11: el acuerdo lo confirma el artista → el aviso va al
+                    // CLIENTE (antes salía client_approved_quotation al propio artista).
+                    // El acuerdo ya informa la primera sesión: no se manda además
+                    // session_scheduled por el mismo hecho (EMAIL-DUP-03).
+                    noticeAgreement();
                 }
                 await reloadAll();
                 showToast(edit ? 'Acuerdo actualizado.' : 'Acuerdo confirmado y primera sesión agendada.', edit ? {} : { link: { href: calendarUrl(first, { session: created && created.id, quote: true }), label: 'Ver en el calendario →' } });
@@ -1110,7 +1212,7 @@
                     duration_hours: duration && duration > 0 ? duration : null, status: 'scheduled',
                     notes: opts.correction ? `Sesión de corrección${note ? ` · ${note}` : ''}` : (note || null),
                 });
-                notify('session_scheduled', Object.assign(eventBase(), { session_id: created && created.id, session_date: date, session_number: String((created && created.session_number) || (slot ? slot.number : '')), duration_hours: String(duration || '') }));
+                noticeSession('session_scheduled', created && created.id);
                 await reloadAll();
                 showToast('Sesión agendada.', { link: { href: calendarUrl(date, { session: created && created.id, quote: true }), label: 'Ver en el calendario →' } });
             },
@@ -1136,7 +1238,7 @@
             onSubmit: async (form, data) => {
                 const date = readDateTime(data.date, true);
                 await D().QuotationDetail.updateSession(session.id, { session_date: date, status: 'rescheduled' });
-                notify('session_rescheduled', Object.assign(eventBase(), { session_id: session.id, session_date: date, session_number: String(session.session_number || '') }));
+                noticeSession('session_rescheduled', session.id);
                 await reloadAll();
                 showToast('Sesión reprogramada.', { link: { href: calendarUrl(date, { session: session.id, quote: true }), label: 'Ver en el calendario →' } });
             },
@@ -1190,7 +1292,7 @@
                 const sessionPatch = { status: 'completed', duration_hours: duration, notes: (data.note || '').trim() || null, photo_urls: photos };
                 if (ahead) sessionPatch.session_date = nowIso();
                 await D().QuotationDetail.updateSession(session.id, sessionPatch);
-                notify('session_completed', Object.assign(eventBase(), { session_id: session.id, session_number: String(session.session_number || ''), session_date: sessionPatch.session_date || session.session_date || '' }));
+                noticeSession('session_completed', session.id);
                 await reloadAll();
                 if (failed) {
                     showToast(`Sesión registrada. No pudimos subir ${failed} ${failed === 1 ? 'foto' : 'fotos'}.`, { error: true });
@@ -1201,6 +1303,55 @@
                 }
             },
         });
+    }
+
+    // COT-A-05: cancelar una sesión agendada. Queda en el historial (no se
+    // borra), sale del calendario y de Google Calendar, y el cliente y el
+    // artista reciben session_cancelled con sus enlaces.
+    async function cancelSession(sessionId, slotNumber) {
+        if (!guardWrite()) return;
+        const session = findSession(sessionId);
+        if (!session) return;
+        const number = slotNumber || session.session_number || '';
+        const ok = await confirmDialog({
+            title: `¿Cancelar la sesión ${number}?`.replace(/\s+\?/, '?'),
+            message: `Estaba agendada para el ${M.dateTime(session.session_date)}. El cliente recibe un aviso y el lugar del acuerdo queda libre para agendar otra fecha.`,
+            confirmLabel: 'Cancelar sesión',
+            danger: true,
+        });
+        if (!ok) return;
+        try {
+            await D().QuotationDetail.updateSession(session.id, { status: 'cancelled' });
+            noticeSession('session_cancelled', session.id);
+            await reloadAll();
+            showToast('Sesión cancelada. Le avisamos al cliente.');
+        } catch (error) {
+            console.error('[quotation-detail] cancel session', error);
+            showToast('No pudimos cancelar la sesión.', { error: true });
+        }
+    }
+
+    // COT-A-15: el cliente no vino. No se avisa por email; la sesión deja de
+    // ocupar un lugar del acuerdo y sale de Google Calendar.
+    async function markNoShow(sessionId, slotNumber) {
+        if (!guardWrite()) return;
+        const session = findSession(sessionId);
+        if (!session) return;
+        const number = slotNumber || session.session_number || '';
+        const ok = await confirmDialog({
+            title: `¿El cliente no se presentó a la sesión ${number}?`.replace(/\s+\?/, '?'),
+            message: 'La sesión queda registrada como "No se presentó" en el historial y podés agendar otra fecha para ese lugar del acuerdo.',
+            confirmLabel: 'Registrar ausencia',
+        });
+        if (!ok) return;
+        try {
+            await D().QuotationDetail.updateSession(session.id, { status: 'no_show' });
+            await reloadAll();
+            showToast('Registramos que el cliente no se presentó.');
+        } catch (error) {
+            console.error('[quotation-detail] no show', error);
+            showToast('No pudimos registrar la ausencia.', { error: true });
+        }
     }
 
     async function markReady() {
@@ -1414,6 +1565,8 @@
             else if (action === 'session-schedule') openScheduleDialog(target.dataset.slot);
             else if (action === 'session-reschedule') openRescheduleDialog(target.dataset.sessionId, target.dataset.slot);
             else if (action === 'session-complete') openCompleteDialog(target.dataset.sessionId, target.dataset.slot);
+            else if (action === 'session-cancel') cancelSession(target.dataset.sessionId, target.dataset.slot);
+            else if (action === 'session-no-show') markNoShow(target.dataset.sessionId, target.dataset.slot);
             else if (action === 'edit-agreement') openAgreementDialog(true);
             else if (action === 'download-summary') downloadSummary();
             else if (action === 'archive') toggleArchive(target);

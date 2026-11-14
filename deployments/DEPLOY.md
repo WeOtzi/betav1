@@ -201,6 +201,7 @@ el repo ni en `app_settings`). Sin ellas, `/api/google-calendar/*` responde 503
 | `GOOGLE_OAUTH_REDIRECT_URI` | `https://beta.weotzi.com/api/google-calendar/callback` (default) | Tiene que coincidir **exacto** con el URI de redireccionamiento autorizado del cliente |
 | `GCAL_TOKEN_ENC_KEY` | 32 bytes en base64 | `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` (cifra los refresh tokens con AES-256-GCM; si cambia, todos reconectan) |
 | `GCAL_SYNC_JOB` | vacío / `off` | `off` apaga el job de sincronización cada 15 min |
+| `GCAL_DIRTY_POLL_MS` | vacío / ms / `0` | Cada cuánto se publican los cambios marcados por la base (`dirty_at`, migración 20261115150000). Vacío = 30000; `0` lo apaga. Ver `docs/GCAL_SINCRONIZACION.md` |
 
 Requiere la migración `supabase/migrations/20261113102000_google_calendar_sync.sql`
 (después de `20261112190000`). Cambiar estas variables exige **reiniciar PM2**
@@ -247,6 +248,24 @@ Rotación de la clave:
 
 Cada vez que soporte o el artista ven un número completo queda registrado en
 `sensitive_data_access_log` (quién, cuándo, para qué; nunca el dato).
+
+---
+
+## Variables de entorno · Emails
+
+| Variable | Uso |
+|---|---|
+| `PUBLIC_APP_URL` | **Obligatoria en beta**: `https://beta.weotzi.com`. Base de TODOS los links de los correos, del perfil público y de Google Calendar. Sin ella el servidor usa `https://beta.weotzi.com` y avisa al arrancar (nunca el header `Host`). |
+| `SUPPORT_EMAIL` | Copia de las disputas y `reply_to` de los correos del relé. |
+| `N8N_EMAIL_RELAY_URL` | Webhook genérico de n8n "We Ötzi · Enviar email" (canal `smtp_relay`, contrato en `docs/N8N_EMAIL_WEBHOOKS.md`). También se puede cargar en `app_settings.email_relay_url`. |
+| `N8N_EMAIL_RELAY_TOKEN` | Header `X-Weotzi-Webhook-Token` del relé. Vacío → `N8N_WEBHOOK_SECRET` / `app_settings.n8n_webhook_secret`. |
+| `EMAIL_DEFAULT_CHANNEL` | Canal por defecto (`n8n` si falta). `email_routing['*'].channel` lo pisa; cada evento puede tener el suyo. |
+| `QUOTATION_ADMIN_EMAIL` | Opcional: copia al admin de cada solicitud nueva cuando `client_quotation_submitted` sale por el relé. |
+| `CHAT_EMAIL_WINDOW_MS` / `CHAT_EMAIL_DELAY_MS` | Ventana (15 min) y espera (2 min) de los avisos de chat e inbox. |
+| `EMAIL_DISPATCH_RATE_MAX` | Avisos por minuto y usuario en `POST /api/email/:eventId` (30). |
+| `SESSION_REMINDERS_JOB` / `SESSION_REMINDERS_INTERVAL_MS` | Recordatorio 24 h de sesiones (on cada 30 min; `off` lo apaga). Cron alternativo: `POST /api/sessions/reminders/dispatch` con `X-Cron-Token`. |
+
+Previews de todos los correos: `node scripts/email-preview.js` → `output/email-previews/index.html`.
 
 ---
 

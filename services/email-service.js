@@ -6,9 +6,17 @@
 //
 // Channel values:
 //   - 'n8n'         -> POST to the existing n8n webhook (preserves current behavior)
+//   - 'smtp_relay'  -> render en el servidor (lib/email-render) y POST de
+//                      {to, subject, html, text, headers} a UN webhook genérico
+//                      de n8n (N8N_EMAIL_RELAY_URL / app_settings.email_relay_url).
+//                      Un correo por destinatario; contrato en docs/N8N_EMAIL_WEBHOOKS.md.
+//                      Un evento en 'n8n' SIN webhook propio sale por el relé
+//                      si el relé está configurado.
 //   - 'billionmail' -> POST to https://mail.weotzi.com/api/batch_mail/api/send
 //   - 'dual'        -> fan-out to both channels in parallel (used during validation)
 //   - 'off'         -> log + skip (no email sent)
+//
+// Canal por defecto: email_routing['*'].channel > EMAIL_DEFAULT_CHANNEL > 'n8n'.
 //
 // Per-event configuration shape (in Supabase app_settings.email_routing JSON):
 //   {
@@ -27,6 +35,8 @@ const fs = require('fs');
 const eventMapping = require('./email-event-mapping');
 const { dispatchOnce } = require('./email-delivery-ledger');
 const notificationPrefs = require('../lib/notification-prefs');
+const emailRender = require('../lib/email-render');
+const { escapeHtml, safeUrl } = require('../lib/email-format');
 
 // ===== Config =====
 
@@ -38,8 +48,12 @@ const BILLIONMAIL_API_URL = process.env.BILLIONMAIL_API_URL || 'https://bm.weotz
 const BILLIONMAIL_API_KEY = process.env.BILLIONMAIL_API_KEY || '';
 const BILLIONMAIL_DEFAULT_SENDER = process.env.BILLIONMAIL_DEFAULT_SENDER || 'noreply@weotzi.com';
 
-const VALID_CHANNELS = ['n8n', 'billionmail', 'dual', 'off'];
+const VALID_CHANNELS = ['n8n', 'smtp_relay', 'billionmail', 'dual', 'off'];
 const DEFAULT_CHANNEL = 'n8n'; // Preserve current behavior until per-event flag is changed.
+const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || 'We Ötzi';
+
+let _relayUrlCache = null;
+let _relayUrlCacheAt = 0;
 
 // ===== Internal cache =====
 
@@ -155,12 +169,21 @@ async function getRouting(forceRefresh = false) {
     return _routingCache;
 }
 
+function defaultChannel(all = {}) {
+    const candidates = [all['*'] && all['*'].channel, process.env.EMAIL_DEFAULT_CHANNEL, DEFAULT_CHANNEL];
+    return candidates.find(c => c && VALID_CHANNELS.includes(c)) || DEFAULT_CHANNEL;
+}
+
 async function getRoutingForEvent(eventId) {
     const all = await getRouting();
+    const global = all['*'] && typeof all['*'] === 'object' ? all['*'] : {};
     const entry = all[eventId] || {};
-    let channel = entry.channel || DEFAULT_CHANNEL;
-    if (!VALID_CHANNELS.includes(channel)) channel = DEFAULT_CHANNEL;
-    return { ...entry, channel };
+    let channel = entry.channel || defaultChannel(all);
+    if (!VALID_CHANNELS.includes(channel)) channel = defaultChannel(all);
+    // channel_source: 'event' si email_routing fija el canal de ESTE evento
+    // (resolveChannel respeta ese override aunque el evento prefiera el relé).
+    const channelSource = entry.channel && VALID_CHANNELS.includes(entry.channel) ? 'event' : 'default';
+    return { ...(global.relay_url ? { relay_url: global.relay_url } : {}), ...entry, channel, channel_source: channelSource };
 }
 
 /**
@@ -236,7 +259,7 @@ async function _resolveN8NWebhook(eventId, override) {
 async function sendViaN8N(eventId, payload, override = {}) {
     const url = await _resolveN8NWebhook(eventId, override.n8n_webhook_url);
     if (!url) {
-        return { ok: false, channel: 'n8n', error: 'No n8n webhook URL configured' };
+        return { ok: false, channel: 'n8n', error: 'No hay webhook de n8n ni relé de email configurado para este correo (N8N_EMAIL_RELAY_URL).' };
     }
 
     const event = eventMapping.getEvent(eventId);
@@ -245,15 +268,23 @@ async function sendViaN8N(eventId, payload, override = {}) {
         event_name: event?.name || eventId,
         timestamp: new Date().toISOString(),
         source: 'weotzi-app',
-        data: payload || {}
+        // EM-N4: las plantillas de n8n interpolan {{ $json.body.data.* }} sin
+        // escapar, así que todo valor de texto viaja ya escapado y las URLs
+        // validadas. Los datos de salud no salen nunca.
+        data: escapeForTemplate(payload || {})
     };
     // Destinatario y variables de plantilla ya resueltos (mismo contrato que
     // BillionMail): los flujos de n8n nuevos usan body.to / body.vars y los
-    // viejos siguen leyendo body.data.
+    // viejos siguen leyendo body.data. body.rendered trae el correo armado en
+    // el servidor (asunto, HTML y texto) para migrar los nodos al layout común.
     try {
         const recipients = eventMapping.resolveRecipients(eventId, payload || {});
         if (recipients.length) body.to = recipients.join(', ');
-        body.vars = eventMapping.buildAttribs(eventId, payload || {});
+        body.vars = escapeForTemplate(eventMapping.buildAttribs(eventId, payload || {}));
+    } catch (_) {}
+    try {
+        const rendered = emailRender.renderEmail(eventId, payload || {});
+        body.rendered = { subject: rendered.subject, html: rendered.html, text: rendered.text, headers: rendered.headers };
     } catch (_) {}
 
     const ctrl = new AbortController();
@@ -273,6 +304,175 @@ async function sendViaN8N(eventId, payload, override = {}) {
     }
 }
 
+/**
+ * Copia segura para plantillas que interpolan sin escapar (n8n / BillionMail):
+ * strings escapados, claves *_url / *_link validadas (https) y sin datos de salud.
+ */
+function escapeForTemplate(value, key = '', depth = 0) {
+    if (depth > 4) return null;
+    if (value === undefined || value === null) return value;
+    if (typeof value === 'string') {
+        if (/(?:_url|_link)$/.test(key) || key === 'url') return safeUrl(value) ? escapeHtml(safeUrl(value)) : '';
+        return escapeHtml(value);
+    }
+    if (Array.isArray(value)) return value.map(item => escapeForTemplate(item, '', depth + 1));
+    if (typeof value === 'object') {
+        const out = {};
+        for (const [k, v] of Object.entries(value)) {
+            if (eventMapping.SENSITIVE_ATTRIBS.has(k)) continue;
+            out[k] = escapeForTemplate(v, k, depth + 1);
+        }
+        return out;
+    }
+    return value;
+}
+
+// ===== Channel: smtp_relay (render en servidor + webhook genérico de n8n) =====
+
+async function _resolveRelayUrl(routing = {}) {
+    const candidates = [routing.relay_url, process.env.N8N_EMAIL_RELAY_URL];
+    for (const candidate of candidates) {
+        if (candidate && safeUrl(String(candidate))) return String(candidate).trim();
+    }
+    if (_relayUrlCacheAt + ROUTING_CACHE_TTL_MS < Date.now()) {
+        const stored = await _supabaseGetSetting('email_relay_url');
+        _relayUrlCache = typeof stored === 'string' ? stored.replace(/^"|"$/g, '').trim() : '';
+        _relayUrlCacheAt = Date.now();
+    }
+    return _relayUrlCache && safeUrl(_relayUrlCache) ? _relayUrlCache : '';
+}
+
+async function isRelayConfigured(routing = {}) {
+    return !!(await _resolveRelayUrl(routing));
+}
+
+async function getRelayHeaders() {
+    const own = process.env.N8N_EMAIL_RELAY_TOKEN || '';
+    if (own) return { 'Content-Type': 'application/json', 'X-Weotzi-Webhook-Token': own };
+    return getN8NHeaders();
+}
+
+/**
+ * Un correo a UN destinatario por el relé.
+ * @param {{ to: string, role?: string, timezone?: string, idempotencyKey?: string }} target
+ */
+async function sendViaRelay(eventId, payload, routing = {}, target = {}) {
+    const url = await _resolveRelayUrl(routing);
+    if (!url) {
+        return { ok: false, channel: 'smtp_relay', error: 'No hay relé de email configurado (N8N_EMAIL_RELAY_URL o app_settings.email_relay_url).' };
+    }
+    if (!target.to) return { ok: false, channel: 'smtp_relay', error: 'No hay un destinatario válido guardado para este correo.' };
+    let rendered;
+    try {
+        rendered = emailRender.renderEmail(eventId, payload || {}, { role: target.role, timezone: target.timezone });
+    } catch (error) {
+        console.error(`[email-service] render ${eventId} falló:`, error.message);
+        return { ok: false, channel: 'smtp_relay', error: 'No se pudo armar el correo.' };
+    }
+    const event = eventMapping.getEvent(eventId);
+    const body = {
+        event_id: eventId,
+        event_name: event?.name || eventId,
+        category: rendered.category,
+        role: rendered.role,
+        from_name: EMAIL_FROM_NAME,
+        to: target.to,
+        ...(process.env.SUPPORT_EMAIL ? { reply_to: process.env.SUPPORT_EMAIL } : {}),
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        headers: { ...rendered.headers, 'X-Weotzi-Event': eventId },
+        ...(target.idempotencyKey ? { idempotency_key: target.idempotencyKey } : {})
+    };
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: await getRelayHeaders(),
+            body: JSON.stringify(body),
+            signal: ctrl.signal
+        });
+        return await providerResult(res, 'smtp_relay');
+    } catch (e) {
+        return { ok: false, channel: 'smtp_relay', uncertain: true, error: 'No se pudo confirmar la respuesta del proveedor de correo.' };
+    } finally {
+        clearTimeout(t);
+    }
+}
+
+/** Zona horaria guardada del destinatario (user_preferences.app_settings.timezone). */
+async function _recipientTimezone(recipient, deps = {}) {
+    if (!recipient || !recipient.user_id) return '';
+    try {
+        const query = deps.query || require('../lib/postgrest').pgrest;
+        const row = await query('user_preferences').select('app_settings').eq('user_id', recipient.user_id).limit(1).single().execute();
+        const tz = row && row.app_settings && row.app_settings.timezone;
+        return typeof tz === 'string' ? tz : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+/**
+ * Envío por el relé: un correo por destinatario (con su rol, sus links, su
+ * zona horaria y sus preferencias) y una clave de idempotencia por cada uno.
+ */
+async function sendRelayEmail(eventId, payload, routing, options = {}) {
+    const roles = eventMapping.resolveRecipientRoles(eventId, payload);
+    const event = eventMapping.getEvent(eventId);
+    const audience = (event && event.render && event.render.audience) || emailRender.getSpec(eventId)?.audience;
+    const targets = roles.length
+        ? roles
+        : eventMapping.resolveRecipients(eventId, payload).map((email, index) => ({
+            role: payload.recipient_role || audience, email, index,
+            user_id: payload.recipient_user_id || null
+        }));
+    if (!targets.length) return { ok: false, channel: 'smtp_relay', error: 'No hay un destinatario válido guardado para este correo.' };
+
+    const results = [];
+    for (const target of targets) {
+        if (!options.ignorePreferences) {
+            const gate = await notificationPrefs.allowRecipient(eventId, target, options.prefsDeps || {});
+            if (!gate.allowed) {
+                console.log(`[email-service] eventId=${eventId} role=${target.role} skipped by notification_prefs (${gate.kind})`);
+                results.push({ ok: true, channel: 'none', skipped: true, sent: false, delivery_status: 'skipped_by_preference', role: target.role });
+                continue;
+            }
+        }
+        const timezone = target.timezone || await _recipientTimezone(target, options.prefsDeps || {});
+        const suffix = roles.length ? target.role : (targets.length > 1 ? `to${target.index}` : '');
+        const key = options.idempotencyKey ? (suffix ? `${options.idempotencyKey}:${suffix}` : options.idempotencyKey) : '';
+        const send = () => sendViaRelay(eventId, payload, routing, { to: target.email, role: target.role, timezone, idempotencyKey: key || undefined });
+        const result = key ? await dispatchOnce(eventId, key, send, options.ledgerQuery) : await send();
+        results.push({ ...result, role: target.role });
+    }
+    return aggregateResults(eventId, results);
+}
+
+function aggregateResults(eventId, results) {
+    if (results.length === 1) {
+        const { role, ...single } = results[0];
+        return single;
+    }
+    const sent = results.filter(r => r.ok && !r.skipped);
+    const skipped = results.filter(r => r.skipped && r.ok);
+    const failed = results.filter(r => !r.ok);
+    const ok = failed.length === 0;
+    return {
+        ok,
+        channel: 'smtp_relay',
+        skipped: ok && sent.length === 0 && skipped.length > 0,
+        partial: !ok && (sent.length > 0 || skipped.length > 0),
+        uncertain: failed.some(r => r.uncertain),
+        deduplicated: results.every(r => r.deduplicated),
+        delivery_status: ok ? (sent.length ? 'smtp_accepted' : 'skipped_by_preference') : undefined,
+        results: results.map(({ role, ok: rOk, skipped: rSkipped, delivery_status, deduplicated, uncertain, error }) =>
+            ({ role, ok: rOk, skipped: !!rSkipped, delivery_status, deduplicated: !!deduplicated, uncertain: !!uncertain, ...(error ? { error } : {}) })),
+        ...(ok ? {} : { error: failed.map(r => `${r.role}: ${r.error || 'falló'}`).join(' | ') })
+    };
+}
+
 // ===== Channel: BillionMail =====
 
 async function sendViaBillionMail(eventId, payload, override = {}) {
@@ -289,7 +489,7 @@ async function sendViaBillionMail(eventId, payload, override = {}) {
         return {
             ok: false,
             channel: 'billionmail',
-            error: 'Could not resolve a recipient email address from payload'
+            error: 'No hay un email de destino para este correo.'
         };
     }
 
@@ -337,7 +537,7 @@ async function providerResult(res, channel) {
         // rejection before execution is safe to retry without inspecting n8n.
         const uncertain = res.status >= 500 || res.status === 408 ||
             results.some(row => row?.messageId || row?.accepted?.length) ||
-            (channel === 'n8n' && res.ok);
+            ((channel === 'n8n' || channel === 'smtp_relay') && res.ok);
         return { ok: false, channel, status: res.status, uncertain,
             error: uncertain ? 'El proveedor no pudo confirmar todos los correos. Requiere verificación antes de reenviar.' : `El proveedor rechazó el correo (HTTP ${res.status}).` };
     }
@@ -345,9 +545,16 @@ async function providerResult(res, channel) {
         return { ok: false, channel, status: res.status, error: 'El proveedor devolvió una página web en lugar de confirmar el correo.' };
     }
     const messageIds = results.map(row => row?.messageId).filter(Boolean);
-    if (channel === 'n8n' && !messageIds.length) {
+    const smtpChannel = channel === 'n8n' || channel === 'smtp_relay';
+    if (smtpChannel && !messageIds.length) {
         return { ok: false, channel, status: res.status, uncertain: true,
             error: 'El proveedor no confirmó la aceptación SMTP del correo. No se reenvió automáticamente.' };
+    }
+    // EM-01: un flujo que manda varios correos responde un array; si alguno
+    // no trae messageId, el envío quedó a medias y no se puede reintentar solo.
+    if (smtpChannel && messageIds.length < results.length) {
+        return { ok: false, channel, status: res.status, uncertain: true, partial: true,
+            error: 'El proveedor confirmó solo parte de los correos. Requiere verificación antes de reenviar.' };
     }
     return { ok: true, channel, status: res.status, delivery_status: messageIds.length ? 'smtp_accepted' : 'accepted',
         ...(messageIds.length ? { message_id: String(messageIds[0]) } : {}) };
@@ -371,11 +578,29 @@ async function sendEmail(eventId, payload, options = {}) {
         return { ok: false, channel: 'none', error: 'No hay un destinatario válido guardado para este correo.' };
     }
 
-    // Preferencias de notificaciones del artista (Cuenta 801:572): si apagó
+    const routing = options.routing || await getRoutingForEvent(eventId);
+    const channel = options.channel || await resolveChannel(eventId, routing, options);
+
+    if (channel === 'off') {
+        console.log(`[email-service] eventId=${eventId} channel=off (skipped)`);
+        return { ok: false, channel: 'off', skipped: true, delivery_status: 'disabled', error: 'El envío de este correo está desactivado.' };
+    }
+
+    // Relé: render en el servidor, un correo por destinatario, con sus
+    // preferencias y su propia clave de idempotencia (EM-09 / EM-01).
+    if (channel === 'smtp_relay' && !options.claimed) {
+        const startedAt = Date.now();
+        const result = await sendRelayEmail(eventId, payload, routing, options);
+        logResult(eventId, channel, result, Date.now() - startedAt);
+        return result;
+    }
+
+    // Preferencias de notificaciones del artista y del cliente: si apagó
     // este aviso por email, no se le envía (o se lo saca de un envío doble).
     if (!options.ignorePreferences) {
         const gate = await notificationPrefs.applyEmailPreferences(eventId, payload, {
-            resolveRecipients: eventMapping.resolveRecipients
+            resolveRecipients: eventMapping.resolveRecipients,
+            ...(options.prefsDeps || {})
         });
         if (gate.skip) {
             console.log(`[email-service] eventId=${eventId} skipped by notification_prefs (${gate.kind})`);
@@ -387,23 +612,16 @@ async function sendEmail(eventId, payload, options = {}) {
 
     if (options.idempotencyKey && !options.claimed) {
         return dispatchOnce(eventId, options.idempotencyKey,
-            () => sendEmail(eventId, payload, { ...options, claimed: true, ignorePreferences: true }));
+            () => sendEmail(eventId, payload, { ...options, routing, channel, claimed: true, ignorePreferences: true }),
+            options.ledgerQuery);
     }
-
-    const routing = await getRoutingForEvent(eventId);
-    const channel = options.forceChannel && VALID_CHANNELS.includes(options.forceChannel)
-        ? options.forceChannel
-        : routing.channel;
 
     const startedAt = Date.now();
     let result;
 
-    if (channel === 'off') {
-        console.log(`[email-service] eventId=${eventId} channel=off (skipped)`);
-        return { ok: false, channel: 'off', skipped: true, error: 'El envío de este correo está desactivado.' };
-    }
-
-    if (channel === 'n8n') {
+    if (channel === 'smtp_relay') {
+        result = await sendRelayEmail(eventId, payload, routing, { ...options, idempotencyKey: undefined, ignorePreferences: true });
+    } else if (channel === 'n8n') {
         result = await sendViaN8N(eventId, payload, routing);
     } else if (channel === 'billionmail') {
         result = await sendViaBillionMail(eventId, payload, routing);
@@ -425,17 +643,38 @@ async function sendEmail(eventId, payload, options = {}) {
         result = { ok: false, channel, error: `Invalid channel: ${channel}` };
     }
 
-    const durationMs = Date.now() - startedAt;
-    if (result.ok) {
-        console.log(
-            `[email-service] eventId=${eventId} channel=${channel} ok in ${durationMs}ms`
-        );
-    } else {
-        console.warn(
-            `[email-service] eventId=${eventId} channel=${channel} FAILED in ${durationMs}ms: ${result.error}`
-        );
-    }
+    logResult(eventId, channel, result, Date.now() - startedAt);
     return result;
+}
+
+function logResult(eventId, channel, result, durationMs) {
+    if (result.ok) {
+        console.log(`[email-service] eventId=${eventId} channel=${channel} ${result.skipped ? 'skipped' : 'ok'} in ${durationMs}ms`);
+    } else {
+        console.warn(`[email-service] eventId=${eventId} channel=${channel} FAILED in ${durationMs}ms: ${result.error}`);
+    }
+}
+
+/**
+ * Canal efectivo: forceChannel > email_routing > default. Un evento en 'n8n'
+ * que no tiene webhook propio sale por el relé si está configurado (así
+ * instagram_verification_code, studio_*, inbox y recordatorios no se pierden).
+ * Un evento con preferRelay (su flujo n8n duplica un aviso que el servidor ya
+ * manda) sale por el relé si está configurado, salvo que email_routing fije
+ * el canal de ese evento (routing.channel_source === 'event').
+ */
+async function resolveChannel(eventId, routing, options = {}) {
+    if (options.forceChannel && VALID_CHANNELS.includes(options.forceChannel)) return options.forceChannel;
+    routing = routing || {};
+    let channel = routing.channel || DEFAULT_CHANNEL;
+    if (channel === 'n8n') {
+        const event = eventMapping.getEvent(eventId);
+        const preferRelay = !!(event && event.preferRelay) && routing.channel_source !== 'event';
+        if (preferRelay && await isRelayConfigured(routing)) return 'smtp_relay';
+        const hook = await _resolveN8NWebhook(eventId, routing.n8n_webhook_url);
+        if (!hook && await isRelayConfigured(routing)) channel = 'smtp_relay';
+    }
+    return channel;
 }
 
 /**
@@ -446,7 +685,8 @@ async function getEventsWithRouting() {
     const events = eventMapping.listEvents();
     return events.map(ev => ({
         ...ev,
-        channel: routing[ev.id]?.channel || DEFAULT_CHANNEL,
+        channel: routing[ev.id]?.channel || defaultChannel(routing),
+        relay_url: routing[ev.id]?.relay_url || null,
         billionmail_sender: routing[ev.id]?.billionmail_sender || null,
         has_billionmail_api_key: !!routing[ev.id]?.billionmail_api_key,
         n8n_webhook_url: routing[ev.id]?.n8n_webhook_url || null
@@ -461,6 +701,12 @@ module.exports = {
     getEventsWithRouting,
     sendViaN8N,
     sendViaBillionMail,
+    sendViaRelay,
+    sendRelayEmail,
+    resolveChannel,
+    isRelayConfigured,
+    escapeForTemplate,
+    aggregateResults,
     providerResult,
     getN8NHeaders,
     eventMapping,

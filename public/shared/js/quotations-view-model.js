@@ -307,36 +307,42 @@
         return { label: step.label, tone: step.key };
     }
 
-    // Transiciones que el artista puede elegir desde el selector de estado.
+    // Transiciones que el ARTISTA puede elegir desde el selector de estado.
     // Subconjunto de las que acepta el trigger vivo fn_quotation_status_change
     // (copia en DB_STATUS_TRANSITIONS; tests/r3-cotizaciones.test.js verifica
-    // que no se separen). Se omite in_progress → pending (vuelta atrás que el
-    // artista no necesita). "responded" pide monto/condiciones: el resumen lo
-    // abre en el diálogo del detalle (RESPOND_NEEDS_DIALOG).
+    // que no se separen). Solo decisiones propias del artista (COT-A-07):
+    //   - nada de client_rejected ni completed: los decide el cliente
+    //     (completed pasa por POST /api/client/quotations/:id/complete);
+    //   - nada de expired: lo aplica el vencimiento opcional del servidor;
+    //   - in_progress → pending se omite (vuelta atrás que no necesita).
+    // "responded" pide monto/condiciones y "client_approved" el acuerdo y la
+    // primera sesión: el resumen los abre en el diálogo del detalle
+    // (DIALOG_STATUS). Una vencida se puede volver a cotizar (COT-A-08).
     var STATUS_TRANSITIONS = {
-        pending: ['responded', 'cancelled', 'expired'],
-        responded: ['client_approved', 'client_rejected', 'expired'],
+        pending: ['responded', 'cancelled'],
+        responded: ['client_approved', 'cancelled'],
         client_approved: ['in_progress', 'cancelled'],
         client_rejected: ['responded'],
         cancelled: [],
         in_progress: ['artist_completed', 'cancelled'],
-        artist_completed: ['in_progress', 'completed', 'cancelled'],
+        artist_completed: ['in_progress', 'cancelled'],
         completed: [],
-        expired: []
+        expired: ['responded', 'cancelled']
     };
 
     // Copia literal del JSON valid_transitions de fn_quotation_status_change
-    // (proyecto flbgmlvfiejfttlawnfu, leído el 12 nov 2026).
+    // (migración 20261115120100_quotation_transitions_artist: responded →
+    // cancelled y expired → responded/cancelled).
     var DB_STATUS_TRANSITIONS = {
         pending: ['responded', 'expired', 'cancelled'],
-        responded: ['client_approved', 'client_rejected', 'expired'],
+        responded: ['client_approved', 'client_rejected', 'expired', 'cancelled'],
         client_approved: ['in_progress', 'cancelled'],
         in_progress: ['pending', 'artist_completed', 'cancelled'],
         artist_completed: ['in_progress', 'completed', 'cancelled'],
         en_progreso: ['artist_completed', 'cancelled'],
         client_rejected: ['responded'],
         completed: [],
-        expired: [],
+        expired: ['responded', 'cancelled'],
         cancelled: []
     };
 
@@ -421,6 +427,20 @@
         return '/my-quotations/detail?id=' + encodeURIComponent(quote.quote_id || quote.id) + '&modal=responder';
     }
 
+    // URL del detalle con el diálogo "Confirmar acuerdo y agendar" abierto.
+    function agreementUrl(quote) {
+        return '/my-quotations/detail?id=' + encodeURIComponent(quote.quote_id || quote.id) + '&modal=acuerdo';
+    }
+
+    // Estados que no se aplican con un patch suelto: piden datos en un diálogo
+    // del detalle. responded → presupuesto, sesiones y seña; client_approved →
+    // presupuesto final, sesiones y primera sesión (y avisa al cliente).
+    function dialogUrlFor(quote, status) {
+        if (status === 'responded') return respondUrl(quote);
+        if (status === 'client_approved') return agreementUrl(quote);
+        return null;
+    }
+
     function statusOptions(status) {
         var list = [status].concat(STATUS_TRANSITIONS[status] || []);
         return list.filter(function (v, i) { return v && list.indexOf(v) === i; })
@@ -435,10 +455,15 @@
         var accept = null;
         // Aceptar pide presupuesto, sesiones y duración: abre el diálogo del detalle (P7).
         if (status === 'pending') accept = { label: 'Aceptar', patch: { quote_status: 'responded' }, needsDialog: true };
+        // COT-A-08: una vencida se vuelve a cotizar con el mismo diálogo.
+        else if (status === 'expired') accept = { label: 'Volver a cotizar', patch: { quote_status: 'responded' }, needsDialog: true };
         else if (status === 'client_approved') accept = { label: 'Iniciar trabajo', patch: { quote_status: 'in_progress' } };
         var reject = null;
         if (status === 'pending') reject = { label: 'Rechazar', patch: { quote_status: 'cancelled' } };
-        else if (status === 'responded') reject = { label: 'Rechazar', patch: { quote_status: 'client_rejected' } };
+        // COT-A-07: retirar la propuesta ya enviada la cancela y el cliente
+        // recibe artist_rejected_quotation (antes quedaba "rechazada por el
+        // cliente" sin avisarle).
+        else if (status === 'responded') reject = { label: 'Retirar propuesta', patch: { quote_status: 'cancelled' }, withdraw: true };
         return { accept: accept, reject: reject, archived: false };
     }
 
@@ -498,6 +523,8 @@
         expirySummary: expirySummary,
         canTransition: canTransition,
         respondUrl: respondUrl,
+        agreementUrl: agreementUrl,
+        dialogUrlFor: dialogUrlFor,
         MONTH_NAMES: MONTH_NAMES,
         MONTH_SHORT: MONTH_SHORT,
         statusView: statusView,

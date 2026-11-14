@@ -50,6 +50,15 @@ body.cw-page:has(.cw-step[data-step="1"]:not([hidden])){margin:0}
 .cw-step[data-step="1"] .cw-inputwrap .wo-input:focus-visible{box-shadow:var(--shadow-focus),var(--cw-field-shadow)}
 .cw-step[data-step="1"] .wo-help{font-size:14px;line-height:18.2px;color:var(--text-faint)}
 .cw-step[data-step="1"] .cw-alt{display:none}
+/* acceso (ACC-08) · aceptación de Términos y Privacidad (wo-check del DS). */
+.cw-step[data-step="1"] .cw-terms{align-items:flex-start;gap:var(--space-3);min-height:44px;font-size:14px;line-height:1.45;color:var(--text-body);cursor:pointer}
+.cw-step[data-step="1"] .cw-terms input{margin-top:-2px}
+.cw-step[data-step="1"] .cw-terms input:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.cw-step[data-step="1"] .cw-terms input[aria-invalid="true"]{border-color:var(--system-error)}
+.cw-step[data-step="1"] .cw-terms a{color:var(--ink);text-decoration:underline;text-underline-offset:.15em;font-weight:var(--weight-bold)}
+.cw-step[data-step="1"] .cw-terms .req{color:var(--system-error)}
+.cw-step[data-step="1"] .cw-terms-text{min-width:0;overflow-wrap:anywhere}
+.cw-link-error{margin-bottom:var(--space-2)}
 #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-footer{padding:18px var(--space-8);border-top-width:1px}
 #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) .cw-footer-right{margin-left:auto}
 #cw-shell:has(.cw-step[data-step="1"]:not([hidden])) #cw-next{width:164.66px;height:44px;min-height:44px;padding:0;gap:var(--space-2);border-width:1px;line-height:14px;letter-spacing:1.12px;color:var(--surface-page)}

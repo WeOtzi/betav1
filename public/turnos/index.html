@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Turnos disponibles</title>
+    <meta name="description" content="Turnos disponibles de un artista de We Ötzi. Elegí día y horario y pedí tu cotización para ese turno.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/booking.css?v=20261115-turnos">
+    <script src="/shared/js/wo-icons.js" defer></script>
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales -->
+    <script src="/shared/js/wo-consent.js" defer></script>
+</head>
+<body class="wo-app">
+
+    <header class="wo-topbar">
+        <div class="wo-topbar-left">
+            <a href="/inicio" class="wo-topbar-brand">WE ÖTZI</a>
+        </div>
+        <div class="wo-topbar-right">
+            <span class="wo-o-tile" aria-hidden="true">Ö</span>
+        </div>
+    </header>
+
+    <!-- Turnos públicos del artista (frente turnos). Solo inicio y fin de los
+         turnos libres: nunca eventos, clientes ni motivos. -->
+    <main class="bk-page" id="bk-main">
+        <div class="wo-container bk-page-shell" id="bk-root" aria-live="polite">
+            <p class="bk-loading"><span class="wo-spinner" aria-hidden="true"></span> Cargando turnos disponibles…</p>
+        </div>
+    </main>
+
+    <script src="/shared/js/account-availability-model.js?v=20261115-turnos"></script>
+    <script src="/shared/js/booking-slots-model.js?v=20261115-turnos"></script>
+    <script src="/shared/js/data/booking-repo.js?v=20261115-turnos"></script>
+    <script src="/shared/js/public-slots.js?v=20261115-turnos"></script>
+</body>
+</html>

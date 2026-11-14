@@ -540,6 +540,14 @@
                 return;
             }
 
+            // ── emails ── aviso al artista de una reseña nueva de su cliente (el
+            // servidor relee la reseña guardada). Secundario: nunca rompe el envío.
+            if (options.contextType === 'quotation' && reviewerType === 'client' && options.revieweeType === 'artist'
+                && window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
+                try {
+                    void Promise.resolve(window.ConfigManager.sendN8NEvent('client_left_rating', { quote_id: String(options.contextId) })).catch(() => {});
+                } catch (_) { /* el aviso es secundario */ }
+            }
             closeReviewModal();
             window.alert?.('Reseña enviada. Soporte la va a revisar antes de publicarla.');
             if (typeof options.onSubmitted === 'function') options.onSubmitted();

@@ -4776,7 +4776,13 @@ async function finalizePreAuthRegistration(username) {
             source: registrationSource,
             email,
             password,
-            data: { ...formState.data, registration_source: registrationSource }
+            // ── roster (ROSTER-03): enlace de invitación del estudio; el servidor
+            // lo revalida y fuerza el estudio y la sede.
+            data: {
+                ...formState.data,
+                registration_source: registrationSource,
+                studio_invite_token: window.WeOtziStudioInvite ? (window.WeOtziStudioInvite.getToken() || null) : null
+            }
         })
     });
     const finalizeData = await readJsonResponse(finalizeRes);
@@ -4896,7 +4902,11 @@ async function resumeArtistAfterEmailConfirmation() {
     if (!session) {
         if (!confirmed) return false;
         // El link no abrió sesión (otro navegador o link vencido): al login.
-        window.location.href = appUrl('/artist/login?confirmado=1');
+        // ── acceso (ACC-17): con #error=…otp_expired el login muestra "El link
+        // venció o ya se usó" y ofrece reenviar la confirmación.
+        const linkError = EC && typeof EC.readAuthLinkError === 'function' ? EC.readAuthLinkError({ clean: false }) : null;
+        const pendingEmail = pending && pending.email ? '&email=' + encodeURIComponent(pending.email) : '';
+        window.location.href = appUrl('/artist/login?confirmado=1' + (linkError ? '&enlace=vencido' : '') + pendingEmail);
         return true;
     }
     const sameAccount = pending && (pending.userId === session.user.id ||
@@ -5142,24 +5152,15 @@ async function submitFormNow() {
                 clearRegistrationDraft();
                 clearRegistrationDraftContext();
                 clearInstagramSignupFlag();
-                sendArtistRegistrationCompletedEvent({
-                    email: formState.data.email,
-                    username,
-                    password: formState.data.signup_password || null,
-                    user_id: finalizeData.user_id,
-                    registration_status: finalizeData.registration_status || 'pendiente de validacion',
-                    name: fullNameCapitalized,
-                    artistic_name: formState.data.artistic_name,
-                    city: registrationCity || null,
-                    country: registrationCountry || null,
-                    email_confirmation_required: true,
-                    dashboard_url: finalizeData.dashboard_url || (window.location.origin + appUrl(authUrls.dashboard)),
-                    login_url: finalizeData.login_url || (window.location.origin + appUrl(authUrls.registerClosedBeta))
-                });
+                // ── acceso (ACC-04): sin sesión no se puede pedir la bienvenida
+                // (el servidor responde 401). Sale al entrar al panel con la
+                // cuenta ya confirmada: POST /api/account/welcome (wo-welcome.js),
+                // idempotente por usuario, en este o en otro dispositivo.
                 await finishRegistrationWaitScreen(waitStartedAt);
                 btnNext.disabled = false;
                 renderSuccessScreen(postRegistrationUrl);
                 renderStudioClaim(finalizeData.studio_claim_url, finalizeData.studio_claim_expires_at);
+                window.WeOtziStudioInvite?.afterFinalize(finalizeData);
                 renderArtistEmailConfirmation(newEmail);
                 goToStep('success');
                 return;
@@ -5190,7 +5191,11 @@ async function submitFormNow() {
                 postRegistrationUrl = loginUrl;
             }
 
-            await persistSelectedStudioLocation(finalizeData.artist?.studio_id || formState.data.studio_id);
+            // ── roster: con la solicitud pendiente el servidor ya guardó la
+            // ubicación sin studio_id; no se pisa desde el cliente.
+            if (!finalizeData.membership_pending) {
+                await persistSelectedStudioLocation(finalizeData.artist?.studio_id || finalizeData.studio_id || formState.data.studio_id);
+            }
 
             try {
                 await persistPortfolioMedia();
@@ -5240,6 +5245,7 @@ async function submitFormNow() {
             btnNext.disabled = false;
             renderSuccessScreen(postRegistrationUrl);
             const hasStudioClaim = renderStudioClaim(finalizeData.studio_claim_url, finalizeData.studio_claim_expires_at);
+            window.WeOtziStudioInvite?.afterFinalize(finalizeData);
             goToStep('success');
             // Con link de alta del estudio no se redirige solo: el artista
             // tiene que poder copiarlo o compartirlo antes de ir al panel.

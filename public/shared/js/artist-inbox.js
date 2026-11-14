@@ -9,6 +9,9 @@
     'use strict';
 
     const D = window.WeotziData || {};
+    // Lógica pura compartida (inbox-chat-model.js): adjuntos, dedupe,
+    // tarjeta de cotización, hilos sintéticos y categoría por estado.
+    const M = window.WeotziInboxChat || null;
     const CATEGORY_LABELS = {
         all: 'TODAS',
         clients: 'CLIENTES',
@@ -51,8 +54,16 @@
         pendingFiles: [],
         attachmentDrag: null,
         listChannel: null,
+        chatChannel: null,
         threadChannel: null,
         refreshTimer: null,
+        // Cotizaciones abiertas por deep link (?quote=) que todavía no tienen
+        // mensajes: la vista chat_threads no las devuelve (INB-06).
+        syntheticQuotes: [],
+        // Datos de quotations_db por quote_id (tarjeta y referencias del hilo).
+        quoteDetails: {},
+        attachmentUrls: new Map(),
+        sending: false,
     };
 
     document.addEventListener('DOMContentLoaded', init);
@@ -67,7 +78,8 @@
             const sessionResult = client ? await client.auth.getSession() : null;
             const session = sessionResult && sessionResult.data ? sessionResult.data.session : null;
             if (!session) {
-                window.location.replace('/login?returnTo=' + encodeURIComponent(window.location.pathname));
+                // Conserva ?quote= / ?thread= (CTA del correo) para volver al hilo.
+                window.location.replace('/login?returnTo=' + encodeURIComponent(window.location.pathname + window.location.search));
                 return;
             }
             state.userId = session.user.id;
@@ -121,6 +133,16 @@
             }
         });
         el('ai-thread-head') && el('ai-thread-head').addEventListener('click', onThreadHeadClick);
+        el('ai-context') && el('ai-context').addEventListener('click', function (event) {
+            if (event.target.closest('[data-context-close]')) setContextSheet(false);
+        });
+        el('ai-context-scrim') && el('ai-context-scrim').addEventListener('click', function () { setContextSheet(false); });
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && el('ai-shell') && el('ai-shell').classList.contains('is-context-open')) {
+                setContextSheet(false);
+            }
+        });
+        el('ai-support-cta') && el('ai-support-cta').addEventListener('click', function () { startSupportConversation(''); });
         el('ai-composer') && el('ai-composer').addEventListener('submit', onComposerSubmit);
         el('ai-input') && el('ai-input').addEventListener('input', syncSendState);
         el('ai-attach') && el('ai-attach').addEventListener('click', function () { openFilePicker(FILE_ACCEPT); });
@@ -170,7 +192,6 @@
         state.legacySupport = resultValue(results[2], null);
         state.rows = buildRows();
         renderSidebarCounts();
-        renderUnreadBadge();
         renderList();
 
         if (active && state.rows.some(function (row) { return row.key === active; })) {
@@ -186,7 +207,10 @@
             return row.contextType && row.contextId ? row.contextType + ':' + row.contextId : '';
         }).filter(Boolean));
 
-        const quoteRows = state.legacyQuotes
+        const realQuoteIds = new Set(state.legacyQuotes.map(function (item) { return item.quote_id; }));
+        // Un hilo sintético deja de hacer falta cuando la vista ya trae el real.
+        state.syntheticQuotes = state.syntheticQuotes.filter(function (item) { return !realQuoteIds.has(item.quote_id); });
+        const quoteRows = state.legacyQuotes.concat(state.syntheticQuotes)
             .filter(function (item) {
                 return !domainKeys.has('quotation:' + item.quote_id) &&
                     !domainKeys.has('quote:' + item.quote_id);
@@ -197,10 +221,43 @@
         const supportRows = !hasUnifiedSupport && state.legacySupport
             ? [adaptLegacySupport(state.legacySupport)]
             : [];
+        // INB-11: sin conversación de soporte (o con la última cerrada) igual
+        // hay una fila para escribir; la conversación se crea al primer envío.
+        const needsStarter = M ? M.needsSupportStarter(unifiedRows, state.legacySupport)
+            : (!hasUnifiedSupport && (!state.legacySupport || state.legacySupport.status === 'closed'));
+        if (needsStarter) supportRows.push(supportStarterRow());
 
-        return unifiedRows.concat(quoteRows, supportRows).sort(function (a, b) {
+        const rows = unifiedRows.concat(quoteRows, supportRows);
+        // El hilo abierto ya se marcó leído: que un refresco realtime que llegó
+        // antes del markRead no vuelva a pintar el contador.
+        rows.forEach(function (row) { if (row.key === state.activeKey) row.unread = 0; });
+        return rows.sort(function (a, b) {
+            if (a.starter !== b.starter) return a.starter ? 1 : -1;
             return new Date(b.lastAt || 0) - new Date(a.lastAt || 0);
         });
+    }
+
+    function supportStarterRow() {
+        return {
+            key: 'support:new',
+            source: 'support',
+            id: null,
+            starter: true,
+            category: 'support',
+            name: 'Soporte We Ötzi',
+            initials: 'WÖ',
+            subject: 'Ayuda con tu cuenta',
+            preview: 'Escribinos si necesitás ayuda',
+            lastAt: null,
+            lastSenderUserId: null,
+            unread: 0,
+            favorite: false,
+            archived: false,
+            closed: false,
+            priority: false,
+            context: { channel: 'support' },
+            raw: {},
+        };
     }
 
     function adaptUnified(item) {
@@ -232,30 +289,41 @@
     function adaptLegacyQuote(item) {
         const quote = item.quote || {};
         const name = item.client_full_name || item.client_name || quote.client_full_name || quote.client_name || 'Cliente';
+        const status = quote.status || item.quote_status || item.quotation_status;
+        const style = styleLabel(quote.tattoo_style || item.tattoo_style);
         return {
             key: 'quote:' + item.quote_id,
             source: 'quote',
             id: item.quote_id,
-            category: 'quotations',
+            synthetic: Boolean(item.synthetic),
+            // INB-13: con la cotización aceptada la conversación pasa a "Clientes".
+            category: M ? M.artistCategoryForQuote(status) : 'quotations',
             name: name,
             initials: initials(name),
-            subject: quote.tattoo_style || item.tattoo_style || 'Cotización',
-            preview: item.last_message || 'Cotización en curso',
+            subject: style || 'Cotización',
+            preview: item.last_message || (item.synthetic ? 'Todavía no hay mensajes' : 'Cotización en curso'),
             lastAt: item.last_message_at || quote.updated_at,
             lastSenderUserId: item.last_message_sender === 'artist' ? state.userId : null,
             unread: Number(item.unread_for_artist) || 0,
             favorite: false,
             archived: false,
-            closed: CLOSED_QUOTE_STATUSES.includes(quote.status || item.quote_status || item.quotation_status),
+            closed: CLOSED_QUOTE_STATUSES.includes(status),
             priority: false,
             context: {
-                budget: fmtMoney(quote.budget || item.budget, quote.currency || item.currency),
-                style: quote.tattoo_style || item.tattoo_style,
+                budget: fmtMoney(quote.budget || item.budget || item.final_budget_amount, quote.currency || item.currency || item.final_budget_currency),
+                style: style,
                 body_part: quote.tattoo_body_part || item.tattoo_body_part,
-                quote_status: quote.status || item.quote_status || item.quotation_status,
+                quote_status: status,
+                quote_id: item.quote_id,
             },
             raw: item,
         };
+    }
+
+    // tattoo_style es jsonb ({ style_name }) en quotations_db.
+    function styleLabel(value) {
+        if (value && typeof value === 'object') return value.style_name || value.name || '';
+        return value ? String(value) : '';
     }
 
     function adaptLegacySupport(item) {
@@ -307,7 +375,8 @@
     }
 
     function renderSidebarCounts() {
-        const activeRows = state.rows.filter(function (row) { return !row.archived; });
+        // La fila "Soporte" para iniciar una conversación no cuenta como hilo.
+        const activeRows = state.rows.filter(function (row) { return !row.archived && !row.starter; });
         const counts = {};
         Object.keys(CATEGORY_META).forEach(function (category) {
             counts[category] = activeRows.filter(function (row) { return row.category === category; }).length;
@@ -329,14 +398,10 @@
         setText('ai-sum-waiting', activeRows.filter(function (row) { return responseState(row).key === 'waiting'; }).length);
     }
 
-    function renderUnreadBadge() {
-        const unread = state.rows.reduce(function (sum, row) {
-            return sum + (row.archived ? 0 : row.unread);
-        }, 0);
-        const badge = el('ai-nav-unread');
-        if (!badge) return;
-        badge.hidden = unread === 0;
-        badge.textContent = unread > 99 ? '99+' : String(unread);
+    // El contador global vive en el tile Ö (wo-artist-menu.js). Al leer un
+    // hilo se le avisa para que recalcule sin esperar al refresco de 60 s.
+    function announceInboxRead() {
+        try { document.dispatchEvent(new CustomEvent('weotzi:inbox-read')); } catch (_) { /* navegadores viejos */ }
     }
 
     function renderList() {
@@ -357,7 +422,9 @@
 
     function rowHtml(row) {
         const meta = CATEGORY_META[row.category] || { label: row.category || 'Mensaje', tone: 'default' };
-        const status = responseState(row);
+        let status = responseState(row);
+        if (row.starter) status = { key: 'new', label: 'Nueva conversación', cls: 'is-replied' };
+        else if (row.synthetic) status = { key: 'new', label: 'Sin mensajes todavía', cls: 'is-closed' };
         const active = row.key === state.activeKey ? ' is-active' : '';
         const unread = row.unread > 0 ? ' is-unread' : '';
         const avatarTone = ' ai-avatar--' + meta.tone;
@@ -436,62 +503,129 @@
         el('ai-support-empty').hidden = true;
         el('ai-messages').hidden = false;
         el('ai-shell').classList.add('is-thread-open');
+        setContextSheet(false);
         renderList();
         renderThreadHead(row);
         renderContext(row);
         renderMessagesLoading();
-        setComposer(row.closed ? 'Esta conversación está cerrada.' : 'Escribí un mensaje…', !row.closed);
+        setComposer(row.closed ? 'Esta conversación está cerrada.' : (row.starter ? 'Escribí tu consulta para soporte…' : 'Escribí un mensaje…'), !row.closed);
 
         try {
             if (row.source === 'unified') {
                 const messages = await D.Inbox.listMessages(row.id);
                 if (state.activeKey !== key) return;
                 state.activeMessages = messages.map(adaptUnifiedMessage);
+                const hadUnread = row.unread > 0;
                 await D.Inbox.markRead(row.id).catch(function () {});
                 row.raw.unread_count = 0;
                 row.unread = 0;
+                if (hadUnread) announceInboxRead();
                 state.threadChannel = D.Inbox.subscribeThread(row.id, function (payload) {
                     const message = payload && payload.new;
                     if (!message || state.activeKey !== key) return;
-                    if (!state.activeMessages.some(function (item) { return item.id === message.id; })) {
-                        state.activeMessages.push(adaptUnifiedMessage(message));
-                        renderMessages();
-                    }
+                    if (addMessage(adaptUnifiedMessage(message))) renderMessages();
                     D.Inbox.markRead(row.id).catch(function () {});
                     scheduleRefresh();
                 });
             } else if (row.source === 'quote') {
-                const messages = await D.Chat.listByQuote(row.id);
+                const results = await Promise.all([
+                    row.synthetic ? Promise.resolve([]) : D.Chat.listByQuote(row.id),
+                    loadQuoteDetails(row.id),
+                ]);
                 if (state.activeKey !== key) return;
-                state.activeMessages = messages.map(adaptQuoteMessage);
-                await D.Chat.markRead(row.id, 'client').catch(function () {});
+                state.activeMessages = results[0].map(adaptQuoteMessage);
+                renderContext(row);
+                const hadUnread = row.unread > 0;
+                if (!row.synthetic) await D.Chat.markRead(row.id, 'client').catch(function () {});
                 row.raw.unread_for_artist = 0;
                 row.unread = 0;
+                if (hadUnread) announceInboxRead();
                 if (D.Realtime && D.Realtime.subscribeChatMessages) {
                     state.threadChannel = D.Realtime.subscribeChatMessages('artist-inbox-quote-' + row.id, row.id, function (payload) {
                         const message = payload && payload.new;
                         if (!message || state.activeKey !== key) return;
-                        if (!state.activeMessages.some(function (item) { return item.id === message.id; })) {
-                            state.activeMessages.push(adaptQuoteMessage(message));
-                            renderMessages();
-                        }
+                        if (addMessage(adaptQuoteMessage(message))) renderMessages();
                         if (message.sender_type === 'client') D.Chat.markRead(row.id, 'client').catch(function () {});
                     });
                 }
+            } else if (row.starter) {
+                // INB-11: todavía no hay conversación; se crea al escribir.
+                state.activeMessages = [];
+                el('ai-messages').hidden = true;
+                el('ai-support-empty').hidden = false;
+                el('ai-support-cta').hidden = false;
             } else {
                 const messages = await D.SupportInbox.listMessages(row.id);
                 if (state.activeKey !== key) return;
                 state.legacySupportMessages = messages;
                 state.activeMessages = messages.map(adaptSupportMessage);
+                subscribeSupport(row.id, key);
             }
 
             renderMessages();
             renderSidebarCounts();
-            renderUnreadBadge();
             renderList();
         } catch (error) {
             console.error('[artist-inbox] abrir hilo', error);
             renderMessagesError();
+        }
+    }
+
+    // Agrega un mensaje al hilo abierto sin duplicar (eco realtime vs. POST).
+    function addMessage(message) {
+        if (M) return M.addUnique(state.activeMessages, message);
+        if (message && state.activeMessages.some(function (item) { return item.id === message.id; })) return false;
+        state.activeMessages.push(message);
+        return true;
+    }
+
+    // quotations_db de la cotización del hilo (tarjeta y estado). Cacheada.
+    async function loadQuoteDetails(quoteId) {
+        if (state.quoteDetails[quoteId]) return state.quoteDetails[quoteId];
+        if (!D.Quotations || !D.Quotations.getForArtistByQuoteId) return null;
+        try {
+            const quote = await D.Quotations.getForArtistByQuoteId(quoteId);
+            if (quote) state.quoteDetails[quoteId] = quote;
+            return quote;
+        } catch (error) {
+            console.warn('[artist-inbox] cotización del hilo', error);
+            return null;
+        }
+    }
+
+    function subscribeSupport(conversationId, key) {
+        if (!D.SupportInbox || !D.SupportInbox.subscribeMessages) return;
+        state.threadChannel = D.SupportInbox.subscribeMessages(conversationId, function (payload) {
+            const message = payload && payload.new;
+            if (!message || state.activeKey !== key) return;
+            if (addMessage(adaptSupportMessage(message))) renderMessages();
+        });
+    }
+
+    // Crea (o recupera) la conversación de soporte y, si hay texto, lo envía.
+    async function startSupportConversation(firstMessage) {
+        if (!D.SupportInbox || !D.SupportInbox.openConversation) {
+            notify('El soporte no está disponible en este momento.', 'error');
+            return false;
+        }
+        const cta = el('ai-support-cta');
+        if (cta) cta.disabled = true;
+        try {
+            const opened = await D.SupportInbox.openConversation('artist_inbox');
+            const conversation = opened.conversation;
+            if (firstMessage) {
+                await D.SupportInbox.sendMessage({ conversationId: conversation.id, content: firstMessage, pageContext: 'artist_inbox' });
+            }
+            state.legacySupport = conversation;
+            await reloadRows({ preserveSelection: false });
+            await openThread('support:' + conversation.id);
+            return true;
+        } catch (error) {
+            console.error('[artist-inbox] soporte', error);
+            notify('No pudimos abrir el chat de soporte. Probá de nuevo en unos minutos.', 'error');
+            return false;
+        } finally {
+            if (cta) cta.disabled = false;
         }
     }
 
@@ -504,11 +638,34 @@
         el('ai-thread-placeholder').hidden = false;
         el('ai-context').hidden = true;
         el('ai-shell').classList.remove('is-thread-open');
+        setContextSheet(false);
         renderList();
     }
 
     function closeMobileThread() {
+        setContextSheet(false);
         el('ai-shell').classList.remove('is-thread-open');
+    }
+
+    // INB-12: debajo de 1281px el panel de contexto se abre como hoja lateral
+    // desde el botón "Info" del encabezado del hilo (en escritorio ancho es
+    // una columna fija y el botón no se muestra).
+    function setContextSheet(open) {
+        const shell = el('ai-shell');
+        if (!shell) return;
+        const wasOpen = shell.classList.contains('is-context-open');
+        shell.classList.toggle('is-context-open', Boolean(open));
+        const scrim = el('ai-context-scrim');
+        if (scrim) scrim.hidden = !open;
+        const toggle = document.querySelector('[data-thread-info]');
+        if (toggle) toggle.setAttribute('aria-expanded', String(Boolean(open)));
+        const context = el('ai-context');
+        if (open && context) {
+            context.setAttribute('tabindex', '-1');
+            window.setTimeout(function () { try { context.focus(); } catch (_) { /* noop */ } }, 20);
+        } else if (wasOpen && toggle) {
+            try { toggle.focus(); } catch (_) { /* noop */ }
+        }
     }
 
     function renderThreadHead(row) {
@@ -523,13 +680,18 @@
             '<button type="button" class="wo-iconbtn ai-back" data-thread-back aria-label="Volver a conversaciones"><i data-wo-icon="arrow-left" class="wo-icon-18" aria-hidden="true"></i></button>' +
             '<span class="ai-avatar ai-head-avatar">' + esc(row.initials) + '</span>' +
             '<div class="ai-head-copy"><strong>' + esc(row.name) + '</strong><span>' + esc(meta.label) + (row.subject ? ' · ' + esc(row.subject) : '') + '</span></div>' +
-            persistentTools;
+            persistentTools +
+            '<button type="button" class="wo-iconbtn ai-info-toggle" data-thread-info aria-controls="ai-context" aria-expanded="false" aria-label="Ver detalles de la conversación" title="Detalles"><i data-wo-icon="info" class="wo-icon-16" aria-hidden="true"></i></button>';
         refreshIcons();
     }
 
     async function onThreadHeadClick(event) {
         if (event.target.closest('[data-thread-back]')) {
             closeMobileThread();
+            return;
+        }
+        if (event.target.closest('[data-thread-info]')) {
+            setContextSheet(!el('ai-shell').classList.contains('is-context-open'));
             return;
         }
         const flag = event.target.closest('[data-head-flag]');
@@ -563,7 +725,11 @@
             mine: message.sender_type === 'artist',
             body: message.message || '',
             at: message.created_at,
-            kind: 'text',
+            kind: message.message_kind || 'text',
+            attachmentSource: 'chat',
+            attachmentPath: message.attachment_path || null,
+            attachmentName: message.attachment_name || null,
+            attachmentMime: message.attachment_mime || null,
         };
     }
 
@@ -577,31 +743,67 @@
         };
     }
 
+    // Timeline del hilo: mensajes + (en cotizaciones) la tarjeta "Cotización"
+    // ubicada en el momento en que el artista envió el precio (Figma 801:1149).
+    function timelineItems() {
+        const items = state.activeMessages.slice();
+        const row = findRow(state.activeKey);
+        if (row && row.source === 'quote' && M) {
+            const card = M.quoteCard(Object.assign({}, row.raw, state.quoteDetails[row.id] || {}));
+            if (card) {
+                items.push({ id: 'quote-card:' + row.id, kind: 'quote_card', card: card, at: card.at || (items[0] && items[0].at) || new Date().toISOString() });
+                items.sort(function (a, b) { return new Date(a.at || 0) - new Date(b.at || 0); });
+            }
+        }
+        return items;
+    }
+
     function renderMessages() {
         const host = el('ai-messages');
-        if (!state.activeMessages.length) {
-            host.innerHTML = '<div class="wo-empty ai-msg-empty"><i data-wo-icon="message-circle" aria-hidden="true"></i><span class="wo-empty-title">Empezá la conversación</span><p>Escribí un mensaje para continuar.</p></div>';
+        const items = timelineItems();
+        if (!items.length) {
+            const row = findRow(state.activeKey);
+            const copy = row && row.synthetic
+                ? 'Todavía no hay mensajes con este cliente. Escribí el primero.'
+                : 'Escribí un mensaje para continuar.';
+            host.innerHTML = '<div class="wo-empty ai-msg-empty"><i data-wo-icon="message-circle" aria-hidden="true"></i><span class="wo-empty-title">Empezá la conversación</span><p>' + esc(copy) + '</p></div>';
             refreshIcons();
             return;
         }
         let lastDay = '';
-        host.innerHTML = state.activeMessages.map(function (message) {
+        host.innerHTML = items.map(function (message) {
             const day = fmtDayKey(message.at);
             const separator = day !== lastDay
                 ? '<div class="ai-day"><span>' + esc(fmtDayLabel(message.at)) + '</span></div>'
                 : '';
             lastDay = day;
-            return separator + messageHtml(message);
+            return separator + (message.kind === 'quote_card' ? quoteCardHtml(message.card) : messageHtml(message));
         }).join('');
         host.scrollTop = host.scrollHeight;
         refreshIcons();
+        hydrateAttachmentThumbs(host);
+    }
+
+    function quoteCardHtml(card) {
+        const href = appHref('/my-quotations/detail?quote=' + encodeURIComponent(card.quoteId || ''));
+        return '<article class="ai-quote-card" aria-label="Cotización enviada">' +
+            '<p class="ai-quote-card-eyebrow">Cotización</p>' +
+            '<h3 class="ai-quote-card-title">' + esc(card.title) + '</h3>' +
+            '<p class="ai-quote-card-price wo-mono-num">' + esc(card.price) + '</p>' +
+            (card.duration ? '<p class="ai-quote-card-meta">Duración estimada: ' + esc(card.duration) + '</p>' : '') +
+            '<a class="ai-quote-card-link" href="' + esc(href) + '">Ver cotización <span aria-hidden="true">→</span></a>' +
+        '</article>';
     }
 
     function messageHtml(message) {
         const direction = message.mine ? ' ai-msg--out' : ' ai-msg--in';
+        const isImage = String(message.attachmentMime || '').startsWith('image/');
+        const source = message.attachmentSource === 'chat' ? 'chat' : 'inbox';
         const attachment = message.attachmentPath
-            ? '<button type="button" class="ai-msg-attachment" data-attachment-path="' + esc(message.attachmentPath) + '">' +
-                '<i data-wo-icon="' + (String(message.attachmentMime || '').startsWith('image/') ? 'image' : 'paperclip') + '" class="wo-icon-18" aria-hidden="true"></i>' +
+            ? '<button type="button" class="ai-msg-attachment' + (isImage ? ' is-image' : '') + '" data-attachment-path="' + esc(message.attachmentPath) + '" data-attachment-source="' + source + '"' +
+                (isImage ? ' data-attachment-image' : '') + ' aria-label="Abrir ' + esc(message.attachmentName || 'adjunto') + '">' +
+                (isImage ? '<span class="ai-msg-thumb" aria-hidden="true"></span>' : '') +
+                '<i data-wo-icon="' + (isImage ? 'image' : 'paperclip') + '" class="wo-icon-18" aria-hidden="true"></i>' +
                 '<span>' + esc(message.attachmentName || 'Abrir adjunto') + '</span>' +
                 '<i data-wo-icon="external-link" class="wo-icon-16" aria-hidden="true"></i></button>'
             : '';
@@ -610,20 +812,69 @@
             '<time>' + esc(fmtMsgTime(message.at)) + '</time></div></div>';
     }
 
+    function signedUrlFor(source, path) {
+        const cacheKey = source + ':' + path;
+        const cached = state.attachmentUrls.get(cacheKey);
+        // Las URL firmadas duran 1 h: se renuevan a los 50 min.
+        if (cached && Date.now() - cached.at < 50 * 60 * 1000) return cached.promise;
+        const repo = source === 'chat' ? D.Chat : D.Inbox;
+        if (!repo || !repo.signedAttachmentUrl) return Promise.resolve(null);
+        const pending = repo.signedAttachmentUrl(path).catch(function (error) {
+            state.attachmentUrls.delete(cacheKey);
+            throw error;
+        });
+        state.attachmentUrls.set(cacheKey, { promise: pending, at: Date.now() });
+        return pending;
+    }
+
+    // Miniaturas de imágenes adjuntas (URL firmada, bucket privado).
+    function hydrateAttachmentThumbs(host) {
+        host.querySelectorAll('[data-attachment-image]').forEach(function (button) {
+            const thumb = button.querySelector('.ai-msg-thumb');
+            if (!thumb || thumb.dataset.loaded) return;
+            thumb.dataset.loaded = '1';
+            signedUrlFor(button.dataset.attachmentSource, button.dataset.attachmentPath).then(function (url) {
+                if (!url || !/^https:\/\//i.test(url)) return;
+                const img = document.createElement('img');
+                img.alt = '';
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                img.src = url;
+                thumb.appendChild(img);
+                button.classList.add('has-thumb');
+            }).catch(function () { /* queda el ícono */ });
+        });
+    }
+
     async function onMessageClick(event) {
         const attachment = event.target.closest('[data-attachment-path]');
-        if (!attachment || !D.Inbox || !D.Inbox.signedAttachmentUrl) return;
+        if (!attachment) return;
+        // Abrir la pestaña en el gesto del usuario (los bloqueadores de pop-ups
+        // cortan window.open después de un await).
+        const popup = window.open('', '_blank');
         try {
-            const url = await D.Inbox.signedAttachmentUrl(attachment.dataset.attachmentPath);
-            if (url) window.open(url, '_blank', 'noopener,noreferrer');
+            const url = await signedUrlFor(attachment.dataset.attachmentSource, attachment.dataset.attachmentPath);
+            if (!url) throw new Error('sin URL');
+            if (popup) {
+                popup.opener = null;
+                popup.location.href = url;
+            } else {
+                window.location.assign(url);
+            }
         } catch (error) {
+            if (popup) popup.close();
             console.error('[artist-inbox] adjunto', error);
             notify('No pudimos abrir el archivo.', 'error');
         }
     }
 
     function renderContext(row) {
-        const context = row.context || {};
+        let context = row.context || {};
+        const details = row.source === 'quote' ? state.quoteDetails[row.id] : null;
+        if (details && !context.budget && M) {
+            const card = M.quoteCard(Object.assign({}, row.raw, details));
+            if (card) context = Object.assign({}, context, { budget: card.price });
+        }
         const meta = CATEGORY_META[row.category] || { label: 'Conversación' };
         // Figma 801:1085: el panel de seguimiento muestra la categoría y los
         // datos del dominio (estudio, fechas, estado). Contacto/asunto solo
@@ -656,7 +907,8 @@
         const link = contextLink(row);
         const host = el('ai-context');
         host.hidden = false;
-        host.innerHTML = '<p class="wo-eyebrow ai-ctx-eyebrow">' + esc(meta.label.toUpperCase()) + '</p>' +
+        host.innerHTML = '<div class="ai-ctx-sheet-head"><p class="wo-eyebrow ai-ctx-eyebrow">' + esc(meta.label.toUpperCase()) + '</p>' +
+            '<button type="button" class="wo-iconbtn ai-ctx-close" data-context-close aria-label="Cerrar detalles"><i data-wo-icon="x" class="wo-icon-16" aria-hidden="true"></i></button></div>' +
             blocks.join('') + (link ? '<a class="wo-btn wo-btn--ghost wo-btn--s ai-ctx-link" href="' + esc(link.href) + '">' + esc(link.label) + '<i data-wo-icon="arrow-right" class="wo-icon-16" aria-hidden="true"></i></a>' : '');
         refreshIcons();
     }
@@ -692,8 +944,8 @@
         const context = row.context || {};
         const quoteId = row.source === 'quote' ? row.id : (context.quote_id || (row.contextType === 'quotation' ? row.contextId : null));
         const tripId = context.trip_id || (row.contextType === 'artist_trip' ? row.contextId : null);
-        if (row.category === 'quotations' && quoteId) {
-            return { href: appHref('/my-quotations/detail?id=' + encodeURIComponent(quoteId)), label: 'Ver cotización' };
+        if ((row.category === 'quotations' || row.category === 'clients') && quoteId) {
+            return { href: appHref('/my-quotations/detail?quote=' + encodeURIComponent(quoteId)), label: 'Ver cotización' };
         }
         if (row.category === 'trips' && tripId) {
             return { href: appHref('/artist/travel/?trip=' + encodeURIComponent(tripId)), label: 'Ver viaje' };
@@ -704,6 +956,7 @@
         }
         const links = {
             quotations: { href: '/my-quotations', label: 'Ver cotizaciones' },
+            clients: { href: '/my-quotations', label: 'Ver cotizaciones' },
             invitations: { href: '/artist/invitations', label: 'Ver invitaciones' },
             spots: { href: '/artist/applications', label: 'Ver postulaciones' },
             job_board: { href: '/artist/applications', label: 'Ver postulaciones' },
@@ -729,28 +982,52 @@
         return base && !normalized.startsWith(base + '/') ? base + normalized : normalized;
     }
 
+    // Soporte no admite adjuntos (el endpoint solo recibe texto); cotizaciones
+    // e hilos unificados sí (chat-attachments / inbox-attachments).
+    function attachmentsAllowed(row) {
+        return Boolean(row && !row.closed && row.source !== 'support');
+    }
+
     function setComposer(placeholder, enabled) {
         const input = el('ai-input');
         input.disabled = !enabled;
-        document.querySelectorAll('.ai-composer-tools .ai-attach').forEach(function (button) {
-            button.disabled = !enabled;
+        const row = findRow(state.activeKey);
+        const canAttach = enabled && attachmentsAllowed(row);
+        ['ai-attach', 'ai-image'].forEach(function (id) {
+            const button = el(id);
+            if (!button) return;
+            button.disabled = !canAttach;
+            button.hidden = Boolean(row && row.source === 'support');
         });
+        if (el('ai-emoji')) el('ai-emoji').disabled = !enabled;
         input.placeholder = placeholder;
         syncSendState();
+    }
+
+    function restoreComposerTools(row) {
+        const open = Boolean(row && !row.closed);
+        if (el('ai-input')) el('ai-input').disabled = !open;
+        ['ai-attach', 'ai-image'].forEach(function (id) {
+            if (el(id)) el(id).disabled = !(open && attachmentsAllowed(row));
+        });
+        if (el('ai-emoji')) el('ai-emoji').disabled = !open;
     }
 
     function onFileChosen(event) {
         const files = Array.from(event.target.files || []);
         if (!files.length) return;
         const row = findRow(state.activeKey);
-        if (!row || row.source !== 'unified') {
+        if (!attachmentsAllowed(row)) {
             event.target.value = '';
-            notify('Los adjuntos están disponibles en las conversaciones unificadas.', 'info');
+            notify('En esta conversación no se pueden enviar adjuntos.', 'info');
             return;
         }
-        const validFiles = files.filter(function (file) { return file.size <= MAX_ATTACHMENT_BYTES; });
+        const validFiles = files.filter(function (file) {
+            return M ? M.validateAttachment(file).ok : file.size <= MAX_ATTACHMENT_BYTES;
+        });
         if (validFiles.length !== files.length) {
-            notify('El archivo supera el límite de 15 MB.', 'error');
+            const invalid = files.find(function (file) { return validFiles.indexOf(file) === -1; });
+            notify(M && invalid ? M.validateAttachment(invalid).error : 'El archivo supera el límite de 15 MB.', 'error');
         }
         state.pendingFiles.push.apply(state.pendingFiles, validFiles);
         event.target.value = '';
@@ -828,18 +1105,19 @@
 
     function syncSendState() {
         const row = findRow(state.activeKey);
-        const enabled = Boolean(row && !row.closed && (el('ai-input').value.trim() || state.pendingFiles.length));
+        const enabled = Boolean(row && !row.closed && !state.sending && (el('ai-input').value.trim() || state.pendingFiles.length));
         el('ai-send').disabled = !enabled;
     }
 
     async function onComposerSubmit(event) {
         event.preventDefault();
         const row = findRow(state.activeKey);
-        if (!row || row.closed) return;
+        if (!row || row.closed || state.sending) return;
         const input = el('ai-input');
         const body = input.value.trim();
-        const files = state.pendingFiles.slice();
+        const files = attachmentsAllowed(row) ? state.pendingFiles.slice() : [];
         if (!body && !files.length) return;
+        state.sending = true;
         input.disabled = true;
         el('ai-send').disabled = true;
         document.querySelectorAll('.ai-composer-tools .ai-attach').forEach(function (button) { button.disabled = true; });
@@ -852,9 +1130,7 @@
                         const attachment = await D.Inbox.uploadAttachment(row.id, state.userId, file);
                         const saved = await D.Inbox.sendMessage({ threadId: row.id, body: index === 0 ? body : null, attachment: attachment });
                         const message = Array.isArray(saved) ? saved[0] : saved;
-                        if (message && !state.activeMessages.some(function (item) { return item.id === message.id; })) {
-                            state.activeMessages.push(adaptUnifiedMessage(message));
-                        }
+                        if (message) addMessage(adaptUnifiedMessage(message));
                         state.pendingFiles = state.pendingFiles.filter(function (pending) { return pending !== file; });
                         if (index === 0) input.value = '';
                         renderPendingFiles();
@@ -862,25 +1138,53 @@
                 } else {
                     const saved = await D.Inbox.sendMessage({ threadId: row.id, body: body });
                     const message = Array.isArray(saved) ? saved[0] : saved;
-                    if (message && !state.activeMessages.some(function (item) { return item.id === message.id; })) {
-                        state.activeMessages.push(adaptUnifiedMessage(message));
-                    }
+                    if (message) addMessage(adaptUnifiedMessage(message));
                     input.value = '';
                 }
             } else if (row.source === 'quote') {
-                await D.Chat.sendMessage({ quoteId: row.id, senderType: 'artist', senderId: state.userId, message: body });
-                state.activeMessages.push(adaptQuoteMessage({
-                    id: 'local-' + Date.now(), sender_type: 'artist', message: body, created_at: new Date().toISOString(),
-                }));
-            } else {
-                const response = await D.SupportInbox.sendMessage({ conversationId: row.id, content: body });
-                state.activeMessages.push(adaptSupportMessage({
-                    id: 'local-' + Date.now(), role: 'user', content: body, created_at: new Date().toISOString(),
-                }));
-                if (response && response.response) {
-                    state.activeMessages.push(adaptSupportMessage({
-                        id: 'support-' + Date.now(), role: 'assistant', content: response.response, created_at: new Date().toISOString(),
+                // INB-04: se usa la fila guardada (id real) para que el eco
+                // realtime del mismo INSERT no la pinte dos veces.
+                if (files.length) {
+                    for (let index = 0; index < files.length; index += 1) {
+                        const file = files[index];
+                        const attachment = await D.Chat.uploadAttachment(row.id, state.userId, file);
+                        const saved = await D.Chat.sendMessage({
+                            quoteId: row.id, senderType: 'artist', senderId: state.userId,
+                            message: index === 0 ? body : '', attachment: attachment,
+                        });
+                        const message = Array.isArray(saved) ? saved[0] : saved;
+                        if (message) addMessage(adaptQuoteMessage(message));
+                        state.pendingFiles = state.pendingFiles.filter(function (pending) { return pending !== file; });
+                        if (index === 0) input.value = '';
+                        renderPendingFiles();
+                    }
+                } else {
+                    const saved = await D.Chat.sendMessage({ quoteId: row.id, senderType: 'artist', senderId: state.userId, message: body });
+                    const message = Array.isArray(saved) ? saved[0] : saved;
+                    addMessage(adaptQuoteMessage(message && message.id ? message : {
+                        id: 'local-' + Date.now(), sender_type: 'artist', message: body, created_at: new Date().toISOString(),
                     }));
+                    input.value = '';
+                }
+                if (row.synthetic) {
+                    // El primer mensaje convierte el hilo sintético en real.
+                    row.synthetic = false;
+                    row.raw.synthetic = false;
+                }
+            } else if (row.starter) {
+                input.value = '';
+                const ok = await startSupportConversation(body);
+                if (!ok) input.value = body;
+                return;
+            } else {
+                await D.SupportInbox.sendMessage({ conversationId: row.id, content: body, pageContext: 'artist_inbox' });
+                input.value = '';
+                // El servidor guarda el mensaje y la respuesta del bot: se
+                // recarga el historial real (sin ids locales que dupliquen el eco).
+                const messages = await D.SupportInbox.listMessages(row.id);
+                if (state.activeKey === row.key) {
+                    state.activeMessages = [];
+                    messages.map(adaptSupportMessage).forEach(addMessage);
                 }
             }
             input.value = '';
@@ -893,16 +1197,23 @@
             renderMessages();
             notify(files.length ? 'No pudimos enviar todos los adjuntos. Los pendientes siguen acá para reintentar.' : 'No pudimos enviar el mensaje. Tu texto sigue acá para reintentar.', 'error');
         } finally {
-            input.disabled = row.closed;
-            document.querySelectorAll('.ai-composer-tools .ai-attach').forEach(function (button) { button.disabled = row.closed; });
+            state.sending = false;
+            restoreComposerTools(findRow(state.activeKey) || row);
             syncSendState();
-            input.focus();
+            if (!input.disabled) input.focus();
         }
     }
 
     function subscribeList() {
-        if (!D.Inbox || !D.Inbox.subscribeList) return;
-        state.listChannel = D.Inbox.subscribeList(state.userId, scheduleRefresh);
+        if (D.Inbox && D.Inbox.subscribeList) {
+            state.listChannel = D.Inbox.subscribeList(state.userId, scheduleRefresh);
+        }
+        // INB-05: mensajes nuevos de clientes en chats de cotización (la RLS
+        // artists_select_chat acota a las cotizaciones del artista). Actualiza
+        // lista, contadores y "Esperando respuesta" en tiempo real.
+        if (D.Realtime && D.Realtime.subscribeNewChatFromSender) {
+            state.chatChannel = D.Realtime.subscribeNewChatFromSender('artist-inbox-chat-' + state.userId, 'client', scheduleRefresh);
+        }
     }
 
     function scheduleRefresh() {
@@ -929,6 +1240,11 @@
             else if (D.removeChannel) D.removeChannel(state.listChannel);
             state.listChannel = null;
         }
+        if (state.chatChannel) {
+            if (D.Realtime && D.Realtime.remove) D.Realtime.remove(state.chatChannel);
+            else if (D.removeChannel) D.removeChannel(state.chatChannel);
+            state.chatChannel = null;
+        }
     }
 
     // Enlaces profundos desde otras áreas (ver resolveDeepLink):
@@ -940,13 +1256,43 @@
     async function openFromQuery() {
         const params = new URLSearchParams(window.location.search);
         const resolver = window.ArtistInboxDeepLink;
-        const target = resolver ? resolver.resolveDeepLink(state.rows, params) : null;
+        let target = resolver ? resolver.resolveDeepLink(state.rows, params) : null;
         if (!target) return;
+        // INB-06: "Contactar cliente" / "Ver chat completo" de una cotización
+        // sin mensajes todavía. La vista no la trae: se arma el hilo con la
+        // cotización (RLS del artista) y se abre para escribir el primero.
+        const quoteId = (params.get('quote') || '').trim();
+        if (!target.key && quoteId) {
+            const key = await ensureQuoteThread(quoteId);
+            if (key) target = { key: key, filter: null };
+        }
         if (target.filter && target.filter !== state.filter) selectFilter(target.filter);
         if (!target.key) return;
         revealActiveRow(target.key);
         await openThread(target.key);
         revealActiveRow(target.key);
+    }
+
+    async function ensureQuoteThread(quoteId) {
+        const quote = await loadQuoteDetails(quoteId);
+        if (!quote || quote.artist_id !== state.userId) {
+            notify('No encontramos esa cotización en tu cuenta.', 'error');
+            return null;
+        }
+        if (!quote.client_user_id) {
+            // Sin cuenta del cliente no hay chat: se vincula cuando inicia sesión.
+            notify('El chat se habilita cuando el cliente crea su cuenta en We Ötzi.', 'info');
+            return null;
+        }
+        const synthetic = M ? M.syntheticQuoteThread(quote) : null;
+        if (!synthetic) return null;
+        if (!state.syntheticQuotes.some(function (item) { return item.quote_id === quoteId; })) {
+            state.syntheticQuotes.push(synthetic);
+        }
+        state.rows = buildRows();
+        renderSidebarCounts();
+        renderList();
+        return 'quote:' + quoteId;
     }
 
     // Enlace profundo: la fila seleccionada queda visible dentro de la lista

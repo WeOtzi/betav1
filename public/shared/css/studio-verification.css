@@ -1,0 +1,159 @@
+/* ==========================================================================
+   Verificación del estudio · /studio/dashboard#verificacion
+   Figma de estudios 91wYIpURj0xn0kzqhybOOt · 05 Verificación del estudio
+   (E-VER-01/02/03, E-VER-02-DOCUMENTS, E-VER-02-APPROVED).
+   Tokens del DS (public/shared/css/ds/tokens.css); layout del panel con
+   .studio-panel-grid / .studio-context (studio-dashboard-ds.css).
+   ========================================================================== */
+
+.sv-head { margin: 0 0 32px; display: grid; gap: 10px; justify-items: start; }
+.sv-kicker,
+.sv-label-mono {
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size, 12px);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-body);
+    margin: 0;
+}
+.sv-title { margin: 0; }
+.sv-title:focus { outline: none; }
+.sv-title:focus-visible { outline: 2px solid var(--border-focus, var(--ink)); outline-offset: 4px; }
+.sv-sub { margin: 0; font-size: var(--body-m-size, 16px); color: var(--text-muted); }
+.sv-tag {
+    display: inline-block;
+    padding: 4px 8px;
+    background: var(--figma-sand, #F2EDE3);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size, 10px);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-heading);
+}
+.sv-tag--ok { background: var(--success-bg); color: var(--success-fg); margin-right: 6px; }
+
+.sv-main { display: grid; gap: 36px; min-width: 0; }
+.sv-section-title { margin: 0 0 8px; }
+
+/* Filas "título + meta" (E-VER-02 / APPROVED) */
+.sv-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-subtle); }
+.sv-row {
+    display: grid;
+    gap: 4px;
+    padding: 16px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    min-width: 0;
+}
+.sv-row strong { font-size: var(--body-m-size, 16px); color: var(--text-heading); font-weight: 600; }
+.sv-row span { font-size: var(--body-s-size, 14px); color: var(--text-muted); overflow-wrap: anywhere; }
+.sv-row a { color: var(--text-link, var(--ink)); text-decoration: underline; text-underline-offset: 2px; }
+.sv-doc-links { margin-top: 20px; }
+
+.sv-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.sv-actions .wo-btn { min-height: 44px; }
+
+/* Formulario (E-VER-01 / E-VER-03) */
+.sv-form { display: grid; gap: 16px; }
+.sv-form .studio-help { margin: 0; }
+.sv-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 20px;
+}
+.sv-field { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.sv-field--full { grid-column: 1 / -1; }
+.sv-field .wo-input,
+.sv-field .wo-textarea { width: 100%; min-height: 48px; }
+.sv-field [aria-invalid="true"] { border-color: var(--error-fg); }
+.sv-hint { font-size: var(--body-s-size, 14px); color: var(--text-muted); line-height: 1.5; }
+
+/* Selector de archivo: label con el aspecto del campo del Figma */
+.sv-file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 0 16px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-input, var(--surface-card));
+    color: var(--text-heading);
+    font-size: var(--body-m-size, 16px);
+    cursor: pointer;
+}
+.sv-file:hover { background: var(--surface-input-hover, var(--sand-050)); }
+.sv-file [data-wo-icon] { width: 18px; height: 18px; flex: none; }
+.sv-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    border: 0;
+}
+.sv-field:has(.sv-file-input:focus-visible) .sv-file { outline: 2px solid var(--border-focus, var(--ink)); outline-offset: 2px; }
+.sv-file-input:disabled + .sv-hint,
+.sv-field:has(.sv-file-input:disabled) .sv-file { opacity: .6; cursor: progress; }
+
+.sv-files { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sv-files li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--sand-050);
+    font-size: var(--body-s-size, 14px);
+}
+.sv-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-heading); }
+.sv-file-meta { font-family: var(--font-mono); font-size: var(--meta-s-size, 10px); letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.sv-file-remove {
+    border: 0;
+    background: none;
+    padding: 6px 4px;
+    min-height: 32px;
+    font: inherit;
+    font-size: var(--body-s-size, 14px);
+    color: var(--text-heading);
+    text-decoration: underline;
+    cursor: pointer;
+}
+.sv-file-remove:focus-visible { outline: 2px solid var(--border-focus, var(--ink)); outline-offset: 2px; }
+
+.sv-error { margin: 0; padding: 12px 14px; background: var(--error-bg); color: var(--error-fg); font-size: var(--body-s-size, 14px); }
+
+.sv-alert,
+.sv-observed {
+    padding: 16px 18px;
+    border: 1px solid var(--border-strong);
+    background: var(--yellow-100);
+    line-height: 1.55;
+    font-size: var(--body-s-size, 14px);
+}
+.sv-observed { background: var(--surface-card); display: grid; gap: 6px; }
+.sv-observed p { margin: 0; }
+.sv-alert p { margin: 6px 0 0; }
+.sv-alert ul { margin: 8px 0 0; padding-left: 18px; }
+
+/* Instagram */
+.sv-ig { display: grid; gap: 12px; padding-top: 28px; border-top: 1px solid var(--border-subtle); }
+.sv-ig p { margin: 0; line-height: 1.55; }
+.sv-ig .sv-actions { margin-top: 4px; }
+.sv-steps { display: grid; gap: 10px; padding: 16px 18px; background: var(--sand-050); }
+.sv-steps ol { margin: 0; padding-left: 20px; line-height: 1.6; }
+.sv-steps .wo-btn { justify-self: start; }
+
+.sv-context { align-self: start; }
+
+@media (max-width: 760px) {
+    .sv-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    .sv-actions { flex-direction: column; align-items: stretch; }
+    .sv-actions .wo-btn { width: 100%; justify-content: center; }
+    .sv-row { padding: 14px 4px; }
+}
+
+/* Botones secundarios del Figma (borde fuerte) y contraste en hover de los
+   <a> (ds/components.css deja el texto blanco en a.wo-btn:hover). */
+.sv-panel .wo-btn--secondary { border-color: var(--border-strong); }
+.sv-panel a.wo-btn--secondary:hover { color: var(--action-secondary-fg); }

@@ -11,6 +11,17 @@
 
 /* ---------- TopBar ---------- */
 .mk-topbar-cta{align-self:center}
+/* Hamburguesa + menú móvil (≤ 768px): la nav de escritorio se oculta en el DS */
+.mk-burger{display:none;flex:none}
+.mk-mobile-menu{display:flex;flex-direction:column;background:var(--surface-card);border-bottom:var(--border-strong-width) solid var(--border-strong)}
+.mk-mobile-menu-link{display:block;width:100%;padding:var(--space-4) var(--space-6);background:transparent;border:0;border-bottom:var(--border-hairline) solid var(--border-subtle);
+  font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;text-align:left;
+  color:var(--neutral-500);text-decoration:none;cursor:pointer}
+.wo-app a.mk-mobile-menu-link:hover,.mk-mobile-menu-link:hover{background:var(--surface-input-hover);color:var(--neutral-500);text-decoration:none}
+.mk-mobile-menu-link.is-active{background:var(--neutral-500);color:var(--neutral-100)}
+.wo-app a.mk-mobile-menu-link.is-active:hover{background:var(--neutral-500);color:var(--neutral-100)}
+.mk-mobile-menu-link:last-child{border-bottom:0}
+.mk-mobile-menu-logout{color:var(--system-error)}
 /* Tile Ö del cliente logueado (marketplace.js lo inyecta si hay sesión) */
 .mk-profile-tile{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex:none;
   background:var(--yellow-300);color:var(--neutral-500);
@@ -38,9 +49,11 @@
 .mk-search-input{background:var(--surface-page);border-color:var(--border-strong);padding-left:var(--space-12)}
 .mk-search-input:focus{padding-left:calc(var(--space-12) - 1px)}
 .mk-suggestions{position:absolute;top:100%;left:0;right:0;z-index:40;margin-top:calc(-1 * var(--border-hairline));background:var(--surface-card);border:var(--border-strong-width) solid var(--border-strong);max-height:320px;overflow-y:auto}
-.mk-suggestion{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);padding:var(--space-3) var(--space-4);cursor:pointer;border-bottom:var(--border-hairline) solid var(--border-subtle)}
+.mk-suggestion{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);width:100%;padding:var(--space-3) var(--space-4);
+  background:transparent;border:0;border-bottom:var(--border-hairline) solid var(--border-subtle);font:inherit;text-align:left;cursor:pointer}
 .mk-suggestion:last-child{border-bottom:0}
-.mk-suggestion:hover{background:var(--surface-input-hover)}
+.mk-suggestion:hover,.mk-suggestion:focus-visible{background:var(--surface-input-hover)}
+.mk-search-input::-webkit-search-cancel-button{cursor:pointer}
 .mk-suggestion-label{font-size:var(--body-s-size);color:var(--text-body)}
 .mk-suggestion-cat{font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--text-muted);flex:none}
 
@@ -57,15 +70,22 @@
 .mk-filter-btn:active{transform:none;box-shadow:none}
 .mk-filter-btn [data-wo-icon]{width:14px;height:14px}
 .mk-filter-label{white-space:nowrap}
-.mk-filter.is-set .mk-filter-btn{background:var(--neutral-500);color:var(--neutral-100)}
+.mk-verified-btn[hidden]{display:none}
+.mk-filter.is-set .mk-filter-btn,.mk-verified-btn.is-set{background:var(--neutral-500);color:var(--neutral-100)}
+.mk-filter-count{font-family:var(--font-mono);font-size:var(--meta-s-size);opacity:var(--opacity-muted)}
 .mk-filter-menu{position:absolute;top:calc(100% + var(--space-1));left:0;z-index:50;min-width:220px;max-width:320px;max-height:320px;overflow-y:auto;
   background:var(--surface-card);border:var(--border-strong-width) solid var(--border-strong)}
 .mk-filter-menu[hidden]{display:none}
+/* Cabecera del menú: solo en el bottom sheet de móvil */
+.mk-filter-menu-head{display:none}
+.mk-filter-empty{margin:0;padding:var(--space-3) var(--space-4);font-size:var(--body-s-size);color:var(--text-muted)}
+.mk-filter-opt--clear{color:var(--text-muted)}
+.mk-filter-scrim{z-index:55}
 .mk-filter-opt{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);width:100%;
   padding:var(--space-3) var(--space-4);background:transparent;border:0;border-bottom:var(--border-hairline) solid var(--border-subtle);
   font-family:var(--font-body);font-size:var(--body-s-size);color:var(--text-body);text-align:left;cursor:pointer}
 .mk-filter-opt:last-child{border-bottom:0}
-.mk-filter-opt:hover{background:var(--surface-input-hover)}
+.mk-filter-opt:hover,.mk-filter-opt:focus-visible{background:var(--surface-input-hover)}
 .mk-filter-opt.is-selected{background:var(--neutral-500);color:var(--neutral-100)}
 .mk-filter-opt-count{font-family:var(--font-mono);font-size:var(--meta-s-size);color:inherit;opacity:var(--opacity-muted);flex:none}
 /* Separador + chip "Todos los filtros" al final de la fila (Figma 286:12041) */
@@ -115,6 +135,11 @@
 .mk-featured-title{font-family:var(--font-display);font-size:var(--h2-size);line-height:var(--h2-lh);letter-spacing:var(--h2-track);color:var(--ink);margin:0}
 .mk-featured-sub{font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted);margin:0}
 .mk-featured-link{flex:none;font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase}
+/* Modo Estudios: panel amarillo del Figma 2113:9145 */
+.mk-featured--studios{background:var(--yellow-300);border-color:var(--border-strong)}
+.mk-featured--studios .mk-featured-eyebrow,.mk-featured--studios .mk-featured-eyebrow-alt{color:var(--blue-500)}
+.mk-featured--studios .mk-featured-eyebrow::before{background:var(--blue-500)}
+.mk-featured--studios .mk-featured-sub{color:var(--neutral-500)}
 
 /* ---------- Artistas para vos (Figma 286:12794) ---------- */
 .mk-foryou{margin-top:var(--space-12)}
@@ -122,8 +147,13 @@
 .mk-foryou-sub{font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--text-faint);margin:var(--space-2) 0 0}
 
 /* ---------- Grid de artistas ---------- */
-.mk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-5);margin-top:var(--space-6)}
-.mk-card{display:flex;flex-direction:column;cursor:pointer}
+.mk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-5);margin-top:var(--space-6)}
+.mk-card{display:flex;flex-direction:column;min-width:0}
+/* La card entera es un enlace real (Tab, clic medio, nueva pestaña): una capa
+   <a> sobre la media; el corazón queda por encima. */
+.mk-card-hit{position:absolute;inset:0;z-index:1}
+.mk-card:focus-within{box-shadow:var(--shadow-focus)}
+.mk-card-hit:focus-visible{box-shadow:none}
 
 /* Media full-bleed con protección inferior (gradiente permitido sobre imagen) */
 .mk-card-media{position:relative;aspect-ratio:4 / 5;background:var(--surface-media)}
@@ -132,7 +162,12 @@
 .mk-card-overlay{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:var(--space-3);padding:var(--space-8) var(--space-4) var(--space-4);background:var(--protection-bottom)}
 .mk-card-avatar{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex:none;border-radius:var(--radius-pill);background:var(--yellow-300);color:var(--neutral-500);font-family:var(--font-display);font-size:15px;text-transform:uppercase;overflow:hidden}
 .mk-card-id{min-width:0;flex:1}
-.mk-card-name{font-family:var(--font-display);font-size:18px;line-height:1.15;color:var(--white);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mk-card-name{display:flex;align-items:center;gap:var(--space-2);min-width:0;font-family:var(--font-display);font-size:18px;line-height:1.15;color:var(--white);margin:0}
+.mk-card-name-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Sello "Verificado" (VER-A6) */
+.mk-card-verified{display:inline-flex;flex:none;color:var(--yellow-300)}
+.mk-card-verified [data-wo-icon]{width:16px;height:16px}
+.mk-card-studio{margin:var(--space-1) 0 0;font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--white);opacity:var(--opacity-subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mk-card-metarow{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);
   position:absolute;left:0;right:0;bottom:0;padding:0 var(--space-4) var(--space-4)}
 .mk-card-meta{font-family:var(--font-mono);font-size:11px;letter-spacing:0.04em;text-transform:uppercase;color:var(--white);opacity:var(--opacity-subtle);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -160,11 +195,15 @@
   font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase}
 .mk-card-sponsored [data-wo-icon]{width:12px;height:12px}
 /* Corazón de favoritos de la card */
-.mk-card-fav{position:absolute;top:var(--space-2);right:var(--space-2);z-index:1;display:inline-flex;align-items:center;justify-content:center;
+.mk-card-fav{position:absolute;top:var(--space-2);right:var(--space-2);z-index:2;display:inline-flex;align-items:center;justify-content:center;
   width:var(--space-8);height:var(--space-8);padding:0;background:transparent;border:0;border-radius:var(--radius-none);
   color:var(--white);cursor:pointer}
 .mk-card-fav [data-wo-icon]{width:18px;height:18px}
 .mk-card-fav.is-fav svg{fill:currentColor}
+
+/* ---------- Cargar más (Figma 2113:9145) ---------- */
+.mk-load-more{display:flex;justify-content:center;margin-top:var(--space-6)}
+.mk-load-more-btn{font-family:var(--font-mono);letter-spacing:var(--meta-m-track);text-transform:uppercase}
 
 /* ---------- Estado vacío ---------- */
 .mk-empty-icon{width:48px;height:48px;color:var(--text-faint)}
@@ -175,14 +214,27 @@
 
 /* ---------- Responsive ---------- */
 @media (max-width:1024px){
-  .mk-grid{grid-template-columns:repeat(3,1fr)}
-}
-@media (max-width:1024px){
-  .mk-drawer-grid{grid-template-columns:repeat(2,1fr)}
+  /* minmax(0,1fr): un nombre o una imagen larga no ensancha la columna (REV-4). */
+  .mk-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .mk-drawer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:768px){
+  .mk-burger{display:inline-flex}
   .mk-main{padding-top:var(--space-6)}
-  .mk-grid{grid-template-columns:repeat(2,1fr);gap:var(--space-4)}
+  /* Menús de filtro como bottom sheet: position:fixed escapa del recorte de
+     la fila con overflow-x (MK-07). */
+  .mk-filter-menu{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:60;min-width:0;max-width:none;max-height:70vh;
+    display:flex;flex-direction:column;border-width:var(--border-strong-width) 0 0;padding-bottom:env(safe-area-inset-bottom)}
+  .mk-filter-menu[hidden]{display:none}
+  .mk-filter-menu-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);flex:none;
+    padding:var(--space-3) var(--space-4);border-bottom:var(--border-strong-width) solid var(--border-strong)}
+  .mk-filter-menu-title{font-family:var(--font-body);font-size:var(--button-s-size);font-weight:var(--weight-bold);letter-spacing:var(--button-s-track);text-transform:uppercase;color:var(--neutral-500)}
+  .mk-filter-menu-close{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin:calc(-1 * var(--space-2));padding:0;background:transparent;border:0;color:var(--neutral-500);cursor:pointer}
+  .mk-filter-menu-close [data-wo-icon]{width:18px;height:18px}
+  .mk-filter-menu-list{overflow-y:auto;overscroll-behavior:contain}
+  .mk-filter-opt{min-height:48px}
+  body.mk-sheet-open{overflow:hidden}
+  .mk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-4)}
   .mk-results-bar{align-items:flex-start;flex-direction:column}
   .mk-results-tools{width:100%;justify-content:space-between}
   .mk-clear-btn{margin-left:0}
@@ -196,7 +248,8 @@
 }
 @media (max-width:480px){
   .mk-grid{grid-template-columns:1fr}
+  /* Topbar a 375px: marca + tile + menú; Cotizá y Log out viven en el menú */
+  .mk-topbar .mk-topbar-cta,.mk-topbar .mk-logout{display:none}
   .mk-results-tools{gap:var(--space-3)}
   .mk-seg-btn{padding:var(--space-2) var(--space-3)}
-  .mk-filter-menu{min-width:200px;max-width:calc(100vw - var(--space-10))}
 }

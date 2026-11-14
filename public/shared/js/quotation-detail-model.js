@@ -90,6 +90,28 @@
         if (amount == null) return 'A definir';
         return currencySymbol(currency) + groupThousands(amount);
     }
+    // COT-A-09: seña opcional de la respuesta/acuerdo. Vacío o 0 → sin seña
+    // (columnas en null). { ok, patch } o { ok: false, error }.
+    function depositPatch(rawPct, total) {
+        var raw = rawPct == null ? '' : String(rawPct).trim();
+        if (!raw) return { ok: true, patch: { artist_deposit_pct: null, artist_deposit_amount: null } };
+        var pct = numberFrom(raw);
+        if (pct == null || pct < 0 || pct > 100) return { ok: false, error: 'La seña tiene que ser un porcentaje entre 0 y 100.' };
+        if (pct === 0) return { ok: true, patch: { artist_deposit_pct: null, artist_deposit_amount: null } };
+        var base = numberFrom(total);
+        var amount = base != null && base > 0 ? Math.round(base * pct) / 100 : null;
+        return { ok: true, patch: { artist_deposit_pct: Math.round(pct * 100) / 100, artist_deposit_amount: amount } };
+    }
+    // "30 % · $150" · "Sin seña".
+    function depositText(pct, amount, currency) {
+        var p = numberFrom(pct);
+        var a = numberFrom(amount);
+        if ((p == null || p <= 0) && (a == null || a <= 0)) return 'Sin seña';
+        var parts = [];
+        if (p != null && p > 0) parts.push(String(p).replace('.', ',') + ' %');
+        if (a != null && a > 0) parts.push(money(a, currency));
+        return parts.join(' · ');
+    }
     function moneyRange(min, max, currency) {
         var a = numberFrom(min), b = numberFrom(max);
         if (a != null && b != null && a !== b) return money(a, currency) + ' – ' + money(b, currency);
@@ -199,9 +221,16 @@
         return intFrom(quote && quote.final_sessions) || intFrom(quote && quote.tattoo_estimated_sessions) || 0;
     }
 
+    // Sesiones que ya no ocupan un lugar del acuerdo: canceladas y aquellas a
+    // las que el cliente no se presentó (COT-A-15). Quedan en el historial.
+    var INACTIVE_SESSION = ['cancelled', 'canceled', 'no_show'];
+    function isActiveSession(s) {
+        return !!s && INACTIVE_SESSION.indexOf(String(s.status || '').toLowerCase()) === -1;
+    }
+
     function orderedSessions(sessions) {
         return (Array.isArray(sessions) ? sessions : [])
-            .filter(function (s) { return s && s.status !== 'cancelled'; })
+            .filter(isActiveSession)
             .slice()
             .sort(function (a, b) {
                 var na = intFrom(a.session_number), nb = intFrom(b.session_number);
@@ -277,8 +306,27 @@
             case 'in_progress': return ['schedule', 'contact'];
             case 'ready': return ['markReady', 'contact'];
             case 'dispute': return ['dispute', 'contact'];
+            // COT-A-08: una vencida se puede volver a cotizar ("accept" abre el
+            // diálogo de respuesta con la etiqueta "Volver a cotizar").
+            case 'expired': return ['accept', 'contact'];
             default: return ['contact'];
         }
+    }
+
+    // Acciones secundarias de una sesión agendada (COT-A-05 / COT-A-15):
+    // cancelarla (el cliente recibe session_cancelled) y, si la fecha ya
+    // pasó, registrar que el cliente no se presentó (sin email). Solo con el
+    // acuerdo vigente; las sesiones realizadas no se tocan.
+    var MANAGE_STAGES = ['approved', 'in_progress', 'ready', 'dispute'];
+    function sessionManageActions(stage, slot, now) {
+        if (!slot || slot.state !== 'scheduled' || !slot.session || slot.session.id == null) return [];
+        if (MANAGE_STAGES.indexOf(stage) === -1) return [];
+        var date = toDate(slot.session.session_date);
+        var current = toDate(now) || new Date();
+        var actions = [];
+        if (date && date.getTime() <= current.getTime()) actions.push('no_show');
+        actions.push('cancel');
+        return actions;
     }
 
     // Acciones por fila de sesión. `now` permite registrar en "aprobado" las
@@ -402,6 +450,8 @@
         if (count) parts.push(sessionsLabel(count));
         var dur = durationShort(q.artist_session_minutes);
         if (dur) parts.push(dur);
+        var depositPct = numberFrom(q.artist_deposit_pct);
+        if (depositPct != null && depositPct > 0) parts.push('seña ' + String(depositPct).replace('.', ',') + ' %');
         return parts.length ? 'Respuesta enviada: ' + parts.join(' · ') + '.' : 'Respuesta enviada al cliente.';
     }
     function agreementSummary(quote, sessions) {
@@ -496,6 +546,13 @@
 
         orderedSessions(sessions).forEach(function (s, i) {
             if (s.status === 'completed') push(sessionDoneAt(s, now), sessionDoneCopy(s, intFrom(s.session_number) || i + 1), 'session-' + (s.id || i));
+        });
+        // Sesiones canceladas o a las que el cliente no vino (COT-A-05/15).
+        (Array.isArray(sessions) ? sessions : []).forEach(function (s, i) {
+            if (!s || !toDate(s.session_date)) return;
+            var status = String(s.status || '').toLowerCase();
+            if (status === 'no_show') push(s.updated_at || s.session_date, 'El cliente no se presentó a la sesión del ' + dayMonth(s.session_date) + '.', 'session-ns-' + (s.id || i));
+            else if (status === 'cancelled' || status === 'canceled') push(s.updated_at || s.session_date, 'Sesión del ' + dayMonth(s.session_date) + ' cancelada.', 'session-cx-' + (s.id || i));
         });
         (Array.isArray(disputes) ? disputes : []).forEach(function (d) {
             push(d.created_at, 'Cliente inició una disputa. Entrega retenida.', 'dispute-' + d.id);
@@ -763,6 +820,7 @@
         toDate: toDate, dayMonth: dayMonth, dayMonthYear: dayMonthYear, timeOf: timeOf, dateTime: dateTime,
         chatStamp: chatStamp, isoDay: isoDay, sameDay: sameDay, localInputValue: localInputValue,
         numberFrom: numberFrom, intFrom: intFrom, money: money, moneyRange: moneyRange, groupThousands: groupThousands,
+        depositPatch: depositPatch, depositText: depositText,
         minutesFrom: minutesFrom, splitMinutes: splitMinutes, durationLong: durationLong, durationShort: durationShort,
         hoursLabel: hoursLabel, sessionsLabel: sessionsLabel, initials: initials, styleName: styleName,
         bodyZone: bodyZone, isFlexible: isFlexible, preferredDateLabel: preferredDateLabel,
@@ -771,6 +829,7 @@
         showsAgreement: showsAgreement, showsSessions: showsSessions, commandActions: commandActions,
         openDispute: openDispute, agreedSessions: agreedSessions, orderedSessions: orderedSessions,
         sessionSlots: sessionSlots, slotCounts: slotCounts, sessionRowActions: sessionRowActions,
+        sessionManageActions: sessionManageActions, isActiveSession: isActiveSession,
         firstSessionDate: firstSessionDate,
         // timeline / historial
         TIMELINE_STEPS: TIMELINE_STEPS, timeline: timeline, historyEvents: historyEvents,
