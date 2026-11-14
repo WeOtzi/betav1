@@ -2664,7 +2664,7 @@
         let action = '';
         const requestBtn = '<button type="button" class="aac-btn aac-btn--outline aac-btn--s" id="aac-verif-request">Solicitar verificación</button>';
         const reason = lastVerifDecision && ['rejected', 'revoked'].includes(lastVerifDecision.action) && lastVerifDecision.notes
-            ? ` Motivo: ${lastVerifDecision.notes}.` : '';
+            ? ` Motivo: ${String(lastVerifDecision.notes).trim().replace(/[.!?…]+$/, '')}.` : '';
 
         if (!isVerified()) {
             if (['Requested', 'In Progress', 'In Analysis'].includes(state)) {

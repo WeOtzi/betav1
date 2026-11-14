@@ -30,6 +30,8 @@
     var FEED_WINDOW_DAYS = 14;
 
     function text(v) { return v == null ? '' : String(v).trim(); }
+    // "Motivo: X. " sin duplicar el punto si la nota ya termina en . ! o ?
+    function reasonSentence(note) { var n = text(note); return n ? 'Motivo: ' + n + (/[.!?…]$/.test(n) ? ' ' : '. ') : ''; }
     function obj(v) { return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
     function validTime(iso) {
         var t = iso ? Date.parse(iso) : NaN;
@@ -110,10 +112,10 @@
                 detail = 'Tu perfil público ya muestra la insignia de verificado.';
             } else if (d.outcome === 'rejected') {
                 title = 'No pudimos verificar tu perfil';
-                detail = (d.note ? 'Motivo: ' + d.note + '. ' : '') + 'Revisá tus documentos y volvé a solicitarla desde Cuenta · Verificación.';
+                detail = reasonSentence(d.note) + 'Revisá tus documentos y volvé a solicitarla desde Cuenta · Verificación.';
             } else {
                 title = 'Tu perfil quedó sin verificar';
-                detail = (d.note ? 'Motivo: ' + d.note + '. ' : '') + 'Podés volver a solicitar la verificación desde Cuenta · Verificación.';
+                detail = reasonSentence(d.note) + 'Podés volver a solicitar la verificación desde Cuenta · Verificación.';
             }
         } else if (d.subject === 'destination') {
             if (d.outcome === 'approved') {

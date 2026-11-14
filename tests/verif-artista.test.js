@@ -406,3 +406,27 @@ test('estados: pre-cotización excluye denegados; Spots no promete "verificado";
     const select = bo.slice(bo.indexOf('<select id="artist-verification-state"'), bo.indexOf('</select>', bo.indexOf('<select id="artist-verification-state"')));
     assert.doesNotMatch(select, /In Progress|In Analysis|Canceled/);
 });
+
+/* ------------------------------ revisión (escéptico) ------------------------------ */
+
+test('revisión: el motivo no duplica el punto final (aviso in-app y cuenta)', () => {
+    const d = SDM.fromRow('verification', { id: HISTORY, action: 'rejected', notes: 'Falta domicilio.', created_at: '2026-11-15T12:00:00Z', artists_db: { user_id: ARTIST } });
+    assert.equal(SDM.describe(d).detail, 'Motivo: Falta domicilio. Revisá tus documentos y volvé a solicitarla desde Cuenta · Verificación.');
+    const r = SDM.fromRow('verification', { id: HISTORY, action: 'revoked', notes: '¿Perfil duplicado?', created_at: '2026-11-15T12:00:00Z' });
+    assert.match(SDM.describe(r).detail, /^Motivo: ¿Perfil duplicado\? Podés volver/);
+    const account = read('public/shared/js/artist-account.js');
+    assert.match(account, /Motivo: \$\{String\(lastVerifDecision\.notes\)\.trim\(\)\.replace\(\/\[\.!\?…\]\+\$\/, ''\)\}\./);
+});
+
+test('revisión: el notify no avisa por filas que escribió el propio artista (pending_review sin reviewed_by)', async () => {
+    let sent = 0;
+    const out = await Verif.notifyVerificationDecision({ history_id: HISTORY }, {
+        historyRow: async () => ({ id: HISTORY, artist_id: ARTIST_ROW_ID, action: 'pending_review', notes: 'Solicitud del artista', reviewed_by: null, created_at: new Date().toISOString() }),
+        artistById: async () => ({ id: ARTIST_ROW_ID, user_id: ARTIST, email: 'a@example.com' }),
+        isActiveSupportAgent: async (id) => id === AGENT,
+        sendEmail: async () => { sent++; return { ok: true }; }
+    });
+    assert.equal(out.sent, false);
+    assert.equal(out.skipped, 'not_support');
+    assert.equal(sent, 0);
+});
