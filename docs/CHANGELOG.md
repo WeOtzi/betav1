@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.4.0] - 2026-11-15
+
+Beta cerrada: tatuadores, clientes y estudios. Auditoría de 11 áreas, 13 frentes implementados y revisión cruzada de la integración.
+
+- Acceso: el cliente tiene "¿Olvidaste tu contraseña?", enlace mágico y acepta Términos; el estudio tiene enlace mágico. Todas las páginas destino avisan si el link venció o ya se usó. La bienvenida sale una sola vez aunque confirme en otro dispositivo (POST /api/account/welcome, con fecha de corte). Google sin rol ya no crea una fila de artista pública vacía.
+- Perfil público: vista previa al compartir renderizada en el servidor (OG/Twitter), URL corta /<usuario>, compartir para dueño y visitante (copiar, WhatsApp, Instagram, Facebook, X, Telegram, LinkedIn, QR), nav de visitante, sello verificado consistente y username único y validado.
+- Cotizaciones del artista: la cotización manual y el pre-cotizador ya no fallan (CHECK de source), aviso al artista por cada solicitud nueva, seña en la respuesta, re-cotizar vencidas, retirar propuesta con aviso, emails de sesión por rol.
+- Cotizaciones del cliente: RLS cerrada (el borrador anónimo va por el servidor), sin secretos en el config público, referencias en Storage como fuente de verdad, sesión vencida sin trabar el formulario. Sin artista: el sistema sugiere artistas por estilo, ciudad y presupuesto, o publica la idea en el Job Board. El cliente ve la propuesta y la acepta o rechaza; las cotizaciones de invitado se vinculan al registrarse.
+- Calendario: Google Calendar recibe todos los tipos de evento (manuales, sesiones, recordatorios, días ocupados, viajes, citas de estudio, solicitudes de turno) al instante y sin duplicar al reconectar; zona horaria del artista. Turnos disponibles: horario y reglas por artista (3 h, paso 1 h, margen 30 min, 24 h de anticipación), resumen de semana, mes, 3 meses y año en el dashboard y el calendario, enlace público para compartir, reserva desde el perfil hacia /quotation con fecha y hora, apartado de 72 h con control de concurrencia y bloqueo al aceptar.
+- Inbox: sin XSS, sin duplicados, tiempo real, adjuntos y tarjeta de cotización, el cliente inicia la conversación y ve los hilos de Job Board, móvil usable.
+- Emails: render en el servidor con una base común responsive (Outlook, modo oscuro, CTA a prueba de clientes de correo, preheader, texto plano), todas las plantillas regeneradas, canal smtp_relay para eventos sin webhook propio, límite de envío propio por usuario, preferencias respetadas, avisos de chat agrupados y PII fuera del correo.
+- Verificación: artistas (solicitud validada, cola de soporte por artista, decisión con motivo, email, historial con RLS) y estudios (panel con documentos, sede y responsable, cola de soporte, sello en perfil y marketplace, retirar sello).
+- Marketplace: arranque sin carrera con ConfigManager, filtros arreglados (estilo, precio, estudio, disponibilidad con Travel, verificados, búsqueda en vivo), bottom sheet en móvil, cards como enlaces, modo Estudios, geocodificación protegida y columnas privadas de studios ocultas.
+- Estudios: registro con coincidencias y reclamo de fichas (cola en el backoffice), Términos, pin arrastrable, sedes con crear/editar/archivar/principal, bienvenida; perfil público con el estilo del rediseño. Equipo: solicitudes de tatuadores para aprobar, enlace de invitación (opcionalmente por sede), invitación por email, solicitud desde la cuenta del artista y roster público sin PII.
+- Migraciones (aplicadas en vivo tras validar): 20261115100000 a 20261115230500 (ver supabase/migrations). Reversas en supabase/rollbacks/.
+- Validación: node --test, suite completa en verde; cada migración validada con begin…rollback en flbgmlvfiejfttlawnfu antes de aplicarla.
+- Rollback: controlador a la release 2.2.15 (b69165e) y reversas en orden inverso.
+
 ## [2.2.15] - 2026-11-14
 
 - Google Calendar: arreglo de 2.2.14. El check de artist_google_calendar_event_links no aceptaba vínculos trip:, así que cada sincronización volvía a crear el viaje en Google (duplicados) y mostraba "1 evento no se pudo sincronizar". Migración 20261114120000 gcal_links_trips (aplicada en vivo). Además, si no se puede guardar el vínculo de un evento recién creado, se borra en Google para no dejar huérfanos.
