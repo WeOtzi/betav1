@@ -75,6 +75,29 @@ CREATE TABLE IF NOT EXISTS public.studio_invite_link_uses (
 CREATE INDEX IF NOT EXISTS studio_invite_link_uses_artist_idx
   ON public.studio_invite_link_uses (artist_user_id);
 
+-- Borrar un uso (la compensación de un registro fallido) devuelve el cupo al
+-- enlace: un enlace con tope no pierde usos por un registro que no terminó.
+CREATE OR REPLACE FUNCTION private.release_studio_invite_link_use()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+BEGIN
+  UPDATE public.studio_invite_links l
+     SET uses_count = greatest(l.uses_count - 1, 0)
+   WHERE l.id = OLD.link_id;
+  RETURN OLD;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION private.release_studio_invite_link_use() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_release_studio_invite_link_use ON public.studio_invite_link_uses;
+CREATE TRIGGER trg_release_studio_invite_link_use
+  AFTER DELETE ON public.studio_invite_link_uses
+  FOR EACH ROW EXECUTE FUNCTION private.release_studio_invite_link_use();
+
 ALTER TABLE public.studio_invite_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.studio_invite_link_uses ENABLE ROW LEVEL SECURITY;
 -- Sin políticas: el servidor usa service_role y el canje pasa por la RPC.

@@ -315,7 +315,7 @@ test('rutas: el aviso del artista exige que la membresía sea suya y esté en el
         repo: fakeRepo()
     });
     const res = fakeRes();
-    await app.routes['POST /api/artist/studio-notify']({ body: { kind: 'membership_request_created', membership_id: 'm1' } }, res);
+    await app.routes['POST /api/artist/studio-notify']({ body: { kind: 'membership_request_created', membership_id: '55555555-5555-4555-8555-555555555555' } }, res);
     assert.equal(res.statusCode, 404);
     assert.equal(notified.length, 0);
 });
