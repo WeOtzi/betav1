@@ -327,7 +327,7 @@
                     <div class="qn-refs-head">
                         <span class="qn-label">Referencias y archivos</span>
                         <button type="button" class="qn-link" data-qn-action="attach"><i data-wo-icon="plus" aria-hidden="true"></i>Adjuntar archivo</button>
-                        <input type="file" id="qn-file-input" class="qn-file-input" multiple accept="image/*,application/pdf" tabindex="-1" aria-hidden="true">
+                        <input type="file" id="qn-file-input" class="qn-file-input" multiple accept="${esc(M.UPLOAD_ACCEPT)}" tabindex="-1" aria-hidden="true">
                     </div>
                     <div class="qn-refs" data-qn-files>${filesHtml()}</div>
 
@@ -1010,9 +1010,20 @@
             const t = event.target;
             if (t.id === 'qn-file-input') {
                 const picked = Array.from(t.files || []);
-                const tooBig = picked.filter((f) => f.size > MAX_FILE_MB * 1024 * 1024);
-                const accepted = picked.filter((f) => f.size <= MAX_FILE_MB * 1024 * 1024);
+                // El bucket acepta una lista cerrada de tipos: lo que no entra se
+                // descarta acá (con aviso) y no al enviar. Sin file.type (HEIC en
+                // Windows) el tipo se infiere por la extensión.
+                const unsupported = [];
+                const typed = [];
+                picked.forEach((f) => {
+                    const mime = M.uploadMimeFor(f);
+                    if (!mime) { unsupported.push(f); return; }
+                    typed.push(f.type === mime ? f : new File([f], f.name, { type: mime, lastModified: f.lastModified }));
+                });
+                const tooBig = typed.filter((f) => f.size > MAX_FILE_MB * 1024 * 1024);
+                const accepted = typed.filter((f) => f.size <= MAX_FILE_MB * 1024 * 1024);
                 files = files.concat(accepted).slice(0, MAX_FILES);
+                if (unsupported.length) toast(`${unsupported.length === 1 ? 'Un archivo no tiene' : `${unsupported.length} archivos no tienen`} un formato admitido (JPG, PNG, WEBP, GIF, HEIC, AVIF o PDF).`, 'error');
                 if (tooBig.length) toast(`${tooBig.length} ${tooBig.length === 1 ? 'archivo supera' : 'archivos superan'} los ${MAX_FILE_MB} MB.`, 'error');
                 t.value = '';
                 rerender('[data-qn-files]', filesHtml());

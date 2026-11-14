@@ -458,6 +458,29 @@
         }).slice(0, max);
     }
 
+    // Tipos que acepta el bucket quotation-references para esta pantalla
+    // (20261115130000_cot_form_rls_cierre.sql). Sin SVG/BMP/TIFF.
+    var UPLOAD_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'image/avif', 'application/pdf'];
+    var UPLOAD_EXT_MIME = {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif',
+        heic: 'image/heic', heif: 'image/heif', avif: 'image/avif', pdf: 'application/pdf'
+    };
+    var UPLOAD_ACCEPT = UPLOAD_MIME_TYPES.join(',') + ',.heic,.heif';
+
+    /**
+     * MIME con el que se sube un archivo, o null si el bucket lo rechazaría.
+     * Sin file.type (p. ej. .heic en Chrome de Windows) se infiere por la
+     * extensión; Storage tomaría application/octet-stream y lo rechazaría.
+     */
+    function uploadMimeFor(file) {
+        if (!file) return null;
+        var type = String(file.type || '').toLowerCase().trim();
+        if (type === 'image/jpg') type = 'image/jpeg';
+        if (type && type !== 'application/octet-stream') return UPLOAD_MIME_TYPES.indexOf(type) !== -1 ? type : null;
+        var match = /\.([a-z0-9]+)$/i.exec(String(file.name || ''));
+        return (match && UPLOAD_EXT_MIME[match[1].toLowerCase()]) || null;
+    }
+
     function validateNewClient(input) {
         var name = clean(input && input.name);
         var email = clean(input && input.email);
@@ -506,6 +529,9 @@
         clientsFromQuotes: clientsFromQuotes,
         mergeClients: mergeClients,
         searchClients: searchClients,
-        validateNewClient: validateNewClient
+        validateNewClient: validateNewClient,
+        UPLOAD_MIME_TYPES: UPLOAD_MIME_TYPES,
+        UPLOAD_ACCEPT: UPLOAD_ACCEPT,
+        uploadMimeFor: uploadMimeFor
     };
 }));
