@@ -7032,6 +7032,7 @@ app.post('/api/privacy/cookie-consent', async (req, res) => {
     }
 });
 // ── fin privacidad ──
+require('./lib/routes/cot-cliente').register(app); // ── cot-cliente: claim + decisión del cliente
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {

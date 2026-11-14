@@ -197,7 +197,10 @@ const SPECS = {
     'artist-responded': {
         eyebrow: 'COTIZACION / RESPUESTA',
         headline: 'El artista respondio tu cotizacion.',
-        intro: 'Ya tienes una respuesta para revisar. Compara la propuesta, las sesiones estimadas y los datos del tatuaje antes de aprobar.'
+        intro: 'Ya tienes una respuesta para revisar. Compara la propuesta, las sesiones estimadas y los datos del tatuaje antes de aprobar.',
+        // cot-cliente: el cliente acepta o rechaza desde su panel (?quote=ID).
+        ctaLabel: 'Ver la propuesta',
+        ctaVar: 'quotation_url'
     },
     'artist-welcome': {
         eyebrow: 'REGISTRO ARTISTA',

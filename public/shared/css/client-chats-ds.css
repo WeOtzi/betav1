@@ -77,6 +77,9 @@
 .cch-banner-main{min-width:0}
 .cch-banner-title{font-family:var(--font-display);font-size:var(--h3-size);line-height:var(--h3-lh);color:var(--text-heading);margin:var(--space-1) 0}
 .cch-banner-meta{color:var(--text-muted);margin:0}
+.cch-banner-side{display:flex;flex-direction:column;align-items:flex-end;gap:var(--space-2);flex-shrink:0}
+.cch-banner-link{font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-link);text-decoration:none;white-space:nowrap}
+.cch-banner-link:hover,.cch-banner-link:focus-visible{text-decoration:underline}
 
 /* ---------- Timeline de mensajes ---------- */
 .cch-messages{flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-6)}
@@ -104,6 +107,7 @@
   .cch-thread-head{flex-wrap:wrap;padding:var(--space-3) var(--space-4)}
   .cch-head-link{display:none}
   .cch-banner{flex-wrap:wrap;padding:var(--space-3) var(--space-4)}
+  .cch-banner-side{flex-direction:row;flex-wrap:wrap;align-items:center}
   .cch-messages{padding:var(--space-4)}
   .cch-msg{max-width:88%}
   .cch-composer{padding:var(--space-3) var(--space-4)}

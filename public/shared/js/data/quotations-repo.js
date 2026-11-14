@@ -194,22 +194,9 @@
             );
             return (data && data[0]) || null;
         },
-        async findUnclaimedByEmail(email) {
-            const { data } = await run('quotations.findUnclaimedByEmail', (c) =>
-                c.from('quotations_db').select('quote_id').ilike('client_email', email).is('client_user_id', null)
-            );
-            return data || [];
-        },
-        async claimByQuoteIds(userId, quoteIds) {
-            await run('quotations.claimByQuoteIds', (c) =>
-                c.from('quotations_db').update({ client_user_id: userId }).in('quote_id', quoteIds)
-            );
-        },
-        async claimByQuoteId(userId, quoteId) {
-            await run('quotations.claimByQuoteId', (c) =>
-                c.from('quotations_db').update({ client_user_id: userId }).eq('quote_id', quoteId).is('client_user_id', null)
-            );
-        },
+        // El vínculo de cotizaciones de invitado lo hace el servidor
+        // (POST /api/client/quotations/claim · Api.claimMine): desde el navegador
+        // la RLS no deja ver ni reclamar filas ajenas (CC-02).
 
         // ---- cotización manual del artista (Figma final 801:556 · /my-quotations/new) ----
         // Contactos de clientes de cotizaciones anteriores del artista (buscador
@@ -477,14 +464,20 @@
             const p = window.location && window.location.pathname || '';
             return p === '/beta' || p.indexOf('/beta/') === 0 ? '/beta' : '';
         },
-        async _post(path, accessToken) {
+        async _post(path, accessToken, payload) {
+            const headers = { Authorization: `Bearer ${accessToken}` };
+            if (payload !== undefined) headers['Content-Type'] = 'application/json';
             const res = await fetch(this.basePath() + path, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${accessToken}` },
+                headers,
+                body: payload !== undefined ? JSON.stringify(payload) : undefined,
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `HTTP ${res.status}`);
+                const error = new Error(body.error || `HTTP ${res.status}`);
+                error.status = res.status;
+                error.code = body.code || null;
+                throw error;
             }
             return body;
         },
@@ -493,6 +486,17 @@
         },
         confirmCompletionByClient(quoteId, accessToken) {
             return this._post(`/api/client/quotations/${encodeURIComponent(quoteId)}/complete`, accessToken);
+        },
+        // cot-cliente: vincula las cotizaciones de invitado hechas con el email
+        // verificado de la cuenta. Idempotente; { linked, quote_ids }.
+        claimMine(accessToken) {
+            return this._post('/api/client/quotations/claim', accessToken, {});
+        },
+        // cot-cliente: el cliente acepta ('approve') o rechaza ('reject') la
+        // propuesta del artista. El servidor valida dueño, estado y vencimiento.
+        decideByClient(quoteId, decision, reason, accessToken) {
+            return this._post(`/api/client/quotations/${encodeURIComponent(quoteId)}/decision`, accessToken,
+                { decision, reason: reason || '' });
         },
     };
 

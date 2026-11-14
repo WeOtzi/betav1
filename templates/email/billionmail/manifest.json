@@ -106,7 +106,8 @@
       "quote_id",
       "tattoo_body_part",
       "tattoo_size",
-      "tattoo_style"
+      "tattoo_style",
+      "quotation_url"
     ]
   },
   "artist-welcome": {

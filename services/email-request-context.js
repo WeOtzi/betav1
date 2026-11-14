@@ -48,7 +48,8 @@ function withLinks(payload, base, role) {
         register_url: `${base}/client/register`,
         profile_url: `${base}/artist/profile?artist=${encodeURIComponent(payload.username || payload.artist_username || '')}`,
         portfolio_url: `${base}/artist/profile?artist=${encodeURIComponent(payload.username || payload.artist_username || '')}`,
-        quotation_url: role === 'client' ? `${base}/client/dashboard`
+        // cot-cliente: deep link que abre la cotización en el panel del cliente.
+        quotation_url: role === 'client' ? `${base}/client/dashboard${payload.quote_id ? `?quote=${encodeURIComponent(payload.quote_id)}` : ''}`
             : `${base}/my-quotations/detail?quote=${encodeURIComponent(payload.quote_id || '')}`
     };
 }
