@@ -585,3 +585,26 @@ test('travel-repo pide sincronizar con Google tras escribir un viaje', () => {
     assert.ok(read('public/artist/travel/index.html').includes('google-calendar-repo.js'));
     assert.ok(read('lib/repos/google-calendar.js').includes('listTrips(userId, sinceDate)'));
 });
+
+test('2.2.15: si no se puede guardar el vínculo, borra el evento recién creado en Google (sin duplicados)', async () => {
+    const trips = [{ id: 'trip-1', trip_type: 'convencion', status: 'planificado', city: 'Caracas', event_name: 'God of Ink', start_date: '2026-11-14', end_date: '2026-11-16' }];
+    const { db, google, svc } = await connected({ trips });
+    const upsert = db.upsertLink;
+    db.upsertLink = async () => { throw Object.assign(new Error('check violation'), { code: '23514' }); };
+    const r1 = await svc.syncUser(USER);
+    assert.equal(r1.pushed.failed, 1);
+    assert.equal(google.events.size, 0, 'el evento huérfano se borró de Google');
+    db.upsertLink = upsert;
+    const r2 = await svc.syncUser(USER);
+    assert.equal(r2.pushed.created, 1);
+    assert.equal(google.events.size, 1);
+    await svc.syncUser(USER);
+    assert.equal(google.events.size, 1, 'no vuelve a crearlo');
+});
+
+test('migración 20261114120000: vínculos aceptan trip:', () => {
+    const sql = read('supabase/migrations/20261114120000_gcal_links_trips.sql');
+    assert.ok(sql.includes("'^(event|session|trip):[A-Za-z0-9-]{1,64}$'"));
+    const down = read('supabase/rollbacks/20261114120000_gcal_links_trips.down.sql');
+    assert.ok(down.includes("delete from public.artist_google_calendar_event_links where source_key like 'trip:%'"));
+});
