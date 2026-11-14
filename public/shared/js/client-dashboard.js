@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load data
     await loadClientProfile();
     await loadQuotations();
+    await openQuotationFromUrl();
 
     // Job board: alimenta "Publicaciones activas" / "Propuestas recibidas"
     // aunque el panel de solicitudes esté colapsado.
@@ -56,6 +57,7 @@ async function checkDashboardAuth() {
         const { data: { session } } = await _supabase.auth.getSession();
         
         if (!session) {
+            rememberPendingQuote();
             window.location.href = '/client/login';
             return;
         }
@@ -87,9 +89,12 @@ async function checkDashboardAuth() {
                 console.error('Error creating client profile:', createError);
             }
             
-            // Link quotations by email
-            await linkQuotationsByEmail(session.user.id, session.user.email);
         }
+
+        // cot-cliente (CC-02 / ACC-12): en cada carga se vinculan las cotizaciones
+        // de invitado hechas con el email verificado (también si se confirmó el
+        // email en otro dispositivo o si ya tenía cuenta). Idempotente.
+        await linkQuotationsByEmail(session.access_token);
         
         currentClient = client || {
             user_id: session.user.id,
@@ -107,16 +112,15 @@ async function checkDashboardAuth() {
 // Link Quotations by Email
 // ============================================
 
-async function linkQuotationsByEmail(userId, email) {
+// El servidor valida el email verificado de la sesión y vincula solo las
+// cotizaciones sin dueño con ese email (POST /api/client/quotations/claim).
+async function linkQuotationsByEmail(accessToken) {
     try {
-        const quotations = await WeotziData.Quotations.findUnclaimedByEmail(email);
-
-        if (quotations && quotations.length > 0) {
-            const quoteIds = quotations.map(q => q.quote_id);
-            await WeotziData.Quotations.claimByQuoteIds(userId, quoteIds);
-        }
+        if (!accessToken || !WeotziData.Api || typeof WeotziData.Api.claimMine !== 'function') return;
+        await WeotziData.Api.claimMine(accessToken);
     } catch (error) {
-        console.error('Error linking quotations:', error);
+        // 403 = email todavía sin confirmar: no es un error para el usuario.
+        if (error && error.status !== 403) console.warn('No pudimos vincular cotizaciones:', error.message);
     }
 }
 
@@ -273,19 +277,15 @@ function renderNextAppointment(quote, label) {
 function renderQuotations() {
     const listContainer = document.getElementById('quotations-list');
     if (!listContainer) return;
-    
-    // Filter quotations
-    let filtered = currentQuotations;
-    if (currentFilter !== 'all') {
-        if (currentFilter === 'active') {
-            filtered = currentQuotations.filter(q => ['pending', 'responded', 'client_approved', 'in_progress', 'artist_completed'].includes(q.quote_status));
-        } else {
-            filtered = currentQuotations.filter(q => q.quote_status === currentFilter);
-        }
-    }
-    
+
+    // CC-13: los borradores del cotizador (in_progress sin respuesta del
+    // artista) no son cotizaciones "En proceso": se muestran aparte.
+    const drafts = currentQuotations.filter(isClientWizardDraft);
+    const filtered = currentQuotations.filter(q => quotationMatchesFilter(q, currentFilter));
+    const draftsHtml = drafts.length && (currentFilter === 'all' || currentFilter === 'active') ? renderDraftsNotice(drafts) : '';
+
     if (filtered.length === 0) {
-        listContainer.innerHTML = `
+        listContainer.innerHTML = draftsHtml + `
             <div class="empty-state">
                 <i data-wo-icon="file-text"></i>
                 <h3>Sin cotizaciones</h3>
@@ -294,8 +294,56 @@ function renderQuotations() {
         `;
         return;
     }
-    
-    listContainer.innerHTML = filtered.map(q => renderQuotationCard(q)).join('');
+
+    listContainer.innerHTML = draftsHtml + filtered.map(q => renderQuotationCard(q)).join('');
+}
+
+// ---- Estados del cliente (cot-cliente · CC-13) ----
+// La lógica vive en client-quote-proposal.js (WoClientQuoteProposal); acá hay
+// un respaldo mínimo por si el script no cargó.
+const CLIENT_STATUS_FALLBACK = {
+    draft: 'Borrador sin enviar', pending: 'Esperando al artista', responded: 'Propuesta recibida',
+    client_approved: 'Aceptada', client_rejected: 'Rechazada', in_progress: 'En curso',
+    artist_completed: 'Por confirmar', completed: 'Completada', cancelled: 'Cancelada', expired: 'Vencida',
+    unknown: 'En revisión'
+};
+
+function proposalUi() {
+    return (typeof window !== 'undefined' && window.WoClientQuoteProposal) || null;
+}
+
+function isClientWizardDraft(q) {
+    const ui = proposalUi();
+    if (ui) return ui.isDraft(q);
+    return !!q && q.quote_status === 'in_progress' && !q.artist_responded_at && !q.artist_budget_amount && !q.final_budget_amount;
+}
+
+function clientQuotationStatus(q) {
+    const ui = proposalUi();
+    if (ui) return ui.statusOf(q);
+    let key = isClientWizardDraft(q) ? 'draft' : (q && q.quote_status === 'en_progreso' ? 'in_progress' : (q && q.quote_status));
+    if (!CLIENT_STATUS_FALLBACK[key]) key = 'unknown';
+    return { key, label: CLIENT_STATUS_FALLBACK[key], tone: key === 'unknown' ? 'pending' : key };
+}
+
+function quotationMatchesFilter(q, filter) {
+    const ui = proposalUi();
+    if (ui) return ui.matchesFilter(q, filter);
+    const key = clientQuotationStatus(q).key;
+    if (key === 'draft') return false;
+    if (!filter || filter === 'all') return true;
+    if (filter === 'active') return ['pending', 'responded', 'client_approved', 'in_progress', 'artist_completed'].includes(key);
+    return key === filter;
+}
+
+function renderDraftsNotice(drafts) {
+    const count = drafts.length;
+    return `
+        <div class="client-drafts-notice" role="note">
+            <p><strong>${count === 1 ? 'Tenés una cotización sin enviar' : `Tenés ${count} cotizaciones sin enviar`}.</strong>
+            El artista todavía no la${count === 1 ? '' : 's'} recibió.</p>
+            <a class="wo-btn wo-btn--ghost wo-btn--s" href="/quotation">Continuar cotización</a>
+        </div>`;
 }
 
 function formatClientQuotationStyle(value, includeSubstyle = false) {
@@ -310,37 +358,32 @@ function formatClientQuotationStyle(value, includeSubstyle = false) {
 }
 
 function renderQuotationCard(quotation) {
-    const statusLabels = {
-        'pending': 'Pendiente',
-        'responded': 'Respondida',
-        'client_approved': 'Aprobada',
-        'client_rejected': 'Rechazada',
-        'artist_completed': 'Por finalizar',
-        'completed': 'Completada',
-        'in_progress': 'En proceso'
-    };
-
-    const artistInitials = getInitials(quotation.artist_name || 'AR');
+    const status = clientQuotationStatus(quotation);
+    const quoteId = escapeFeedHtml(quotation.quote_id);
+    const artistInitials = escapeFeedHtml(getInitials(quotation.artist_name || 'AR'));
     const styleInfo = escapeFeedHtml(formatClientQuotationStyle(quotation.tattoo_style));
+    const ui = proposalUi();
+    const proposal = ui && ['responded', 'client_approved'].includes(status.key) ? ui.proposalOf(quotation) : null;
+    const waiting = !!(ui && ui.canDecide(quotation));
 
     return `
-        <div class="quotation-card" data-quote-id="${quotation.quote_id}">
+        <div class="quotation-card" data-quote-id="${quoteId}">
             <div class="quotation-header">
-                <span class="quotation-id">${quotation.quote_id}</span>
-                <span class="quotation-status ${quotation.quote_status}">${statusLabels[quotation.quote_status] || quotation.quote_status}</span>
+                <span class="quotation-id">${quoteId}</span>
+                <span class="quotation-status ${escapeFeedHtml(status.tone)}">${escapeFeedHtml(status.label)}</span>
             </div>
             <div class="quotation-body">
                 <div class="quotation-artist">
                     <div class="artist-avatar">${artistInitials}</div>
                     <div class="artist-info">
-                        <h4>${quotation.artist_name || 'Artista'}</h4>
-                        <p>${quotation.artist_studio_name || quotation.artist_current_city || 'Sin estudio'}</p>
+                        <h4>${escapeFeedHtml(quotation.artist_name || 'Artista')}</h4>
+                        <p>${escapeFeedHtml(quotation.artist_studio_name || quotation.artist_current_city || 'Sin estudio')}</p>
                     </div>
                 </div>
                 <div class="quotation-details">
                     <div class="detail-item">
                         <div class="detail-label">Zona</div>
-                        <div class="detail-value">${quotation.tattoo_body_part || '–'}</div>
+                        <div class="detail-value">${escapeFeedHtml(quotation.tattoo_body_part || '–')}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Estilo</div>
@@ -348,18 +391,19 @@ function renderQuotationCard(quotation) {
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Fecha</div>
-                        <div class="detail-value">${formatDate(quotation.created_at)}</div>
+                        <div class="detail-value">${escapeFeedHtml(formatDate(quotation.created_at))}</div>
                     </div>
                 </div>
+                ${proposal && proposal.amountText ? `<p class="quotation-proposal-line">${proposal.isFinal ? 'Total acordado' : 'Propuesta'}: <strong>${escapeFeedHtml(proposal.amountText)}</strong>${waiting ? ' · <span class="quotation-proposal-cta">Esperando tu respuesta</span>' : ''}</p>` : ''}
             </div>
             <div class="quotation-footer">
-                <button class="wo-btn wo-btn--s" onclick="openChat('${quotation.quote_id}')">
-                    Chat <span class="unread-badge" id="unread-${quotation.quote_id}" style="display: none;">0</span>
+                <button type="button" class="wo-btn wo-btn--s" data-quote-id="${quoteId}" onclick="openChat(this.dataset.quoteId)">
+                    Chat <span class="unread-badge" id="unread-${quoteId}" style="display: none;">0</span>
                 </button>
-                <button class="wo-btn wo-btn--ghost wo-btn--s" onclick="viewQuotationDetail('${quotation.quote_id}')">
-                    Ver detalle
+                <button type="button" class="wo-btn ${waiting ? 'wo-btn--accent' : 'wo-btn--ghost'} wo-btn--s" data-quote-id="${quoteId}" onclick="viewQuotationDetail(this.dataset.quoteId)">
+                    ${waiting ? 'Ver propuesta' : 'Ver detalle'}
                 </button>
-                <button class="wo-btn wo-btn--ghost wo-btn--s btn-borrar" onclick="hideQuotation('${quotation.quote_id}')">
+                <button type="button" class="wo-btn wo-btn--ghost wo-btn--s btn-borrar" data-quote-id="${quoteId}" onclick="hideQuotation(this.dataset.quoteId)">
                     Borrar
                 </button>
             </div>
@@ -735,26 +779,35 @@ function filterQuotations(filter) {
 async function viewQuotationDetail(quoteId) {
     const quotation = currentQuotations.find(q => q.quote_id === quoteId);
     if (!quotation) return;
-    
+
     currentQuotationId = quoteId;
-    
+
     const modal = document.getElementById('quotation-modal');
     const detailContent = document.getElementById('quotation-detail-content');
-    
-    // Render detail content
-    const styleInfo = escapeFeedHtml(formatClientQuotationStyle(quotation.tattoo_style, true));
-    
+
+    // Render detail content (CC-13: todo lo que viene de datos se escapa)
+    const e = escapeFeedHtml;
+    const styleInfo = e(formatClientQuotationStyle(quotation.tattoo_style, true));
+    const referencesUrl = safeHttpUrl(quotation.tattoo_references);
+    const status = clientQuotationStatus(quotation);
+    const sessionCost = quotation.artist_session_cost_amount
+        ? `${quotation.artist_session_cost_amount} ${quotation.artist_session_cost_currency || ''}`.trim() : '–';
+
     detailContent.innerHTML = `
+        <p class="quotation-detail-status"><span class="quotation-status ${e(status.tone)}">${e(status.label)}</span></p>
+
+        <div id="quote-proposal-slot">${renderProposalBlock(quotation)}</div>
+
         <div class="detail-section">
             <h3 class="detail-section-title">Información del tatuaje</h3>
             <div class="detail-grid">
                 <div class="detail-field">
                     <label>Zona del cuerpo</label>
-                    <span>${escapeFeedHtml(quotation.tattoo_body_part || '–')} ${quotation.tattoo_body_side ? `(${escapeFeedHtml(quotation.tattoo_body_side)})` : ''}</span>
+                    <span>${e(quotation.tattoo_body_part || '–')} ${quotation.tattoo_body_side ? `(${e(quotation.tattoo_body_side)})` : ''}</span>
                 </div>
                 <div class="detail-field">
                     <label>Tamaño</label>
-                    <span>${escapeFeedHtml(quotation.tattoo_size || '–')}</span>
+                    <span>${e(quotation.tattoo_size || '–')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Estilo</label>
@@ -762,17 +815,17 @@ async function viewQuotationDetail(quoteId) {
                 </div>
                 <div class="detail-field">
                     <label>Color</label>
-                    <span>${escapeFeedHtml(quotation.tattoo_color_type || '–')}</span>
+                    <span>${e(quotation.tattoo_color_type || '–')}</span>
                 </div>
             </div>
             <div class="detail-field" style="margin-top: var(--space-4);">
                 <label>Descripción de la idea</label>
-                <span>${escapeFeedHtml(quotation.tattoo_idea_description || 'Sin descripción')}</span>
+                <span>${e(quotation.tattoo_idea_description || 'Sin descripción')}</span>
             </div>
-            ${/^https:\/\//i.test(String(quotation.tattoo_references || '')) ? `
+            ${referencesUrl ? `
                 <div class="detail-field" style="margin-top: var(--space-4);">
                     <label>Referencias</label>
-                    <a href="${escapeFeedHtml(quotation.tattoo_references)}" target="_blank" rel="noopener noreferrer" class="detail-link">Ver imágenes de referencia →</a>
+                    <a href="${e(referencesUrl)}" target="_blank" rel="noopener noreferrer" class="detail-link">Ver imágenes de referencia →</a>
                 </div>
             ` : ''}
         </div>
@@ -782,19 +835,19 @@ async function viewQuotationDetail(quoteId) {
             <div class="detail-grid">
                 <div class="detail-field">
                     <label>Nombre</label>
-                    <span>${escapeFeedHtml(quotation.artist_name || '–')}</span>
+                    <span>${e(quotation.artist_name || '–')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Estudio</label>
-                    <span>${escapeFeedHtml(quotation.artist_studio_name || '–')}</span>
+                    <span>${e(quotation.artist_studio_name || '–')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Ciudad</label>
-                    <span>${escapeFeedHtml(quotation.artist_current_city || '–')}</span>
+                    <span>${e(quotation.artist_current_city || '–')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Costo por sesión</label>
-                    <span>${escapeFeedHtml(quotation.artist_session_cost_amount || '–')}</span>
+                    <span>${e(sessionCost)}</span>
                 </div>
             </div>
         </div>
@@ -804,16 +857,16 @@ async function viewQuotationDetail(quoteId) {
             <div class="detail-grid">
                 <div class="detail-field">
                     <label>Fecha preferida</label>
-                    <span>${escapeFeedHtml(quotation.client_preferred_date || 'Flexible')}</span>
+                    <span>${e(quotation.client_preferred_date || 'Flexible')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Presupuesto</label>
-                    <span>${quotation.client_budget_amount ? `${escapeFeedHtml(quotation.client_budget_amount)} ${escapeFeedHtml(quotation.client_budget_currency || 'USD')}` : '–'}</span>
+                    <span>${quotation.client_budget_amount ? e(`${quotation.client_budget_amount} ${quotation.client_budget_currency || 'USD'}`) : '–'}</span>
                 </div>
             </div>
         </div>
 
-        <button class="expand-info-btn" onclick="toggleAdditionalInfo()" id="expand-info-btn">
+        <button type="button" class="expand-info-btn" onclick="toggleAdditionalInfo()" id="expand-info-btn">
             Ampliar información
         </button>
 
@@ -824,32 +877,253 @@ async function viewQuotationDetail(quoteId) {
             <div class="detail-grid">
                 <div class="detail-field">
                     <label>Disponibilidad para viajar</label>
-                    <span>${quotation.client_travel_willing ? 'Sí' : 'No'}</span>
+                    <span>${travelWillingLabel(quotation.client_travel_willing)}</span>
                 </div>
                 <div class="detail-field">
                     <label>Alergias</label>
-                    <span>${escapeFeedHtml(quotation.client_allergies || 'Ninguna')}</span>
+                    <span>${e(quotation.client_allergies || 'Ninguna')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Condiciones de salud</label>
-                    <span>${escapeFeedHtml(quotation.client_health_conditions || 'Ninguna')}</span>
+                    <span>${e(quotation.client_health_conditions || 'Ninguna')}</span>
                 </div>
             </div>
         </div>
     `;
-    
+
     // Update modal title
     document.getElementById('modal-quote-id').textContent = quoteId;
-    
+
     // Load chat messages
     await loadChatMessages(quoteId);
-    
+
     // Show modal
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
-    
+
     // Subscribe to chat for this quotation
     subscribeToChatMessages(quoteId);
+
+    // Desglose manual + seña/pagos (lecturas con la RLS del cliente).
+    enrichProposal(quotation);
+}
+
+// client_travel_willing es varchar en vivo ('true' / 'false'): CC-13.
+function travelWillingLabel(value) {
+    const v = String(value == null ? '' : value).trim().toLowerCase();
+    if (v === 'true' || v === 'sí' || v === 'si') return 'Sí';
+    if (v === 'false' || v === 'no') return 'No';
+    return '–';
+}
+
+function safeHttpUrl(value) {
+    const raw = String(value == null ? '' : value).trim();
+    if (!/^https?:\/\//i.test(raw)) return '';
+    try {
+        const url = new URL(raw);
+        return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+// ============================================
+// Propuesta del artista · aceptar / rechazar (cot-cliente · CC-01 / CC-11 / COT-A-10)
+// ============================================
+
+// Cache por cotización: { manual, payments } (se recarga al abrir el detalle).
+const proposalExtras = {};
+
+function renderProposalBlock(quotation) {
+    const ui = proposalUi();
+    if (!ui) return '';
+    return ui.renderProposal(quotation, proposalExtras[quotation.quote_id] || {});
+}
+
+function rerenderProposal(quoteId) {
+    if (currentQuotationId !== quoteId) return;
+    const quotation = currentQuotations.find(q => q.quote_id === quoteId);
+    const slot = document.getElementById('quote-proposal-slot');
+    if (quotation && slot) slot.innerHTML = renderProposalBlock(quotation);
+}
+
+// Actualiza la etiqueta de estado y la propuesta del detalle abierto sin
+// recargar el chat.
+function refreshOpenDetail(quoteId) {
+    if (currentQuotationId !== quoteId) return;
+    const quotation = currentQuotations.find(q => q.quote_id === quoteId);
+    const detail = document.getElementById('quotation-detail-content');
+    const pill = detail && detail.querySelector ? detail.querySelector('.quotation-detail-status') : null;
+    if (quotation && pill) {
+        const status = clientQuotationStatus(quotation);
+        pill.innerHTML = `<span class="quotation-status ${escapeFeedHtml(status.tone)}">${escapeFeedHtml(status.label)}</span>`;
+    }
+    rerenderProposal(quoteId);
+}
+
+function paymentsConvertFn() {
+    const C = (typeof window !== 'undefined' && (window.WeOtziCurrency || window.CurrencyUtils)) || null;
+    return C && typeof C.convert === 'function' ? C.convert : null;
+}
+
+async function enrichProposal(quotation) {
+    const ui = proposalUi();
+    if (!ui || !quotation || ui.isDraft(quotation)) return;
+    const extras = {};
+    try {
+        if (WeotziData.ManualQuotes && typeof WeotziData.ManualQuotes.getByQuoteId === 'function') {
+            extras.manual = await WeotziData.ManualQuotes.getByQuoteId(quotation.quote_id);
+            if (extras.manual && extras.manual.status !== 'sent') extras.manual = null;
+        }
+    } catch (error) {
+        if (!error || !error.missingSchema) console.warn('No pudimos cargar el desglose:', error && error.message);
+    }
+    try {
+        const P = WeotziData.QuotationPayments;
+        const M = typeof window !== 'undefined' ? window.WoPaymentsModel : null;
+        if (P && M && quotation.id != null && await P.isAvailable()) {
+            const payments = await P.listForQuotation(quotation.id);
+            extras.payments = { summary: M.summarize(quotation, extras.manual || null, payments, { convert: paymentsConvertFn() }) };
+        }
+    } catch (error) {
+        console.warn('No pudimos cargar los pagos:', error && error.message);
+    }
+    proposalExtras[quotation.quote_id] = extras;
+    rerenderProposal(quotation.quote_id);
+}
+
+function setProposalFeedback(box, message, isError) {
+    const el = box && box.querySelector ? box.querySelector('[data-proposal-feedback]') : null;
+    if (!el) { if (message && isError) alert(message); return; }
+    el.textContent = message || '';
+    el.classList.toggle('is-error', !!isError);
+}
+
+// Botones del bloque (Aceptar / Rechazar / confirmar / volver). El quote_id
+// viaja en data-* (nunca interpolado en JS).
+async function handleProposalAction(button) {
+    const box = button && button.closest ? button.closest('.cqp-decision') : null;
+    const quoteId = (box && box.dataset.quoteId) || (button && button.dataset.quoteId) || currentQuotationId;
+    const action = button && button.dataset.proposalAction;
+    const ui = proposalUi();
+    const confirmBox = box ? box.querySelector('[data-proposal-confirm]') : null;
+    const actions = box ? box.querySelector('.cqp-decision-actions') : null;
+
+    if (action === 'approve' || action === 'reject') {
+        if (!confirmBox || !ui) return;
+        confirmBox.innerHTML = ui.confirmHtml(action, quoteId);
+        confirmBox.hidden = false;
+        if (actions) actions.hidden = true;
+        const focusTarget = confirmBox.querySelector(action === 'reject' ? 'textarea' : 'button');
+        if (focusTarget) focusTarget.focus();
+        return;
+    }
+    if (action === 'cancel') {
+        if (confirmBox) { confirmBox.hidden = true; confirmBox.innerHTML = ''; }
+        if (actions) { actions.hidden = false; const first = actions.querySelector('button'); if (first) first.focus(); }
+        setProposalFeedback(box, '');
+        return;
+    }
+    if (action !== 'confirm-approve' && action !== 'confirm-reject') return;
+
+    const decision = action === 'confirm-approve' ? 'approve' : 'reject';
+    const reasonEl = confirmBox ? confirmBox.querySelector('textarea') : null;
+    const reason = reasonEl ? reasonEl.value.trim() : '';
+    const buttons = box ? Array.from(box.querySelectorAll('button')) : [button];
+    buttons.forEach(b => { b.disabled = true; });
+    setProposalFeedback(box, decision === 'approve' ? 'Enviando tu respuesta…' : 'Enviando tu respuesta…');
+
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!session) { window.location.href = '/client/login'; return; }
+        const result = await WeotziData.Api.decideByClient(quoteId, decision, reason, session.access_token);
+        const index = currentQuotations.findIndex(q => q.quote_id === quoteId);
+        if (index !== -1) {
+            currentQuotations[index] = Object.assign({}, currentQuotations[index], result.quotation || {}, {
+                quote_status: result.quote_status || (decision === 'approve' ? 'client_approved' : 'client_rejected')
+            });
+        }
+        updateStats();
+        renderQuotations();
+        refreshOpenDetail(quoteId);
+        const slot = document.getElementById('quote-proposal-slot');
+        const note = slot && slot.querySelector ? slot.querySelector('.cqp') : null;
+        if (note) {
+            const done = document.createElement('p');
+            done.className = 'cqp-feedback is-success';
+            done.setAttribute('role', 'status');
+            done.textContent = decision === 'approve'
+                ? 'Listo: aceptaste la propuesta. Le avisamos al artista; coordiná el turno y la seña por el chat.'
+                : 'Listo: rechazaste la propuesta. Le avisamos al artista.';
+            note.appendChild(done);
+        }
+    } catch (error) {
+        console.error('Error deciding quotation:', error);
+        buttons.forEach(b => { b.disabled = false; });
+        setProposalFeedback(box, error && error.message ? error.message : 'No pudimos guardar tu respuesta. Probá de nuevo.', true);
+        if (error && (error.status === 409 || error.status === 410)) {
+            // El estado cambió (o venció): recargamos para mostrar el real y
+            // dejamos visible el motivo debajo del bloque actualizado.
+            await loadQuotations();
+            refreshOpenDetail(quoteId);
+            const slot = document.getElementById('quote-proposal-slot');
+            const block = slot && slot.querySelector ? slot.querySelector('.cqp') : null;
+            if (block) {
+                const note = document.createElement('p');
+                note.className = 'cqp-feedback is-error';
+                note.setAttribute('role', 'alert');
+                note.textContent = error.message;
+                block.appendChild(note);
+            }
+        }
+    }
+}
+
+// Deep link de los emails: /client/dashboard?quote=ID abre esa cotización.
+// Si el cliente llega sin sesión, el login lo devuelve a /client/dashboard sin
+// el ?quote: lo guardamos en sessionStorage (misma pestaña) y lo retomamos.
+const PENDING_QUOTE_KEY = 'wo_client_pending_quote';
+
+function quoteIdFromUrl() {
+    try {
+        const params = new URLSearchParams((typeof window !== 'undefined' && window.location && window.location.search) || '');
+        const quoteId = (params.get('quote') || '').trim();
+        return quoteId && quoteId.length <= 64 ? quoteId : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function rememberPendingQuote() {
+    const quoteId = quoteIdFromUrl();
+    if (!quoteId) return;
+    try { window.sessionStorage.setItem(PENDING_QUOTE_KEY, quoteId); } catch (_) { /* sin storage: se pierde el deep link */ }
+}
+
+function takePendingQuote() {
+    try {
+        const value = window.sessionStorage.getItem(PENDING_QUOTE_KEY) || '';
+        window.sessionStorage.removeItem(PENDING_QUOTE_KEY);
+        return value && value.length <= 64 ? value : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+async function openQuotationFromUrl() {
+    try {
+        // Sin sesión (checkDashboardAuth ya está redirigiendo al login) el
+        // pendiente se conserva para la vuelta.
+        if (!currentClient) return;
+        const pending = takePendingQuote();
+        const quoteId = quoteIdFromUrl() || pending;
+        if (!quoteId) return;
+        if (!currentQuotations.some(q => q.quote_id === quoteId)) return;
+        if (typeof revealQuotationsPanel === 'function') revealQuotationsPanel();
+        await viewQuotationDetail(quoteId);
+    } catch (error) {
+        console.warn('No pudimos abrir la cotización del enlace:', error && error.message);
+    }
 }
 
 function getQuotationDisputeStatus(quotation) {
@@ -1150,6 +1424,9 @@ function setupRealtimeSubscriptions() {
             currentQuotations[index] = payload.new;
             updateStats();
             renderQuotations();
+            // Si el detalle está abierto, refrescamos la propuesta (p. ej. el
+            // artista respondió o editó el acuerdo mientras el cliente miraba).
+            refreshOpenDetail(payload.new.quote_id);
         }
     });
 

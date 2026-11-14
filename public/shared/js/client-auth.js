@@ -565,49 +565,49 @@ async function handleClientRegistration(payload) {
 // Link Quotations by Email
 // ============================================
 
-async function linkQuotationsByEmail(userId, email) {
+// cot-cliente (CC-02 / ACC-12): el vínculo lo hace el SERVIDOR con el email
+// verificado de la sesión (POST /api/client/quotations/claim). Desde el
+// navegador la RLS no deja ver ni reclamar cotizaciones sin dueño, y sin sesión
+// (registro con confirmación pendiente) no hay nada que hacer acá: al confirmar
+// el email, el trigger on_email_confirmed_link_client_quotations las vincula.
+// Los parámetros se conservan por compatibilidad con los llamadores.
+// Los llamadores suelen pedir "por email" y "por id" seguidos: una sola llamada.
+let lastGuestClaim = null;
+function claimGuestQuotations() {
+    if (lastGuestClaim && Date.now() - lastGuestClaim.at < 5000) return lastGuestClaim.promise;
+    const promise = requestGuestClaim();
+    lastGuestClaim = { at: Date.now(), promise };
+    promise.then((result) => { if (!result) lastGuestClaim = null; });
+    return promise;
+}
+
+async function requestGuestClaim() {
     try {
-        // Find quotations with matching email that don't have a client_user_id
-        let quotations;
-        try {
-            quotations = await WeotziData.Quotations.findUnclaimedByEmail(email);
-        } catch (fetchError) {
-            console.error('Error fetching quotations:', fetchError);
-            return;
-        }
-
-        if (quotations && quotations.length > 0) {
-            // Update each quotation with the client_user_id
-            const quoteIds = quotations.map(q => q.quote_id);
-
-            try {
-                await WeotziData.Quotations.claimByQuoteIds(userId, quoteIds);
-                console.log(`Linked ${quotations.length} quotations to client account`);
-            } catch (updateError) {
-                console.error('Error linking quotations:', updateError);
-            }
-        }
+        if (!window.WeotziData || !window.WeotziData.Api || typeof window.WeotziData.Api.claimMine !== 'function') return null;
+        const { data } = await _supabase.auth.getSession();
+        const token = data && data.session && data.session.access_token;
+        if (!token) return null;
+        return await window.WeotziData.Api.claimMine(token);
     } catch (error) {
-        console.error('Error in linkQuotationsByEmail:', error);
+        // 403 = email sin confirmar: no es un error para el usuario.
+        if (error && error.status !== 403) console.warn('No pudimos vincular cotizaciones:', error.message);
+        return null;
     }
+}
+
+async function linkQuotationsByEmail(userId, email) { // eslint-disable-line no-unused-vars
+    return claimGuestQuotations();
 }
 
 // ============================================
 // Link Quotation by ID
 // ============================================
 
-async function linkQuotationById(userId, quoteId) {
-    if (!userId || !quoteId) return;
-    try {
-        try {
-            await WeotziData.Quotations.claimByQuoteId(userId, quoteId);
-            console.log(`Linked quotation ${quoteId} to client account`);
-        } catch (error) {
-            console.error('Error linking quotation by ID:', error);
-        }
-    } catch (error) {
-        console.error('Error in linkQuotationById:', error);
-    }
+// El quote_id de un borrador local no prueba que la cotización sea de esta
+// cuenta: solo se vincula si coincide el email verificado (lo resuelve el claim).
+async function linkQuotationById(userId, quoteId) { // eslint-disable-line no-unused-vars
+    if (!userId || !quoteId) return null;
+    return claimGuestQuotations();
 }
 
 // ============================================
