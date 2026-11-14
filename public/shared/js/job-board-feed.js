@@ -161,6 +161,7 @@ async function waitForConfigManager(maxWait = 3000) {
     while (!window.ConfigManager && (Date.now() - start) < maxWait) {
         await new Promise(resolve => setTimeout(resolve, 50));
     }
+    if (window.ConfigManager && typeof window.ConfigManager.ready === 'function') await window.ConfigManager.ready();
 }
 
 // ============================================

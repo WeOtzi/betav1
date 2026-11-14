@@ -81,7 +81,11 @@ async function waitForConfigManager(maxWait = 3000) {
     }
     if (!window.ConfigManager) {
         console.warn('ConfigManager not available, using defaults');
+        return;
     }
+    // ConfigManager se publica antes de terminar de leer app-config.json: sin
+    // esperar ready() el cliente Supabase todavía es null (marketplace MK-19).
+    if (typeof window.ConfigManager.ready === 'function') await window.ConfigManager.ready();
 }
 
 // ============================================
