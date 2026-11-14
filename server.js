@@ -6895,6 +6895,8 @@ require('./lib/routes/perfil').register(app, { publicDir: path.join(__dirname, '
 
 require('./lib/routes/turnos').register(app, { gcalService, startJob: require.main === module }); // ── turnos ── reservas online
 
+require('./lib/routes/estudio-registro').register(app, { applicationBase }); // frente estudio-registro: reclamos y bienvenida
+
 // Rutas del artista retiradas por el Figma final: redirigen a su reemplazo
 // solo cuando su carpeta ya no existe en public/ (ver lib/legacy-routes.js).
 app.use((req, res, next) => {

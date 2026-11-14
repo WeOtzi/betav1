@@ -94,6 +94,11 @@
         setBusy(button, 'Accediendo…');
         try {
             const studio = await auth.login(email, password);
+            if (!studio) {
+                // Reclamo en revisión o alta con conflicto: studio-auth.js ya redirige al registro.
+                showStatus('info', 'Te llevamos a revisar el registro de tu estudio…');
+                return;
+            }
             showStatus('success', 'Acceso correcto. Redirigiendo…');
             const showRegistration = studio.mediaPending || new URLSearchParams(window.location.search).get('confirmed') === '1';
             window.location.href = auth.appUrl(showRegistration ? '/studio/register?registered=1' : '/studio/dashboard');

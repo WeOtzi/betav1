@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/studio-dashboard-ds.css">
+    <link rel="stylesheet" href="/shared/css/studio-dashboard-sedes.css">
     <link rel="stylesheet" href="/shared/css/studio-dashboard-ops-ds.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
     <link rel="stylesheet" href="/shared/css/studio-inbox-ds.css">
@@ -183,10 +184,10 @@
 
                 <!-- ============ Sedes ============ -->
                 <section class="studio-dash-panel" data-panel="sedes">
-                    <h2 class="studio-h1">Tus <span class="accent">ubicaciones</span></h2>
+                    <h2 class="studio-h1">Tus <span class="accent">sedes</span></h2>
                     <div class="studio-panel-grid"><div class="studio-panel-content">
                     <p class="studio-help">
-                        Cada sede aparece como un pin en tu perfil público. Marcá una como "principal".
+                        Cada sede activa aparece como un pin en tu perfil público. La principal define la ciudad del estudio; archivá las que ya no uses.
                     </p>
                     <div class="studio-locations-list" id="sedes-list"></div>
                     <button type="button" class="studio-locations-add wo-btn wo-btn--secondary" id="add-sede-btn">
@@ -194,7 +195,7 @@
                     </button>
                     <span id="sedes-status" class="studio-status studio-status-info" hidden></span>
 
-                    </div><aside class="studio-context"><h3>Cada espacio, en su lugar</h3><p>Cada sede aparece en el mapa de tu perfil. Mantené una sede principal y sus datos de contacto actualizados.</p></aside></div>
+                    </div><aside class="studio-context"><h3>Cada espacio, en su lugar</h3><p>La sede organiza artistas, sesiones y visitas. Comprobá la dirección y el pin, y elegí una sede principal.</p></aside></div>
                 </section>
 
                 <!-- ============ Roster ============ -->
@@ -386,6 +387,8 @@
     <script src="/shared/js/reviews.js"></script>
     <script src="/shared/js/studio-auth.js"></script>
     <script src="/shared/js/weotzi-uploader.js"></script>
+    <script src="/shared/js/studio-location-map.js"></script>
+    <script src="/shared/js/studio-dashboard-sedes.js"></script>
     <script src="/shared/js/studio-dashboard.js"></script>
     <script src="/shared/js/studio-dashboard-ops.js"></script>
     <script src="/shared/js/studio-travel-links.js"></script>
