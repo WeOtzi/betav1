@@ -165,8 +165,38 @@
             if (['Yes', 'Denied', 'Requested', 'No'].indexOf(args.p_state) === -1) fail('Estado de verificación inválido.');
             var artist = store.rows('artists_db').find(function (a) { return String(a.user_id) === String(args.p_artist_user_id); });
             if (!artist) fail('No encontramos ese artista.');
+            // ── verif-artista ── firma con nota (20261115190000): mismo contrato jsonb.
+            var withNote = Object.prototype.hasOwnProperty.call(args, 'p_note');
+            var previous = artist.verification_state || 'No';
+            if (withNote && previous === args.p_state) {
+                return { state: args.p_state, previous_state: previous, history_id: null, action: null, changed: false };
+            }
+            var note = reviewNote(args.p_state === 'Denied' || (args.p_state === 'No' && previous === 'Yes'), args.p_note);
             store.update('artists_db', [{ col: 'user_id', op: 'eq', value: String(artist.user_id), negated: false }], { verification_state: args.p_state });
-            return args.p_state;
+            if (!withNote) return args.p_state;
+            var action = { Yes: 'approved', Denied: 'rejected', Requested: 'pending_review', No: 'revoked' }[args.p_state];
+            return { state: args.p_state, previous_state: previous, history_id: null, action: action, changed: true, note: note };
+        };
+
+        // ── verif-artista ── cola por artista (sin historial en el preview).
+        ctx.rpcs.support_list_verification_requests = function (args, store) {
+            var status = args.p_status || 'pending';
+            var states = { pending: ['Requested', 'In Progress', 'In Analysis'], verified: ['Yes'], rejected: ['Denied', 'rejected', 'Canceled'] }[status];
+            var docs = store.rows('artist_verification_documents');
+            return store.rows('artists_db').filter(function (a) {
+                if (args.p_user_id) return String(a.user_id) === String(args.p_user_id);
+                var st = a.verification_state || 'No';
+                return states ? states.indexOf(st) >= 0 : st !== 'No';
+            }).map(function (a) {
+                return {
+                    user_id: a.user_id, artist_id: a.id || null, name: a.name || null, username: a.username || null, email: a.email || null,
+                    city: a.city || null, country: a.country || null, profile_picture: a.profile_picture || null,
+                    verification_state: a.verification_state || 'No', instagram_verified_at: a.instagram_verified_at || null,
+                    instagram_verified_handle: a.instagram_verified_handle || null, requested_at: null,
+                    last_decision_at: null, last_decision_action: null, last_decision_note: null,
+                    documents: docs.filter(function (d) { return String(d.artist_user_id) === String(a.user_id); })
+                };
+            });
         };
     };
 }(typeof self !== 'undefined' ? self : this));

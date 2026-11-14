@@ -8,7 +8,9 @@
  * vuelven a chequear is_support_user() (migración 20261112170000):
  *   support_review_payout_destination(id, 'verified'|'rejected', nota)
  *   support_review_verification_document(id, 'verificado'|'rechazado', nota)
- *   support_set_artist_verification_state(user_id, 'Yes'|'Denied'|'Requested'|'No')
+ *   support_set_artist_verification_state(user_id, 'Yes'|'Denied'|'Requested'|'No', nota)
+ *     (verif-artista, 20261115190000: devuelve jsonb con history_id; la cola por
+ *      artista sale de support_list_verification_requests)
  *
  * Carga: DESPUÉS de postgrest-client.js. Expone WeotziData.SupportVerification.
  */
@@ -71,6 +73,7 @@
     var WD_STATUS = { pending: 'processing', verified: 'completed', rejected: 'failed' };
 
     function rpcRow(data) { return Array.isArray(data) ? (data[0] || null) : (data || null); }
+    var STATUS_FILTER_KEYS = ['pending', 'verified', 'rejected', 'all'];
 
     var SupportVerification = {
         // status: 'pending' | 'verified' | 'rejected' | 'all'
@@ -123,7 +126,12 @@
                 return c.from('artist_wallet_movements').select('id', { count: 'exact', head: true })
                     .eq('kind', 'withdrawal').eq('status', 'processing');
             }).catch(function () { return { count: 0 }; });
-            return { destinations: dest.count || 0, documents: docs.count || 0, withdrawals: wd.count || 0 };
+            // ── verif-artista ── artistas que pidieron la verificación (RLS soporte en artists_db).
+            var req = await run('supportVerification.countRequests', function (c) {
+                return c.from('artists_db').select('user_id', { count: 'exact', head: true })
+                    .in('verification_state', ['Requested', 'In Progress', 'In Analysis']);
+            }).catch(function () { return { count: 0 }; });
+            return { destinations: dest.count || 0, documents: docs.count || 0, withdrawals: wd.count || 0, requests: req.count || 0 };
         },
 
         // ── integracion ── retiros del Wallet (RLS artist_wallet_movements_support_all).
@@ -201,11 +209,43 @@
             return rpcRow(res.data);
         },
 
-        async setArtistVerification(artistUserId, state) {
+        // ── verif-artista ── decisión con motivo e historial (migración 20261115190000).
+        // Devuelve { state, previous_state, history_id, action, changed }.
+        async setArtistVerification(artistUserId, state, note) {
             var res = await run('supportVerification.setArtistState', function (c) {
-                return c.rpc('support_set_artist_verification_state', { p_artist_user_id: artistUserId, p_state: state });
+                return c.rpc('support_set_artist_verification_state', { p_artist_user_id: artistUserId, p_state: state, p_note: note || null });
+            });
+            var data = res.data;
+            if (data && typeof data === 'object' && !Array.isArray(data)) return data;
+            return { state: typeof data === 'string' ? data : state, history_id: null, changed: true };
+        },
+
+        // ── verif-artista ── cola por ARTISTA (no por documento): un artista que
+        // pidió la verificación aparece aunque no tenga documentos.
+        // status: 'pending' | 'verified' | 'rejected' | 'all'
+        async listRequests(status) {
+            var res = await run('supportVerification.requests', function (c) {
+                return c.rpc('support_list_verification_requests', { p_status: STATUS_FILTER_KEYS.indexOf(status) >= 0 ? status : 'pending' });
+            });
+            return res.data || [];
+        },
+
+        async requestForArtist(artistUserId) {
+            if (!artistUserId) return null;
+            var res = await run('supportVerification.requestForArtist', function (c) {
+                return c.rpc('support_list_verification_requests', { p_status: 'all', p_user_id: artistUserId });
             });
             return rpcRow(res.data);
+        },
+
+        // Historial de la verificación del artista (RLS verification_history_support_select).
+        async listHistory(artistId) {
+            if (!artistId) return [];
+            var res = await run('supportVerification.history', function (c) {
+                return c.from('verification_history').select('id, action, notes, reviewed_by, created_at')
+                    .eq('artist_id', artistId).order('created_at', { ascending: false }).limit(20);
+            });
+            return res.data || [];
         },
 
         // URL firmada corta (2 min) del documento en el bucket privado.

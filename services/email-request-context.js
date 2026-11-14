@@ -4,7 +4,7 @@ const { pgrest } = require('../lib/postgrest');
 const { resolveBearerUser, verifyAdminCaller } = require('../lib/auth/supabase-auth');
 const { deliveryKey } = require('./email-delivery-ledger');
 
-const ADMIN_EVENTS = new Set(['profile_verified', 'profile_verification_denied', 'ambassador_status_updated', 'platform_update', 'password_reset_temp']);
+const ADMIN_EVENTS = new Set(['ambassador_status_updated', 'platform_update', 'password_reset_temp']);
 const ARTIST_EVENTS = new Set(['artist_responded_quotation', 'chat_message_to_client', 'request_rating', 'session_scheduled', 'session_rescheduled', 'session_completed', 'session_cancelled',
     'artist_rejected_quotation', 'quotation_ready_for_client', 'dispute_artist_response']);
 // Avisos al cliente (ronda 3 · P8): solo salen si la cotización guardada está
@@ -18,7 +18,10 @@ const CLIENT_EVENTS = new Set(['client_approved_quotation', 'client_rejected_quo
 // Without this guard they would fall through to the quotation branch below.
 const SERVER_ONLY_EVENTS = new Set(['instagram_verification_code', 'quotation_expired', 'artist_calendar_reminder', 'artist_support_decision',
     // ── borrado ── bajas de cuenta: solo el servidor (lib/account-deletion.js).
-    'account_deletion_received', 'account_deletion_approved', 'account_deletion_rejected', 'account_deletion_completed']);
+    'account_deletion_received', 'account_deletion_approved', 'account_deletion_rejected', 'account_deletion_completed',
+    // ── verif-artista ── resultado de la verificación: solo lo dispara
+    // POST /api/support/artist-verification/notify (lib/verificacion-artista.js).
+    'profile_verified', 'profile_verification_denied']);
 const fail = (status, error) => ({ ok: false, status, error });
 const same = (left, right) => !!left && !!right && String(left).toLowerCase() === String(right).toLowerCase();
 

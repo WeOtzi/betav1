@@ -27,7 +27,7 @@
     var SupportDecisions = {
         // sinceIso: decisiones desde esa fecha (por defecto, 14 días).
         async listRecentForArtist(artistUserId, sinceIso) {
-            if (!artistUserId) return { documents: [], destinations: [], withdrawals: [] };
+            if (!artistUserId) return { documents: [], destinations: [], withdrawals: [], verifications: [] };
             var since = sinceIso || new Date(Date.now() - 14 * 86400000).toISOString();
             var results = await Promise.all([
                 soft('supportDecisions.documents', function (c) {
@@ -47,9 +47,17 @@
                         .select('id, artist_user_id, kind, status, amount, currency, title, metadata_json, updated_at')
                         .eq('artist_user_id', artistUserId).eq('kind', 'withdrawal').in('status', ['completed', 'failed'])
                         .gte('updated_at', since).order('updated_at', { ascending: false }).limit(20);
+                }),
+                // ── verif-artista ── decisiones sobre la verificación del perfil
+                // (RLS verification_history_owner_select, migración 20261115190000).
+                soft('supportDecisions.verifications', function (c) {
+                    return c.from('verification_history')
+                        .select('id, artist_id, action, notes, created_at, artists_db!inner(user_id)')
+                        .eq('artists_db.user_id', artistUserId).in('action', ['approved', 'rejected', 'revoked'])
+                        .gte('created_at', since).order('created_at', { ascending: false }).limit(10);
                 })
             ]);
-            return { documents: results[0], destinations: results[1], withdrawals: results[2] };
+            return { documents: results[0], destinations: results[1], withdrawals: results[2], verifications: results[3] };
         }
     };
 

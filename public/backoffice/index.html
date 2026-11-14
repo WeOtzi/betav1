@@ -2480,14 +2480,15 @@
                             </div>
                             <div class="form-group">
                                 <label>Estado de verificación</label>
-                                <select id="artist-verification-state">
+                                <!-- verif-artista: estados normalizados (No / Solicitada / Verificado / Denegado).
+                                     Para decidir con motivo, historial y email al artista: Soporte · Verificaciones. -->
+                                <select id="artist-verification-state" aria-describedby="artist-verification-state-help">
                                     <option value="No">No verificado</option>
                                     <option value="Requested">Solicitada</option>
-                                    <option value="In Progress">En progreso</option>
-                                    <option value="In Analysis">En análisis</option>
                                     <option value="Yes">Verificado</option>
                                     <option value="Denied">Denegado</option>
                                 </select>
+                                <small id="artist-verification-state-help">Para aprobar o denegar con aviso al artista usá Soporte · Verificaciones.</small>
                             </div>
                         </div>
 

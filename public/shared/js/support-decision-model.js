@@ -5,6 +5,8 @@
  *   - un documento de verificación      (artist_verification_documents: status + reviewed_at + reviewer_notes)
  *   - un destino de retiro              (artist_payout_destinations: verification_status + metadata_json.review)
  *   - un retiro del Wallet              (artist_wallet_movements kind 'withdrawal': status + metadata_json.settlement)
+ *   - la verificación del perfil        (verification_history: action approved / rejected / revoked;
+ *                                        frente verif-artista, migración 20261115190000)
  * La decisión vive en la fila (fuente de verdad). Este módulo, sin DOM ni red,
  * la convierte en:
  *   - un ítem del panel de notificaciones del artista (wo-artist-menu.js), y
@@ -17,7 +19,9 @@
 }(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    var SUBJECTS = ['document', 'destination', 'withdrawal'];
+    var SUBJECTS = ['document', 'destination', 'withdrawal', 'verification'];
+    // verification_history.action → resultado (pending_review es la solicitud del propio artista).
+    var VERIFICATION_OUTCOMES = { approved: 'approved', rejected: 'rejected', revoked: 'revoked' };
     var DOC_LABELS = { identidad: 'documento de identidad', domicilio: 'comprobante de domicilio', bioseguridad: 'certificado de bioseguridad' };
     // Ventana para el email: solo decisiones recién tomadas (evita reenviar
     // decisiones viejas si alguien llama al endpoint más tarde).
@@ -63,6 +67,14 @@
             base.decidedAt = validTime(review.reviewed_at) || (vs === 'verified' ? validTime(row.verified_at) : null);
             base.note = text(review.note) || null;
             base.label = text(row.label) || 'destino de retiro';
+        } else if (subject === 'verification') {
+            // artist_user_id lo resuelve el servidor; en el navegador llega embebido (artists_db!inner(user_id)).
+            var embedded = obj(row.artists_db);
+            base.artistUserId = row.artist_user_id ? String(row.artist_user_id) : (embedded.user_id ? String(embedded.user_id) : null);
+            base.outcome = VERIFICATION_OUTCOMES[text(row.action)] || null;
+            base.decidedAt = validTime(row.created_at);
+            base.note = text(row.notes) || null;
+            base.label = 'perfil';
         } else {
             if (text(row.kind) && row.kind !== 'withdrawal') return null;
             var st = obj(obj(row.metadata_json).settlement);
@@ -78,7 +90,7 @@
         return base;
     }
 
-    function href(d) { return d.subject === 'document' ? '/artist/account#verificacion' : '/artist/account#cobros'; }
+    function href(d) { return d.subject === 'document' || d.subject === 'verification' ? '/artist/account#verificacion' : '/artist/account#cobros'; }
 
     // Título y detalle en voseo (los usan el panel y el email).
     function describe(d) {
@@ -91,6 +103,17 @@
             } else {
                 title = 'Rechazamos tu ' + d.label;
                 detail = (d.note ? 'Motivo: ' + d.note + '. ' : '') + 'Podés subir uno nuevo desde Cuenta · Verificación.';
+            }
+        } else if (d.subject === 'verification') {
+            if (d.outcome === 'approved') {
+                title = 'Verificamos tu perfil';
+                detail = 'Tu perfil público ya muestra la insignia de verificado.';
+            } else if (d.outcome === 'rejected') {
+                title = 'No pudimos verificar tu perfil';
+                detail = (d.note ? 'Motivo: ' + d.note + '. ' : '') + 'Revisá tus documentos y volvé a solicitarla desde Cuenta · Verificación.';
+            } else {
+                title = 'Tu perfil quedó sin verificar';
+                detail = (d.note ? 'Motivo: ' + d.note + '. ' : '') + 'Podés volver a solicitar la verificación desde Cuenta · Verificación.';
             }
         } else if (d.subject === 'destination') {
             if (d.outcome === 'approved') {
@@ -115,7 +138,7 @@
 
     function feedKey(d) { return 'sup:' + d.subject + ':' + d.id + ':' + d.decidedAt; }
 
-    var FEED_ICON = { document: 'shield', destination: 'credit-card', withdrawal: 'dollar-sign' };
+    var FEED_ICON = { document: 'shield', destination: 'credit-card', withdrawal: 'dollar-sign', verification: 'check-circle' };
 
     // Ítem del panel de notificaciones (mismo formato que wo-artist-menu.js).
     function feedItem(d, seen) {
@@ -136,7 +159,8 @@
         var now = opts.now instanceof Date ? opts.now.getTime() : (opts.now ? Date.parse(opts.now) : Date.now());
         var since = now - (opts.days != null ? opts.days : FEED_WINDOW_DAYS) * 86400000;
         var out = [];
-        [['document', input && input.documents], ['destination', input && input.destinations], ['withdrawal', input && input.withdrawals]]
+        [['document', input && input.documents], ['destination', input && input.destinations], ['withdrawal', input && input.withdrawals],
+            ['verification', input && input.verifications]]
             .forEach(function (pair) {
                 (Array.isArray(pair[1]) ? pair[1] : []).forEach(function (row) {
                     var d = fromRow(pair[0], row);

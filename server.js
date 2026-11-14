@@ -670,11 +670,9 @@ async function _executeTool(toolName, args, ctx) {
     if (toolName === 'get_verification_status') {
         if (!userId) return { error: 'Usuario no autenticado.' };
         try {
-            const artist = await _supabaseFetch(
-                `artists_db?user_id=eq.${userId}&select=id,name,is_verified,profile_status,verification_notes`
-            );
-            if (!artist || !artist.length) return { error: 'Este usuario no es un artista.' };
-            return { artist: artist[0] };
+            // verif-artista (VER-A4): columnas reales + documentos (lib/verificacion-artista.js).
+            const { ArtistVerificationRepo } = require('./lib/repos/artist-verification');
+            return await require('./lib/verificacion-artista').verificationStatusForUser(userId, ArtistVerificationRepo);
         } catch (err) {
             return { error: err.message };
         }
@@ -7032,6 +7030,8 @@ app.post('/api/privacy/cookie-consent', async (req, res) => {
     }
 });
 // ── fin privacidad ──
+
+require('./lib/routes/verif-artista').register(app, { resolveBearerUser, getActiveSupportAgent: _getActiveSupportAgent, emailService, applicationBase }); // verif-artista
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {
