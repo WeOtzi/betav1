@@ -1,3 +1,10 @@
+-- ============================================================================
+-- YA APLICADA EN VIVO (proyecto flbgmlvfiejfttlawnfu) como versión 20261102221044.
+-- Copiada al repo solo para alinear el repo con la base. NO RE-APLICAR:
+-- re-ejecutarla fuera de orden (p. ej. después de 20261115220000) volvería
+-- a versiones viejas de decide_studio_verification, private.studio_matches o
+-- private.complete_studio_registration.
+-- ============================================================================
 -- Verificación de estudios + coincidencias en el registro (revisión "Estudios v1").
 --
 -- 1. find_studio_matches(nombre, instagram): el paso 1 del registro avisa si el

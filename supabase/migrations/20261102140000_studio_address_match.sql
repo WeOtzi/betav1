@@ -1,3 +1,10 @@
+-- ============================================================================
+-- YA APLICADA EN VIVO (proyecto flbgmlvfiejfttlawnfu) como versión 20261102222950.
+-- Copiada al repo solo para alinear el repo con la base. NO RE-APLICAR:
+-- re-ejecutarla fuera de orden (p. ej. después de 20261115220000) volvería
+-- a versiones viejas de decide_studio_verification, private.studio_matches o
+-- private.complete_studio_registration.
+-- ============================================================================
 -- Registro de estudios: la dirección de una sede también "coincide" con la de
 -- un estudio parecido cuando comparten calle y número (primer tramo de la
 -- dirección formateada, con al menos un dígito) y están a menos de 1 km o en

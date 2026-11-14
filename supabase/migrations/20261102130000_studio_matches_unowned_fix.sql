@@ -1,3 +1,10 @@
+-- ============================================================================
+-- YA APLICADA EN VIVO (proyecto flbgmlvfiejfttlawnfu) como versión 20261102222556.
+-- Copiada al repo solo para alinear el repo con la base. NO RE-APLICAR:
+-- re-ejecutarla fuera de orden (p. ej. después de 20261115220000) volvería
+-- a versiones viejas de decide_studio_verification, private.studio_matches o
+-- private.complete_studio_registration.
+-- ============================================================================
 -- Corrige private.studio_matches (20261102120000_studio_verification): el
 -- filtro "excluir el estudio de quien pregunta" usaba
 -- `s.user_id is distinct from auth.uid()`, que para una visita anónima
