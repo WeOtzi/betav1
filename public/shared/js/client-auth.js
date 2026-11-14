@@ -79,7 +79,10 @@ function postAuthDestination(fallback = '/client/dashboard') {
 
 function isOAuthCallbackUrl() {
     const loc = (typeof window !== 'undefined' && window.location) || {};
-    return String(loc.hash || '').includes('access_token') || String(loc.search || '').includes('code=');
+    // ?code= de PKCE; ojo: "error_code=" (link vencido) NO es una vuelta de OAuth.
+    let hasCode = false;
+    try { hasCode = new URLSearchParams(String(loc.search || '').replace(/^\?/, '')).has('code'); } catch (_) { hasCode = false; }
+    return String(loc.hash || '').includes('access_token') || hasCode;
 }
 
 // Se mira al cargar el script: supabase-js limpia el hash cuando lee la sesión
@@ -544,6 +547,11 @@ async function handleClientRegistration(payload) {
         console.warn('Could not auto-login:', signInError.message);
     }
 
+    // ACC-08: respaldo del sello de handle_new_user (si el insert del trigger
+    // falló, el perfil lo creó el navegador sin Términos). El servidor solo
+    // sella si todavía no hay aceptación, con su propia hora.
+    await recordClientTerms(authData.session);
+
     // Bienvenida: la decide y deduplica el servidor (POST /api/account/welcome).
     if (!signInError) await sendPendingClientWelcome(authData.user);
 
@@ -976,7 +984,7 @@ async function handleOAuthCallback() {
 // Run OAuth callback handler on page load
 document.addEventListener('DOMContentLoaded', () => {
     // Check if this is an OAuth callback
-    if (CLIENT_AUTH_CALLBACK_AT_LOAD || window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
+    if (CLIENT_AUTH_CALLBACK_AT_LOAD || isOAuthCallbackUrl()) {
         handleOAuthCallback();
     }
 });

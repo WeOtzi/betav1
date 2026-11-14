@@ -346,3 +346,47 @@ test('ACC-14: /inicio ofrece ingresar o crear cuenta de cliente, con respaldo si
     assert.match(read('public/inicio/inicio.js'), /actions\.dataset\.selected = selected/);
     assert.match(read('public/inicio/inicio.css'), /\.inicio-actions\[data-selected="client"\] \.inicio-actions-group\[data-for="client"\]/);
 });
+
+// ---------------- Revisión del frente acceso ----------------
+
+function loadClientAuth(location) {
+    const context = {
+        console, URLSearchParams, Promise, JSON,
+        localStorage: { getItem: () => null, removeItem() {}, setItem() {} },
+        sessionStorage: { getItem: () => null, removeItem() {}, setItem() {} },
+        document: { addEventListener() {}, getElementById: () => null, querySelector: () => null },
+        supabase: { createClient: () => ({ auth: {} }) },
+        window: { location: { pathname: '/client/login', search: '', hash: '', origin: 'https://beta.weotzi.com', ...location }, WeotziEmailConfirm: EC }
+    };
+    vm.runInNewContext(read('public/shared/js/client-auth.js'), context);
+    return context;
+}
+
+test('revisión: "error_code=" de un link vencido no se confunde con la vuelta de OAuth (?code=)', () => {
+    const expired = loadClientAuth({ search: '?error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired' });
+    assert.equal(expired.isOAuthCallbackUrl(), false);
+    const pkce = loadClientAuth({ search: '?code=abc123&returnTo=%2Fstore%2F' });
+    assert.equal(pkce.isOAuthCallbackUrl(), true);
+    const implicit = loadClientAuth({ hash: '#access_token=x&type=magiclink' });
+    assert.equal(implicit.isOAuthCallbackUrl(), true);
+    assert.doesNotMatch(read('public/shared/js/client-auth.js'), /search\.includes\('code='\)/);
+});
+
+test('revisión: el alta por email con sesión inmediata respalda el sello de Términos en el servidor', () => {
+    const src = read('public/shared/js/client-auth.js');
+    const body = src.slice(src.indexOf('async function handleClientRegistration'), src.indexOf('async function linkQuotationsByEmail'));
+    assert.match(body, /await recordClientTerms\(authData\.session\);/);
+    // El sello va antes de la bienvenida y solo con el perfil ya creado.
+    assert.ok(body.indexOf('recordClientTerms(authData.session)') > body.indexOf('WeotziData.Clients.insert'));
+    assert.ok(body.indexOf('recordClientTerms(authData.session)') < body.indexOf('sendPendingClientWelcome(authData.user)'));
+});
+
+test('revisión: en móvil la fila "Ya tengo cuenta · Crear cuenta" no desborda el grupo de cliente', () => {
+    const css = read('public/inicio/inicio.css');
+    const mobile = css.slice(css.indexOf('@media (max-width:767px)'));
+    const block = mobile.slice(0, mobile.indexOf('\n}'));
+    // El grupo es nowrap en móvil; el de cliente necesita wrap para la fila de enlaces al 100%.
+    assert.match(block, /\.inicio-actions-group \{ width:100%; flex-wrap:nowrap;/);
+    assert.match(block, /\.inicio-actions-group\[data-for="client"\] \{ flex-wrap:wrap;/);
+    assert.ok(block.indexOf('[data-for="client"] { flex-wrap:wrap') > block.indexOf('flex-wrap:nowrap'));
+});

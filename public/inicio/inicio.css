@@ -105,6 +105,9 @@ body.wo-app *,body.wo-app *::before,body.wo-app *::after { box-sizing:border-box
     .inicio-actions { padding:var(--space-3) 0; }
     .inicio-actions-group { width:100%; flex-wrap:nowrap; gap:var(--space-2); }
     .inicio-action.wo-btn { flex:1 1 0; min-width:0; height:auto; padding:var(--space-3); white-space:normal; text-align:center; }
+    /* acceso (ACC-14): el grupo de cliente suma una fila de enlaces (100%): sin
+       wrap desbordaba en horizontal. Los dos botones siguen en una fila. */
+    .inicio-actions-group[data-for="client"] { flex-wrap:wrap; row-gap:0; }
     .inicio-note { padding-bottom:var(--space-6); }
 }
 /* Revisión 12/11 (p. 3): entradas sutiles al cargar (marca, título, tarjetas
