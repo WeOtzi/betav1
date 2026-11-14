@@ -756,9 +756,15 @@
         $('aac-username').removeAttribute('aria-invalid');
         setFieldError('aac-contact-whatsapp', '');
 
-        const username = $('aac-username').value.trim().toLowerCase();
-        if (!username || !/^[a-z0-9._-]{3,40}$/.test(username)) {
-            errEl.textContent = 'El nombre de usuario lleva entre 3 y 40 caracteres: letras, números, punto, guion o guion bajo.';
+        // El usuario arma la URL pública (beta.weotzi.com/<usuario>): la base
+        // exige letras minúsculas y números, hasta 30, más .wo (migración
+        // 20261115110000). Se acepta escribirlo con @ o sin .wo.
+        const typed = $('aac-username').value.trim().toLowerCase().replace(/^@+/, '').replace(/\.wo$/, '');
+        const currentUsername = (artist.username || '').toLowerCase();
+        const username = typed ? `${typed}.wo` : '';
+        const usernameChanged = username !== currentUsername;
+        if (!typed || (usernameChanged && !/^[a-z0-9]{3,30}$/.test(typed))) {
+            errEl.textContent = 'Tu usuario lleva entre 3 y 30 letras minúsculas o números, sin espacios ni símbolos (se le suma .wo).';
             errEl.hidden = false;
             $('aac-username').setAttribute('aria-invalid', 'true');
             $('aac-username').focus();
@@ -781,7 +787,7 @@
         }
         btn.disabled = true;
         try {
-            if (username !== (artist.username || '').toLowerCase()) {
+            if (usernameChanged) {
                 const { data: taken } = await D.Artists.isUsernameAvailable(username, user.id);
                 if (taken && taken.length) {
                     errEl.textContent = 'Ese nombre de usuario ya está en uso.';
@@ -818,6 +824,16 @@
             assistRefresh('perfil');
         } catch (err) {
             console.error('[account] guardar perfil:', err);
+            // La base valida el usuario (trigger guard_artist_username + índice único).
+            const code = String(err?.code || '');
+            if (code === '23505' || code === '23514' || code === '23502') {
+                errEl.textContent = code === '23505'
+                    ? 'Ese nombre de usuario ya está en uso.'
+                    : 'Tu usuario lleva entre 3 y 30 letras minúsculas o números, sin espacios ni símbolos (se le suma .wo).';
+                errEl.hidden = false;
+                $('aac-username').setAttribute('aria-invalid', 'true');
+                $('aac-username').focus();
+            }
             toast('No pudimos guardar los cambios', false);
         } finally {
             btn.disabled = false;

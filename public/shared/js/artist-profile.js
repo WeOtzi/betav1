@@ -114,6 +114,10 @@ let reviewsWidgetMounted = false;
 let portfolioAnalyticsObserver = null;
 let errorSceneParallaxRaf = 0;
 let errorSceneMotionShapes = [];
+// Quién mira el perfil: 'owner' (el propio artista), 'artist' (otro artista),
+// 'client' (sesión de cliente) o 'guest'. Decide la barra superior, la franja
+// del dueño y los huecos de la galería.
+let viewer = { kind: 'guest', session: null };
 
 function isUrlVideo(url) {
     const ext = String(url || '').split('?')[0].split('.').pop()?.toLowerCase();
@@ -153,19 +157,24 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+// Auditoría PP-06: sin espacios ni @ iniciales, en minúsculas y con .wo
+// (misma regla que el servidor, public/shared/js/artist-public-url.js).
 function normalizeUsernameFromUrl(username) {
-    if (!username) return '';
-    return username.endsWith('.wo') ? username : `${username}.wo`;
+    if (window.WoArtistPublicUrl) return window.WoArtistPublicUrl.normalizeUsername(username);
+    const raw = String(username || '').trim().replace(/^@+/, '').toLowerCase();
+    if (!raw) return '';
+    return raw.endsWith('.wo') ? raw : `${raw}.wo`;
 }
 
 function formatRequestedArtist(value) {
-    const normalized = normalizeUsernameFromUrl(String(value || '').trim().replace(/^@+/, ''));
+    const normalized = normalizeUsernameFromUrl(value);
     return normalized ? `@${normalized}` : '';
 }
 
+// Las dos CTA van directo al cotizador con el artista preseleccionado
+// (/quotations solo redirigía a /quotation; auditoría PP-10).
 function getQuotationUrl() {
-    const username = artistData?.username || '';
-    return `/quotations?artist=${encodeURIComponent(username)}`;
+    return getQuotationFormUrl();
 }
 
 function getQuotationFormUrl() {
@@ -273,28 +282,77 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
 });
 
+/**
+ * Qué perfil se pidió (auditoría PP-02 / PP-04):
+ *   ?artist=<usuario> (oficial) · ?u= / ?username= (enlaces viejos del cliente)
+ *   ?id=<uuid> · la URL corta /<handle> (el servidor deja el usuario en el
+ *   meta #profile-username; si no, se lee del path).
+ */
+function resolveRequestedArtist() {
+    const PublicUrl = window.WoArtistPublicUrl;
+    const params = new URLSearchParams(window.location.search);
+    const fromSearch = PublicUrl
+        ? PublicUrl.usernameFromSearch(window.location.search)
+        : (params.get('artist') || params.get('u') || params.get('username') || '');
+    if (fromSearch) return { username: fromSearch, alias: !params.get('artist') };
+
+    const id = params.get('id') || '';
+    if (id && (!PublicUrl || PublicUrl.isUuid(id))) return { userId: id, alias: true };
+
+    const fromMeta = document.getElementById('profile-username')?.getAttribute('content') || '';
+    if (fromMeta) return { username: fromMeta, shortUrl: true };
+
+    if (PublicUrl) {
+        const segments = window.location.pathname.split('/').filter(Boolean);
+        const last = segments[segments.length - 1] || '';
+        const parsed = segments.length <= 2 ? PublicUrl.parsePathHandle(last) : null;
+        if (parsed) return { username: parsed.username, shortUrl: true };
+    }
+    return null;
+}
+
+// Los alias (?u=, ?username=, ?id=) se reescriben a ?artist=<usuario> sin
+// recargar, así el enlace que se copia de la barra es el oficial.
+function canonicalizeLocation(ref) {
+    if (!ref?.alias || !artistData?.username || !window.history?.replaceState) return;
+    try {
+        const url = new URL(window.location.href);
+        ['u', 'username', 'id'].forEach((key) => url.searchParams.delete(key));
+        url.searchParams.set('artist', artistData.username);
+        window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    } catch (_) { /* la URL queda como llegó */ }
+}
+
 async function initializeProfile() {
     showLoading();
-    let artistUsername = '';
+    let ref = null;
 
     try {
-        const urlParams = new URLSearchParams(window.location.search);
-        artistUsername = urlParams.get('artist') || '';
+        ref = resolveRequestedArtist();
 
-        if (!artistUsername) {
+        if (!ref) {
             showError('not_found');
             return;
         }
 
-        await loadArtistData(artistUsername);
+        await loadArtistData(ref);
     } catch (error) {
         console.error('Profile initialization error:', error);
-        showError('technical', { requestedArtist: artistUsername });
+        showError('technical', { requestedArtist: ref?.username || '' });
     }
 }
 
-async function loadArtistData(username) {
-    const searchUsername = normalizeUsernameFromUrl(username);
+async function fetchPublicArtist(ref, columns) {
+    if (ref.userId) {
+        if (typeof WeotziData.Artists.getPublicByUserId !== 'function') return { data: null, error: null };
+        return WeotziData.Artists.getPublicByUserId(ref.userId, columns);
+    }
+    return WeotziData.Artists.getPublicByExactUsername(normalizeUsernameFromUrl(ref.username), columns);
+}
+
+async function loadArtistData(refOrUsername) {
+    const ref = typeof refOrUsername === 'string' ? { username: refOrUsername } : (refOrUsername || {});
+    const searchUsername = ref.username ? normalizeUsernameFromUrl(ref.username) : '';
 
     if (!_supabase) {
         console.error('Supabase client is not available for artist profile.');
@@ -303,11 +361,11 @@ async function loadArtistData(username) {
     }
 
     try {
-        let { data: artist, error } = await WeotziData.Artists.getPublicByExactUsername(searchUsername, ARTIST_PUBLIC_FIELDS);
+        let { data: artist, error } = await fetchPublicArtist(ref, ARTIST_PUBLIC_FIELDS);
 
         // Deploys sin studio_id / gallery_feed_items: reintento con el set legacy.
         if (error) {
-            const retry = await WeotziData.Artists.getPublicByExactUsername(searchUsername, ARTIST_PUBLIC_FIELDS_LEGACY);
+            const retry = await fetchPublicArtist(ref, ARTIST_PUBLIC_FIELDS_LEGACY);
             artist = retry.data;
             error = retry.error;
         }
@@ -324,20 +382,28 @@ async function loadArtistData(username) {
         }
 
         artistData = artist;
-        [tattooLocations, travelPresences, studioData, publicProfilePreferences, publicProfileMetrics] = await Promise.all([
+        canonicalizeLocation(ref);
+        [tattooLocations, travelPresences, studioData, publicProfilePreferences, publicProfileMetrics, viewer] = await Promise.all([
             loadArtistTattooLocations(artist.user_id),
             loadTravelPresences(artist.user_id),
             loadArtistStudio(artist.studio_id, artist.user_id),
             loadPublicProfilePreferences(artist.user_id),
-            loadPublicProfileMetrics(searchUsername)
+            loadPublicProfileMetrics(artist.username || searchUsername),
+            resolveViewer(artist.user_id)
         ]);
+        // Barra, franja del dueño y botón compartir según quién mira (antes de
+        // pintar: la galería y la bio dependen de si es el dueño).
+        applyViewerChrome();
         // La galería se pinta recién en populateProfile, con el estado ya resuelto.
         igValidationState = resolveIgValidationState(publicProfilePreferences);
-
         populateProfile();
         hideLoading();
         showContent();
-        void renderArtistReviews().then(applyProfileUrlState);
+        scrollToRequestedSection();
+        void renderArtistReviews().then(() => {
+            applyProfileUrlState();
+            scrollToRequestedSection({ afterReviews: true });
+        });
         void loadStoreBand();
 
         // Structured funnel telemetry (fire-and-forget, one event/hour).
@@ -389,7 +455,10 @@ async function loadPublicProfilePreferences(artistUserId) {
             // clave (migración no aplicada) queda null y no se filtra la galería.
             instagram_validation: data.instagram_validation && typeof data.instagram_validation === 'object'
                 ? data.instagram_validation
-                : null
+                : null,
+            // Migración 20261115110000: verification_state 'Yes' o documento de
+            // identidad aprobado (la misma regla que el centro de la cuenta).
+            verified: data.verified === true
         };
     } catch (error) {
         console.warn('Public profile preferences unavailable:', error);
@@ -579,16 +648,22 @@ function populateProfile() {
     const styles = parseStylesArray(artistData.styles_array);
     const location = getLocationParts(artistData);
 
-    document.title = `${artisticName} | We Otzi`;
-    document.getElementById('og-title').content = `${artisticName} - Tatuador en We Otzi`;
-
-    const ogBio = window.BioFormatting
+    // Los meta para compartir ya vienen escritos por el servidor
+    // (lib/profile-meta.js); acá solo se sincronizan para la pestaña y por si
+    // la página se sirvió sin pasar por él.
+    const pageTitle = `${artisticName} · Tatuador en We Ötzi`;
+    document.title = pageTitle;
+    const ogBio = (window.BioFormatting
         ? window.BioFormatting.bioHtmlToPlainText(artistData.bio_description)
-        : (artistData.bio_description || '');
-    document.getElementById('og-description').content = ogBio || 'Conoce el trabajo de este artista tatuador';
+        : String(artistData.bio_description || '')).replace(/\s+/g, ' ').trim();
+    const pageDescription = ogBio
+        ? (ogBio.length > 160 ? `${ogBio.slice(0, 159).trim()}…` : ogBio)
+        : `Mirá el portafolio de ${artisticName} y pedile una cotización en We Ötzi.`;
+    setMetaContent(['og-title', 'twitter-title'], pageTitle);
+    setMetaContent(['og-description', 'twitter-description', 'profile-description'], pageDescription);
 
     if (artistData.profile_picture) {
-        document.getElementById('og-image').content = artistData.profile_picture;
+        if (/^https?:\/\//i.test(artistData.profile_picture)) setMetaContent(['og-image', 'twitter-image'], artistData.profile_picture);
         const avatarImg = document.getElementById('avatar-image');
         avatarImg.hidden = false;
         avatarImg.addEventListener('error', () => renderAvatarInitials(artisticName), { once: true });
@@ -616,9 +691,11 @@ function populateProfile() {
         else heroBand.style.removeProperty('--profile-banner-image');
     }
 
+    // Sello "Verificado" (auditoría PP-11): misma regla que el centro de la
+    // cuenta — verification_state 'Yes' o identidad aprobada (RPC de preferencias).
     const verifiedIcon = document.getElementById('artist-verified-icon');
     if (verifiedIcon) {
-        verifiedIcon.hidden = artistData.verification_state !== 'Yes';
+        verifiedIcon.hidden = !(artistData.verification_state === 'Yes' || publicProfilePreferences.verified === true);
     }
 
     renderVacation();
@@ -635,6 +712,196 @@ function populateProfile() {
     renderActionbar(artisticName);
     setQuoteLinks();
     renderBio();
+    syncTurnosLink();
+}
+
+function setMetaContent(ids, value) {
+    for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('content', value);
+    }
+}
+
+/* ---------- Quién mira: barra, franja del dueño y compartir ---------- */
+
+function isOwnerView() {
+    return viewer.kind === 'owner';
+}
+
+async function resolveViewer(artistUserId) {
+    const guest = { kind: 'guest', session: null };
+    try {
+        // Modo demo: el recorrido guiado muestra el perfil del artista demo.
+        if (window.ConfigManager?.isDemoMode?.()) return { kind: 'owner', session: null, demo: true };
+        if (!_supabase?.auth?.getSession) return guest;
+        const { data } = await _supabase.auth.getSession();
+        const session = data?.session || null;
+        if (!session?.user?.id) return guest;
+        if (artistUserId && session.user.id === artistUserId) return { kind: 'owner', session };
+        let isArtist = false;
+        try {
+            const own = await WeotziData?.Artists?.getOwnProfile?.('user_id');
+            isArtist = Boolean(own?.data?.user_id);
+        } catch (_) { /* sin fila de artista: es cliente */ }
+        return { kind: isArtist ? 'artist' : 'client', session };
+    } catch (error) {
+        console.warn('Profile viewer unavailable:', error);
+        return guest;
+    }
+}
+
+/**
+ * Barra superior (auditoría PP-03). El Figma 801:1108 dibuja la del artista
+ * porque es la vista del dueño: se usa para el dueño y para otros artistas
+ * con sesión. Un cliente ve su barra (como en el marketplace) y sin sesión
+ * queda la pública del HTML.
+ */
+function applySessionTopbar() {
+    const slot = document.getElementById('profile-topbar');
+    if (!slot) return;
+
+    if (viewer.kind === 'owner' || viewer.kind === 'artist') {
+        slot.innerHTML = '<weotzi-product-nav active="profile" menu-toggle-id="profile-product-menu-toggle"'
+            + ' menu-id="profile-product-mobile-menu" profile-label="Centro de la cuenta"'
+            + ' logout-handler="handleProfileLogout" dashboard-extras></weotzi-product-nav>';
+        const bind = () => window.requestAnimationFrame(setupProfileNavigationMenu);
+        if (window.customElements?.whenDefined) window.customElements.whenDefined('weotzi-product-nav').then(bind);
+        else bind();
+        return;
+    }
+
+    if (viewer.kind === 'client') {
+        const meta = viewer.session?.user?.user_metadata || {};
+        const initials = getReviewInitials(meta.full_name || meta.name || viewer.session?.user?.email || '');
+        slot.innerHTML = `
+            <header class="wo-topbar profile-public-topbar profile-client-topbar">
+                <div class="wo-topbar-left">
+                    <a href="/client/dashboard" class="wo-topbar-brand"><span class="wo-o-tile" aria-hidden="true">Ö</span>WE ÖTZI</a>
+                    <nav class="wo-topbar-nav" aria-label="Navegación principal">
+                        <a class="wo-topbar-item" href="/client/dashboard">Cotizaciones</a>
+                        <a class="wo-topbar-item" href="/job-board">Job board</a>
+                        <a class="wo-topbar-item" href="/marketplace">Explorar artistas</a>
+                        <a class="wo-topbar-item" href="/explore">Tattoo globe</a>
+                    </nav>
+                </div>
+                <div class="wo-topbar-right">
+                    <a class="profile-client-tile" href="/client/dashboard" aria-label="Ir al centro de cuenta">${escapeHtml(initials)}</a>
+                    <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono" type="button" id="profile-client-logout">Log out</button>
+                </div>
+            </header>`;
+        document.getElementById('profile-client-logout')?.addEventListener('click', handleProfileLogout);
+        return;
+    }
+
+    const cta = document.getElementById('profile-topbar-cta');
+    if (cta) cta.href = getQuotationFormUrl();
+}
+
+function applyViewerChrome() {
+    const owner = isOwnerView();
+    document.body.classList.toggle('is-owner-view', owner);
+    applySessionTopbar();
+    const ownerBar = document.getElementById('profile-owner-bar');
+    if (ownerBar) ownerBar.hidden = !owner;
+    const shareBtn = document.getElementById('profile-share-btn');
+    if (shareBtn) shareBtn.hidden = !artistData?.username;
+}
+
+function appBaseUrl() {
+    const configured = String(window.WEOTZI_BASE_PATH || '').replace(/\/$/, '');
+    const base = configured || (/^\/beta(?:\/|$)/.test(window.location.pathname) ? '/beta' : '');
+    return window.location.origin + base;
+}
+
+// URL para compartir: la canónica que escribió el servidor (URL corta) o la
+// misma regla armada en el navegador.
+function getPublicProfileUrl() {
+    const fromServer = document.getElementById('profile-canonical')?.getAttribute('href') || '';
+    if (/^https?:\/\//i.test(fromServer)) return fromServer;
+    const username = artistData?.username || '';
+    if (window.WoArtistPublicUrl) return window.WoArtistPublicUrl.publicProfileUrl(username, appBaseUrl());
+    return `${appBaseUrl()}/artist/profile?artist=${encodeURIComponent(username)}`;
+}
+
+function profileDisplayName() {
+    const extras = publicProfilePreferences.profile || {};
+    return artistData?.name || extras.full_name || String(artistData?.username || '').replace(/\.wo$/i, '') || 'Artista';
+}
+
+/**
+ * Paso "Compartí tu perfil" del onboarding (auditoría PP-07): solo cuando el
+ * dueño comparte su propio perfil. Una vez por id en la página.
+ */
+const onboardingAcks = new Set();
+async function acknowledgeOnboarding(id) {
+    if (!isOwnerView() || onboardingAcks.has(id)) return;
+    onboardingAcks.add(id);
+    const body = { assisted: { acknowledge: id } };
+    try {
+        if (window.WoDemo && typeof window.WoDemo.api === 'function') {
+            await window.WoDemo.api('/api/artist/onboarding', { method: 'POST', body });
+        } else {
+            const token = viewer.session?.access_token;
+            if (!token) return;
+            const res = await fetch('/api/artist/onboarding', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        }
+        document.dispatchEvent(new CustomEvent('wo:assist-refresh', { detail: { section: 'compartir' } }));
+    } catch (error) {
+        onboardingAcks.delete(id);
+        console.warn('Onboarding share ack failed:', error);
+    }
+}
+
+function openShareSheet(trigger, opts = {}) {
+    if (!artistData?.username || !window.WoShareSheet) return;
+    const owner = isOwnerView();
+    const name = profileDisplayName();
+    window.WoShareSheet.open({
+        url: getPublicProfileUrl(),
+        title: `${name} · We Ötzi`,
+        text: owner ? 'Mirá mi perfil de artista en We Ötzi' : `Mirá el perfil de ${name} en We Ötzi`,
+        name,
+        image: artistData.profile_picture || '',
+        fileName: String(artistData.username).replace(/\.wo$/i, ''),
+        heading: owner ? 'Compartir mi perfil' : 'Compartir perfil',
+        trigger,
+        qr: opts.qr === true,
+        extra: owner ? { label: 'Tarjeta QR con tu marca', href: '/artist/dashboard?panel=qr' } : null,
+        onShare(channel) {
+            // Abrir el panel QR no es compartir; descargarlo, sí.
+            if (channel === 'copy') void acknowledgeOnboarding('compartir.enlace');
+            else if (channel !== 'qr') void acknowledgeOnboarding('compartir');
+        }
+    });
+}
+
+/**
+ * Anclas que llegan en el enlace (auditoría PP-14): el contenido se pinta
+ * después de cargar, así que el navegador no las resuelve solo.
+ */
+function scrollToRequestedSection(options = {}) {
+    const hash = decodeURIComponent(String(window.location.hash || '').slice(1));
+    if (!hash || !/^[a-z0-9_-]+$/i.test(hash)) return;
+    if (hash === 'artist-reviews-panel' && !options.afterReviews) return;
+    const target = document.getElementById(hash);
+    if (!target || target.hidden) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    window.requestAnimationFrame(() => {
+        target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+        try { target.focus({ preventScroll: true }); } catch (_) { /* noop */ }
+    });
+}
+
+// "Ver turnos disponibles": solo si la página tiene la sección pública #turnos.
+function syncTurnosLink() {
+    const link = document.getElementById('cta-turnos-link');
+    if (link) link.hidden = !document.getElementById('turnos');
 }
 
 /* ---------- Vacaciones (Cuenta 801:571) ---------- */
@@ -727,6 +994,19 @@ function renderBio() {
         manifestoEl.textContent = manifesto;
     }
 
+    // Sin presentación (PP-05): el visitante no ve un aviso de vacío; el dueño
+    // ve a dónde ir para escribirla.
+    if (!String(plain || '').trim()) {
+        if (isOwnerView()) {
+            bioTextEl.hidden = false;
+            bioTextEl.innerHTML = '<p>Todavía no escribiste tu presentación. <a href="/artist/account#perfil">Sumala desde Editar perfil →</a></p>';
+        } else {
+            bioTextEl.hidden = true;
+            bioTextEl.textContent = '';
+        }
+        return;
+    }
+
     if (!manifesto) {
         bioTextEl.hidden = false;
         if (window.BioFormatting) {
@@ -750,9 +1030,10 @@ function setText(id, value) {
 }
 
 /**
- * CTA dual del funnel (Figma): "Reservar sesión →" abre el wizard de cotización
- * (`/quotation`, misma ruta que el badge AGENDA ABIERTA de residencias) y
- * "Solicitar cotización" lleva al listado (`/quotations`).
+ * CTA dual del funnel (Figma): "Reservar sesión →" y "Solicitar cotización"
+ * abren el cotizador (`/quotation?artist=<usuario>`, misma ruta que el badge
+ * AGENDA ABIERTA de residencias) con el artista ya elegido. `/quotations`
+ * solo redirigía ahí (auditoría PP-10).
  */
 function setQuoteLinks() {
     const quotationUrl = getQuotationUrl();
@@ -1041,7 +1322,7 @@ function renderGalleryChips() {
 
     containers.forEach((chips) => {
         const isIntro = chips.id === 'portfolio-intro-chips';
-        chips.hidden = false;
+        chips.hidden = !galleryItems.length && !isOwnerView();
         chips.innerHTML = options.map((option) => {
             const active = option.value === galleryFilter;
             const label = isIntro && option.value === GALLERY_ALL_FILTER ? 'Todo' : option.label;
@@ -1052,8 +1333,24 @@ function renderGalleryChips() {
 
 function renderGallery() {
     galleryItems = normalizeGalleryItems();
+    // Sin trabajos, el visitante no ve la banda de entrada al portafolio ni
+    // sus filtros (auditoría PP-05); el dueño la sigue viendo como en el Figma.
+    const introBand = document.querySelector('.portfolio-intro-band');
+    if (introBand) introBand.hidden = !galleryItems.length && !isOwnerView();
+    const ownerCta = document.getElementById('gallery-owner-cta');
+    if (ownerCta) ownerCta.hidden = !isOwnerView() || galleryItems.length >= MIN_GALLERY_SLOTS;
     renderGalleryChips();
     renderGalleryGrid();
+}
+
+/**
+ * Celdas de la grilla. El dueño ve los 9 huecos del Figma (801:1108) como
+ * invitación a completar el portafolio; el visitante, solo los trabajos (la
+ * última fila se completa para no dejar la grilla rota) o el texto vacío.
+ */
+function gallerySlotCount(visibleCount, owner) {
+    if (owner) return Math.max(MIN_GALLERY_SLOTS, Math.ceil(visibleCount / 3) * 3);
+    return Math.ceil(visibleCount / 3) * 3;
 }
 
 function renderGalleryGrid() {
@@ -1061,10 +1358,19 @@ function renderGalleryGrid() {
     const galleryEmpty = document.getElementById('gallery-empty');
     if (!galleryGrid) return;
 
+    const owner = isOwnerView();
     const visible = getVisibleGalleryItems();
-    if (galleryEmpty) galleryEmpty.style.display = visible.length ? 'none' : 'block';
+    if (galleryEmpty) {
+        galleryEmpty.style.display = visible.length ? 'none' : 'block';
+        galleryEmpty.textContent = owner
+            ? 'Todavía no publicaste trabajos. Los espacios están reservados para tu próxima colección.'
+            : (galleryFilter === GALLERY_ALL_FILTER
+                ? 'Este artista todavía no publicó trabajos. Pedile una cotización y te muestra ideas para tu tatuaje.'
+                : 'No hay trabajos con este filtro.');
+    }
+    galleryGrid.hidden = !owner && !visible.length;
 
-    const slotCount = Math.max(MIN_GALLERY_SLOTS, Math.ceil(visible.length / 3) * 3);
+    const slotCount = gallerySlotCount(visible.length, owner);
 
     let html = '';
     for (let index = 0; index < slotCount; index += 1) {
@@ -1614,6 +1920,16 @@ function setupEventListeners() {
 
     document.getElementById('reviews-all-link')?.addEventListener('click', toggleFullReviews);
 
+    const shareBtn = document.getElementById('profile-share-btn');
+    shareBtn?.addEventListener('click', () => openShareSheet(shareBtn));
+    const ownerShareBtn = document.getElementById('profile-owner-share-btn');
+    ownerShareBtn?.addEventListener('click', () => openShareSheet(ownerShareBtn));
+    // La sección pública de turnos (otro módulo) avisa cuando se pinta.
+    document.addEventListener('wo:turnos-ready', () => {
+        syncTurnosLink();
+        scrollToRequestedSection({ afterReviews: true });
+    });
+
     for (const id of ['portfolio-intro-chips', 'gallery-chips']) {
         document.getElementById(id)?.addEventListener('click', (event) => {
             const chip = event.target.closest('[data-gallery-filter]');
@@ -1674,11 +1990,13 @@ function setupProfileNavigationMenu() {
     toggle.dataset.profileMenuBound = 'true';
 }
 
+// Cierra sesión y vuelve al ingreso de quien miraba (artista o cliente).
 async function handleProfileLogout() {
+    const target = viewer.kind === 'client' ? '/client/login' : '/artist/login';
     try {
         await _supabase?.auth?.signOut?.();
     } finally {
-        window.location.href = '/artist/login';
+        window.location.href = target;
     }
 }
 

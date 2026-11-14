@@ -704,7 +704,7 @@
                 + (price ? '<span class="wo-mono-num crq-app-price">' + price + '</span>' : '<span class="wo-meta-s wo-muted">Sin precio estimado</span>')
                 + '<div class="crq-app-btns">'
                 + goLink(qsApp, 'wo-btn wo-btn--secondary wo-btn--s', 'Ver propuesta')
-                + (artistOf(app).username ? '<a class="wo-btn wo-btn--secondary wo-btn--s" href="/artist/profile?u=' + encodeURIComponent(artistOf(app).username) + '" target="_blank" rel="noopener">Ver perfil</a>' : '')
+                + (artistOf(app).username ? '<a class="wo-btn wo-btn--secondary wo-btn--s" href="/artist/profile?artist=' + encodeURIComponent(artistOf(app).username) + '" target="_blank" rel="noopener">Ver perfil</a>' : '')
                 + '</div>'
                 + '</div>'
                 + '</div>';
@@ -942,7 +942,7 @@
             + avatarHtml(app)
             + '<div><h3 class="wo-h3">' + esc(name) + '</h3>'
             + '<p class="wo-meta crq-app-meta">' + artistMetaLine(app) + '</p>'
-            + (a.username ? '<a class="wo-meta" href="/artist/profile?u=' + encodeURIComponent(a.username) + '" target="_blank" rel="noopener">Ver perfil del artista →</a>' : '')
+            + (a.username ? '<a class="wo-meta" href="/artist/profile?artist=' + encodeURIComponent(a.username) + '" target="_blank" rel="noopener">Ver perfil del artista →</a>' : '')
             + '</div>'
             + '</div>'
             + (money(app.estimated_price) ? '<span class="wo-mono-num crq-app-price">' + money(app.estimated_price) + '</span>' : '')

@@ -1,0 +1,303 @@
+/* ============================================================================
+   WE ÖTZI — Hoja "Compartir" (wo-share-sheet.js)
+   Lenguaje del panel "Compartir perfil" del dashboard (Figma 801:562): borde
+   duro, etiquetas mono en mayúsculas, redes en grilla de tiles. En el teléfono
+   es una hoja que sube desde abajo; en tablet y escritorio, un diálogo.
+   ============================================================================ */
+
+.wss-dialog {
+    width: min(100vw, 480px);
+    max-width: 100vw;
+    max-height: 100dvh;
+    margin: auto auto 0;
+    padding: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: var(--surface-card);
+    color: var(--text-body);
+    border: var(--border-strong-width) solid var(--border-strong);
+    border-bottom: 0;
+    border-radius: var(--radius-none);
+    box-shadow: var(--shadow-hard);
+}
+
+.wss-dialog::backdrop {
+    background: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+html.wss-open {
+    overflow: hidden;
+}
+
+.wss-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-4) var(--space-3);
+    background: var(--surface-card);
+    border-bottom: var(--border-rule-width) solid var(--neutral-200);
+}
+
+.wss-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 1.2;
+    color: var(--text-heading);
+}
+
+.wss-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex: none;
+    padding: 0;
+    background: transparent;
+    border: var(--border-strong-width) solid var(--border-strong);
+    color: var(--neutral-500);
+    cursor: pointer;
+}
+
+.wss-x i,
+.wss-net i,
+.wss-copy i,
+.wss-native i,
+.wss-qr i {
+    display: inline-flex;
+    width: 18px;
+    height: 18px;
+}
+
+.wss-x svg,
+.wss-net svg,
+.wss-copy svg,
+.wss-native svg,
+.wss-qr svg {
+    width: 100%;
+    height: 100%;
+}
+
+.wss-body {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+}
+
+.wss-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+    padding: var(--space-3);
+    background: var(--surface-field);
+    border: var(--border-strong-width) solid var(--border-strong);
+}
+
+.wss-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    flex: none;
+    overflow: hidden;
+    background: var(--yellow-300);
+    border: var(--border-strong-width) solid var(--border-strong);
+    font-family: var(--font-display);
+    font-size: 16px;
+    color: var(--neutral-500);
+}
+
+.wss-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.wss-id {
+    display: grid;
+    min-width: 0;
+}
+
+.wss-id strong {
+    overflow: hidden;
+    font-family: var(--font-display);
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-heading);
+}
+
+.wss-id small {
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--neutral-400);
+}
+
+.wss-label {
+    margin: var(--space-2) 0 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--neutral-400);
+}
+
+.wss-link {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+}
+
+.wss-input {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: var(--space-2) var(--space-3);
+    background: var(--surface-page);
+    border: var(--border-strong-width) solid var(--border-strong);
+    border-radius: var(--radius-none);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--neutral-500);
+}
+
+.wss-copy,
+.wss-native {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: 44px;
+}
+
+.wss-nets {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.wss-net {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 72px;
+    padding: var(--space-2) 4px;
+    background: var(--surface-card);
+    border: var(--border-strong-width) solid var(--border-strong);
+    border-radius: var(--radius-none);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: center;
+    color: var(--neutral-500);
+    text-decoration: none;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+    transition: transform var(--duration-press, 120ms), box-shadow var(--duration-press, 120ms);
+}
+
+.wo-app a.wss-net:hover,
+.wss-net:hover {
+    color: var(--neutral-500);
+    text-decoration: none;
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard-sm);
+}
+
+.wss-net:active {
+    transform: none;
+    box-shadow: none;
+}
+
+.wss-net[aria-expanded="true"] {
+    background: var(--yellow-300);
+}
+
+.wss-qr {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--surface-field);
+    border: var(--border-strong-width) solid var(--border-strong);
+}
+
+.wss-qr[hidden] {
+    display: none;
+}
+
+.wss-qr-canvas {
+    width: min(100%, 240px);
+    height: auto;
+    aspect-ratio: 1;
+    border: var(--border-strong-width) solid var(--border-strong);
+    image-rendering: pixelated;
+}
+
+.wss-qr-note {
+    margin: 0;
+    font-size: 14px;
+}
+
+.wss-extra {
+    justify-self: start;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--neutral-500);
+}
+
+@media (min-width: 30.0625rem) {
+    .wss-link {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .wss-copy {
+        width: auto;
+    }
+}
+
+@media (min-width: 48rem) {
+    .wss-dialog {
+        margin: auto;
+        border-bottom: var(--border-strong-width) solid var(--border-strong);
+        max-height: min(90dvh, 760px);
+    }
+
+    .wss-head {
+        padding: var(--space-5) var(--space-6) var(--space-4);
+    }
+
+    .wss-body {
+        padding: var(--space-5) var(--space-6) var(--space-6);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wss-net {
+        transition: none;
+    }
+
+    .wss-net:hover {
+        transform: none;
+    }
+}

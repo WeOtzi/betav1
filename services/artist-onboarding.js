@@ -30,6 +30,7 @@
 const { resolveBearerUser } = require('../lib/auth/supabase-auth');
 const { pgrest } = require('../lib/postgrest');
 const { applicationBase } = require('./email-request-context');
+const ArtistPublicUrl = require('../public/shared/js/artist-public-url.js');
 
 const NEW_WINDOW_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -417,11 +418,13 @@ function isNewAccount(createdAt, now, windowDays) {
 
 // base: string ya resuelto, o la request (misma resolucion que los emails:
 // PUBLIC_APP_URL / APP_URL, o el origen local + req.weotziBasePath).
+// Es la URL corta del perfil (<base>/<handle>, la que va en la bio); si el
+// usuario no admite URL corta, el alias /artist/profile?artist=<usuario>.wo.
 function buildProfileUrl(username, baseOrReq) {
     const slug = String(username == null ? '' : username).trim().replace(/\.wo$/i, '');
     if (!slug) return null;
     const base = typeof baseOrReq === 'string' ? baseOrReq : applicationBase(baseOrReq || { headers: {} });
-    return `${String(base).replace(/\/+$/, '')}/artist/profile?artist=${encodeURIComponent(slug)}`;
+    return ArtistPublicUrl.publicProfileUrl(slug, base) || null;
 }
 
 // ---------------------------------------------------------------------------

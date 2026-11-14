@@ -652,7 +652,7 @@ test('GET /api/artist/onboarding: default state of a fresh artist', async () => 
     assert.equal(body.is_new, true);
     assert.equal(body.account_created_at, USERS.laura.created_at);
     assert.equal(body.new_window_days, 14);
-    assert.equal(body.profile_url, 'https://beta.weotzi.com/artist/profile?artist=laura');
+    assert.equal(body.profile_url, 'https://beta.weotzi.com/laura');
     assert.deepEqual(body.onboarding, {
         demo_suggestions: true,
         demo_auto_started_at: null,

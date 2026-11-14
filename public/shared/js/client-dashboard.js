@@ -1929,21 +1929,21 @@ async function viewJBRequestDetail(requestId) {
         return `
         <div class="jb-app">
             <div class="jb-app-head">
-                <div class="jb-app-avatar">${artist.profile_picture ? `<img src="${artist.profile_picture}" alt="">` : (artist.name || 'A').charAt(0).toUpperCase()}</div>
+                <div class="jb-app-avatar">${artist.profile_picture ? `<img src="${escapeFeedHtml(artist.profile_picture)}" alt="">` : escapeFeedHtml((artist.name || 'A').charAt(0).toUpperCase())}</div>
                 <div class="jb-app-info">
-                    <div class="jb-app-name">${artist.name || artist.username || 'Artista'}</div>
-                    <div class="jb-app-meta">${artist.ubicacion || ''} ${styles ? '· ' + styles : ''}</div>
+                    <div class="jb-app-name">${escapeFeedHtml(artist.name || artist.username || 'Artista')}</div>
+                    <div class="jb-app-meta">${escapeFeedHtml(artist.ubicacion || '')} ${styles ? '· ' + escapeFeedHtml(styles) : ''}</div>
                 </div>
-                <span class="jb-app-status st-${app.status}">${statusLabels[app.status]}</span>
+                <span class="jb-app-status st-${escapeFeedHtml(app.status)}">${escapeFeedHtml(statusLabels[app.status] || app.status)}</span>
             </div>
             <div class="jb-app-body">
-                <p class="jb-app-msg">${app.message || 'Sin mensaje'}</p>
+                <p class="jb-app-msg">${escapeFeedHtml(app.message || 'Sin mensaje')}</p>
                 <div class="jb-app-facts">
-                    ${app.estimated_price ? '<span>Precio est. · ' + app.estimated_price + '</span>' : ''}
-                    ${app.estimated_sessions ? '<span>Sesiones · ' + app.estimated_sessions + '</span>' : ''}
-                    ${app.availability_note ? '<span>Disponibilidad · ' + app.availability_note + '</span>' : ''}
+                    ${app.estimated_price ? '<span>Precio est. · ' + escapeFeedHtml(app.estimated_price) + '</span>' : ''}
+                    ${app.estimated_sessions ? '<span>Sesiones · ' + escapeFeedHtml(app.estimated_sessions) + '</span>' : ''}
+                    ${app.availability_note ? '<span>Disponibilidad · ' + escapeFeedHtml(app.availability_note) + '</span>' : ''}
                 </div>
-                ${artist.username ? '<a href="/artist/profile?u=' + artist.username + '" target="_blank" class="jb-app-link">Ver perfil del artista →</a>' : ''}
+                ${artist.username ? '<a href="' + escapeFeedHtml('/artist/profile?artist=' + encodeURIComponent(artist.username)) + '" target="_blank" rel="noopener" class="jb-app-link">Ver perfil del artista →</a>' : ''}
             </div>
             ${isPending ? `
             <div class="jb-app-actions">
