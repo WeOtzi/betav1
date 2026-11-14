@@ -2237,10 +2237,12 @@
             notifMatrix.promociones.email = extras.subscribed_newsletter;
         }
 
+        // EM-13: push y SMS todavía no existen → deshabilitados ("Próximamente").
+        const soon = (channel) => channel === 'push' || channel === 'sms';
         const cell = (key, label, channel, name) => `
-            <span class="aac-matrix-cell">
+            <span class="aac-matrix-cell"${soon(channel) ? ' title="Próximamente"' : ''}>
                 <label class="aac-switch">
-                    <input type="checkbox" data-notif-event="${key}" data-notif-channel="${channel}" ${notifMatrix[key][channel] ? 'checked' : ''} aria-label="Avisos de ${label.toLowerCase()} por ${name}">
+                    <input type="checkbox" data-notif-event="${key}" data-notif-channel="${channel}" ${!soon(channel) && notifMatrix[key][channel] ? 'checked' : ''}${soon(channel) ? ' disabled aria-disabled="true"' : ''} aria-label="Avisos de ${label.toLowerCase()} por ${name}${soon(channel) ? ' (próximamente)' : ''}">
                     <span class="aac-switch-knob" aria-hidden="true"></span>
                 </label>
             </span>`;
@@ -2254,7 +2256,7 @@
 
         $('aac-notif-rows').addEventListener('change', async (event) => {
             const input = event.target.closest('[data-notif-event]');
-            if (!input) return;
+            if (!input || input.disabled) return;
             notifMatrix[input.dataset.notifEvent][input.dataset.notifChannel] = input.checked;
             try {
                 await savePrefs('notification_prefs', notifMatrix);

@@ -252,7 +252,8 @@ const storeDownloadLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 app.use('/api/admin/update-user-password', authLimiter);
 app.use('/api/auth/reset-temp-password', authLimiter);
-app.use('/api/email/events', authLimiter);
+// ── emails ── limiter propio del backoffice de emails (no comparte authLimiter).
+app.use('/api/email/events', require('./lib/routes/emails').adminLimiter);
 // /api/register/artist-draft is intentionally NOT under authLimiter — it is a
 // high-frequency form autosave (~30-60 calls per wizard session), not an auth
 // operation. apiLimiter is sufficient. /api/register/artist-finalize stays
@@ -301,7 +302,7 @@ app.post('/api/calendar/reminders/dispatch', async (req, res) => {
 });
 const CALENDAR_REMINDERS_INTERVAL_MS = calendarReminders.intervalFromEnv(process.env);
 if (CALENDAR_REMINDERS_INTERVAL_MS) {
-    const reminderBase = (process.env.PUBLIC_APP_URL || process.env.APP_URL || 'https://weotzi.com/beta').replace(/\/$/, '');
+    const reminderBase = (process.env.PUBLIC_APP_URL || process.env.APP_URL || 'https://beta.weotzi.com').replace(/\/$/, '');
     let reminderRunActive = false;
     setInterval(async () => {
         if (reminderRunActive) return;
@@ -2980,6 +2981,9 @@ app.get('/shared/js/app-config.json', async (req, res) => {
             config.features.demoMode = process.env.DEMO_MODE === 'true';
         }
         
+        // ── emails ── CC-19: sin URLs de webhooks de n8n en el JSON público.
+        require('./lib/routes/emails').stripPublicWebhooks(config);
+
         // Set last modified timestamp
         config.lastModified = new Date().toISOString();
         
@@ -3326,6 +3330,8 @@ app.post('/api/client/quotations/:quoteId/complete', async (req, res) => {
 
         const completedAt = new Date().toISOString();
         await QuotationsRepo.markCompletedByClient(quotation.id, caller.id, completedAt);
+        // ── emails ── resumen final a ambos + pedido de reseña (no bloquea la respuesta).
+        void require('./lib/routes/emails').notifyQuotationCompleted(quoteId, { baseUrl: applicationBase(req) }).catch(() => {});
 
         console.log(`[Client Complete] Client ${caller.id} completed quotation ${quoteId}`);
         return res.json({
@@ -4468,7 +4474,7 @@ app.get('/api/artist/public-profile-metrics', async (req, res) => {
  *   3. Uses the centralized dispatcher and persistent delivery claim.
  *   4. Reports mail acceptance/failure separately from the saved studio action.
  */
-app.post('/api/studio/notify', authLimiter, async (req, res) => {
+app.post('/api/studio/notify', require('./lib/routes/emails').dispatchLimiter, async (req, res) => {
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !serviceRoleKey) {
@@ -6443,7 +6449,7 @@ app.put('/api/email/events/:eventId', async (req, res) => {
     if (!emailEventMapping.getEvent(eventId)) {
         return res.status(404).json({ success: false, error: `Unknown eventId: ${eventId}` });
     }
-    const allowed = ['channel', 'billionmail_api_key', 'billionmail_sender', 'billionmail_api_url', 'n8n_webhook_url'];
+    const allowed = ['channel', 'billionmail_api_key', 'billionmail_sender', 'billionmail_api_url', 'n8n_webhook_url', 'relay_url'];
     const updates = {};
     for (const k of allowed) if (k in req.body) updates[k] = req.body[k];
     if (Object.keys(updates).length === 0) {
@@ -6466,7 +6472,7 @@ app.put('/api/email/events/:eventId', async (req, res) => {
  * Body: { eventId, recipient, channel? }
  * - When `recipient` is set, payload is built minimally so the recipient receives the test.
  */
-app.post('/api/email/test', authLimiter, async (req, res) => {
+app.post('/api/email/test', require('./lib/routes/emails').adminLimiter, async (req, res) => {
     const auth = await appSettings.verifyAdminCaller(req);
     if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
 
@@ -6519,35 +6525,10 @@ app.post('/api/email/test', authLimiter, async (req, res) => {
  * Body: { data: {...} }
  * Optional query: ?force=billionmail|n8n|dual|off  (admin-only override)
  */
-app.post('/api/email/:eventId', authLimiter, async (req, res) => {
-    const eventId = req.params.eventId;
-    const payload = (req.body && req.body.data) || req.body || {};
-    const forceChannel = req.query.force ? String(req.query.force) : undefined;
-
-    if (!emailEventMapping.getEvent(eventId)) {
-        return res.status(404).json({ success: false, error: `Unknown eventId: ${eventId}` });
-    }
-    if (forceChannel) {
-        if (!emailService.VALID_CHANNELS.includes(forceChannel)) {
-            return res.status(400).json({ success: false, error: 'Invalid force channel' });
-        }
-        const auth = await appSettings.verifyAdminCaller(req);
-        if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
-    }
-
-    try {
-        const context = await resolveEmailContext(req, eventId, payload);
-        if (!context.ok) return res.status(context.status || 403).json({ success: false, error: context.error });
-        const result = await emailService.sendEmail(eventId, context.payload, {
-            forceChannel, idempotencyKey: context.idempotencyKey
-        });
-        const status = result.ok ? 200 : 502;
-        return res.status(status).json({ success: !!result.ok, ...result });
-    } catch (err) {
-        console.error(`[email] dispatch failed for ${eventId}:`, err.message);
-        return res.status(503).json({ success: false, error: 'No se pudo enviar el correo. El cambio guardado sigue disponible en tu cuenta.' });
-    }
-});
+// ── emails ── limiter por usuario (30/min) y handler en lib/routes/emails.js:
+// omitido por preferencia o ya leído no es error; chat/inbox diferidos y con
+// ventana de 15 min; rechazos de contexto logueados sin PII.
+app.post('/api/email/:eventId', require('./lib/routes/emails').dispatchLimiter, require('./lib/routes/emails').dispatchHandler);
 
 
 // ── integracion ──
@@ -7032,6 +7013,9 @@ app.post('/api/privacy/cookie-consent', async (req, res) => {
     }
 });
 // ── fin privacidad ──
+
+// ── emails ── verificación por email, recordatorio de sesión 24 h y avisos de arranque.
+require('./lib/routes/emails').register(app, { pgrest, getActiveSupportAgent: _getActiveSupportAgent, applicationBase, safeTokenEqual: storeOrders.safeTokenEqual, startJobs: require.main === module });
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {

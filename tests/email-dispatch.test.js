@@ -55,7 +55,7 @@ test('registration only sends to authenticated profile and never copies credenti
     assert.equal(result.ok, true);
     assert.equal(result.payload.email, 'client@example.com');
     assert.notEqual(result.payload.password, 'secret');
-    assert.equal(result.payload.dashboard_url, 'https://weotzi.com/beta/client/dashboard');
+    assert.equal(result.payload.dashboard_url, 'https://beta.weotzi.com/client/dashboard');
 });
 
 test('anonymous registration and unrelated quotation dispatch are rejected', async () => {
@@ -71,7 +71,7 @@ test('public quotation confirmation uses only persisted recipients and content',
     assert.equal(result.ok, true);
     assert.equal(result.payload.artist_email, quote.artist_email);
     assert.equal(result.payload.client_name, quote.client_full_name);
-    assert.equal(result.payload.login_url, 'https://weotzi.com/beta/client/login');
+    assert.equal(result.payload.login_url, 'https://beta.weotzi.com/client/login');
     assert.equal(result.idempotencyKey, quote.quote_id);
 });
 
@@ -88,7 +88,10 @@ test('artist events cannot be triggered by client and chat body is loaded from s
     deps.latestMessage = async () => ({ id: 42, message: 'Saved message' });
     const result = await resolveEmailContext(request, 'chat_message_to_client', { quote_id: quote.quote_id, message_preview: 'Fake' }, deps);
     assert.equal(result.payload.message_preview, 'Saved message');
-    assert.match(result.idempotencyKey, /message:42/);
+    // Un correo por conversación y ventana de 15 min (INB-03), diferido y sin reenviar si ya se leyó.
+    assert.match(result.idempotencyKey, /^chat:WO-100:client:\d+$/);
+    assert.equal(result.payload.message_id, 42);
+    assert.equal(typeof result.defer.stillPending, 'function');
 });
 
 test('job application resolves the client recipient missing in current browser payload', async () => {
@@ -120,7 +123,7 @@ test('offline decision by artist requires the matching persisted status', async 
     assert.equal((await resolveEmailContext(request, 'client_approved_quotation', { quote_id: quote.quote_id }, dependencies(artist))).status, 403);
     const result = await resolveEmailContext(request, 'client_approved_quotation', { quote_id: quote.quote_id }, dependencies(artist, { quotations_db: { ...quote, quote_status: 'client_approved' } }));
     assert.equal(result.ok, true);
-    assert.equal(result.payload.quotation_url, 'https://weotzi.com/beta/my-quotations/detail?quote=WO-100');
+    assert.equal(result.payload.quotation_url, 'https://beta.weotzi.com/my-quotations/detail?quote=WO-100');
 });
 
 test('chat notifications use the requested stored message and enforce both ownership keys', async () => {
@@ -145,7 +148,7 @@ test('chat repository schedules mail only after persistence and keeps a failed m
 });
 
 test('production link origin cannot be replaced through Host header', () => {
-    assert.equal(applicationBase({ headers: { host: 'evil.example' } }), 'https://weotzi.com/beta');
+    assert.equal(applicationBase({ headers: { host: 'evil.example' } }), 'https://beta.weotzi.com');
 });
 
 function memoryLedger() {

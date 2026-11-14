@@ -22,8 +22,13 @@ test('all BillionMail templates are generated with required variables', () => {
             assert.ok(fs.existsSync(file), `missing generated file: ${file}`);
         }
         const html = fs.readFileSync(billionmailPath, 'utf8');
-        assert.match(html, /background:#F2EFE6/, `${templateName} should use the Bauhaus email shell`);
-        assert.match(html, /WE&Ouml;TZI/, `${templateName} should include the We Otzi brand mark`);
+        // Base común (lib/email-render/layout.js): cabecera ink, card de 600 con
+        // ghost table MSO, color-scheme y preheader.
+        assert.match(html, /class="wo-head" bgcolor="#24211D"/, `${templateName} should use the ink header`);
+        assert.match(html, /WE &Ouml;TZI/, `${templateName} should include the We Ötzi brand mark`);
+        assert.match(html, /<!--\[if mso\]><table role="presentation" width="600"/, `${templateName} needs the MSO ghost table`);
+        assert.match(html, /name="color-scheme" content="light dark"/, `${templateName} declares color-scheme`);
+        assert.doesNotMatch(html, /client_health_conditions|client_allergies|attachments_html/, `${templateName} must not carry health data or raw HTML`);
         for (const variable of entry.variables) {
             assert.ok(
                 html.includes(`{{${variable}}}`),
@@ -35,6 +40,9 @@ test('all BillionMail templates are generated with required variables', () => {
 
 test('email event template hints point to generated templates', () => {
     for (const [eventId, event] of Object.entries(EVENTS)) {
+        // Los eventos con `render` (services/email-events/*.js) se arman en el
+        // servidor y salen por el relé: la plantilla n8n/BillionMail es opcional.
+        if (event.render) continue;
         assert.ok(event.templateHint, `${eventId} missing templateHint`);
         assert.ok(manifest[event.templateHint], `${eventId} points to unknown template ${event.templateHint}`);
     }

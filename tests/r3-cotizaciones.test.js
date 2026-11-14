@@ -87,7 +87,7 @@ test('P8: el rechazo solo se avisa si la cotización guardada está rechazada y 
         deps(artist, { quotations_db: baseQuote, artists_db: { user_id: 'artist-id', email: 'artist@example.com', name: 'Ana' } }));
     assert.equal(ok.ok, true);
     assert.equal(ok.payload.client_email, 'client@example.com');
-    assert.equal(ok.payload.dashboard_url, 'https://weotzi.com/beta/client/dashboard');
+    assert.equal(ok.payload.dashboard_url, 'https://beta.weotzi.com/client/dashboard');
     const stale = await resolveEmailContext(request, 'artist_rejected_quotation', { quote_id: 'WO-7' },
         deps(artist, { quotations_db: { ...baseQuote, quote_status: 'pending' } }));
     assert.equal(stale.status, 409);
