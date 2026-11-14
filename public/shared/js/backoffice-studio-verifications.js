@@ -195,18 +195,26 @@
         if (typeof root.showToast === 'function') root.showToast(message, type || 'info');
     }
 
+    // La sesión vive en el storage del proyecto: se prueba con cada cliente
+    // disponible (backoffice: ConfigManager; soporte: window._supabase).
     async function authHeaders() {
-        const cm = root.ConfigManager;
-        const data = root.WeotziData;
-        const client = (cm && typeof cm.getSupabaseClient === 'function' && cm.getSupabaseClient())
-            || (data && typeof data.getClient === 'function' && data.getClient())
-            || root.supabaseClient || null;
-        if (!client || !client.auth) return null;
+        const clients = [];
         try {
-            const { data } = await client.auth.getSession();
-            const token = data && data.session && data.session.access_token;
-            return token ? { Authorization: 'Bearer ' + token } : null;
-        } catch (_) { return null; }
+            const cm = root.ConfigManager;
+            if (cm && typeof cm.getSupabaseClient === 'function') clients.push(cm.getSupabaseClient());
+            const data = root.WeotziData;
+            if (data && typeof data.getClient === 'function') clients.push(data.getClient());
+        } catch (_) { /* seguimos con los que haya */ }
+        clients.push(root._supabase, root.supabaseClient);
+        for (const client of clients) {
+            if (!client || !client.auth || typeof client.auth.getSession !== 'function') continue;
+            try {
+                const { data } = await client.auth.getSession();
+                const token = data && data.session && data.session.access_token;
+                if (token) return { Authorization: 'Bearer ' + token };
+            } catch (_) { /* probamos el siguiente */ }
+        }
+        return null;
     }
 
     async function request(path, opts) {
@@ -299,15 +307,86 @@
         load();
     }
 
-    async function revoke(form) {
-        const studioId = form.dataset.bsvRevoke;
+    // Retira el sello. `form`: contenedor con [name="note"] y .bsv-error.
+    // Devuelve true si el servidor lo retiró.
+    async function revokeStudio(form, studioId, endpoint) {
         const note = form.querySelector('[name="note"]').value.trim();
-        if (note.length < NOTE_MIN) { formError(form, 'Escribí el motivo (al menos 3 caracteres).'); return; }
-        if (typeof root.confirm === 'function' && !root.confirm('¿Retirar el sello de verificado? El estudio deja de mostrarlo y recibe el motivo por email.')) return;
-        const res = await request(state.endpoint + '/studios/' + encodeURIComponent(studioId) + '/revoke', { method: 'POST', body: { note } });
-        if (!res.ok) { formError(form, (res.data && res.data.error) || 'No pudimos retirar el sello.'); return; }
-        toast('Sello retirado' + (res.data.email_sent ? ' · email enviado' : ''), 'success');
-        load();
+        if (!UUID_RE.test(String(studioId || ''))) { formError(form, 'ID de estudio inválido.'); return false; }
+        if (note.length < NOTE_MIN || note.length > NOTE_MAX) { formError(form, 'Escribí el motivo (entre ' + NOTE_MIN + ' y ' + NOTE_MAX + ' caracteres).'); return false; }
+        if (typeof root.confirm === 'function' && !root.confirm('¿Retirar el sello de verificado? El estudio deja de mostrarlo y recibe el motivo por email.')) return false;
+        formError(form, '');
+        const res = await request((endpoint || state.endpoint) + '/studios/' + encodeURIComponent(studioId) + '/revoke', { method: 'POST', body: { note } });
+        if (!res.ok) { formError(form, (res.data && res.data.error) || 'No pudimos retirar el sello.'); return false; }
+        toast('Sello retirado' + (res.data.email_sent ? ' · email enviado' : ' · el email no salió (revisá Email Routing)'), res.data.email_sent ? 'success' : 'warning');
+        return true;
+    }
+
+    async function revoke(form) {
+        if (await revokeStudio(form, form.dataset.bsvRevoke)) load();
+    }
+
+    // ---------------------------------------------------------------
+    // Ficha del estudio en el backoffice (#section-studio-detail): el toggle
+    // "Verificado" quedó de solo lectura, así que un estudio verificado SIN
+    // solicitud aprobada (p. ej. marcado a mano antes de la cola) se puede
+    // des-verificar desde acá. Sin <form> anidado: la ficha ya es un form.
+    // ---------------------------------------------------------------
+    const detail = { box: null };
+
+    function detailRevokeHtml(studioId) {
+        return '<details class="bsv-revoke bsv-sd-revoke-details"><summary>Retirar el sello de verificado</summary>'
+            + '<div class="bsv-sd-revoke-body" data-bsv-sd-revoke="' + esc(studioId) + '">'
+            + '<label class="bsv-label" for="bsv-sd-revoke-note">Motivo (lo recibe el estudio)</label>'
+            + '<textarea id="bsv-sd-revoke-note" name="note" rows="2" maxlength="' + NOTE_MAX + '"></textarea>'
+            + '<p class="bsv-error" role="alert" hidden></p>'
+            + '<div class="bsv-actions"><button type="button" class="btn btn-danger btn-sm" data-bsv-sd-revoke-submit><i class="fa-solid fa-ban" aria-hidden="true"></i> Retirar sello</button></div>'
+            + '</div></details>';
+    }
+
+    function syncStudioDetailRevoke() {
+        const d = doc();
+        const box = detail.box;
+        if (!d || !box) return;
+        const idEl = d.getElementById('sd-id');
+        const verified = d.getElementById('sd-is-verified');
+        const studioId = idEl ? String(idEl.value || '').trim() : '';
+        if (!verified || !verified.checked || !UUID_RE.test(studioId)) {
+            box.hidden = true;
+            box.innerHTML = '';
+            delete box.dataset.studioId;
+            return;
+        }
+        if (box.dataset.studioId === studioId && !box.hidden) return;
+        box.dataset.studioId = studioId;
+        box.innerHTML = detailRevokeHtml(studioId);
+        box.hidden = false;
+    }
+
+    function initStudioDetailRevoke() {
+        const d = doc();
+        const verified = d && d.getElementById('sd-is-verified');
+        const badges = d && d.getElementById('sd-badges');
+        if (!verified || !badges || detail.box) return;
+        const group = verified.closest('.form-group') || verified.parentNode;
+        detail.box = d.createElement('div');
+        detail.box.className = 'bsv-sd-revoke';
+        detail.box.hidden = true;
+        group.appendChild(detail.box);
+        detail.box.addEventListener('click', async event => {
+            const button = event.target.closest('[data-bsv-sd-revoke-submit]');
+            if (!button) return;
+            event.preventDefault();
+            const body = button.closest('[data-bsv-sd-revoke]');
+            if (!body) return;
+            button.disabled = true;
+            const ok = await revokeStudio(body, body.dataset.bsvSdRevoke, ADMIN_ENDPOINT);
+            button.disabled = false;
+            if (ok && typeof root.reloadStudioDetail === 'function') root.reloadStudioDetail();
+        });
+        // admin.js pinta las insignias y, en el mismo tick, carga el toggle.
+        if (typeof root.MutationObserver === 'function') {
+            new root.MutationObserver(syncStudioDetailRevoke).observe(badges, { childList: true });
+        }
     }
 
     function wire(el) {
@@ -365,6 +444,8 @@
             '.bsv-actions{display:flex;flex-wrap:wrap;gap:8px}',
             '.bsv-error{color:var(--error-color,#C82D16);margin:0;font-size:13px}',
             '.bsv-revoke summary{cursor:pointer;color:var(--text-secondary,inherit);font-size:13px}',
+            '.bsv-sd-revoke{margin-top:8px}.bsv-sd-revoke-body{display:grid;gap:8px;padding-top:10px}',
+            '.bsv-sd-revoke textarea{width:100%;background:var(--bg-color,transparent);color:var(--text-primary,inherit);border:1px solid var(--border-color,rgba(127,127,127,.35));border-radius:var(--radius-sm,0);padding:10px;font:inherit}',
             '.bsv-status--pending{color:var(--warning-color,#A86A00)}.bsv-status--approved{color:var(--success-color,#1E9F74)}.bsv-status--rejected{color:var(--error-color,#C82D16)}',
             '#bsv-nav-count{margin-left:auto;background:var(--primary-color,inherit);color:#000;border-radius:999px;padding:0 7px;font-size:12px;font-weight:700}',
             '@media (max-width:700px){.bsv-dl{grid-template-columns:minmax(0,1fr)}.bsv-dl dt{margin-top:6px}}'
@@ -384,6 +465,7 @@
         const section = d && d.getElementById(SECTION_ID);
         if (!el || !section) return;
         injectStyles();
+        initStudioDetailRevoke();
         wire(el);
         render();
         const onActive = () => {
@@ -496,5 +578,5 @@
         else start();
     }
 
-    return { autoInit, cardHtml, listHtml, docsHtml, validateDecision, safeUrl, normalizeStatus, _state: state };
+    return { autoInit, cardHtml, listHtml, docsHtml, detailRevokeHtml, validateDecision, safeUrl, normalizeStatus, _state: state };
 });

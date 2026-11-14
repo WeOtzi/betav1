@@ -469,6 +469,21 @@ test('panel de soporte: pestaña ESTUDIOS con la misma cola (endpoint /api/suppo
     assert.match(src, /support\.previousSwitch\.apply\(this, arguments\)/);
 });
 
+test('backoffice: "Retirar sello" desde la ficha del estudio, contra la ruta admin de revocación', () => {
+    const bo = require('../public/shared/js/backoffice-studio-verifications.js');
+    const box = bo.detailRevokeHtml('"><img src=x onerror=alert(1)>');
+    assert.doesNotMatch(box, /<img/);
+    assert.match(box, /data-bsv-sd-revoke-submit/);
+    assert.match(box, /maxlength="1000"/);
+    const src = read('public/shared/js/backoffice-studio-verifications.js').replace(/\r\n/g, '\n');
+    assert.match(src, /if \(!UUID_RE\.test\(String\(studioId \|\| ''\)\)\) \{ formError\(form, 'ID de estudio inválido\.'\); return false; \}/);
+    assert.match(src, /revokeStudio\(body, body\.dataset\.bsvSdRevoke, ADMIN_ENDPOINT\)/);
+    assert.match(src, /\(endpoint \|\| state\.endpoint\) \+ '\/studios\/' \+ encodeURIComponent\(studioId\) \+ '\/revoke'/);
+    assert.match(read('lib/routes/verif-estudio.js'), /app\.post\(`\$\{base\}\/studios\/:studioId\/revoke`, revokeHandler\);/);
+    const html = read('public/backoffice/index.html');
+    for (const id of ['sd-id', 'sd-is-verified', 'sd-badges']) assert.match(html, new RegExp(`id="${id}"`));
+});
+
 test('sello de verificado donde se listan estudios (marketplace y mapa)', () => {
     // Integración (marketplace): la card de estudio usa el mismo sello que la de
     // artista (verifiedBadge → .mk-card-verified), solo con is_verified === true.
