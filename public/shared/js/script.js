@@ -462,6 +462,16 @@ function continueDraft() {
             if (!isScreenSkipped(screensConfig[i])) historyStack.push(i);
         }
 
+        // Las imágenes no viajan en el borrador local (son archivos): se avisa
+        // y se limpia el contador para que el envío no prometa referencias.
+        if (Number(formData.reference_images_count) > 0 && !uploadedFiles.length) {
+            formData.reference_images_count = 0;
+            formData.reference_notes = [];
+            setTimeout(() => showToastMessage('Las imágenes de referencia no se guardan en el borrador: volvé a subirlas en "Mostranos lo que te inspira".'), 300);
+        }
+        // Un borrador puede venir de antes de iniciar sesión.
+        _applyClientSessionPrefill();
+
         _dbg('Draft restored:', formData.quote_id, '→ pantalla', currentStepIndex);
     }
 
@@ -1003,6 +1013,17 @@ function extractCityFromComponents(components, fallbackAddress = '') {
 }
 
 // Google Maps Autocomplete for City (retries if Maps loads late)
+// Coordenadas aproximadas de la ciudad (2 decimales ≈ 1 km). Solo se usan
+// para ordenar artistas sugeridos por cercanía: no se guardan en la cotización.
+function setClientCoordinates(location) {
+    if (!location) { formData.client_lat = null; formData.client_lng = null; return; }
+    const lat = typeof location.lat === 'function' ? location.lat() : location.lat;
+    const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
+    const ok = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+    formData.client_lat = ok ? Math.round(Number(lat) * 100) / 100 : null;
+    formData.client_lng = ok ? Math.round(Number(lng) * 100) / 100 : null;
+}
+
 function setupCityAutocomplete(question) {
     const inputId = `field-${question.id}`;
     const input = document.getElementById(inputId);
@@ -1033,6 +1054,7 @@ function setupCityAutocomplete(question) {
 
             const locationParts = normalizedLocation.split(',').map((part) => part.trim()).filter(Boolean);
             formData.client_country = parsed.countryName || locationParts[locationParts.length - 1] || '';
+            setClientCoordinates(place.geometry && place.geometry.location);
         });
 
         input.addEventListener('keydown', (e) => {
@@ -1113,6 +1135,7 @@ function useGpsLocation(questionId) {
                         formData.client_city_residence = formattedAddress;
                         formData.client_city_name = cityName || formattedAddress.split(',')[0]?.trim() || '';
                         formData.client_country = countryName || formattedAddress.split(',').pop()?.trim() || '';
+                        setClientCoordinates({ lat: latitude, lng: longitude });
                         showToastMessage('Ubicación detectada correctamente');
                     } else {
                         showToastMessage('No se pudo determinar tu ciudad. Ingresala manualmente.');
@@ -1246,6 +1269,14 @@ function renderTextControl(q) {
                     <i data-wo-icon="crosshair" class="wo-icon-18"></i>
                 </button>
             </div>`;
+    }
+
+    // Con sesión de cliente el correo es el de la cuenta (así la cotización se
+    // vincula sola). "No soy yo" cierra la sesión sin salir del cotizador.
+    if (q.step === 'email' && _authenticatedEmail) {
+        return `
+            <input type="email" id="field-${q.id}" class="wo-input" value="${escapeQuotationHtml(_authenticatedEmail)}" readonly aria-describedby="email-account-${q.id}">
+            <p class="q-block-help q-email-account" id="email-account-${q.id}">Usamos el correo de tu cuenta. <button type="button" class="q-inline-link" onclick="quotationSignOut()">No soy yo</button></p>`;
     }
 
     return `<input type="${q.type}" id="field-${q.id}" class="wo-input" placeholder="${escapeQuotationHtml(questionPlaceholder(q))}" value="${escapeQuotationHtml(formData[q.field] || '')}">`;
@@ -1615,7 +1646,11 @@ function initQuestionLogic(q, screen) {
     if (q.step === 'city') {
         setupCityAutocomplete(q);
         const input = document.getElementById(`field-${q.id}`);
-        if (input) input.addEventListener('change', () => checkCityMismatch());
+        if (input) {
+            input.addEventListener('change', () => checkCityMismatch());
+            // Texto escrito a mano: las coordenadas viejas ya no corresponden.
+            input.addEventListener('input', () => setClientCoordinates(null));
+        }
     }
 
     if (q.step === 'email') {
@@ -1627,7 +1662,6 @@ function initQuestionLogic(q, screen) {
                 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return;
                 formData.client_email = value;
                 persistAnswer();
-                checkEmailReuse(value);
             });
         }
     }
@@ -1946,21 +1980,102 @@ function generateQuoteId() {
 
 let _autoSaveInFlight = false;
 let _autoSavePending = false;
+let _autoSaveTimer = null;
 let _intakeQueue = Promise.resolve();
+let _sessionExpiredNoticeShown = false;
+const AUTOSAVE_DEBOUNCE_MS = 1500;
+const QUOTATION_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function saveWebQuotation(mode) {
-    if (!formData.submission_key) formData.submission_key = crypto.randomUUID();
-    saveDraftToLocalStorage();
-    const body = { submission_key: formData.submission_key, mode, quotation: preparePayload(), extras: prepareIntakeExtrasPayload() };
-    const request = _intakeQueue.catch(() => {}).then(async () => {
-        const client = window.ConfigManager.getSupabaseClient();
+// UUID v4 para la llave del borrador (submission_key). crypto.randomUUID no
+// existe en navegadores viejos ni fuera de HTTPS: fallback con getRandomValues.
+function newSubmissionKey() {
+    const c = (typeof crypto !== 'undefined') ? crypto : null;
+    if (c && typeof c.randomUUID === 'function') {
+        try { return c.randomUUID(); } catch (_) { /* contexto no seguro */ }
+    }
+    const bytes = new Uint8Array(16);
+    if (c && typeof c.getRandomValues === 'function') c.getRandomValues(bytes);
+    else for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+async function getQuotationAccessToken(forceRefresh) {
+    const client = window.ConfigManager && window.ConfigManager.getSupabaseClient();
+    if (!client || !client.auth) return null;
+    try {
+        if (forceRefresh && typeof client.auth.refreshSession === 'function') {
+            const { data } = await client.auth.refreshSession();
+            return data?.session?.access_token || null;
+        }
         const { data } = await client.auth.getSession();
+        return data?.session?.access_token || null;
+    } catch (_) {
+        return null;
+    }
+}
+
+function intakeError(message, status, data) {
+    const error = new Error(message || 'No se pudo guardar la cotización');
+    error.status = status || 0;
+    error.data = data || {};
+    return error;
+}
+
+// POST JSON a la API del cotizador con la sesión del cliente si existe. Un
+// token vencido se refresca una vez; si sigue vencido se reintenta sin sesión
+// (la cotización se vincula después por email) en vez de trabar el wizard.
+async function postQuotationApi(path, body, { auth = 'optional' } = {}) {
+    const url = (window.WEOTZI_BASE_PATH || '') + path;
+    const send = async (token) => {
         const headers = { 'Content-Type': 'application/json' };
-        if (data?.session?.access_token) headers.Authorization = 'Bearer ' + data.session.access_token;
-        const response = await fetch((window.WEOTZI_BASE_PATH || '') + '/api/quotations/intake', {method:'POST',headers,body:JSON.stringify(body)});
-        const result = await response.json();
-        if (!response.ok || !result.success) throw new Error(result.error || 'No se pudo guardar la cotización');
-        formData.quote_id = result.quote_id;
+        if (token) headers.Authorization = 'Bearer ' + token;
+        let response;
+        try {
+            response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+        } catch (_) {
+            throw intakeError('No hay conexión. Revisá tu internet y volvé a intentar.', 0);
+        }
+        let data = {};
+        try { data = await response.json(); } catch (_) { data = {}; }
+        return { response, data };
+    };
+    let token = await getQuotationAccessToken(false);
+    let { response, data } = await send(token);
+    if (response.status === 401 && token) {
+        token = await getQuotationAccessToken(true);
+        if (token) ({ response, data } = await send(token));
+        if (response.status === 401 && auth !== 'required') ({ response, data } = await send(null));
+    }
+    if (!response.ok || data.success === false) {
+        const fallback = response.status === 429
+            ? 'Estás enviando muchas solicitudes seguidas. Esperá un minuto y volvé a intentar.'
+            : 'No pudimos guardar tu solicitud. Intentá de nuevo.';
+        throw intakeError(data.error || fallback, response.status, data);
+    }
+    return data;
+}
+
+function saveWebQuotation(mode, extra = {}) {
+    if (!formData.submission_key) formData.submission_key = newSubmissionKey();
+    saveDraftToLocalStorage();
+    const body = Object.assign({
+        submission_key: formData.submission_key,
+        mode,
+        quotation: preparePayload(),
+        extras: prepareIntakeExtrasPayload()
+    }, extra);
+    const request = _intakeQueue.catch(() => {}).then(async () => {
+        const result = await postQuotationApi('/api/quotations/intake', body);
+        if (result.quote_id) formData.quote_id = result.quote_id;
+        if (result.session_expired && !_sessionExpiredNoticeShown) {
+            _sessionExpiredNoticeShown = true;
+            _authenticatedUserId = null;
+            _setHeaderLoggedOut();
+            showToastMessage('Tu sesión venció. Tu solicitud se guarda igual; podés volver a iniciar sesión cuando quieras.');
+        }
         saveDraftToLocalStorage();
         return result;
     });
@@ -1968,10 +2083,25 @@ function saveWebQuotation(mode) {
     return request;
 }
 
-async function autoSaveQuotation() {
-    if (_isSubmittingQuotation) return;
+// El borrador del servidor recién tiene sentido con un correo de contacto:
+// antes de eso alcanza con el borrador local (y se ahorran llamadas al
+// intake, que tiene rate limit por borrador).
+function hasServerDraftData() {
+    return QUOTATION_EMAIL_RE.test(String(formData.client_email || '').trim());
+}
+
+// Autosave con debounce: varias respuestas seguidas generan una sola llamada.
+function autoSaveQuotation() {
+    if (_isSubmittingQuotation || formData.quote_status !== 'in_progress') return;
+    if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+    _autoSaveTimer = setTimeout(() => { _autoSaveTimer = null; runAutoSave(); }, AUTOSAVE_DEBOUNCE_MS);
+}
+
+async function runAutoSave() {
+    if (_isSubmittingQuotation || formData.quote_status !== 'in_progress') return;
     const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
     if (!supabaseClient || window.ConfigManager.isDemoMode()) return;
+    if (!hasServerDraftData()) return;
 
     if (_autoSaveInFlight) {
         _autoSavePending = true;
@@ -1982,7 +2112,7 @@ async function autoSaveQuotation() {
     try {
         await saveWebQuotation('draft');
     } catch (error) {
-        console.error('Auto-save error:', error);
+        console.warn('Auto-save:', error.message);
     } finally {
         _autoSaveInFlight = false;
         if (_autoSavePending) {
@@ -1990,6 +2120,12 @@ async function autoSaveQuotation() {
             autoSaveQuotation();
         }
     }
+}
+
+function cancelPendingAutoSave() {
+    if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+    _autoSaveTimer = null;
+    _autoSavePending = false;
 }
 
 // Payload del satélite quotation_intake_extras (mismo quote_id que el padre).
@@ -2003,16 +2139,6 @@ function prepareIntakeExtrasPayload() {
         personalization_level: formData.tattoo_personalization_level || null,
         reference_notes: uploadedFiles.map((_, i) => String(notes[i] || ''))
     };
-}
-
-async function upsertIntakeExtras() {
-    if (!formData.quote_id) return;
-    if (!window.WeotziData || !WeotziData.IntakeExtras) return;
-    try {
-        await WeotziData.IntakeExtras.upsert(prepareIntakeExtrasPayload());
-    } catch (err) {
-        console.warn('No se pudieron guardar los extras del intake:', err);
-    }
 }
 
 function preparePayload() {
@@ -2138,123 +2264,9 @@ function hideToastMessage() {
     }
 }
 
-// ============ EMAIL REUSE (Lookup previous quotation by email) ============
-
-let _emailReusePendingData = null;
-
-async function checkEmailReuse(email) {
-    try {
-        const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
-        if (!supabaseClient || (window.ConfigManager.isDemoMode && window.ConfigManager.isDemoMode())) {
-            return;
-        }
-
-        const normalizedEmail = email.trim().toLowerCase();
-
-        let row;
-        try {
-            row = await WeotziData.Quotations.findLatestByEmailForReuse(normalizedEmail);
-        } catch (error) {
-            _dbg('Email reuse lookup error:', error.message);
-            return;
-        }
-
-        if (!row) return;
-
-        _emailReusePendingData = {
-            client_full_name: row.client_full_name || null,
-            client_whatsapp: row.client_whatsapp || null,
-            client_birth_date: row.client_birth_date || null,
-            client_instagram: row.client_instagram || null,
-            client_city_residence: row.client_city_residence || null,
-            client_contact_preference: row.client_contact_preference || null,
-            client_health_conditions: row.client_health_conditions || null,
-            client_allergies: row.client_allergies || null
-        };
-
-        showEmailReuseModal({
-            quote_id: row.quote_id,
-            client_full_name: row.client_full_name
-        });
-    } catch (err) {
-        console.warn('Email reuse check error:', err);
-    }
-}
-
-function showEmailReuseModal(preview) {
-    const summaryEl = document.getElementById('reuse-summary-info');
-    if (summaryEl) {
-        summaryEl.innerHTML = `
-            <div class="reuse-detail">
-                <span class="reuse-label">Cotización</span>
-                <span class="reuse-value highlight">${preview.quote_id || '-'}</span>
-            </div>
-            <div class="reuse-detail">
-                <span class="reuse-label">Cliente</span>
-                <span class="reuse-value">${preview.client_full_name || '-'}</span>
-            </div>
-        `;
-    }
-
-    const modal = document.getElementById('email-reuse-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-    }
-}
-
-function hideEmailReuseModal() {
-    const modal = document.getElementById('email-reuse-modal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
-}
-
-function acceptEmailReuse() {
-    if (_emailReusePendingData) {
-        applyReusedClientData(_emailReusePendingData);
-    }
-    _emailReusePendingData = null;
-    hideEmailReuseModal();
-    // Los datos reutilizados se vuelcan en los campos de la pantalla actual.
-    renderCurrentStep();
-    persistAnswer();
-}
-
-function declineEmailReuse() {
-    _emailReusePendingData = null;
-    hideEmailReuseModal();
-}
-
-function applyReusedClientData(data) {
-    if (data.client_full_name) formData.client_full_name = data.client_full_name;
-    if (data.client_whatsapp) formData.client_whatsapp = data.client_whatsapp;
-    if (data.client_birth_date) formData.client_birth_date = data.client_birth_date;
-    if (data.client_instagram) formData.client_instagram = data.client_instagram;
-    if (data.client_city_residence) {
-        formData.client_city_residence = normalizeQuotationLocation(data.client_city_residence);
-        formData.client_city_name = formData.client_city_residence.split(',')[0]?.trim() || '';
-        formData.client_country = formData.client_city_residence.split(',').pop()?.trim() || '';
-    }
-    if (data.client_contact_preference) formData.client_contact_preference = data.client_contact_preference;
-    if (data.client_allergies && data.client_allergies !== 'Ninguna') {
-        formData.client_allergies = data.client_allergies;
-    }
-
-    if (data.client_health_conditions && data.client_health_conditions !== 'Ninguna') {
-        formData.client_medical_boolean = true;
-        formData.client_medical_details = data.client_health_conditions;
-    } else {
-        formData.client_medical_boolean = false;
-        formData.client_medical_details = null;
-    }
-
-    _dbg('Client data reused from previous quotation');
-}
-
-window.acceptEmailReuse = acceptEmailReuse;
-window.declineEmailReuse = declineEmailReuse;
-
-// ============ END EMAIL REUSE ============
+// Reutilizar datos de una cotización anterior "por email" se eliminó: exponía
+// datos personales de cualquiera que conociera un correo. Con sesión iniciada,
+// los datos de contacto se precargan desde la cuenta (_applyClientSessionPrefill).
 
 // Selección de una opción (color, tamaño…). No avanza de pantalla: solo marca
 // el estado y guarda. El avance lo dispara CONTINUAR.
@@ -2299,9 +2311,10 @@ function handleBoolean(field, value) {
 
 
 // ============ LOGIC MIGRATION (Legacy -> Dynamic) ============
-// El Figma del flujo de cliente no tiene búsqueda de artista: la cotización
-// sale por match. El artista solo llega por deep link (?artist=usuario), que
-// resuelve handleUrlArtist().
+// El Figma del flujo de cliente no tiene búsqueda de artista. El artista llega
+// por deep link (?artist=usuario, lo resuelve handleUrlArtist()); sin artista,
+// el paso final sugiere artistas o publica la idea en el Job Board
+// (showArtistSuggestions / publishQuotationToJobBoard).
 
 function continueWithoutArtist() {
     formData.no_artist = true;
@@ -2314,7 +2327,7 @@ function continueWithoutArtist() {
         formData.quote_id = generateQuoteId();
     }
 
-    // Sin artista la solicitud sale por match: se arranca en la pantalla 01.
+    // Sin artista el destino se elige al final (sugeridos o Job Board).
     goToScreenById('idea');
 }
 
@@ -2654,12 +2667,30 @@ async function setupTattooStyles() {
             }));
         }
 
+        normalizeStoredStyleSelection();
         renderStylesGrid(TATTOO_STYLES_DATA);
     } catch (err) {
         console.error('Error loading tattoo styles:', err);
         loading.classList.add('hidden');
         grid.innerHTML = '<p class="error-msg">No pudimos cargar los estilos.</p>';
     }
+}
+
+// El pre-cotizador entrega el estilo como slug suelto ("fine-line"). Con el
+// catálogo cargado se lo convierte en la selección real (id del catálogo) para
+// que la tarjeta aparezca marcada y el artista reciba el estilo correcto. Si
+// no existe en el catálogo se descarta y el cliente lo elige.
+function normalizeStoredStyleSelection() {
+    const value = formData.tattoo_style;
+    if (!value || typeof value !== 'string' || !TATTOO_STYLES_DATA.length) return;
+    const key = (text) => String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const wanted = key(value);
+    const style = TATTOO_STYLES_DATA.find((s) => key(s.slug) === wanted || key(s.name) === wanted || key(s.id) === wanted);
+    formData.tattoo_style = style
+        ? Object.assign({ style_id: style.id, style_slug: style.slug, style_name: style.name, substyle_id: null, substyle_slug: null, substyle_name: null },
+            { styles: [{ style_id: style.id, style_slug: style.slug, style_name: style.name, substyle_id: null, substyle_slug: null, substyle_name: null }] })
+        : null;
+    saveDraftToLocalStorage();
 }
 
 // Devuelve siempre un array con los estilos elegidos, sea cual sea el formato
@@ -2766,7 +2797,7 @@ window.toggleStyleSelection = toggleStyleSelection;
 // File Upload
 // La zona de subida existe en dos lugares: la caja completa de la pantalla 01
 // (REFERENCIA INICIAL) y el tile "AÑADIR REFERENCIA" de la pantalla 05. Ambos
-// usan el mismo input y el mismo pipeline (storage + Drive/n8n).
+// usan el mismo input y el mismo pipeline (Storage; el servidor registra).
 function setupFileUpload() {
     const input = document.getElementById('file-input');
     if (!input) return;
@@ -2911,372 +2942,71 @@ function skipReferences() {
 }
 
 // ============ REFERENCE IMAGES - STORAGE UPLOAD ============
+// Storage (bucket quotation-references) es la fuente de verdad de las
+// referencias. El navegador sube cada archivo al folder de su borrador
+// (QN…/ref_<n>_<ts>.<ext>) y en el envío manda solo los paths: el servidor
+// los valida y los registra en la cotización (quotations_attachments +
+// reference_images). La copia a Google Drive, si está configurada, la hace el
+// servidor; el navegador nunca recibe credenciales.
+const REFERENCE_EXT_BY_MIME = {
+    'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+    'image/gif': 'gif', 'image/heic': 'heic', 'image/heif': 'heif'
+};
+// Archivo → path ya subido (para no volver a subirlo si se reintenta el envío).
+const _uploadedReferencePaths = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+function referenceExtension(file) {
+    const byMime = REFERENCE_EXT_BY_MIME[String(file && file.type || '').toLowerCase()];
+    if (byMime) return byMime;
+    const fromName = String(file && file.name || '').split('.').pop().toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'].includes(fromName) ? fromName : 'jpg';
+}
 
 /**
- * Upload reference images to Supabase Storage
- * @param {string} quoteId - The quotation ID (e.g., QN12345)
- * @returns {Promise<{success: boolean, files: Array, error?: string}>}
+ * Sube las referencias al folder del borrador. Reintenta una vez cada archivo.
+ * @param {string} quoteId - quote_id del servidor (QN + 32 hex)
+ * @returns {Promise<{paths: string[], failed: number}>}
  */
 async function uploadReferencesToStorage(quoteId) {
-    if (!uploadedFiles || uploadedFiles.length === 0) {
-        _dbg('No reference images to upload');
-        return { success: true, files: [] };
-    }
-
+    if (!uploadedFiles || uploadedFiles.length === 0) return { paths: [], failed: 0 };
     const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
-    if (!supabaseClient) {
-        console.warn('⚠️ Supabase not available for image upload');
-        return { success: false, files: [], error: 'Supabase not configured' };
+    if (!supabaseClient || !/^QN[0-9a-f]{32}$/.test(String(quoteId || ''))) {
+        return { paths: [], failed: uploadedFiles.length };
     }
-
-    const config = window.ConfigManager.get();
-    const bucketName = config.supabase?.storageBucket || 'quotation-references';
-    const uploadedUrls = [];
-    const errors = [];
-
-    _dbg(`Uploading ${uploadedFiles.length} reference images to ${bucketName}/${quoteId}/`);
+    const bucketName = 'quotation-references';
+    const paths = [];
+    let failed = 0;
 
     for (let i = 0; i < uploadedFiles.length; i++) {
         const file = uploadedFiles[i];
-        const fileExt = file.name.split('.').pop().toLowerCase();
-        const fileName = `ref_${i + 1}_${Date.now()}.${fileExt}`;
-        const filePath = `${quoteId}/${fileName}`;
+        const known = _uploadedReferencePaths && _uploadedReferencePaths.get(file);
+        if (known && known.startsWith(quoteId + '/')) { paths.push(known); continue; }
 
-        try {
-            // Upload to Supabase Storage
-            const { data, error } = await supabaseClient
-                .storage
-                .from(bucketName)
-                .upload(filePath, file, {
+        const filePath = `${quoteId}/ref_${i + 1}_${Date.now()}.${referenceExtension(file)}`;
+        let ok = false;
+        for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+            try {
+                const { error } = await supabaseClient.storage.from(bucketName).upload(filePath, file, {
                     cacheControl: '3600',
-                    upsert: false
+                    upsert: false,
+                    contentType: file.type || 'image/jpeg'
                 });
-
-            if (error) {
-                console.error(`❌ Error uploading ${fileName}:`, error.message);
-                errors.push({ file: fileName, error: error.message });
-                continue;
+                if (error) throw error;
+                ok = true;
+            } catch (err) {
+                // "already exists": el archivo llegó en el intento anterior.
+                if (/exist/i.test(String(err && (err.message || err.error) || ''))) { ok = true; break; }
+                _dbg('Reintento de subida', filePath, err && err.message);
             }
-
-            // Get public URL
-            const { data: urlData } = supabaseClient
-                .storage
-                .from(bucketName)
-                .getPublicUrl(filePath);
-
-            uploadedUrls.push({
-                fileName: fileName,
-                originalName: file.name,
-                path: filePath,
-                publicUrl: urlData.publicUrl,
-                mimeType: file.type,
-                size: file.size
-            });
-
-            _dbg(`Uploaded: ${fileName}`);
-        } catch (err) {
-            console.error(`❌ Exception uploading ${fileName}:`, err);
-            errors.push({ file: fileName, error: err.message });
         }
-    }
-
-    if (errors.length > 0) {
-        console.warn(`⚠️ ${errors.length} files failed to upload`);
-    }
-
-    return {
-        success: errors.length === 0,
-        files: uploadedUrls,
-        errors: errors.length > 0 ? errors : undefined
-    };
-}
-
-/**
- * Notify n8n webhook about new reference images for Google Drive transfer
- * @param {string} quoteId - The quotation ID
- * @param {Array} files - Array of uploaded file info
- * @returns {Promise<{success: boolean, error?: string}>}
- */
-async function notifyN8NWebhook(quoteId, files) {
-    const config = window.ConfigManager.get();
-    const webhookUrl = config.n8n?.webhookUrl;
-
-    if (!webhookUrl) {
-        console.warn('⚠️ n8n webhook URL not configured');
-        return { success: false, error: 'Webhook URL not configured' };
-    }
-
-    if (!files || files.length === 0) {
-        _dbg('No files to notify n8n about');
-        return { success: true };
-    }
-
-    const payload = {
-        quote_id: quoteId,
-        client_name: formData.client_full_name || '',
-        artist_name: formData.artist_name || '',
-        files: files.map(f => ({
-            file_name: f.fileName,
-            original_name: f.originalName,
-            public_url: f.publicUrl,
-            mime_type: f.mimeType,
-            size: f.size
-        })),
-        drive_folder_id: config.n8n?.driveFolderId || '',
-        timestamp: new Date().toISOString()
-    };
-
-    try {
-        _dbg(`Notifying n8n webhook for ${files.length} files...`);
-        
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        let responseData = {};
-        try {
-            responseData = await response.json();
-        } catch (_) {
-            _dbg('n8n webhook returned non-JSON response');
-        }
-
-        _dbg('n8n webhook notified successfully');
-        return {
-            success: responseData.success !== false,
-            driveFolderUrl: responseData.drive_folder_url || null,
-            filesProcessed: responseData.files_processed || 0,
-            quoteId: responseData.quote_id || quoteId
-        };
-    } catch (err) {
-        console.error('Error notifying n8n webhook:', err);
-        return { success: false, error: err.message };
-    }
-}
-
-/**
- * Upload files to Google Drive via backend API
- * Creates a folder with the quote number and uploads all images to it
- * @param {string} quoteId - The quotation ID (e.g., QN12345)
- * @param {Array} files - Array of uploaded file info from Supabase
- * @returns {Promise<{success: boolean, quoteFolderLink?: string, uploadedFiles?: Array, error?: string}>}
- */
-async function uploadToGoogleDrive(quoteId, files) {
-    const config = window.ConfigManager.get();
-    const mainFolderId = config.googleDrive?.mainFolderId;
-    const serviceAccountJson = config.googleDrive?.serviceAccountJson;
-    
-    if (!mainFolderId) {
-        console.warn('Google Drive main folder not configured');
-        return { success: false, error: 'Google Drive folder not configured' };
-    }
-    
-    if (!serviceAccountJson) {
-        console.warn('Google Drive credentials not configured');
-        return { success: false, error: 'Google Drive credentials not configured' };
-    }
-    
-    // Parse credentials
-    let credentials;
-    try {
-        credentials = JSON.parse(serviceAccountJson);
-    } catch (e) {
-        console.error('Invalid Google Drive credentials JSON');
-        return { success: false, error: 'Invalid credentials format' };
-    }
-    
-    if (!files || files.length === 0) {
-        _dbg('No files to upload to Google Drive');
-        return { success: true, uploadedFiles: [] };
-    }
-    
-    try {
-        _dbg(`Uploading ${files.length} files to Google Drive folder for ${quoteId}...`);
-        
-        const response = await fetch('/api/google-drive/create-quote-folder', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                quoteId: quoteId,
-                quoteNumber: quoteId,
-                mainFolderId: mainFolderId,
-                credentials: credentials,
-                files: files.map(f => ({
-                    url: f.publicUrl,
-                    fileName: f.fileName,
-                    mimeType: f.mimeType
-                }))
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok || !result.success) {
-            throw new Error(result.error || 'Failed to upload to Google Drive');
-        }
-        
-        _dbg(`Google Drive folder created: ${result.quoteFolderLink}`);
-        _dbg(`Uploaded ${result.uploadedCount} files successfully`);
-        
-        // Log any upload errors for debugging
-        if (result.uploadErrors && result.uploadErrors.length > 0) {
-            console.warn('Some files failed to upload:', result.uploadErrors);
-        }
-        
-        if (result.warning) {
-            console.warn('Upload warning:', result.warning);
-        }
-        
-        return {
-            success: true,
-            quoteFolderLink: result.quoteFolderLink,
-            quoteFolderId: result.quoteFolderId,
-            uploadedCount: result.uploadedCount,
-            uploadedFiles: result.uploadedFiles || [], // Array of { id, name, webViewLink, webContentLink }
-            uploadErrors: result.uploadErrors,
-            partialSuccess: result.partialSuccess
-        };
-    } catch (err) {
-        console.error('Error uploading to Google Drive:', err);
-        return { success: false, error: err.message, uploadedFiles: [] };
-    }
-}
-
-/**
- * Save attachment records to Supabase quotations_attachments table
- * @param {string} quoteId - The quotation ID
- * @param {Array} uploadedFiles - Array of uploaded file info from Google Drive
- * @param {Array} originalFiles - Original file info with mimeType
- * @returns {Promise<{success: boolean, error?: string}>}
- */
-async function saveAttachmentRecords(quoteId, uploadedFiles, originalFiles) {
-    if (!uploadedFiles || uploadedFiles.length === 0) {
-        _dbg('No attachment records to save');
-        return { success: true };
-    }
-    
-    const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
-    if (!supabaseClient) {
-        console.warn('Supabase not available for saving attachment records');
-        return { success: false, error: 'Supabase not configured' };
-    }
-    
-    try {
-        _dbg(`Saving ${uploadedFiles.length} attachment records for ${quoteId}...`);
-        
-        // Map uploaded files to attachment records
-        const attachmentRecords = uploadedFiles.map((file, index) => {
-            // Find matching original file for mimeType
-            const originalFile = originalFiles && originalFiles[index];
-            
-            return {
-                quotation_id: quoteId,
-                google_drive_id: file.id,
-                google_drive_url: file.webViewLink || file.webContentLink,
-                file_name: file.name,
-                mime_type: originalFile?.mimeType || 'image/jpeg',
-                attachment_type: 'reference',
-                status: 'pending',
-                sort_order: index + 1,
-                created_at: new Date().toISOString()
-            };
-        });
-        
-        const data = await WeotziData.Attachments.insertMany(attachmentRecords);
-
-        _dbg(`Successfully saved ${attachmentRecords.length} attachment records`);
-        return { success: true, records: data };
-    } catch (err) {
-        console.error('Exception saving attachment records:', err);
-        return { success: false, error: err.message };
-    }
-}
-
-/**
- * Process reference images: upload to Supabase storage and Google Drive
- * @param {string} quoteId - The quotation ID
- * @returns {Promise<{success: boolean, driveUrl?: string, error?: string}>}
- */
-async function processReferenceImages(quoteId) {
-    // Step 1: Upload to Supabase Storage (as backup and for fast access)
-    const uploadResult = await uploadReferencesToStorage(quoteId);
-    
-    if (!uploadResult.success && uploadResult.files.length === 0) {
-        return { success: false, error: uploadResult.error || 'Upload failed' };
-    }
-
-    // Step 2: Upload to Google Drive via backend API (primary storage)
-    let driveUrl = null;
-    let uploadedDriveFiles = [];
-    
-    if (uploadResult.files.length > 0) {
-        const config = window.ConfigManager.get();
-        const mainFolderId = config.googleDrive?.mainFolderId;
-        
-        if (mainFolderId) {
-            // Use new Google Drive API integration
-            const driveResult = await uploadToGoogleDrive(quoteId, uploadResult.files);
-            
-            if (driveResult.success && driveResult.quoteFolderLink) {
-                driveUrl = driveResult.quoteFolderLink;
-                uploadedDriveFiles = driveResult.uploadedFiles || [];
-                _dbg(`Google Drive folder for ${quoteId}: ${driveUrl}`);
-                
-                // Step 3: Save attachment records to database
-                if (uploadedDriveFiles.length > 0) {
-                    const attachmentResult = await saveAttachmentRecords(
-                        quoteId, 
-                        uploadedDriveFiles,
-                        uploadResult.files // Original files with mimeType
-                    );
-                    
-                    if (!attachmentResult.success) {
-                        console.warn('Failed to save attachment records:', attachmentResult.error);
-                        // Don't fail the whole process - files are uploaded, just not tracked in DB
-                    }
-                }
-                
-                // Log if some files failed to upload
-                if (driveResult.uploadErrors && driveResult.uploadErrors.length > 0) {
-                    console.warn(`${driveResult.uploadErrors.length} file(s) failed to upload to Google Drive`);
-                }
-            } else {
-                console.warn('Google Drive upload failed, using Supabase storage only');
-            }
+        if (ok) {
+            if (_uploadedReferencePaths) _uploadedReferencePaths.set(file, filePath);
+            paths.push(filePath);
         } else {
-            // Use n8n webhook for Google Drive upload (authoritative path)
-            const webhookUrl = config.n8n?.webhookUrl;
-            if (webhookUrl) {
-                const notifyResult = await notifyN8NWebhook(quoteId, uploadResult.files);
-                
-                if (notifyResult.success && notifyResult.driveFolderUrl) {
-                    driveUrl = notifyResult.driveFolderUrl;
-                    uploadedDriveFiles = new Array(notifyResult.filesProcessed || 0);
-                    _dbg(`n8n Drive folder for ${quoteId}: ${driveUrl}`);
-                } else if (notifyResult.success) {
-                    console.warn('n8n returned success but no Drive folder URL');
-                }
-            }
+            failed++;
         }
-
-        return {
-            success: true,
-            filesUploaded: uploadResult.files.length,
-            filesUploadedToDrive: uploadedDriveFiles.length,
-            driveUrl: driveUrl
-        };
     }
-
-    return { success: true, filesUploaded: 0, filesUploadedToDrive: 0 };
+    return { paths, failed };
 }
 
 
@@ -3339,14 +3069,19 @@ function generateSummary() {
         }
     }
 
-    // El copy final depende de si hay artista elegido (deep link) o si la
-    // solicitud sale a los artistas que hagan match.
+    // El copy y el CTA final dependen de si hay artista elegido (deep link).
+    // Sin artista, el último paso muestra artistas sugeridos y el Job Board:
+    // la solicitud nunca se envía sin destino.
     const copy = document.getElementById('q-final-copy');
-    if (copy) {
-        copy.textContent = formData.artist_name
-            ? `Vamos a enviar tu solicitud a ${toTitleCase(formData.artist_name)} con todos los detalles.`
-            : 'Vamos a enviar tu solicitud a artistas que trabajen con este estilo y ubicación.';
+    const submitLabel = document.querySelector('#submit-btn .btn-text-content');
+    if (formData.artist_id && formData.artist_name) {
+        if (copy) copy.textContent = `Vamos a enviar tu solicitud a ${toTitleCase(formData.artist_name)} con todos los detalles.`;
+        if (submitLabel) submitLabel.textContent = 'Solicitar cotización';
+    } else {
+        if (copy) copy.textContent = 'Te mostramos artistas que trabajan tu estilo cerca tuyo. Elegí a quién enviarle tu solicitud o publicá tu idea en el Job Board.';
+        if (submitLabel) submitLabel.textContent = 'Ver artistas sugeridos';
     }
+    clearQuotationFormError();
 }
 
 // Muestra el tamaño como en el Figma ("Pequeño (5–8 cm)").
@@ -3373,250 +3108,455 @@ window.goToScreenById = goToScreenById;
 
 // Submit
 let _isSubmittingQuotation = false;
+// Artistas sugeridos del último pedido (cotización sin artista).
+let _quotationSuggestions = [];
+// Acción pendiente después de iniciar sesión desde el modal ('jobboard').
+let _pendingAfterLogin = null;
+// Origen previo al elegir un artista sugerido (para deshacer si falla).
+let _sourceBeforeRecommendation;
+
+const DEFAULT_NEXT_STEPS_HTML = '<p><strong>1. Revisá tu correo</strong><br>Te escribimos ahí cuando haya novedades de tu solicitud.</p><p><strong>2. Prepará tus referencias</strong><br>Si tenés más imágenes que te inspiran, tenelas listas para compartir.</p><p><strong>3. Agendá tu sesión</strong><br>Cuando cierres los detalles con el artista, reservá la fecha.</p>';
+
+function setSubmitBusy(busy) {
+    document.querySelectorAll('#submit-btn, .q-dest button, .q-final-actions button').forEach((btn) => {
+        btn.disabled = !!busy;
+        if (busy) btn.setAttribute('aria-busy', 'true');
+        else btn.removeAttribute('aria-busy');
+    });
+}
+
+// Error visible del paso final (reemplaza las ventanas emergentes del wizard viejo).
+function showQuotationFormError(message) {
+    const host = document.querySelector('.q-final') || document.getElementById('form-steps-container');
+    if (!host) return;
+    let box = document.getElementById('q-form-error');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'q-form-error';
+        box.className = 'wo-alert wo-alert--error q-form-error';
+        box.setAttribute('role', 'alert');
+        box.tabIndex = -1;
+        host.insertBefore(box, host.firstChild);
+    }
+    box.innerHTML = `<i data-wo-icon="alert-triangle" class="wo-icon-18" aria-hidden="true"></i><p>${escapeQuotationHtml(message || 'No pudimos enviar tu solicitud. Intentá de nuevo.')}</p>`;
+    if (typeof box.focus === 'function') box.focus();
+}
+
+function clearQuotationFormError() {
+    const box = typeof document !== 'undefined' && document.getElementById ? document.getElementById('q-form-error') : null;
+    if (box && box.parentNode) box.parentNode.removeChild(box);
+}
+
+// Antes de enviar (o de pedir sugerencias) todas las pantallas obligatorias
+// tienen que estar completas: si falta algo se vuelve a esa pantalla.
+function ensureQuotationReady() {
+    const summaryIdx = getScreenIndexById('summary');
+    const firstIncomplete = findFirstIncompleteScreenIndex();
+    if (summaryIdx !== -1 && firstIncomplete !== -1 && firstIncomplete < summaryIdx) {
+        commitStepChange(firstIncomplete);
+        showToastMessage('Completá los datos que faltan antes de enviar tu solicitud.');
+        return false;
+    }
+    return true;
+}
+
+function resetChosenArtist() {
+    if (formData.quotation_source !== 'recommendation') return;
+    formData.artist_id = null;
+    formData.artist_name = null;
+    formData.artist_username = null;
+    formData.artist_email = null;
+    formData.no_artist = true;
+    formData.quotation_source = _sourceBeforeRecommendation || undefined;
+    if (!formData.quotation_source) delete formData.quotation_source;
+}
+
+async function loadSuccessSettings() {
+    let nextStepsContent = DEFAULT_NEXT_STEPS_HTML;
+    let websiteUrl = '';
+    if (window.ConfigManager && typeof window.ConfigManager.getAppSettingFromDB === 'function') {
+        try {
+            const [nextSteps, webUrl] = await Promise.all([
+                window.ConfigManager.getAppSettingFromDB('success_next_steps'),
+                window.ConfigManager.getAppSettingFromDB('website_url')
+            ]);
+            if (nextSteps) nextStepsContent = nextSteps;
+            if (webUrl) websiteUrl = webUrl;
+        } catch (e) {
+            console.warn('Could not fetch app settings:', e);
+        }
+    }
+    return { nextStepsContent, websiteUrl };
+}
+
+function successArtistMessage() {
+    return formData.artist_name
+        ? `<span>${escapeQuotationHtml(toTitleCase(formData.artist_name))}</span> recibió tu solicitud. Te avisamos por correo cuando responda.`
+        : 'Recibimos tu solicitud. Te avisamos por correo cuando haya novedades.';
+}
+
+function warningsHtml(warnings) {
+    if (!warnings || !warnings.length) return '';
+    return `
+        <div class="wo-alert wo-alert--warning upload-warning" role="status">
+            <i data-wo-icon="alert-triangle" class="wo-icon-18" aria-hidden="true"></i>
+            <div><p><strong>Aviso:</strong> ${warnings.map(escapeQuotationHtml).join(' ')}</p></div>
+        </div>`;
+}
+
+function renderSubmittedSuccess({ warnings = [] } = {}) {
+    hideToastMessage();
+    const container = document.getElementById('form-steps-container');
+    historyStack = [];
+    updateBackButton();
+    const loggedIn = !!_authenticatedUserId;
+    const accountBlock = loggedIn
+        ? `<div class="success-actions">
+                <a class="wo-btn wo-btn--hard btn-primary" href="/client/dashboard">
+                    <i data-wo-icon="grid" class="wo-icon-18"></i> Ver mis cotizaciones
+                </a>
+                <button type="button" class="wo-btn wo-btn--ghost btn-secondary" onclick="resetQuotation()">
+                    <i data-wo-icon="rotate-ccw" class="wo-icon-18"></i> Volver a cotizar
+                </button>
+           </div>`
+        : `<div class="create-account-section">
+                <div class="account-benefits">
+                    <h3><i data-wo-icon="user-plus" class="wo-icon-18"></i> Creá tu cuenta gratuita</h3>
+                    <p class="benefits-intro">Accedé a funciones exclusivas:</p>
+                    <ul class="benefits-list">
+                        <li><i data-wo-icon="eye"></i> Ver el estado de tu cotización en tiempo real</li>
+                        <li><i data-wo-icon="message-circle"></i> Chatear directamente con el artista</li>
+                        <li><i data-wo-icon="clock"></i> Guardar tu historial de cotizaciones</li>
+                        <li><i data-wo-icon="bell"></i> Recibir notificaciones de actualizaciones</li>
+                    </ul>
+                </div>
+                <div class="account-actions">
+                    <button type="button" class="wo-btn wo-btn--accent wo-btn--hard btn-primary btn-create-account" onclick="goToClientRegistration()">
+                        <i data-wo-icon="user-plus" class="wo-icon-18"></i> Crear cuenta gratis
+                    </button>
+                    <button type="button" class="wo-btn wo-btn--ghost btn-secondary btn-skip-account" onclick="showSuccessWithoutAccount()">
+                        Continuar sin cuenta <i data-wo-icon="arrow-right" class="wo-icon-18"></i>
+                    </button>
+                </div>
+           </div>`;
+    container.innerHTML = `
+        <section class="step active" id="step-success" aria-labelledby="success-title">
+            <div class="success-content">
+                <div class="success-icon" aria-hidden="true"><i data-wo-icon="check"></i></div>
+                <h1 id="success-title" tabindex="-1">Solicitud enviada</h1>
+                ${warningsHtml(warnings)}
+                <p class="success-quote-id">Tu ID · <span class="highlight-text">${escapeQuotationHtml(formData.quote_id)}</span></p>
+                <p class="success-msg">${successArtistMessage()}</p>
+                ${accountBlock}
+            </div>
+        </section>`;
+    _setQuotationChromeVisible(false);
+    const heading = document.getElementById('success-title');
+    if (heading && typeof heading.focus === 'function') heading.focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 async function submitQuotation() {
     if (_isSubmittingQuotation) return;
+    // Sin artista no se envía: primero se elige destino (sugeridos o Job Board).
+    if (!formData.artist_id) return showArtistSuggestions();
+    if (!ensureQuotationReady()) return;
+
     _isSubmittingQuotation = true;
-
-    const submitBtn = document.getElementById('submit-btn');
-    if (submitBtn) submitBtn.disabled = true;
-
+    cancelPendingAutoSave();
+    clearQuotationFormError();
+    setSubmitBusy(true);
     showLoading();
-
-    // Track warnings for user guidance
-    let uploadWarnings = [];
 
     try {
         await waitForConfigManager();
         if (!window.ConfigManager.getSupabaseClient() || window.ConfigManager.isDemoMode()) {
-            throw new Error('No hay conexión para guardar la cotización');
+            throw intakeError('No hay conexión para guardar la cotización. Recargá la página e intentá de nuevo.');
         }
-        // Ensure the parent exists before reference attachments are saved.
+        // 1. Borrador en el servidor: define el quote_id (folder de referencias).
         await saveWebQuotation('draft');
-        // Finalize status
+        // 2. Referencias a Storage (fuente de verdad).
+        const upload = await uploadReferencesToStorage(formData.quote_id);
+        // 3. Envío: el servidor registra las referencias y manda los avisos.
+        const result = await saveWebQuotation('submit', { references: upload.paths });
         formData.quote_status = 'pending';
 
-        // 1. Upload reference images to Storage and notify n8n for Google Drive transfer
-        let referenceImagesResult = null;
-        if (uploadedFiles && uploadedFiles.length > 0) {
-            _dbg('Processing reference images...');
-            referenceImagesResult = await processReferenceImages(formData.quote_id);
-            
-            if (referenceImagesResult.success) {
-                // Log detailed results
-                _dbg(`Reference images processed: Supabase=${referenceImagesResult.filesUploaded || 0}, Drive=${referenceImagesResult.filesUploadedToDrive || 0}`);
-                
-                if (referenceImagesResult.driveUrl) {
-                    // Store the expected Google Drive folder URL
-                    formData.tattoo_references = referenceImagesResult.driveUrl;
-                    _dbg(`Drive folder: ${referenceImagesResult.driveUrl}`);
-                }
-                
-                // Check if some files failed to upload to Google Drive
-                if (referenceImagesResult.filesUploaded > 0 && 
-                    referenceImagesResult.filesUploadedToDrive === 0) {
-                    // All files failed to upload to Google Drive
-                    uploadWarnings.push('Las imágenes de referencia no se pudieron subir a Google Drive, pero quedaron guardadas en el servidor.');
-                    console.warn('Warning: All files failed to upload to Google Drive');
-                } else if (referenceImagesResult.filesUploaded > referenceImagesResult.filesUploadedToDrive) {
-                    // Some files failed
-                    const failedCount = referenceImagesResult.filesUploaded - referenceImagesResult.filesUploadedToDrive;
-                    uploadWarnings.push(`${failedCount} imagen(es) no se pudieron subir a Google Drive.`);
-                    console.warn(`Warning: ${failedCount} files failed to upload to Google Drive`);
-                }
-            } else {
-                // Image upload completely failed
-                uploadWarnings.push('No pudimos procesar las imágenes de referencia.');
-                console.error('Error processing reference images:', referenceImagesResult.error);
-            }
+        const warnings = [];
+        if (upload.failed) {
+            warnings.push(upload.failed === 1
+                ? 'Una imagen de referencia no se pudo subir: podés mandársela al artista por el chat.'
+                : `${upload.failed} imágenes de referencia no se pudieron subir: podés mandárselas al artista por el chat.`);
+        }
+        if (result && result.references_saved === false) {
+            warnings.push('Tus referencias quedaron guardadas, pero el artista puede tardar en verlas.');
         }
 
-        // 2. Save to Supabase - use ConfigManager to get properly initialized client
-        const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
-
-        if (supabaseClient && !window.ConfigManager.isDemoMode()) {
-            await saveWebQuotation('submit');
-        }
-
-        // 3. Fetch Next Steps content from app_settings
-        let nextStepsContent = '<p><strong>1. Revisá tu correo</strong><br>Te escribimos ahí cuando haya novedades de tu solicitud.</p><p><strong>2. Prepará tus referencias</strong><br>Si tenés más imágenes que te inspiran, tenelas listas para compartir.</p><p><strong>3. Agendá tu sesión</strong><br>Cuando cierres los detalles con el artista, reservá la fecha.</p>';
-        let websiteUrl = '';
-        
-        if (window.ConfigManager && typeof window.ConfigManager.getAppSettingFromDB === 'function') {
-            try {
-                const [nextSteps, webUrl] = await Promise.all([
-                    window.ConfigManager.getAppSettingFromDB('success_next_steps'),
-                    window.ConfigManager.getAppSettingFromDB('website_url')
-                ]);
-                if (nextSteps) nextStepsContent = nextSteps;
-                if (webUrl) websiteUrl = webUrl;
-            } catch (e) {
-                console.warn('Could not fetch app settings:', e);
-            }
-        }
-
-        // 4. Save client data for registration (before showing success)
         saveClientDataForRegistration();
-
-        // 4.5 Trigger n8n webhook to send quotation summary email to client
-        if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
-            try {
-                await window.ConfigManager.sendN8NEvent('client_quotation_submitted', {
-                    // Quotation info
-                    quote_id: formData.quote_id,
-                    quote_status: formData.quote_status || 'completed',
-                    created_at: new Date().toISOString(),
-                    
-                    // Client info
-                    client_name: formData.client_full_name,
-                    client_email: formData.client_email,
-                    client_whatsapp: formData.client_whatsapp || null,
-                    client_instagram: formData.client_instagram || null,
-                    client_age: formData.client_age || null,
-                    client_birth_date: formData.client_birth_date || null,
-                    client_city: formData.client_city_residence || null,
-                    client_country: formData.client_country || null,
-                    client_contact_preference: formData.client_contact_preference || null,
-                    
-                    // Artist info
-                    artist_id: formData.artist_id || null,
-                    artist_name: formData.artist_name,
-                    artist_email: formData.artist_email || null,
-                    artist_instagram: formData.artist_instagram || null,
-                    artist_styles: formData.artist_styles || [],
-                    artist_city: formData.artist_current_city || null,
-                    artist_studio: formData.artist_studio_name || null,
-                    artist_session_cost: formData.artist_session_cost_amount || null,
-                    artist_portfolio: formData.artist_portfolio || null,
-                    
-                    // Tattoo details - Location
-                    tattoo_body_part: formData.tattoo_body_part || null,
-                    tattoo_body_side: formData.tattoo_body_side || null,
-                    
-                    // Tattoo details - Design
-                    tattoo_description: formData.tattoo_idea_description || 'N/A',
-                    tattoo_size: formData.tattoo_size || null,
-                    tattoo_style: formData.tattoo_style || null,
-                    tattoo_color_type: formData.tattoo_color_type || null,
-                    
-                    // Tattoo details - Intake extras (rediseño 2026)
-                    tattoo_idea_mode: getIdeaMode(),
-                    tattoo_personalization_level: formData.tattoo_personalization_level || null,
-
-                    // Tattoo details - References
-                    tattoo_references: formData.tattoo_references || null,
-                    reference_images_count: formData.reference_images_count || 0,
-                    reference_notes: Array.isArray(formData.reference_notes) ? formData.reference_notes : [],
-                    
-                    // Tattoo details - Experience
-                    tattoo_is_first_tattoo: formData.tattoo_is_first_tattoo ?? null,
-                    tattoo_is_cover_up: formData.tattoo_is_cover_up ?? null,
-                    
-                    // Client preferences - Budget
-                    client_budget: formData.client_budget_amount ? `${formData.client_budget_amount} ${formData.client_budget_currency || ''}`.trim() : null,
-                    client_budget_amount: formData.client_budget_amount || null,
-                    client_budget_currency: formData.client_budget_currency || null,
-                    
-                    // Client preferences - Dates
-                    client_preferred_date: formData.client_preferred_date || null,
-                    client_flexible_dates: formData.client_flexible_dates || null,
-                    
-                    // Client preferences - Travel
-                    client_travel_willing: formData.client_travel_willing || false,
-                    city_mismatch: formData.city_mismatch_acknowledged || false,
-                    style_mismatch: formData.style_mismatch_acknowledged || false,
-                    
-                    // Medical info
-                    has_medical_conditions: formData.client_medical_boolean || false,
-                    medical_details: formData.client_medical_boolean ? formData.client_medical_details : null,
-                    client_allergies: formData.client_allergies || null,
-                    
-                    // URLs
-                    register_url: window.location.origin + '/client/register',
-                    login_url: window.location.origin + '/client/login'
-                });
-                _dbg('n8n event sent: client_quotation_submitted');
-            } catch (webhookErr) {
-                console.warn('Could not send client_quotation_submitted event:', webhookErr);
-            }
-        }
-
-        // 5. Show Success
-        hideToastMessage(); // Hide any city mismatch or other toast notifications
-        const container = document.getElementById('form-steps-container');
-        // Clear history to prevent back nav
-        historyStack = [];
-        updateBackButton();
-
-        // Build warning HTML if there were upload issues
-        let warningHtml = '';
-        if (uploadWarnings.length > 0) {
-            warningHtml = `
-                <div class="wo-alert wo-alert--warning upload-warning">
-                    <i data-wo-icon="alert-triangle" class="wo-icon-18"></i>
-                    <div>
-                        <p><strong>Aviso:</strong> ${uploadWarnings.join(' ')}</p>
-                        <p>Tu solicitud se envió igual y las referencias siguen disponibles.</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        container.innerHTML = `
-            <section class="step active" id="step-success">
-                <div class="success-content">
-                    <div class="success-icon"><i data-wo-icon="check"></i></div>
-                    <h1>Solicitud enviada</h1>
-                    ${warningHtml}
-                    <p class="success-quote-id">Tu ID · <span class="highlight-text">${formData.quote_id}</span></p>
-                    <p class="success-msg">
-                        ${formData.artist_name
-                            ? `<span>${escapeQuotationHtml(toTitleCase(formData.artist_name))}</span> recibió tu solicitud.`
-                            : 'Tu solicitud ya está viajando a los artistas que trabajan con tu estilo y ubicación.'}
-                    </p>
-
-                    <!-- Create Account Invitation -->
-                    <div class="create-account-section">
-                        <div class="account-benefits">
-                            <h3><i data-wo-icon="user-plus" class="wo-icon-18"></i> Creá tu cuenta gratuita</h3>
-                            <p class="benefits-intro">Accedé a funciones exclusivas:</p>
-                            <ul class="benefits-list">
-                                <li><i data-wo-icon="eye"></i> Ver el estado de tu cotización en tiempo real</li>
-                                <li><i data-wo-icon="message-circle"></i> Chatear directamente con el artista</li>
-                                <li><i data-wo-icon="clock"></i> Guardar tu historial de cotizaciones</li>
-                                <li><i data-wo-icon="bell"></i> Recibir notificaciones de actualizaciones</li>
-                            </ul>
-                        </div>
-                        <div class="account-actions">
-                            <button class="wo-btn wo-btn--accent wo-btn--hard btn-primary btn-create-account" onclick="goToClientRegistration()">
-                                <i data-wo-icon="user-plus" class="wo-icon-18"></i> Crear cuenta gratis
-                            </button>
-                            <button class="wo-btn wo-btn--ghost btn-secondary btn-skip-account" onclick="showSuccessWithoutAccount()">
-                                Continuar sin cuenta <i data-wo-icon="arrow-right" class="wo-icon-18"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        `;
-        // Hide progress + back bar on success (topbar stays visible)
-        _setQuotationChromeVisible(false);
-
-        // Clear draft from localStorage after successful submission
         clearDraftFromLocalStorage();
-
-        hideLoading();
+        renderSubmittedSuccess({ warnings });
         _dbg('Quotation submitted:', formData.quote_id);
-
     } catch (error) {
         formData.quote_status = 'in_progress';
-        _isSubmittingQuotation = false;
-        if (submitBtn) submitBtn.disabled = false;
-        hideLoading();
         console.error('Submit error:', error);
-        alert('Hubo un error al enviar la solicitud. Intentá de nuevo.');
+        if (error.data && error.data.needs_destination) {
+            resetChosenArtist();
+            _isSubmittingQuotation = false;
+            setSubmitBusy(false);
+            hideLoading();
+            return showArtistSuggestions();
+        }
+        let message = error.message;
+        if (formData.quotation_source === 'recommendation' && error.status === 404) {
+            message = 'Ese artista ya no está disponible. Elegí otro o publicá tu idea en el Job Board.';
+        }
+        resetChosenArtist();
+        showQuotationFormError(message);
+    } finally {
+        // Éxito o error: la página queda lista para otra cotización o reintento.
+        _isSubmittingQuotation = false;
+        setSubmitBusy(false);
+        hideLoading();
     }
 }
+
+// ============ COTIZACIÓN SIN ARTISTA: SUGERENCIAS + JOB BOARD ============
+// Decisión del dueño: al cotizar sin artista, el sistema sugiere artistas por
+// estilo, ciudad, presupuesto y otros datos; el cliente elige uno o publica
+// su idea en el Job Board. Nunca queda una cotización enviada sin destino.
+
+function buildSuggestionCriteria() {
+    return {
+        styles: formData.tattoo_style || null,
+        city_residence: formData.client_city_residence || '',
+        city: formData.client_city_name || '',
+        country: formData.client_country || '',
+        lat: formData.client_lat ?? null,
+        lng: formData.client_lng ?? null,
+        budget_amount: formData.client_budget_amount || null,
+        budget_currency: formData.client_budget_currency || getBudgetCurrency(),
+        travel_willing: formData.client_travel_willing === true
+    };
+}
+
+function suggestionReasons(s) {
+    const reasons = [];
+    const match = s.match || {};
+    if (match.style === 'exact') reasons.push('Trabaja tu estilo');
+    else if (match.style === 'partial') reasons.push('Estilo afín');
+    if (match.location === 'city') reasons.push('En tu ciudad');
+    else if (match.location === 'near') reasons.push(match.distance_km ? `A ${match.distance_km} km` : 'Cerca tuyo');
+    else if (match.location === 'country') reasons.push('En tu país');
+    if (match.budget === 'within') reasons.push('Dentro de tu presupuesto');
+    else if (match.budget === 'near') reasons.push('Cerca de tu presupuesto');
+    return reasons;
+}
+
+function suggestionInitials(name) {
+    return String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join('') || '?';
+}
+
+function suggestionCardHtml(s, index) {
+    const name = s.name || s.username || 'Artista';
+    const picture = typeof s.profile_picture === 'string' && /^https:\/\//i.test(s.profile_picture) ? s.profile_picture : '';
+    const place = [s.city, s.country].filter(Boolean).join(', ');
+    const styles = Array.isArray(s.styles) ? s.styles.filter(Boolean).slice(0, 4) : [];
+    const reasons = suggestionReasons(s);
+    const profileHref = `/artist/profile?artist=${encodeURIComponent(s.username || '')}`;
+    return `
+        <li class="q-sug-card">
+            <div class="q-sug-head">
+                <span class="q-sug-avatar" aria-hidden="true">${picture
+                    ? `<img src="${escapeQuotationHtml(picture)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
+                    : escapeQuotationHtml(suggestionInitials(name))}</span>
+                <div class="q-sug-id">
+                    <p class="q-sug-name">${escapeQuotationHtml(name)}</p>
+                    ${s.verified ? '<span class="q-sug-verified"><i data-wo-icon="check-circle" aria-hidden="true"></i> Verificado</span>' : ''}
+                    ${place ? `<p class="q-sug-place">${escapeQuotationHtml(place)}</p>` : ''}
+                </div>
+            </div>
+            ${styles.length ? `<p class="q-sug-styles">${styles.map(escapeQuotationHtml).join(' · ')}</p>` : ''}
+            ${reasons.length ? `<ul class="q-sug-why" aria-label="Por qué te lo sugerimos">${reasons.map((r) => `<li>${escapeQuotationHtml(r)}</li>`).join('')}</ul>` : ''}
+            <div class="q-sug-actions">
+                <button type="button" class="wo-btn wo-btn--hard btn-primary q-sug-choose" data-suggestion="${index}"
+                    aria-label="Enviar mi solicitud a ${escapeQuotationHtml(name)}">Enviar mi solicitud a este artista</button>
+                <a class="q-sug-profile" href="${escapeQuotationHtml(profileHref)}" target="_blank" rel="noopener">Ver perfil<span class="wo-sr-only"> de ${escapeQuotationHtml(name)} (se abre en otra pestaña)</span></a>
+            </div>
+        </li>`;
+}
+
+function ensureDestinationPanel() {
+    const host = document.querySelector('.q-final');
+    if (!host) return null;
+    let panel = document.getElementById('q-destination');
+    if (!panel) {
+        panel = document.createElement('section');
+        panel.id = 'q-destination';
+        panel.className = 'q-dest';
+        panel.setAttribute('aria-labelledby', 'q-dest-title');
+        panel.setAttribute('aria-live', 'polite');
+        host.appendChild(panel);
+        panel.addEventListener('click', (event) => {
+            const choose = event.target.closest && event.target.closest('.q-sug-choose');
+            if (choose) chooseSuggestedArtist(Number(choose.dataset.suggestion));
+        });
+    }
+    return panel;
+}
+
+function renderDestination(suggestions, failed) {
+    const panel = ensureDestinationPanel();
+    if (!panel) return;
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) submitBtn.classList.add('hidden');
+
+    const has = suggestions.length > 0;
+    const title = has ? 'Artistas sugeridos para tu idea'
+        : failed ? 'No pudimos cargar sugerencias' : 'Todavía no hay artistas para esta combinación';
+    const copy = has
+        ? 'Los elegimos por estilo, ciudad y presupuesto. Elegí a quién enviarle tu solicitud: le llega con todos tus datos y referencias.'
+        : failed
+            ? 'Probá de nuevo en unos segundos o publicá tu idea en el Job Board.'
+            : 'Publicá tu idea en el Job Board y los artistas interesados te escriben con su propuesta.';
+
+    panel.innerHTML = `
+        <h3 class="q-final-title q-dest-title" id="q-dest-title" tabindex="-1">${escapeQuotationHtml(title)}</h3>
+        <p class="q-final-copy">${escapeQuotationHtml(copy)}</p>
+        ${has ? `<ul class="q-dest-grid" aria-label="Artistas sugeridos">${suggestions.map(suggestionCardHtml).join('')}</ul>` : ''}
+        ${failed ? '<button type="button" class="wo-btn wo-btn--ghost q-dest-retry" onclick="showArtistSuggestions()"><i data-wo-icon="rotate-ccw" class="wo-icon-18"></i> Reintentar</button>' : ''}
+        <div class="q-dest-jb">
+            <div class="q-dest-jb-text">
+                <p class="q-dest-jb-title">${has ? '¿Ninguno te convence?' : 'Publicá tu idea'}</p>
+                <p class="q-dest-jb-copy">En el Job Board los artistas ven tu idea y te mandan su propuesta. Necesitás tu cuenta de cliente; tu idea queda guardada mientras iniciás sesión.</p>
+            </div>
+            <button type="button" class="wo-btn wo-btn--ghost btn-secondary q-dest-jb-btn" onclick="publishQuotationToJobBoard()">
+                ${has ? 'No elegir ninguno: publicar mi idea en el Job Board' : 'Publicar mi idea en el Job Board'}
+            </button>
+        </div>`;
+    const heading = document.getElementById('q-dest-title');
+    if (heading && typeof heading.focus === 'function') heading.focus();
+}
+
+async function showArtistSuggestions() {
+    if (_isSubmittingQuotation) return;
+    if (!ensureQuotationReady()) return;
+    clearQuotationFormError();
+    const panel = ensureDestinationPanel();
+    if (!panel) return;
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) submitBtn.classList.add('hidden');
+    panel.innerHTML = '<div class="q-dest-loading" role="status"><div class="wo-spinner" aria-hidden="true"></div><p>Buscando artistas para tu idea…</p></div>';
+
+    // El borrador queda guardado en el servidor mientras el cliente decide.
+    if (hasServerDraftData()) saveWebQuotation('draft').catch((e) => _dbg('Borrador previo a sugerencias:', e.message));
+
+    let suggestions = [];
+    let failed = false;
+    try {
+        const data = await postQuotationApi('/api/quotations/suggestions', { criteria: buildSuggestionCriteria(), limit: 6 });
+        suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+    } catch (error) {
+        console.warn('Sugerencias de artistas:', error.message);
+        failed = true;
+    }
+    _quotationSuggestions = suggestions;
+    renderDestination(suggestions, failed);
+}
+
+function chooseSuggestedArtist(index) {
+    const s = _quotationSuggestions[index];
+    if (!s || _isSubmittingQuotation) return;
+    _sourceBeforeRecommendation = formData.quotation_source;
+    formData.artist_id = s.user_id;
+    formData.artist_username = s.username;
+    formData.artist_name = s.name || s.username;
+    formData.no_artist = false;
+    formData.quotation_source = 'recommendation';
+    submitQuotation();
+}
+
+function renderJobBoardSuccess(result, failedUploads) {
+    hideToastMessage();
+    const container = document.getElementById('form-steps-container');
+    historyStack = [];
+    updateBackButton();
+    const href = result && typeof result.url === 'string' && result.url.startsWith('/client/requests') ? result.url : '/client/requests';
+    const warnings = failedUploads
+        ? [failedUploads === 1 ? 'Una imagen de referencia no se pudo subir.' : `${failedUploads} imágenes de referencia no se pudieron subir.`]
+        : [];
+    container.innerHTML = `
+        <section class="step active" id="step-success" aria-labelledby="success-title">
+            <div class="success-content">
+                <div class="success-icon" aria-hidden="true"><i data-wo-icon="check"></i></div>
+                <h1 id="success-title" tabindex="-1">Tu idea está en el Job Board</h1>
+                ${warningsHtml(warnings)}
+                ${result && result.request_code ? `<p class="success-quote-id">Solicitud · <span class="highlight-text">${escapeQuotationHtml(result.request_code)}</span></p>` : ''}
+                <p class="success-msg">Los artistas interesados te van a escribir con su propuesta. Te avisamos por correo.</p>
+                <div class="success-actions">
+                    <a class="wo-btn wo-btn--hard btn-primary" href="${escapeQuotationHtml(href)}">
+                        <i data-wo-icon="eye" class="wo-icon-18"></i> Ver mi solicitud
+                    </a>
+                    <button type="button" class="wo-btn wo-btn--ghost btn-secondary" onclick="resetQuotation()">
+                        <i data-wo-icon="rotate-ccw" class="wo-icon-18"></i> Volver a cotizar
+                    </button>
+                </div>
+            </div>
+        </section>`;
+    _setQuotationChromeVisible(false);
+    const heading = document.getElementById('success-title');
+    if (heading && typeof heading.focus === 'function') heading.focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function publishQuotationToJobBoard() {
+    if (_isSubmittingQuotation) return;
+    if (!ensureQuotationReady()) return;
+    resetChosenArtist();
+    const token = await getQuotationAccessToken(false);
+    if (!token) {
+        _pendingAfterLogin = 'jobboard';
+        saveDraftToLocalStorage();
+        openQuotationLoginModal({ reason: 'jobboard' });
+        return;
+    }
+
+    _isSubmittingQuotation = true;
+    cancelPendingAutoSave();
+    clearQuotationFormError();
+    setSubmitBusy(true);
+    showLoading();
+    try {
+        formData.artist_id = null;
+        await saveWebQuotation('draft');
+        const upload = await uploadReferencesToStorage(formData.quote_id);
+        const result = await postQuotationApi('/api/quotations/intake/job-board', {
+            submission_key: formData.submission_key,
+            mode: 'draft',
+            quotation: preparePayload(),
+            extras: prepareIntakeExtrasPayload(),
+            references: upload.paths
+        }, { auth: 'required' });
+        formData.quote_status = 'job_board';
+        _pendingAfterLogin = null;
+        clearDraftFromLocalStorage();
+        renderJobBoardSuccess(result, upload.failed);
+    } catch (error) {
+        console.error('Job Board:', error);
+        if (error.data && error.data.needs_account) {
+            _pendingAfterLogin = 'jobboard';
+            openQuotationLoginModal({ reason: 'jobboard', message: error.message });
+        } else {
+            showQuotationFormError(error.message || 'No pudimos publicar tu idea. Intentá de nuevo.');
+        }
+    } finally {
+        _isSubmittingQuotation = false;
+        setSubmitBusy(false);
+        hideLoading();
+    }
+}
+
+window.showArtistSuggestions = showArtistSuggestions;
+window.chooseSuggestedArtist = chooseSuggestedArtist;
+window.publishQuotationToJobBoard = publishQuotationToJobBoard;
 
 // Utilities
 function showLoading() { document.getElementById('loading-overlay')?.classList.remove('hidden'); }
@@ -3649,8 +3589,8 @@ function saveClientDataForRegistration() {
         client_allergies: formData.client_allergies,
         quote_id: formData.quote_id
     };
-    
-    localStorage.setItem('weotzi_client_registration_data', JSON.stringify(clientData));
+
+    try { localStorage.setItem('weotzi_client_registration_data', JSON.stringify(clientData)); } catch (_) { /* modo privado */ }
 }
 
 /**
@@ -3660,9 +3600,6 @@ function goToClientRegistration() {
     window.location.href = '/client/register';
 }
 
-/**
- * Show traditional success page without account invitation
- */
 // El CTA "Conocer We Ötzi" apunta al sitio corporativo. Mientras se trabaja en
 // local (o sobre un túnel del server local) no se sale del entorno: se usa la
 // home de la app. En producción sigue mandando el valor de app_settings.
@@ -3671,37 +3608,22 @@ function resolveWebsiteUrl(configuredUrl) {
     const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '' ||
         /\.ngrok(-free)?\.(app|io)$/.test(host) || /^192\.168\./.test(host);
     if (isLocal) return '/inicio';
-    return configuredUrl || '/inicio';
+    return /^(https:\/\/|\/)/.test(String(configuredUrl || '')) ? configuredUrl : '/inicio';
 }
 
+/**
+ * Show traditional success page without account invitation
+ */
 async function showSuccessWithoutAccount() {
-    // Fetch Next Steps content from app_settings
-    let nextStepsContent = '<p><strong>1. Revisá tu correo</strong><br>Te escribimos ahí cuando haya novedades de tu solicitud.</p><p><strong>2. Prepará tus referencias</strong><br>Si tenés más imágenes que te inspiran, tenelas listas para compartir.</p><p><strong>3. Agendá tu sesión</strong><br>Cuando cierres los detalles con el artista, reservá la fecha.</p>';
-    let websiteUrl = '';
-    
-    if (window.ConfigManager && typeof window.ConfigManager.getAppSettingFromDB === 'function') {
-        try {
-            const [nextSteps, webUrl] = await Promise.all([
-                window.ConfigManager.getAppSettingFromDB('success_next_steps'),
-                window.ConfigManager.getAppSettingFromDB('website_url')
-            ]);
-            if (nextSteps) nextStepsContent = nextSteps;
-            if (webUrl) websiteUrl = webUrl;
-        } catch (e) {
-            console.warn('Could not fetch app settings:', e);
-        }
-    }
-    
+    const { nextStepsContent, websiteUrl } = await loadSuccessSettings();
     const container = document.getElementById('form-steps-container');
     container.innerHTML = `
-        <section class="step active" id="step-success">
+        <section class="step active" id="step-success" aria-labelledby="success-title">
             <div class="success-content">
-                <div class="success-icon"><i data-wo-icon="check"></i></div>
-                <h1>Solicitud enviada</h1>
-                <p class="success-quote-id">Tu ID · <span class="highlight-text">${formData.quote_id}</span></p>
-                <p class="success-msg">
-                    <span>${formData.artist_name}</span> recibió tu solicitud.
-                </p>
+                <div class="success-icon" aria-hidden="true"><i data-wo-icon="check"></i></div>
+                <h1 id="success-title" tabindex="-1">Solicitud enviada</h1>
+                <p class="success-quote-id">Tu ID · <span class="highlight-text">${escapeQuotationHtml(formData.quote_id)}</span></p>
+                <p class="success-msg">${successArtistMessage()}</p>
 
                 <!-- Next Steps Section -->
                 <div class="next-steps-section">
@@ -3721,22 +3643,24 @@ async function showSuccessWithoutAccount() {
 
                 <!-- Action Buttons -->
                 <div class="success-actions">
-                    <button class="wo-btn wo-btn--hard btn-primary" onclick="resetQuotation()">
+                    <button type="button" class="wo-btn wo-btn--hard btn-primary" onclick="resetQuotation()">
                         <i data-wo-icon="rotate-ccw" class="wo-icon-18"></i> Volver a cotizar
                     </button>
-                    <a href="${resolveWebsiteUrl(websiteUrl)}" class="wo-btn wo-btn--ghost btn-secondary">
+                    <a href="${escapeQuotationHtml(resolveWebsiteUrl(websiteUrl))}" class="wo-btn wo-btn--ghost btn-secondary">
                         <i data-wo-icon="globe" class="wo-icon-18"></i> Conocer We Ötzi
                     </a>
                 </div>
 
                 <div class="social-links">
-                    <a href="https://instagram.com/weotzi" target="_blank" class="social-btn">
+                    <a href="https://instagram.com/weotzi" target="_blank" rel="noopener" class="social-btn">
                         <i data-wo-icon="instagram" class="wo-icon-18"></i> Seguir a We Ötzi
                     </a>
                 </div>
             </div>
         </section>
     `;
+    const heading = document.getElementById('success-title');
+    if (heading && typeof heading.focus === 'function') heading.focus();
 }
 
 // Expose functions globally
@@ -3745,21 +3669,28 @@ window.showSuccessWithoutAccount = showSuccessWithoutAccount;
 window.saveClientDataForRegistration = saveClientDataForRegistration;
 
 /**
- * Reset the quotation form to start a new quotation
- * Clears all form data and returns to the first step
+ * Reset the quotation form to start a new quotation (misma página, sin
+ * recargar). Deja en cero TODO el estado del envío anterior: banderas,
+ * cola de guardado, llave del borrador y sugerencias.
  */
 function resetQuotation() {
-    // Clear draft from localStorage
     clearDraftFromLocalStorage();
-    
-    // Reset form data
+    cancelPendingAutoSave();
+
     formData = {
         reference_images_count: 0,
         quote_status: 'in_progress',
         quote_id: null
     };
-    
-    // Reset state variables
+
+    _isSubmittingQuotation = false;
+    _autoSaveInFlight = false;
+    _intakeQueue = Promise.resolve();
+    _quotationSuggestions = [];
+    _pendingAfterLogin = null;
+    _sourceBeforeRecommendation = undefined;
+    _sessionExpiredNoticeShown = false;
+
     selectedBodyParts = [];
     uploadedFiles = [];
     historyStack = [];
@@ -3768,14 +3699,17 @@ function resetQuotation() {
     currentBodySide = null;
     _calendarCursor = null;
 
+    _applyClientSessionPrefill();
+
     buildScreensConfig();
     currentStepIndex = Math.max(0, findNextScreenIndex(0));
 
-    // Show the footbar again
+    hideLoading();
     _setQuotationChromeVisible(true);
 
     renderCurrentStep();
     updateBackButton();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     _dbg('Quotation form reset');
 }
@@ -3840,18 +3774,66 @@ window.handleSideChosen = handleSideChosen;
 
 // ============ QUOTATION LOGIN MODAL ============
 
+// Cliente con sesión: email de la cuenta + perfil (clients_db) para precargar.
+let _authenticatedEmail = null;
+let _authenticatedClient = null;
+
+// Precarga los datos de contacto desde la cuenta (sin pisar lo que el
+// cliente ya escribió). El correo queda fijo en el de la cuenta para que la
+// cotización se vincule sola (el intake vincula por email).
+function _applyClientSessionPrefill() {
+    if (!_authenticatedEmail) return;
+    const client = _authenticatedClient || {};
+    formData.client_email = _authenticatedEmail;
+    if (!formData.client_full_name && client.full_name) formData.client_full_name = client.full_name;
+    if (!formData.client_whatsapp && client.whatsapp) formData.client_whatsapp = client.whatsapp;
+    if (!formData.client_instagram && client.instagram) formData.client_instagram = client.instagram;
+    if (!formData.client_city_residence && client.city_residence) {
+        formData.client_city_residence = normalizeQuotationLocation(client.city_residence);
+    }
+}
+
+function _setClientSession(session, client) {
+    _authenticatedUserId = session?.user?.id || null;
+    _authenticatedEmail = (session?.user?.email || client?.email || '').trim().toLowerCase() || null;
+    _authenticatedClient = client || null;
+    _applyClientSessionPrefill();
+}
+
 async function _detectClientSession() {
     if (!window.ClientAuth) return;
     try {
         const { session, client } = await window.ClientAuth.getSession();
         if (session && client) {
-            _authenticatedUserId = session.user.id;
+            _setClientSession(session, client);
             _setHeaderLoggedIn(client.full_name || client.email);
+            // Si la pantalla de datos ya está visible, se redibuja con la precarga.
+            const screen = getCurrentScreen();
+            if (screen && screen.id === 'client') renderCurrentStep();
         }
     } catch (e) {
         console.warn('Session detection skipped:', e.message);
     }
 }
+
+// "No soy yo": cierra la sesión sin salir del cotizador (el borrador local
+// se conserva) y libera el campo de correo.
+async function quotationSignOut() {
+    try {
+        const client = window.ConfigManager && window.ConfigManager.getSupabaseClient();
+        if (client && client.auth) await client.auth.signOut();
+    } catch (e) {
+        console.warn('No se pudo cerrar la sesión:', e.message);
+    }
+    _authenticatedUserId = null;
+    _authenticatedEmail = null;
+    _authenticatedClient = null;
+    formData.client_email = '';
+    _setHeaderLoggedOut();
+    saveDraftToLocalStorage();
+    renderCurrentStep();
+}
+window.quotationSignOut = quotationSignOut;
 
 function _setHeaderLoggedIn(name) {
     const loginBtn = document.getElementById('header-login-btn');
@@ -3870,11 +3852,23 @@ function _setHeaderLoggedOut() {
     if (userBtn) userBtn.classList.add('hidden');
 }
 
-function openQuotationLoginModal() {
+function openQuotationLoginModal(options = {}) {
+    const opts = options && typeof options === 'object' && !options.type ? options : {};
+    if (opts.reason !== 'jobboard') _pendingAfterLogin = null;
     if (_authenticatedUserId) {
         _showLoginSuccessView();
     } else {
         _showLoginFormView();
+    }
+    const context = document.getElementById('q-login-context');
+    if (context) {
+        const jobBoard = opts.reason === 'jobboard';
+        context.classList.toggle('hidden', !jobBoard);
+        const text = context.querySelector('.q-login-context-text');
+        if (text && jobBoard) {
+            text.textContent = opts.message
+                || 'Para publicar tu idea en el Job Board iniciá sesión con tu cuenta de cliente. Tu idea queda guardada en este navegador.';
+        }
     }
     const overlay = document.getElementById('quotation-login-overlay');
     if (overlay) {
@@ -3958,7 +3952,7 @@ async function handleQuotationLogin(e) {
             return;
         }
 
-        _authenticatedUserId = result.user.id;
+        _setClientSession({ user: result.user }, result.client);
 
         await window.ClientAuth.linkQuotations(
             result.user.id,
@@ -3967,7 +3961,20 @@ async function handleQuotationLogin(e) {
         );
 
         _setHeaderLoggedIn(result.client?.full_name || email);
+        saveDraftToLocalStorage();
+
+        // Venía de "Publicar mi idea en el Job Board": se continúa solo.
+        if (_pendingAfterLogin === 'jobboard') {
+            _pendingAfterLogin = null;
+            closeQuotationLoginModal();
+            renderCurrentStep();
+            setTimeout(() => publishQuotationToJobBoard(), 0);
+            return;
+        }
+
         _showLoginSuccessView(result.client?.full_name || email.split('@')[0]);
+        const screen = getCurrentScreen();
+        if (screen && screen.id === 'client') renderCurrentStep();
 
     } catch (error) {
         console.error('Quotation login error:', error);

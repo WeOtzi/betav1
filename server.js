@@ -210,8 +210,9 @@ const apiLimiter = rateLimit({
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
-    // El webhook de pagos de la Store tiene su limiter propio (storeWebhookLimiter).
-    skip: (req) => storeOrders.isStoreWebhookRequest(req),
+    // El webhook de pagos de la Store tiene su limiter propio (storeWebhookLimiter);
+    // el cotizador (intake, sugerencias, Job Board) también (lib/routes/cot-form.js).
+    skip: (req) => storeOrders.isStoreWebhookRequest(req) || require('./lib/routes/cot-form').isOwnLimitedPath(req),
     message: { success: false, error: 'Too many requests, please try again later.' }
 });
 
@@ -268,7 +269,7 @@ app.post('/api/store/payments/webhook/:provider', storeWebhookLimiter, express.r
 // Middleware for JSON body parsing
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.post('/api/quotations/intake', require('./services/quotation-intake').handleIntake);
+// /api/quotations/intake lo registra lib/routes/cot-form.js (con su rate limit).
 // Store: descarga firmada de archivos de licencia, checkout y mantenimiento por cron.
 app.post('/api/store/licenses/:licenseId/assets/:assetId/url', storeDownloadLimiter, storeOrders.handleDownloadUrl);
 app.post('/api/store/orders/:id/checkout', storeOrders.handleCheckout);
@@ -1278,132 +1279,76 @@ app.post('/api/google-drive/test', async (req, res) => {
 });
 
 /**
- * Create a quote folder and upload images
+ * Copia las referencias de una cotización a Google Drive (opcional).
+ * Storage (bucket quotation-references) es la fuente de verdad; esto es solo
+ * un espejo para el equipo. Credenciales y carpeta salen SIEMPRE del .env
+ * (GOOGLE_DRIVE_SERVICE_ACCOUNT, GOOGLE_DRIVE_FOLDER_ID), nunca del navegador,
+ * y solo se descargan archivos del folder de la propia cotización en Storage.
+ * Lo llama el servidor después del envío (lib/routes/cot-form.js).
+ * @returns {{skipped:true}|{success:boolean, quoteFolderLink?:string, uploadedFiles?:Array, uploadErrors?:Array}}
+ */
+async function mirrorQuoteFilesToDrive(quoteNumber, files) {
+    const mainFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    let credentials = null;
+    try { credentials = JSON.parse(process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT || 'null'); } catch (_) { credentials = null; }
+    if (!mainFolderId || !credentials) return { skipped: true };
+    const cotFormLib = require('./lib/cot-form');
+    if (!cotFormLib.QUOTE_ID_RE.test(String(quoteNumber || ''))) return { success: false, error: 'Cotización no válida' };
+    const safeFiles = (Array.isArray(files) ? files : [])
+        .filter((file) => file && cotFormLib.isOwnReferenceUrl(file.url, process.env.SUPABASE_URL, quoteNumber))
+        .slice(0, cotFormLib.MAX_REFERENCES);
+    const drive = getGoogleDriveClient(credentials);
+    if (!drive) return { success: false, error: 'No se pudo iniciar Google Drive' };
+
+    const existingFolder = await findExistingQuoteFolder(drive, mainFolderId, quoteNumber);
+    let quoteFolderId;
+    let quoteFolderLink;
+    if (existingFolder) {
+        quoteFolderId = existingFolder.id;
+        quoteFolderLink = existingFolder.webViewLink;
+    } else {
+        const folder = await drive.files.create({
+            resource: { name: quoteNumber, mimeType: 'application/vnd.google-apps.folder', parents: [mainFolderId] },
+            fields: 'id, webViewLink',
+            supportsAllDrives: true
+        });
+        quoteFolderId = folder.data.id;
+        quoteFolderLink = folder.data.webViewLink;
+    }
+
+    const uploadedFiles = [];
+    const uploadErrors = [];
+    for (const file of safeFiles) {
+        try {
+            const uploaded = await uploadFileToFolder(drive, quoteFolderId, file);
+            if (uploaded) uploadedFiles.push(uploaded);
+        } catch (uploadError) {
+            uploadErrors.push({ fileName: file.fileName, error: uploadError.message });
+        }
+    }
+    if (uploadErrors.length) console.warn(`[Google Drive] ${quoteNumber}: ${uploadErrors.length} archivo(s) sin copiar`);
+    return { success: true, quoteFolderId, quoteFolderLink, uploadedCount: uploadedFiles.length, uploadedFiles,
+        uploadErrors: uploadErrors.length ? uploadErrors : undefined };
+}
+
+/**
+ * Re-copia manual de las referencias de una cotización a Drive (solo admin).
  * POST /api/google-drive/create-quote-folder
- * Body: { quoteId, quoteNumber, mainFolderId, credentials, files: [{ url, fileName, mimeType }] }
+ * Body: { quoteNumber, files: [{ url, fileName, mimeType }] }
+ * Ignora credenciales y carpeta del body (antes se aceptaban desde el navegador).
  */
 app.post('/api/google-drive/create-quote-folder', async (req, res) => {
-    const { quoteId, quoteNumber, mainFolderId, credentials, files } = req.body;
-    
-    console.log(`[DEBUG] ====== CREATE QUOTE FOLDER REQUEST ======`);
-    console.log(`[DEBUG] quoteNumber: ${quoteNumber}`);
-    console.log(`[DEBUG] mainFolderId: "${mainFolderId}"`);
-    console.log(`[DEBUG] mainFolderId length: ${mainFolderId?.length}`);
-    console.log(`[DEBUG] files count: ${files?.length}`);
-    console.log(`[DEBUG] ===========================================`);
-    
-    console.log(`[Google Drive] Creating folder for quote: ${quoteNumber}`);
-    console.log(`[Google Drive] Files to upload: ${files ? files.length : 0}`);
-    
-    if (!quoteNumber || !mainFolderId) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Quote number and main folder ID are required' 
-        });
-    }
-    
-    if (!credentials) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Service account credentials are required' 
-        });
-    }
-    
-    const drive = getGoogleDriveClient(credentials);
-    
-    if (!drive) {
-        return res.status(500).json({ 
-            success: false, 
-            error: 'Failed to initialize Google Drive client' 
-        });
-    }
-    
+    const admin = await require('./lib/auth/supabase-auth').verifyAdminCaller(req);
+    if (!admin.ok) return res.status(admin.status || 403).json({ success: false, error: admin.error });
+    const { quoteNumber, quoteId, files } = req.body || {};
     try {
-        // Step 1: Check if folder already exists for this quote
-        const existingFolder = await findExistingQuoteFolder(drive, mainFolderId, quoteNumber);
-        
-        let quoteFolderId;
-        let quoteFolderLink;
-        
-        if (existingFolder) {
-            // Use existing folder
-            quoteFolderId = existingFolder.id;
-            quoteFolderLink = existingFolder.webViewLink;
-            console.log(`[Google Drive] Using existing folder for quote ${quoteNumber}: ${quoteFolderId}`);
-        } else {
-            // Step 2: Create new folder for this quote
-            const folderMetadata = {
-                name: quoteNumber,
-                mimeType: 'application/vnd.google-apps.folder',
-                parents: [mainFolderId]
-            };
-            
-            const folder = await drive.files.create({
-                resource: folderMetadata,
-                fields: 'id, webViewLink',
-                supportsAllDrives: true
-            });
-            
-            quoteFolderId = folder.data.id;
-            quoteFolderLink = folder.data.webViewLink;
-            console.log(`[Google Drive] Created new folder for quote ${quoteNumber}: ${quoteFolderId}`);
-        }
-        
-        // Step 3: Upload files to the quote folder
-        const uploadedFiles = [];
-        const uploadErrors = [];
-        
-        if (files && files.length > 0) {
-            console.log(`[Google Drive] Starting upload of ${files.length} files...`);
-            
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                console.log(`[Google Drive] Uploading file ${i + 1}/${files.length}: ${file.fileName}`);
-                console.log(`[Google Drive] Source URL: ${file.url}`);
-                
-                try {
-                    const uploadResult = await uploadFileToFolder(drive, quoteFolderId, file);
-                    if (uploadResult) {
-                        uploadedFiles.push(uploadResult);
-                        console.log(`[Google Drive] Successfully uploaded: ${file.fileName}`);
-                    }
-                } catch (uploadError) {
-                    const errorDetail = {
-                        fileName: file.fileName,
-                        error: uploadError.message,
-                        url: file.url
-                    };
-                    uploadErrors.push(errorDetail);
-                    console.error(`[Google Drive] Failed to upload ${file.fileName}:`, uploadError.message);
-                }
-            }
-            
-            console.log(`[Google Drive] Upload complete: ${uploadedFiles.length}/${files.length} files successful`);
-        }
-        
-        // Determine overall success - folder created is minimum success
-        // But warn if files failed to upload
-        const hasUploadErrors = uploadErrors.length > 0;
-        const allFilesFailed = files && files.length > 0 && uploadedFiles.length === 0;
-        
-        return res.json({
-            success: true, // Folder was created successfully
-            quoteFolderId,
-            quoteFolderLink,
-            uploadedCount: uploadedFiles.length,
-            uploadedFiles,
-            // Include error details so frontend can handle appropriately
-            uploadErrors: hasUploadErrors ? uploadErrors : undefined,
-            warning: allFilesFailed ? 'All files failed to upload to Google Drive' : undefined,
-            partialSuccess: hasUploadErrors && uploadedFiles.length > 0
-        });
-        
+        const result = await mirrorQuoteFilesToDrive(quoteNumber || quoteId, files);
+        if (result.skipped) return res.status(503).json({ success: false, error: 'Google Drive no está configurado en el servidor.' });
+        if (!result.success) return res.status(400).json(result);
+        return res.json(result);
     } catch (error) {
         console.error('[Google Drive] Error creating quote folder:', error.message);
-        return res.status(500).json({ 
-            success: false, 
-            error: error.message 
-        });
+        return res.status(500).json({ success: false, error: 'No se pudo copiar a Google Drive.' });
     }
 });
 
@@ -2922,25 +2867,9 @@ app.get('/shared/js/app-config.json', async (req, res) => {
             config.googleMaps.apiKey = process.env.GOOGLE_MAPS_API_KEY;
         }
 
-        // n8n configuration
-        if (process.env.N8N_WEBHOOK_URL) {
-            config.n8n = config.n8n || {};
-            config.n8n.webhookUrl = process.env.N8N_WEBHOOK_URL;
-        }
-        if (process.env.N8N_DRIVE_FOLDER_ID) {
-            config.n8n = config.n8n || {};
-            config.n8n.driveFolderId = process.env.N8N_DRIVE_FOLDER_ID;
-        }
-        
-        // Google Drive configuration
-        if (process.env.GOOGLE_DRIVE_FOLDER_ID) {
-            config.googleDrive = config.googleDrive || {};
-            config.googleDrive.mainFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-        }
-        if (process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT) {
-            config.googleDrive = config.googleDrive || {};
-            config.googleDrive.serviceAccountJson = process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT;
-        }
+        // n8n (webhook de referencias) y Google Drive: solo los usa el servidor
+        // (lib/routes/cot-form.js). Nunca se publican: sanitizePublicConfig
+        // deja únicamente googleDrive.enabled.
         
         // EmailJS configuration
         if (process.env.EMAILJS_SERVICE_ID) {
@@ -2956,12 +2885,8 @@ app.get('/shared/js/app-config.json', async (req, res) => {
             config.emailjs.publicKey = process.env.EMAILJS_PUBLIC_KEY;
         }
         
-        // Gemini AI configuration
-        if (process.env.GEMINI_API_KEY) {
-            config.gemini = config.gemini || {};
-            config.gemini.apiKey = process.env.GEMINI_API_KEY;
-            config.gemini.enabled = true;
-        }
+        // Gemini AI: la key vive solo en el servidor (/api/gemini/*); el
+        // navegador recibe gemini.enabled (sanitizePublicConfig).
         
         // WeOtzi configuration
         if (process.env.WHATSAPP_NUMBER) {
@@ -2969,12 +2894,8 @@ app.get('/shared/js/app-config.json', async (req, res) => {
             config.weOtzi.whatsapp = process.env.WHATSAPP_NUMBER;
         }
         
-        // Registration configuration
-        if (process.env.PRESET_PASSWORD) {
-            config.registration = config.registration || {};
-            config.registration.presetPassword = process.env.PRESET_PASSWORD;
-        }
-        
+        // PRESET_PASSWORD es un secreto de servidor: no se publica.
+
         // Feature flags from environment
         if (process.env.DEMO_MODE !== undefined) {
             config.features = config.features || {};
@@ -2986,6 +2907,7 @@ app.get('/shared/js/app-config.json', async (req, res) => {
 
         // Set last modified timestamp
         config.lastModified = new Date().toISOString();
+        config = require('./lib/cot-form').sanitizePublicConfig(config, process.env);
         
         // Send JSON response with cache headers
         res.set('Content-Type', 'application/json');
@@ -7024,6 +6946,9 @@ require('./lib/routes/cot-artista').register(app); // ── cot-artista ── 
 require('./lib/routes/emails').register(app, { pgrest, getActiveSupportAgent: _getActiveSupportAgent, applicationBase, safeTokenEqual: storeOrders.safeTokenEqual, startJobs: require.main === module });
 
 require('./lib/routes/acceso').register(app); // ── acceso: bienvenida idempotente y Términos del cliente
+
+// ── cot-form ── cotizador web: intake, sugerencias de artistas y Job Board.
+require('./lib/routes/cot-form').register(app, { driveMirror: mirrorQuoteFilesToDrive });
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {

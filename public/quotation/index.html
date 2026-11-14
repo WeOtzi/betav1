@@ -16,19 +16,16 @@
         rel="stylesheet">
 
     <!-- Date Picker -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
 
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
 
-    <!-- EmailJS -->
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-
     <!-- Date Picker JS -->
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
 
     <!-- Google Maps API (Places) - loaded dynamically from config -->
     <script>
@@ -287,32 +284,6 @@
     <!-- App Logic -->
     <script src="/shared/js/script.js"></script>
 
-    <!-- EMAIL REUSE MODAL -->
-    <div id="email-reuse-modal" class="draft-recovery-overlay hidden">
-        <div class="draft-recovery-modal">
-            <div class="recovery-icon reuse-icon">
-                <i data-wo-icon="mail"></i>
-            </div>
-            <h2 class="recovery-title">Cotización encontrada</h2>
-            <p class="recovery-subtitle">Ya existe una cotización con este correo</p>
-
-            <div id="reuse-summary-info" class="draft-summary-info">
-                <!-- Populated by JS -->
-            </div>
-
-            <p class="reuse-question">¿Querés usar los mismos datos de cliente en esta nueva cotización?</p>
-
-            <div class="recovery-actions">
-                <button class="wo-btn wo-btn--hard btn-primary" id="btn-reuse-accept" onclick="acceptEmailReuse()">
-                    <i data-wo-icon="check" class="wo-icon-18"></i> Usar los mismos datos
-                </button>
-                <button class="wo-btn wo-btn--ghost btn-secondary" id="btn-reuse-decline" onclick="declineEmailReuse()">
-                    <i data-wo-icon="edit-2" class="wo-icon-18"></i> Continuar con datos nuevos
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- DRAFT RECOVERY MODAL -->
     <div id="draft-recovery-modal" class="draft-recovery-overlay hidden">
         <div class="draft-recovery-modal">
@@ -363,6 +334,15 @@
                     </div>
                     <h2>Iniciar sesión</h2>
                     <p class="q-login-subtitle">Accedé a tu cuenta de cliente</p>
+                </div>
+
+                <!-- Contexto: se muestra cuando el login lo pide "Publicar en el Job Board" -->
+                <div id="q-login-context" class="wo-alert wo-alert--info q-login-context hidden" role="status">
+                    <i data-wo-icon="info" class="wo-icon-18" aria-hidden="true"></i>
+                    <div>
+                        <p class="q-login-context-text">Para publicar tu idea en el Job Board iniciá sesión con tu cuenta de cliente.</p>
+                        <p class="q-login-context-register">¿No tenés cuenta? <a href="/client/register" onclick="saveClientDataForRegistration()">Creala gratis</a> y volvé: tu idea queda guardada en este navegador.</p>
+                    </div>
                 </div>
 
                 <form id="q-login-form" onsubmit="handleQuotationLogin(event)">
