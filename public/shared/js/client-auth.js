@@ -82,6 +82,15 @@ function isOAuthCallbackUrl() {
     return String(loc.hash || '').includes('access_token') || String(loc.search || '').includes('code=');
 }
 
+// Se mira al cargar el script: supabase-js limpia el hash cuando lee la sesión
+// (Google, Facebook o enlace mágico), y eso puede pasar antes de DOMContentLoaded.
+const CLIENT_AUTH_CALLBACK_AT_LOAD = (() => { try { return isOAuthCallbackUrl(); } catch (_) { return false; } })();
+
+function onClientLoginPage() {
+    const loc = (typeof window !== 'undefined' && window.location) || {};
+    return /\/client\/login\/?$/.test(String(loc.pathname || ''));
+}
+
 // Links entre login y registro: conservan ?returnTo= (también los que se
 // insertan después, como el «Ingresá» del mensaje de email ya registrado).
 function withReturnTo(href, returnTo) {
@@ -197,17 +206,70 @@ function showClientEmailNotConfirmed(email) {
     box.style.display = 'block';
 }
 
+// ── acceso (ACC-04): la bienvenida la decide el servidor
+// (POST /api/account/welcome, wo-welcome.js): sale una sola vez cuando la
+// cuenta ya está confirmada, también si se confirmó en otro dispositivo. Ya
+// no depende de una marca en localStorage de este navegador.
 async function sendPendingClientWelcome(user) {
-    if (!user?.id || !window.ConfigManager?.sendN8NEvent) return;
+    try { localStorage.removeItem('weotzi_pending_client_welcome'); } catch (_) { /* marca vieja */ }
+    if (!user?.id || !window.WoWelcome || typeof window.WoWelcome.request !== 'function') return null;
     try {
-        if (localStorage.getItem('weotzi_pending_client_welcome') !== user.id) return;
-        const result = window.EmailClient?.sendEmail
-            ? await window.EmailClient.sendEmail('client_registration_completed', {}, { keepalive: true })
-            : await window.ConfigManager.sendN8NEvent('client_registration_completed', {});
-        if (result?.success) localStorage.removeItem('weotzi_pending_client_welcome');
+        return await window.WoWelcome.request('client', { client: _supabase });
     } catch (_) {
-        // The profile remains usable; the pending marker is retained for login.
+        return null; // la bienvenida nunca bloquea el acceso
     }
+}
+
+// ── acceso (ACC-08): Términos del cliente.
+// El alta por email los manda en options.data.terms_accepted y los sella
+// handle_new_user con la hora de la base. Google/Facebook no permiten mandar
+// metadatos: se recuerda la aceptación en esta pestaña antes de salir hacia el
+// proveedor y, al volver con el perfil creado, el servidor la sella.
+const CLIENT_TERMS_OAUTH_KEY = 'wo_client_terms_oauth';
+
+function rememberClientTermsForOAuth() {
+    try { sessionStorage.setItem(CLIENT_TERMS_OAUTH_KEY, String(Date.now())); } catch (_) { /* sin storage */ }
+}
+
+async function recordClientTerms(session, { onlyIfPending = false } = {}) {
+    if (!session?.access_token) return false;
+    if (onlyIfPending) {
+        let pending = null;
+        try { pending = sessionStorage.getItem(CLIENT_TERMS_OAUTH_KEY); } catch (_) { pending = null; }
+        // Vale durante la ida y vuelta al proveedor (30 min como máximo).
+        if (!pending || Date.now() - Number(pending) > 30 * 60 * 1000) return false;
+    }
+    try {
+        const response = await fetch(clientAppPath('/api/account/terms'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+            body: JSON.stringify({ accepted: true })
+        });
+        if (response.ok) {
+            try { sessionStorage.removeItem(CLIENT_TERMS_OAUTH_KEY); } catch (_) { /* noop */ }
+        }
+        return response.ok;
+    } catch (_) {
+        return false;
+    }
+}
+
+// ── acceso (ACC-17): link vencido o ya usado en /client/login (enlace mágico).
+function showClientLinkError(linkError) {
+    const EC = window.WeotziEmailConfirm;
+    const box = document.getElementById('form-message');
+    if (!EC || !box || typeof EC.renderLinkErrorNotice !== 'function') {
+        showFormMessage('El link venció o ya se usó. Pedí uno nuevo o ingresá con tu contraseña.', 'error');
+        return;
+    }
+    box.className = '';
+    EC.renderLinkErrorNotice(box, {
+        linkError,
+        what: 'link de acceso',
+        hint: 'Escribí tu email arriba y pedí otro link, o ingresá con tu contraseña.',
+        actions: [{ label: 'Enviarme otro link', onClick: () => handleClientMagicLink() }]
+    });
+    box.style.display = 'block';
 }
 
 // ============================================
@@ -236,7 +298,15 @@ async function checkClientAuthState() {
     // ── confirmacion-email: se lee antes de cualquier await (el wizard lo
     // apaga al terminar y no tiene que disparar la redirección al panel).
     const wizardResumes = Boolean(window.WO_CLIENT_REGISTER_RESUME);
-    
+
+    // ── acceso: en /client/login la vuelta de Google, Facebook o del enlace
+    // mágico la resuelve handleOAuthCallback (perfil, Términos, destino).
+    if (onClientLoginPage() && (CLIENT_AUTH_CALLBACK_AT_LOAD || isOAuthCallbackUrl())) return;
+    if (onClientLoginPage()) {
+        const linkError = window.WeotziEmailConfirm?.readAuthLinkError?.() || null;
+        if (linkError) showClientLinkError(linkError);
+    }
+
     try {
         const { data: { session } } = await _supabase.auth.getSession();
         
@@ -363,6 +433,10 @@ async function handleClientRegistration(payload) {
     if (!name || !email || !password) {
         throw new Error('Completá los campos obligatorios.');
     }
+    // ACC-08: sin aceptar Términos y Privacidad no se crea la cuenta.
+    if (payload.termsAccepted !== true) {
+        throw new Error('Aceptá los Términos y la Política de Privacidad para crear tu cuenta.');
+    }
     if (password.length < 8) {
         throw new Error('Password should be at least 8 characters.');
     }
@@ -376,7 +450,7 @@ async function handleClientRegistration(payload) {
         const {data:login,error:loginError} = await _supabase.auth.signInWithPassword({email,password});
         if (loginError) throw loginError;
         await WeotziData.Clients.updateByUserId(login.user.id,{city_residence:city||null,whatsapp:whatsapp||null});
-        localStorage.setItem('weotzi_pending_client_welcome',login.user.id);
+        await recordClientTerms(login.session);
         await sendPendingClientWelcome(login.user);
         localStorage.removeItem('weotzi_client_registration_data');
         return login.user;
@@ -396,7 +470,10 @@ async function handleClientRegistration(payload) {
                 instagram: instagram || '',
                 city_residence: city || '',
                 health_conditions: currentClientData?.client_health_conditions || '',
-                allergies: currentClientData?.client_allergies || ''
+                allergies: currentClientData?.client_allergies || '',
+                // handle_new_user sella terms_accepted_at con la hora de la
+                // base y la versión vigente (nunca se copia una fecha de acá).
+                terms_accepted: true
             },
             // Con "Confirm email" activo, el link vuelve al wizard: retoma el
             // borrador (gustos, preferencias) y enlaza la cotización.
@@ -414,7 +491,6 @@ async function handleClientRegistration(payload) {
     // se completan al volver del link (completePendingClientSignup).
     if (!authData.session) {
         markPendingClientSignup(authData.user.id, email);
-        try { localStorage.setItem('weotzi_pending_client_welcome', authData.user.id); } catch (_) {}
         return Object.assign({}, authData.user, { pendingEmailConfirmation: true });
     }
 
@@ -468,9 +544,7 @@ async function handleClientRegistration(payload) {
         console.warn('Could not auto-login:', signInError.message);
     }
 
-    // Persist a non-secret marker while email confirmation prevents a session.
-    // Retry after authenticated login; the server ledger prevents duplicates.
-    try { localStorage.setItem('weotzi_pending_client_welcome', authData.user.id); } catch (_) {}
+    // Bienvenida: la decide y deduplica el servidor (POST /api/account/welcome).
     if (!signInError) await sendPendingClientWelcome(authData.user);
 
     // Clear quotation data from localStorage
@@ -642,14 +716,86 @@ async function handleClientLogin(e) {
 // Google OAuth Handler
 // ============================================
 
-async function handleGoogleLogin() {
+// Google, Facebook y el enlace mágico vuelven a /client/login (con returnTo si
+// vino de la Store): handleOAuthCallback crea el perfil si falta, sella los
+// Términos, pide la bienvenida y lleva al panel o a la Store.
+function clientAuthRedirectUrl() {
+    const returnTo = readReturnTo();
+    return window.location.origin + withReturnTo(clientAppPath('/client/login'), returnTo);
+}
+
+// En /client/register el botón de Google exige el checkbox de Términos; en
+// /client/login el aviso "Al continuar… aceptás" acompaña a los botones.
+function clientTermsGateForOAuth() {
+    const box = document.getElementById('cw-terms');
+    if (box && !box.checked) {
+        box.focus();
+        const msg = document.getElementById('cw-message');
+        if (msg) {
+            msg.textContent = 'Aceptá los Términos y la Política de Privacidad para continuar.';
+            msg.className = 'cw-message error';
+        }
+        return false;
+    }
+    // Solo cuenta como aceptación si la persona la vio: checkbox tildado o el
+    // aviso legal junto a los botones (/client/login).
+    if (box || document.querySelector('.ca-legal')) rememberClientTermsForOAuth();
+    return true;
+}
+
+async function handleClientFacebookLogin() {
+    clearFormMessage();
+    if (!clientTermsGateForOAuth()) return;
     try {
-        // Con returnTo, Google vuelve al login (que crea el perfil si falta y
-        // redirige a la Store); sin returnTo, al dashboard como siempre.
-        const returnTo = readReturnTo();
-        const redirectTo = returnTo
-            ? window.location.origin + withReturnTo(clientAppPath('/client/login'), returnTo)
-            : window.location.origin + '/client/dashboard';
+        const { error } = await _supabase.auth.signInWithOAuth({
+            provider: 'facebook',
+            options: { redirectTo: clientAuthRedirectUrl(), scopes: 'email' }
+        });
+        if (error) throw error;
+    } catch (error) {
+        console.error('Facebook login error:', error);
+        showFormMessage('No pudimos conectar con Facebook. Probá de nuevo o ingresá con tu email.', 'error');
+    }
+}
+
+// ── acceso (ACC-02): enlace mágico para clientes. Mensaje neutro también si
+// el email no tiene cuenta (shouldCreateUser:false → "Signups not allowed").
+async function handleClientMagicLink() {
+    const input = document.getElementById('login-email');
+    const email = String(input?.value || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+        showFormMessage('Escribí tu email arriba y te mandamos un link de acceso, sin contraseña.', 'info');
+        if (typeof focusClientEmailLogin === 'function') focusClientEmailLogin();
+        else if (input) input.focus();
+        return;
+    }
+    const btn = document.getElementById('btn-client-magic-link');
+    if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+    let error = null;
+    try {
+        const res = await _supabase.auth.signInWithOtp({
+            email,
+            options: { shouldCreateUser: false, emailRedirectTo: clientAuthRedirectUrl() }
+        });
+        error = res && res.error;
+    } catch (err) {
+        error = err || new Error('network');
+    } finally {
+        if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+    }
+    const EC = window.WeotziEmailConfirm;
+    const outcome = EC && EC.magicLinkOutcome
+        ? EC.magicLinkOutcome(error, email)
+        : (error ? { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Probá de nuevo en un momento.' }
+            : { ok: true, kind: 'success', message: 'Si tenés una cuenta, te enviamos un link de acceso. Revisá tu correo.' });
+    if (!outcome.ok) console.warn('Client magic link error:', error);
+    showFormMessage(outcome.message, outcome.kind);
+}
+
+async function handleGoogleLogin() {
+    if (!clientTermsGateForOAuth()) return;
+    try {
+        const redirectTo = clientAuthRedirectUrl();
         const { data, error } = await _supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -803,6 +949,8 @@ async function handleOAuthCallback() {
                 });
             
             if (!createError) {
+                // ACC-08: aceptó Términos al tocar Google/Facebook en esta pestaña.
+                await recordClientTerms(session, { onlyIfPending: true });
                 await linkQuotationsByEmail(session.user.id, session.user.email);
                 // Link specific quotation by ID if available
                 if (currentClientData?.quote_id) {
@@ -817,16 +965,18 @@ async function handleOAuthCallback() {
                 await linkQuotationById(session.user.id, currentClientData.quote_id);
             }
         }
-        void sendPendingClientWelcome(session.user);
+        await sendPendingClientWelcome(session.user);
         // Google con returnTo: después de crear o vincular el perfil, a la Store.
-        if (readReturnTo()) window.location.href = postAuthDestination();
+        // En /client/login (Google, Facebook o enlace mágico) siempre se sale
+        // al panel o a la Store; en /client/register sigue el wizard.
+        if (readReturnTo() || onClientLoginPage()) window.location.href = postAuthDestination();
     }
 }
 
 // Run OAuth callback handler on page load
 document.addEventListener('DOMContentLoaded', () => {
     // Check if this is an OAuth callback
-    if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
+    if (CLIENT_AUTH_CALLBACK_AT_LOAD || window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
         handleOAuthCallback();
     }
 });

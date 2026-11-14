@@ -219,21 +219,23 @@ test('EmailClient uses beta path, bearer session, and surfaces logical failure',
     assert.equal(events[0].type, 'weotzi:email-failed');
 });
 
-test('deferred client welcome waits for its authenticated user and clears only on success', async () => {
+// acceso (ACC-04): la bienvenida del cliente ya no depende de una marca en
+// localStorage de este navegador; la pide wo-welcome.js al servidor, que
+// decide y deduplica (tests/acceso.test.js cubre la decisión).
+test('client welcome delegates to the server-side idempotent welcome and drops the legacy marker', async () => {
     const values = new Map([['weotzi_pending_client_welcome', 'client-id']]);
-    let attempts = 0, success = false;
+    const calls = [];
     const context = { console, localStorage: { getItem: key => values.get(key), removeItem: key => values.delete(key) },
         document: { addEventListener() {} }, supabase: { createClient: () => ({}) },
-        window: { ConfigManager: { sendN8NEvent: async () => { attempts++; return { success }; } } } };
+        window: { WoWelcome: { request: async (role) => { calls.push(role); return { success: true, sent: true }; } } } };
     vm.runInNewContext(fs.readFileSync(require.resolve('../public/shared/js/client-auth.js'), 'utf8'), context);
-    await context.sendPendingClientWelcome({ id: 'other-user' });
-    assert.equal(attempts, 0);
+    await context.sendPendingClientWelcome(null);
+    assert.equal(calls.length, 0);
     await context.sendPendingClientWelcome({ id: 'client-id' });
-    assert.equal(values.has('weotzi_pending_client_welcome'), true);
-    success = true;
-    await context.sendPendingClientWelcome({ id: 'client-id' });
+    assert.deepEqual(calls, ['client']);
     assert.equal(values.has('weotzi_pending_client_welcome'), false);
-    assert.equal(attempts, 2);
+    const src = fs.readFileSync(require.resolve('../public/shared/js/client-auth.js'), 'utf8');
+    assert.doesNotMatch(src, /setItem\('weotzi_pending_client_welcome'/);
 });
 
 // ===== instagram_verification_code (server-only, contrato modo asistido §5) =====

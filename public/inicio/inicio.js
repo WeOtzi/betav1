@@ -41,6 +41,12 @@
             card.dataset.pos = String(order.indexOf(card.dataset.experience));
         });
         deck.classList.toggle('has-selection', Boolean(selected));
+        // Respaldo de :has() para mostrar las acciones de la experiencia elegida.
+        const actions = document.querySelector('#inicio-actions');
+        if (actions) {
+            if (selected) actions.dataset.selected = selected;
+            else delete actions.dataset.selected;
+        }
 
         if (!animate || reduceMotion.matches || typeof Element === 'undefined' || !Element.prototype.animate) return;
         cards.forEach((card) => {

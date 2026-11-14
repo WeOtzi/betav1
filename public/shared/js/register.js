@@ -4896,7 +4896,11 @@ async function resumeArtistAfterEmailConfirmation() {
     if (!session) {
         if (!confirmed) return false;
         // El link no abrió sesión (otro navegador o link vencido): al login.
-        window.location.href = appUrl('/artist/login?confirmado=1');
+        // ── acceso (ACC-17): con #error=…otp_expired el login muestra "El link
+        // venció o ya se usó" y ofrece reenviar la confirmación.
+        const linkError = EC && typeof EC.readAuthLinkError === 'function' ? EC.readAuthLinkError({ clean: false }) : null;
+        const pendingEmail = pending && pending.email ? '&email=' + encodeURIComponent(pending.email) : '';
+        window.location.href = appUrl('/artist/login?confirmado=1' + (linkError ? '&enlace=vencido' : '') + pendingEmail);
         return true;
     }
     const sameAccount = pending && (pending.userId === session.user.id ||
@@ -5142,20 +5146,10 @@ async function submitFormNow() {
                 clearRegistrationDraft();
                 clearRegistrationDraftContext();
                 clearInstagramSignupFlag();
-                sendArtistRegistrationCompletedEvent({
-                    email: formState.data.email,
-                    username,
-                    password: formState.data.signup_password || null,
-                    user_id: finalizeData.user_id,
-                    registration_status: finalizeData.registration_status || 'pendiente de validacion',
-                    name: fullNameCapitalized,
-                    artistic_name: formState.data.artistic_name,
-                    city: registrationCity || null,
-                    country: registrationCountry || null,
-                    email_confirmation_required: true,
-                    dashboard_url: finalizeData.dashboard_url || (window.location.origin + appUrl(authUrls.dashboard)),
-                    login_url: finalizeData.login_url || (window.location.origin + appUrl(authUrls.registerClosedBeta))
-                });
+                // ── acceso (ACC-04): sin sesión no se puede pedir la bienvenida
+                // (el servidor responde 401). Sale al entrar al panel con la
+                // cuenta ya confirmada: POST /api/account/welcome (wo-welcome.js),
+                // idempotente por usuario, en este o en otro dispositivo.
                 await finishRegistrationWaitScreen(waitStartedAt);
                 btnNext.disabled = false;
                 renderSuccessScreen(postRegistrationUrl);

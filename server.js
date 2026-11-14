@@ -5614,7 +5614,10 @@ async function createArtistAuthUser({ email, password, fullName, username, draft
             email,
             password,
             ...emailConfirmation.adminCreateConfirmFields(confirmationRequired),
-            app_metadata: { qa_unverified_email: true, registration_draft_id: draftId },
+            // ── acceso (ACC-07): la marca solo aplica a cuentas autoconfirmadas
+            // sin verificar el email. Con "Confirm email" activo, la cuenta se
+            // confirma por el link y queda verificada como cualquier otra.
+            app_metadata: { registration_draft_id: draftId, ...(confirmationRequired ? {} : { qa_unverified_email: true }) },
             user_metadata: {
                 display_name: fullName || 'Artista',
                 full_name: fullName || null,
@@ -7032,6 +7035,8 @@ app.post('/api/privacy/cookie-consent', async (req, res) => {
     }
 });
 // ── fin privacidad ──
+
+require('./lib/routes/acceso').register(app); // ── acceso: bienvenida idempotente y Términos del cliente
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {
