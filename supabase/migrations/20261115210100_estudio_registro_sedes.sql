@@ -18,6 +18,7 @@ begin;
 create or replace function public.save_studio_location(p_studio_id uuid, p_location_id uuid, p_location jsonb)
 returns public.studio_locations
 language plpgsql
+security definer
 set search_path to 'public', 'pg_temp'
 as $function$
 DECLARE
@@ -125,5 +126,11 @@ as $function$
          case when pg_catalog.length(coalesce(p_instagram, '')) <= 200 then p_instagram end) m
   join public.studios s on s.id = m.studio_id;
 $function$;
+
+-- save_studio_location queda SECURITY DEFINER (como la dejó 20261115200100): con los
+-- privilegios por columna de studios, el SELECT * … FOR UPDATE del cuerpo da 42501 si
+-- corre como invoker. El cuerpo ya exige v_studio.user_id = auth.uid() antes de escribir.
+revoke all on function public.save_studio_location(uuid, uuid, jsonb) from public, anon;
+grant execute on function public.save_studio_location(uuid, uuid, jsonb) to authenticated, service_role;
 
 commit;

@@ -2,12 +2,16 @@
 -- definiciones vivas previas (pg_get_functiondef al 15 nov 2026) de
 -- public.save_studio_location (geocoded_at = now() siempre) y
 -- public.find_studio_matches (sin artist_created).
+-- save_studio_location se restaura SECURITY DEFINER: si 20261115200100 sigue
+-- aplicada, como invoker su SELECT * sobre studios daría 42501. La reversa de
+-- 20261115200100 es la que la devuelve a invoker.
 
 begin;
 
 create or replace function public.save_studio_location(p_studio_id uuid, p_location_id uuid, p_location jsonb)
 returns public.studio_locations
 language plpgsql
+security definer
 set search_path to 'public', 'pg_temp'
 as $function$
 DECLARE

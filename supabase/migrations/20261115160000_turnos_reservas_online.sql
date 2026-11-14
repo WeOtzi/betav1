@@ -554,13 +554,15 @@ declare
   v_artist uuid;
   v_end timestamptz;
 begin
-  if new.status = 'cancelled' then
+  -- Una sesión cancelada, realizada o ausente no reserva agenda: marcarla hecha
+  -- antes de su hora (session_date = now()) no puede chocar (RLS-SESS-OVERLAP-04).
+  if new.status in ('cancelled', 'completed', 'no_show') then
     return new;
   end if;
   if tg_op = 'UPDATE'
      and new.session_date is not distinct from old.session_date
      and new.duration_hours is not distinct from old.duration_hours
-     and old.status <> 'cancelled' then
+     and old.status not in ('cancelled', 'completed', 'no_show') then
     return new;
   end if;
   v_end := new.session_date + coalesce(nullif(new.duration_hours, 0), 1)::double precision * interval '1 hour';
@@ -889,7 +891,10 @@ begin
      set status = 'released', released_reason = 'quote_' || new.quote_status
    where quotation_id = new.id and status in ('pending', 'expired');
   -- El turno confirmado se libera cancelando su sesión futura (el trigger de
-  -- quotation_sessions marca el apartado como liberado).
+  -- quotation_sessions marca el apartado como liberado). Mismo criterio que
+  -- CAL-12 (private.quotation_closed_cancel_sessions, 20261115150000), que
+  -- normalmente corre antes por orden alfabético; este bloque es el respaldo
+  -- si gcal se revierte (RLS-TRG-DUP-02).
   update public.quotation_sessions s
      set status = 'cancelled'
     from public.artist_booking_holds h
@@ -897,7 +902,7 @@ begin
      and h.status = 'confirmed'
      and h.session_id = s.id
      and s.status in ('scheduled', 'rescheduled')
-     and s.session_date > pg_catalog.now();
+     and s.session_date >= pg_catalog.now();
   update public.artist_booking_holds
      set status = 'released', released_reason = 'quote_' || new.quote_status
    where quotation_id = new.id and status = 'confirmed' and session_id is null;
