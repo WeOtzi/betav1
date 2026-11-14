@@ -120,6 +120,7 @@ async function identifyUser(userId, lookup) {
 async function inboxContext(user, payload, base, lookup, deps) {
     if (!user) return fail(401, 'Iniciá sesión para enviar esta notificación.');
     if (!payload.message_id) return fail(400, 'Falta el mensaje asociado al correo.');
+    if (!/^[0-9a-f-]{36}$/i.test(String(payload.message_id))) return fail(400, 'Mensaje no válido.');
     const message = await lookup('inbox_messages', { id: payload.message_id, sender_user_id: user.id });
     if (!message) return fail(409, 'Guardá el mensaje antes de enviar la notificación.');
     const thread = await lookup('inbox_threads', { id: message.thread_id });

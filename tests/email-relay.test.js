@@ -156,7 +156,7 @@ test('EM-N3: las preferencias del cliente se respetan (y el artista sigue recibi
 
 test('inbox: avisa al otro participante con ventana de 15 min y no si ya leyó', async () => {
     const tables = {
-        inbox_messages: { id: 'msg-1', thread_id: 'th-1', sender_user_id: 'artist-1', body: 'Hola <b>Estudio</b>', created_at: '2026-11-14T12:00:00Z' },
+        inbox_messages: { id: '4a1f2c3d-5e6f-4a7b-8c9d-0e1f2a3b4c5d', thread_id: 'th-1', sender_user_id: 'artist-1', body: 'Hola <b>Estudio</b>', created_at: '2026-11-14T12:00:00Z' },
         inbox_threads: { id: 'th-1', artist_user_id: 'artist-1', counterparty_user_id: 'studio-owner', subject: 'Guest spot' },
         artists_db: null, clients_db: null,
         studios: { user_id: 'studio-owner', email: 'estudio@example.com', name: 'Estudio Norte' }
@@ -172,7 +172,7 @@ test('inbox: avisa al otro participante con ventana de 15 min y no si ya leyó',
         },
         listParticipants: async () => [{ user_id: 'artist-1' }, { user_id: 'studio-owner', last_read_at: lastRead }]
     };
-    const ctx = await resolveEmailContext({ headers: {} }, 'inbox_message_received', { message_id: 'msg-1' }, deps);
+    const ctx = await resolveEmailContext({ headers: {} }, 'inbox_message_received', { message_id: '4a1f2c3d-5e6f-4a7b-8c9d-0e1f2a3b4c5d' }, deps);
     assert.equal(ctx.ok, true, ctx.error);
     assert.equal(ctx.payload.recipient_email, 'estudio@example.com');
     assert.equal(ctx.payload.recipient_role, 'studio');
@@ -182,8 +182,13 @@ test('inbox: avisa al otro participante con ventana de 15 min y no si ya leyó',
     assert.equal(await ctx.defer.stillPending(), true);
     lastRead = '2026-11-14T12:05:00Z';
     assert.equal(await ctx.defer.stillPending(), false);
-    const stranger = await resolveEmailContext({ headers: {} }, 'inbox_message_received', { message_id: 'msg-1' }, { ...deps, resolveUser: async () => ({ id: 'otro' }) });
+    const stranger = await resolveEmailContext({ headers: {} }, 'inbox_message_received', { message_id: '4a1f2c3d-5e6f-4a7b-8c9d-0e1f2a3b4c5d' }, { ...deps, resolveUser: async () => ({ id: 'otro' }) });
     assert.equal(stranger.ok, false);
+    // message_id con forma de UUID antes de cualquier lectura.
+    const reads = [];
+    const bad = await resolveEmailContext({ headers: {} }, 'inbox_message_received', { message_id: "1' or 1=1" }, { ...deps, read: async (...args) => { reads.push(args); return null; } });
+    assert.equal(bad.status, 400);
+    assert.equal(reads.filter(([table]) => table === 'inbox_messages').length, 0);
 });
 
 test('cierre por el cliente: resumen a ambos + pedido de reseña, solo si está completada', async () => {
@@ -237,6 +242,35 @@ test('recordatorio 24 h: busca la ventana 23-25 h y envía con clave por sesión
     assert.deepEqual(w, { from: '2026-11-14T23:00:00.000Z', to: '2026-11-15T01:00:00.000Z' });
     assert.equal(sessionReminders.intervalFromEnv({ SESSION_REMINDERS_JOB: 'off' }), 0);
     assert.equal(sessionReminders.intervalFromEnv({}), 30 * 60 * 1000);
+    // Cotizaciones rechazadas por cualquiera de las partes no reciben recordatorio.
+    for (const status of ['client_rejected', 'artist_rejected', 'cancelled', 'expired']) {
+        const none = [];
+        const q = fakeQuery({
+            quotation_sessions: [{ id: 's-2', quotation_id: 10, session_number: 1, session_date: '2026-11-15T14:00:00Z', status: 'scheduled' }],
+            quotations_db: [{ id: 10, quote_id: 'WO-10', quote_status: status, client_email: 'c@example.com', artist_id: 'a-1' }],
+            artists_db: [{ user_id: 'a-1', email: 'a@example.com', name: 'Mateo' }]
+        });
+        const out = await sessionReminders.dispatchSessionReminders({ query: q, sendEmail: async (...args) => { none.push(args); return { ok: true }; },
+            baseUrl: 'https://beta.weotzi.com', now: Date.parse('2026-11-14T14:30:00Z') });
+        assert.equal(none.length, 0, status);
+        assert.equal(out.skipped, 1, status);
+    }
+});
+
+test('resolveRequestUser: un fallo de Auth no se cachea; un usuario válido sí', async () => {
+    const token = 'Bearer tok-' + Date.now();
+    let calls = 0;
+    const flaky = async () => { calls += 1; return calls === 1 ? null : { id: 'u-1' }; };
+    assert.equal(await routes.resolveRequestUser({ headers: { authorization: token } }, flaky), null);
+    assert.deepEqual(await routes.resolveRequestUser({ headers: { authorization: token } }, flaky), { id: 'u-1' });
+    assert.deepEqual(await routes.resolveRequestUser({ headers: { authorization: token } }, flaky), { id: 'u-1' });
+    assert.equal(calls, 2, 'el segundo pedido reintenta; el tercero sale de la caché');
+});
+
+test('disputa: la copia de soporte lleva al panel de soporte', () => {
+    const { renderEmail } = require('../lib/email-render');
+    const out = renderEmail('dispute_artist_response', fixtureFor('dispute_artist_response'), { role: 'support' });
+    assert.equal(out.cta.url, 'https://beta.weotzi.com/support/dashboard');
 });
 
 test('CC-19: el JSON público no expone URLs de webhooks', () => {
