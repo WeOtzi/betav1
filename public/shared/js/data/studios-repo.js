@@ -156,6 +156,13 @@
             return from('studios').select(columns).eq('id', studioId).eq('user_id', userId).maybeSingle();
         },
 
+        // ¿El estudio tiene dueño? Solo devuelve el id (nunca el user_id): el
+        // perfil público lo usa para mostrar "Soy artista: quiero sumarme"
+        // (roster ROSTER-14). .maybeSingle(): data null = ficha sin dueño.
+        hasOwner(studioId) {
+            return from('studios').select('id').eq('id', studioId).not('user_id', 'is', null).maybeSingle();
+        },
+
         // Estudios que opera la cuenta autenticada: dueño u otro rol con acceso
         // al panel (manager activo). RPC list_my_studio_access (20261113101000).
         // Filas: { studio_id, access: 'owner'|'manager', name, slug, logo_image }.

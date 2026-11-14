@@ -139,6 +139,11 @@
         }).join('');
     }
 
+    function joinStudioUrl(studioId) {
+        const base = root.WEOTZI_BASE_PATH ? String(root.WEOTZI_BASE_PATH).replace(/\/$/, '') : '';
+        return base + '/artist/invitations?estudio=' + encodeURIComponent(studioId);
+    }
+
     function linksHtml(studio, flags) {
         const s = studio || {};
         const f = flags || {};
@@ -151,7 +156,10 @@
             ['#resenas', 'Reseñas'],
             igUrl(s.instagram) ? [igUrl(s.instagram), 'Instagram', false, true] : null,
             safeUrl(s.website) ? [safeUrl(s.website), 'Sitio web', false, true] : null,
-            waUrl(s.whatsapp) ? [waUrl(s.whatsapp), 'WhatsApp', false, true] : null
+            waUrl(s.whatsapp) ? [waUrl(s.whatsapp), 'WhatsApp', false, true] : null,
+            // ── roster (ROSTER-14): un artista pide sumarse desde su cuenta (si no
+            // inició sesión, el login lo trae de vuelta). Solo estudios con dueño.
+            f.hasOwner && s.id ? [joinStudioUrl(s.id), 'Soy artista: quiero sumarme'] : null
         ].filter(Boolean);
         return items.map(([href, label, primary, external]) => '<a class="wo-btn ' + (primary ? 'wo-btn--primary' : 'wo-btn--secondary') + '" href="' + esc(href) + '"'
             + (external ? ' target="_blank" rel="noopener noreferrer"' : '') + '>' + esc(label) + '</a>').join('');
@@ -397,12 +405,18 @@
 
         let hasBrands = false;
         try { hasBrands = await renderBrands(studio.id); } catch (err) { console.warn('[studio-profile] marcas:', err && err.message); }
+        let hasOwner = false;
+        try {
+            const owned = D.Studios.hasOwner ? await D.Studios.hasOwner(studio.id) : null;
+            hasOwner = !!(owned && owned.data);
+        } catch (err) { console.warn('[studio-profile] dueño:', err && err.message); }
         const links = $('sp-links');
         if (links) links.innerHTML = linksHtml(studio, {
             hasTeam: !preparing && memberships.length > 0,
             hasLocations: locations.length > 0,
             hasPhotos: !preparing && photos(studio).length > 0,
-            hasBrands
+            hasBrands,
+            hasOwner
         });
 
         renderMap(locations).catch(err => console.warn('[studio-profile] mapa:', err && err.message));
@@ -439,6 +453,7 @@
         locationsHtml,
         galleryHtml,
         linksHtml,
+        joinStudioUrl,
         aboutRows,
         preparingRows,
         isPreparing,

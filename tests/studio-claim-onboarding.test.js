@@ -74,11 +74,22 @@ function harness(options = {}) {
             },
             signOut: async () => { calls.push(['signOut']); return {}; }
         },
-        rpc: async (name, args) => {
+        // Como supabase-js: rpc() devuelve un builder "thenable" (studios-repo
+        // encadena .select().eq().maybeSingle() sobre get_my_studio, pii-studios).
+        rpc: (name, args) => {
             calls.push(['rpc', name, args]);
-            const result = rpcResults[name];
-            if (typeof result === 'function') return result(args);
-            return result || { data: null, error: MISSING_FN };
+            const run = () => {
+                const result = rpcResults[name];
+                if (typeof result === 'function') return result(args);
+                return result || { data: null, error: MISSING_FN };
+            };
+            const builder = {
+                select() { return builder; },
+                eq() { return builder; },
+                maybeSingle() { return Promise.resolve().then(run); },
+                then(resolve, reject) { return Promise.resolve().then(run).then(resolve, reject); }
+            };
+            return builder;
         }
     };
     function from(table) {

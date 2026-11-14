@@ -470,9 +470,14 @@ test('panel de soporte: pestaña ESTUDIOS con la misma cola (endpoint /api/suppo
 });
 
 test('sello de verificado donde se listan estudios (marketplace y mapa)', () => {
-    const mk = read('public/shared/js/marketplace.js');
-    assert.match(mk, /studio\.is_verified === true \? '<span class="mk-studio-verified"/);
-    assert.match(read('public/shared/css/marketplace-ds.css'), /\.mk-studio-verified\{/);
+    // Integración (marketplace): la card de estudio usa el mismo sello que la de
+    // artista (verifiedBadge → .mk-card-verified), solo con is_verified === true.
+    const mk = read('public/shared/js/marketplace.js').replace(/\r\n/g, '\n');
+    const card =mk.slice(mk.indexOf('function studioCardHtml('), mk.indexOf('\n}\n', mk.indexOf('function studioCardHtml(')));
+    assert.match(card, /const verified = studio\.is_verified === true;/);
+    assert.match(card, /\$\{verified \? verifiedBadge\('Estudio verificado'\) : ''\}/);
+    assert.match(mk, /function verifiedBadge\(label\) \{\s*\n\s*return `<span class="mk-card-verified" title="\$\{escapeHtml\(label\)\}">/);
+    assert.match(read('public/shared/css/marketplace-ds.css'), /\.mk-card-verified\{/);
     assert.match(read('public/shared/js/explore-map.js'), /s\.is_verified \? '<i data-wo-icon="check" class="pin-verified"/);
     assert.match(read('public/shared/js/data/studios-repo.js'), /studios:studio_id\(id, slug, name, tagline, cover_image, instagram, website, is_verified\)/);
 });

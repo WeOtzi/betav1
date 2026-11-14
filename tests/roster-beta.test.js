@@ -453,8 +453,16 @@ test('artista: solicitudes enviadas con Retirar, "Quiero sumarme" y avisos al es
     assert.match(studio, /Quiero sumarme/);
     assert.match(studio, /requestMembership\(\{/);
     assert.match(studio, /notifyStudio\('membership_request_created', membershipId\)/);
+    // Integración (perfil de verif-estudio, sin user_id en el select público):
+    // el botón sale de linksHtml solo si Studios.hasOwner confirma un dueño.
     const profile = read('public', 'shared', 'js', 'studio-profile.js');
-    assert.match(profile, /studio\.user_id \? `<a class="studio-btn" href="\$\{escapeAttr\(joinStudioUrl\(studio\.id\)\)\}">/);
+    const sp = require('../public/shared/js/studio-profile.js');
+    assert.equal(sp.joinStudioUrl('a b'), '/artist/invitations?estudio=a%20b');
+    const owned = sp.linksHtml({ id: '<x>' }, { hasOwner: true });
+    assert.match(owned, /href="\/artist\/invitations\?estudio=%3Cx%3E"[^>]*>Soy artista: quiero sumarme<\/a>/);
+    assert.doesNotMatch(sp.linksHtml({ id: 'x' }, {}), /quiero sumarme/);
+    assert.match(profile, /hasOwner = !!\(owned && owned\.data\);/);
+    assert.match(read('public', 'shared', 'js', 'data', 'studios-repo.js'), /hasOwner\(studioId\) \{\s*\n\s*return from\('studios'\)\.select\('id'\)\.eq\('id', studioId\)\.not\('user_id', 'is', null\)\.maybeSingle\(\);/);
     const account = read('public', 'shared', 'js', 'artist-account.js');
     assert.match(account, /requestMembership\(\{ studioId, role: 'resident' \}\)/);
     const legacyDash = read('public', 'shared', 'js', 'dashboard.js');
