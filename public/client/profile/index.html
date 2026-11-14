@@ -15,6 +15,8 @@
     <script src="/shared/js/store-entry.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
+    <script src="/shared/js/wo-consent.js" defer></script>
 </head>
 <body class="wo-app">
 
@@ -142,10 +144,10 @@
                         </div>
                     </form>
 
-                    <div class="cpa-danger">
+                    <!-- borrado (ronda 3c): solicitud de baja gestionada por soporte (account-deletion.js). -->
+                    <div class="cpa-danger" data-account-deletion="client" data-title-class="cpa-danger-title" data-text-class="cpa-danger-copy">
                         <p class="cpa-danger-title">Eliminar cuenta</p>
-                        <p class="cpa-danger-copy">Esta acción es permanente: se eliminan tu perfil, tus cotizaciones y todo tu historial en We Ötzi. Por ahora la gestiona el equipo de soporte.</p>
-                        <a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard" href="mailto:clientes@weotzi.com?subject=Eliminar%20mi%20cuenta">Escribir a soporte →</a>
+                        <p class="cpa-danger-copy">Cargando…</p>
                     </div>
                 </section>
 
@@ -301,6 +303,8 @@
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
     <script src="/shared/js/data/account-repo.js"></script>
+    <script src="/shared/js/data/account-deletion-repo.js?v=20261113-borrado"></script>
+    <script src="/shared/js/account-deletion.js?v=20261113-borrado"></script>
     <script src="/shared/js/reviews.js"></script>
     <script src="/shared/js/client-profile.js"></script>
 </body>

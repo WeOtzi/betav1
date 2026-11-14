@@ -247,6 +247,14 @@ async function sendViaN8N(eventId, payload, override = {}) {
         source: 'weotzi-app',
         data: payload || {}
     };
+    // Destinatario y variables de plantilla ya resueltos (mismo contrato que
+    // BillionMail): los flujos de n8n nuevos usan body.to / body.vars y los
+    // viejos siguen leyendo body.data.
+    try {
+        const recipients = eventMapping.resolveRecipients(eventId, payload || {});
+        if (recipients.length) body.to = recipients.join(', ');
+        body.vars = eventMapping.buildAttribs(eventId, payload || {});
+    } catch (_) {}
 
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);

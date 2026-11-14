@@ -298,6 +298,8 @@
     var legalLinks = studio
       ? '<button type="button" data-studio-document="Términos y condiciones">Términos y condiciones</button><button type="button" data-studio-document="Privacidad">Privacidad</button>'
       : '<a href="/legal/terms">Términos y condiciones</a><a href="/legal/privacy">Privacidad</a>';
+    // ── privacidad ── reabre el panel de wo-consent.js.
+    legalLinks += '<button type="button" data-wo-cookie-settings>Configuración de cookies</button>';
     return '<div class="wo-org wo-org-product-footer" data-figma-node="24:1817" data-figma-file="UmVbDewiAHkfLedTR5uyFj">' +
       '<footer class="wo-org-product-footer__surface" aria-label="Pie de página de We Ötzi">' +
       '<div class="wo-org-product-footer__inner">' +

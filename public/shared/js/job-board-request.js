@@ -95,6 +95,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupInspirationMenu();
     await loadConfig();
 
+    // ── confirmacion-email: publicación esperando la confirmación del email.
+    if (await resumeAfterEmailConfirmation()) {
+        loadGallery();
+        return;
+    }
+
     const draft = loadDraft();
     if (draft && draft.formData && Object.keys(draft.formData).length > 0) {
         renderResumePrompt();
@@ -1420,6 +1426,107 @@ window.switchAuthTab = function(tab) {
 };
 
 // ============================================
+// CONFIRMACIÓN DE EMAIL (── confirmacion-email ──)
+// ============================================
+// Con "Confirm email" activo, signUp devuelve session: null. La idea queda en
+// el borrador (localStorage) y las referencias en IndexedDB; al volver desde
+// el link de confirmación se retoma en la revisión, lista para publicar.
+
+const JB_CONFIRM_KEY = 'job-board';
+const JB_FILES_KEY = 'job-board-references';
+
+function jbConfirmRedirectUrl() {
+    const EC = window.WeotziEmailConfirm;
+    if (EC) return EC.redirectUrl('/job-board/request/', { confirmado: '1' });
+    return window.location.origin + '/job-board/request/?confirmado=1';
+}
+
+async function enterJBPendingConfirmation({ userId, email, name }) {
+    const EC = window.WeotziEmailConfirm;
+    view = 'review';
+    saveDraft();
+    if (EC) {
+        EC.savePending(JB_CONFIRM_KEY, { userId, email, name, sentAt: Date.now() });
+        await EC.stashFiles(JB_FILES_KEY, uploadedFiles);
+    }
+    renderJBPendingConfirmation();
+}
+
+function renderJBPendingConfirmation() {
+    const EC = window.WeotziEmailConfirm;
+    const container = document.getElementById('jbrq-view');
+    const pending = EC ? EC.readPending(JB_CONFIRM_KEY) : null;
+    if (!container || !EC || !pending) return false;
+    setInspirationChrome(false);
+    const stepper = document.getElementById('jbrq-stepper');
+    if (stepper) stepper.hidden = true;
+    EC.renderPending(container, {
+        email: pending.email,
+        sentAt: pending.sentAt,
+        client: _supabase,
+        redirectTo: jbConfirmRedirectUrl(),
+        title: 'Revisá tu email para publicar tu idea',
+        note: 'Tu idea y tus referencias quedaron guardadas en este navegador. Cuando abras el link, la retomás lista para publicar.',
+        changeEmailMode: 'callback',
+        onChangeEmail: () => {
+            // La cuenta anterior queda sin confirmar; la idea sigue en el borrador.
+            EC.clearPending(JB_CONFIRM_KEY);
+            view = 'auth';
+            renderView();
+            const input = document.getElementById('jb-reg-email');
+            if (input) { input.value = ''; input.focus(); }
+            const nameInput = document.getElementById('jb-reg-name');
+            if (nameInput && pending.name) nameInput.value = pending.name;
+            showAuthMessage('jb-reg-message', 'Escribí el email correcto para crear tu cuenta. Tu idea sigue guardada.', 'info');
+        }
+    });
+    return true;
+}
+
+async function resumeAfterEmailConfirmation() {
+    const EC = window.WeotziEmailConfirm;
+    const pending = EC ? EC.readPending(JB_CONFIRM_KEY) : null;
+    const client = _supabase || window.ConfigManager?.getSupabaseClient?.() || window._supabase || null;
+    if (!pending || !client) return false;
+    let session = null;
+    try {
+        const { data } = await client.auth.getSession();
+        session = data && data.session;
+    } catch (_) { session = null; }
+
+    const sameAccount = session && session.user && (
+        session.user.id === pending.userId ||
+        String(session.user.email || '').toLowerCase() === String(pending.email || '').toLowerCase());
+    if (!sameAccount) return renderJBPendingConfirmation();
+
+    const draft = loadDraft();
+    formData = (draft && draft.formData) || formData || {};
+    const files = await EC.takeFiles(JB_FILES_KEY);
+    if (files.length) uploadedFiles = files.slice(0, MAX_FILES);
+    formData._user_id = session.user.id;
+    formData._client_email = session.user.email || pending.email;
+    formData._client_name = pending.name || session.user.user_metadata?.full_name || '';
+    EC.clearPending(JB_CONFIRM_KEY);
+    EC.clearFiles(JB_FILES_KEY);
+
+    if (window.ConfigManager && typeof window.ConfigManager.sendN8NEvent === 'function') {
+        window.ConfigManager.sendN8NEvent('client_registration_completed', {
+            email: formData._client_email,
+            user_id: session.user.id,
+            full_name: formData._client_name,
+            source: 'job_board',
+            dashboard_url: window.location.origin + '/client/dashboard'
+        }).catch(() => {});
+    }
+
+    view = 'review';
+    saveDraft();
+    renderView();
+    showFormNotice('Tu email está confirmado. Revisá tu idea y publicala.');
+    return true;
+}
+
+// ============================================
 // AUTH HANDLERS (cableado legacy preservado)
 // ============================================
 
@@ -1463,11 +1570,20 @@ window.handleJBRegister = async function() {
                     full_name: name,
                     user_type: 'client'
                 },
-                emailRedirectTo: window.location.origin + '/client/dashboard'
+                emailRedirectTo: jbConfirmRedirectUrl()
             }
         });
 
         if (authError) throw authError;
+        if (authData.user && Array.isArray(authData.user.identities) && authData.user.identities.length === 0) {
+            throw new Error('User already registered');
+        }
+
+        // ── confirmacion-email: sin sesión = falta confirmar. No se asume el modo.
+        if (authData.user && !authData.session) {
+            await enterJBPendingConfirmation({ userId: authData.user.id, email, name });
+            return;
+        }
 
         if (authData.user) {
             // Insert client profile
@@ -1588,6 +1704,15 @@ window.handleJBLogin = async function() {
         console.error('Login error:', error);
         btn.disabled = false;
         btn.textContent = 'Iniciar sesión y publicar';
+
+        const EC = window.WeotziEmailConfirm;
+        const loginMsg = document.getElementById('jb-login-message');
+        if (EC && loginMsg && EC.isEmailNotConfirmedError(error)) {
+            saveDraft();
+            loginMsg.className = 'jbrq-msg';
+            EC.renderLoginNotice(loginMsg, { email, client: _supabase, redirectTo: jbConfirmRedirectUrl() });
+            return;
+        }
 
         let errorMessage = 'Error al iniciar sesión.';
         if (error.message?.includes('Invalid login credentials')) {

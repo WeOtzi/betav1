@@ -1,4 +1,15 @@
 {
+  "account-deletion": {
+    "file": "templates/email/billionmail/account-deletion.html",
+    "variables": [
+      "user_name",
+      "status_title",
+      "status_detail",
+      "support_note",
+      "request_reference",
+      "account_url"
+    ]
+  },
   "admin-new-quotation": {
     "file": "templates/email/billionmail/admin-new-quotation.html",
     "variables": [

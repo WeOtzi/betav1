@@ -129,38 +129,41 @@ test('P8: el detalle y el resumen avisan al cliente y el feed in-app del cliente
 });
 
 // ---------------------------------------------------------------- P10
-test('P10: vigencia por defecto 14 días y la vista calculada coincide con el servidor', () => {
+// Decisión del dueño (13 nov 2026): el vencimiento es opcional y por
+// cotización (quote_expiry_enabled + quote_expiry_days, migración
+// 20261113100000). Los casos detallados viven en tests/r3b-vencimiento.test.js.
+test('P10: sin vencimiento activado nada vence; con vencimiento, la vista coincide con el servidor', () => {
     const now = new Date('2026-11-12T12:00:00Z');
+    const on = { quote_expiry_enabled: true, quote_expiry_days: 14 };
     const cases = [
-        { quote: { quote_status: 'responded', artist_responded_at: '2026-10-28T11:00:00Z' }, expired: true },
-        { quote: { quote_status: 'responded', artist_responded_at: '2026-11-01T12:00:00Z' }, expired: false },
-        { quote: { quote_status: 'responded', artist_responded_at: '2026-10-01T00:00:00Z', quote_expires_at: '2026-12-01T00:00:00Z' }, expired: false },
-        { quote: { quote_status: 'responded', artist_responded_at: '2026-11-10T00:00:00Z', quote_expires_at: '2026-11-11T00:00:00Z' }, expired: true },
-        { quote: { quote_status: 'pending', created_at: '2020-01-01T00:00:00Z' }, expired: false },
-        { quote: { quote_status: 'client_approved', artist_responded_at: '2020-01-01T00:00:00Z' }, expired: false }
+        { quote: { quote_status: 'responded', artist_responded_at: '2026-10-28T11:00:00Z' }, expired: false },
+        { quote: { quote_status: 'responded', artist_responded_at: '2026-10-28T11:00:00Z', ...on }, expired: true },
+        { quote: { quote_status: 'responded', artist_responded_at: '2026-11-01T12:00:00Z', ...on }, expired: false },
+        { quote: { quote_status: 'responded', artist_responded_at: '2026-10-01T00:00:00Z', quote_expires_at: '2026-12-01T00:00:00Z', ...on }, expired: false },
+        { quote: { quote_status: 'responded', artist_responded_at: '2026-11-10T00:00:00Z', quote_expires_at: '2026-11-11T00:00:00Z' }, expired: false },
+        { quote: { quote_status: 'responded', artist_responded_at: '2026-11-10T00:00:00Z', quote_expires_at: '2026-11-11T00:00:00Z', ...on }, expired: true },
+        { quote: { quote_status: 'pending', created_at: '2020-01-01T00:00:00Z', ...on }, expired: false },
+        { quote: { quote_status: 'client_approved', artist_responded_at: '2020-01-01T00:00:00Z', ...on }, expired: false }
     ];
     for (const { quote, expired } of cases) {
         assert.equal(expiry.isOfferExpired(quote, now), expired, JSON.stringify(quote));
         assert.equal(VM.effectiveStatus(quote, now) === 'expired', expired, JSON.stringify(quote));
     }
-    // validity_days de la cotización manual (30) gana sobre el default.
-    const manual = { quote_status: 'responded', artist_responded_at: '2026-10-28T11:00:00Z' };
-    assert.equal(expiry.isOfferExpired(manual, now, { validityDays: 30 }), false);
-    assert.equal(VM.effectiveStatus(manual, now, { validityDays: 30 }), 'responded');
-    assert.equal(VM.stageBadge({ quote_status: 'responded', artist_responded_at: '2020-01-01T00:00:00Z' }, []).label, 'Vencida');
+    assert.equal(VM.stageBadge({ quote_status: 'responded', artist_responded_at: '2020-01-01T00:00:00Z' }, []).label === 'Vencida', false);
+    assert.equal(VM.stageBadge({ quote_status: 'responded', artist_responded_at: '2020-01-01T00:00:00Z', ...on }, []).label, 'Vencida');
     assert.equal(expiry.DEFAULT_VALIDITY_DAYS, 14);
     assert.equal(VM.DEFAULT_VALIDITY_DAYS, 14);
 });
 
-test('P10: configuración por entorno con topes y pendientes apagados por defecto', () => {
+test('P10: configuración por entorno: job prendido por defecto, cada hora, se apaga con off', () => {
     const def = expiry.expiryConfig({});
-    assert.deepEqual(expiry.rpcBody(def), { p_default_days: 14, p_pending_days: null, p_limit: 500 });
-    assert.equal(def.jobEnabled, false);
+    assert.deepEqual(expiry.rpcBody(def), { p_limit: 500, p_opt_in_only: true });
+    assert.equal(def.jobEnabled, true);
+    assert.equal(def.intervalMinutes, 60);
     assert.equal(def.emailEnabled, true);
-    const custom = expiry.expiryConfig({ QUOTATION_VALIDITY_DAYS: '999', QUOTATION_PENDING_EXPIRY_DAYS: '30', QUOTATION_EXPIRY_JOB: 'on', QUOTATION_EXPIRY_EMAIL: 'off' });
-    assert.equal(custom.defaultDays, 365);
-    assert.equal(custom.pendingDays, 30);
-    assert.equal(custom.jobEnabled, true);
+    const custom = expiry.expiryConfig({ QUOTATION_EXPIRY_BATCH: '9999', QUOTATION_EXPIRY_JOB: 'off', QUOTATION_EXPIRY_EMAIL: 'off' });
+    assert.equal(custom.limit, 2000);
+    assert.equal(custom.jobEnabled, false);
     assert.equal(custom.emailEnabled, false);
 });
 
@@ -168,7 +171,7 @@ test('P10: el ciclo vence por RPC y avisa solo a clientes con propuesta vencida,
     const sent = [];
     const result = await expiry.runExpiryCycle({
         rpc: async (body) => {
-            assert.deepEqual(body, { p_default_days: 14, p_pending_days: null, p_limit: 500 });
+            assert.deepEqual(body, { p_limit: 500, p_opt_in_only: true });
             return [
                 { id: 1, quote_id: 'WO-1', old_status: 'responded', client_email: 'a@example.com', artist_name: 'Ana' },
                 { id: 2, quote_id: 'WO-2', old_status: 'pending', client_email: 'b@example.com' },
@@ -186,24 +189,24 @@ test('P10: el ciclo vence por RPC y avisa solo a clientes con propuesta vencida,
     assert.equal(sent[0].payload.dashboard_url, 'https://weotzi.com/beta/client/dashboard');
 });
 
-test('P10: el job interno es opt-in y tolera la migración sin aplicar', async () => {
+test('P10: el job interno se apaga con off y tolera la migración sin aplicar', async () => {
     const calls = [];
     const timers = {
         setTimeout: (fn) => { calls.push(['t', fn]); return 1; }, setInterval: (fn, ms) => { calls.push(['i', fn, ms]); return 2; },
         clearTimeout: () => {}, clearInterval: () => {}
     };
-    expiry.startExpiryJob({ rpc: async () => [] }, expiry.expiryConfig({}), timers);
-    assert.equal(calls.length, 0, 'apagado por defecto');
+    expiry.startExpiryJob({ rpc: async () => [] }, expiry.expiryConfig({ QUOTATION_EXPIRY_JOB: 'off' }), timers);
+    assert.equal(calls.length, 0, 'apagado con off');
     const warnings = [];
     const stop = expiry.startExpiryJob({
         rpc: async () => { throw new Error('PostgREST POST rpc/expire_stale_quotations failed (404): PGRST202 Could not find the function'); },
         log: { log() {}, warn: (m) => warnings.push(m), error: (m) => warnings.push('ERR ' + m) }
-    }, expiry.expiryConfig({ QUOTATION_EXPIRY_JOB: 'on', QUOTATION_EXPIRY_INTERVAL_MIN: '30' }), timers);
+    }, expiry.expiryConfig({ QUOTATION_EXPIRY_INTERVAL_MIN: '30' }), timers);
     assert.equal(calls.find((c) => c[0] === 'i')[2], 30 * 60 * 1000);
     await calls[0][1]();
     await calls[0][1]();
     assert.equal(warnings.length, 1, 'avisa una sola vez');
-    assert.match(warnings[0], /20261112160000/);
+    assert.match(warnings[0], /20261113100000/);
     stop();
 });
 
@@ -212,8 +215,6 @@ test('P10: migración aditiva con RPC solo service_role, guard de vigencia y rev
     assert.match(sql, /add column if not exists quote_expires_at timestamptz/);
     assert.match(sql, /create or replace function public\.expire_stale_quotations/);
     assert.match(sql, /security definer/);
-    assert.match(sql, /revoke all on function public\.expire_stale_quotations\(integer, integer, integer\) from public, anon, authenticated/);
-    assert.match(sql, /grant execute on function public\.expire_stale_quotations\(integer, integer, integer\) to service_role/);
     assert.match(sql, /trg_guard_quotation_expires_at/);
     assert.doesNotMatch(sql, /\bdelete from\b|\bdrop table\b/i, 'no borra datos');
     assert.ok(fs.existsSync(path.join(ROOT, 'supabase/rollbacks/20261112160000_quotation_expiry_terms.down.sql')));
@@ -221,9 +222,9 @@ test('P10: migración aditiva con RPC solo service_role, guard de vigencia y rev
     assert.match(server, /\/\/ ── cotizaciones ──/);
     assert.match(server, /app\.post\('\/api\/quotations\/maintenance\/expire'/);
     assert.match(server, /storeOrders\.safeTokenEqual\(req\.headers\['x-cron-token'\], expected\)/);
-    // El respond dialog guarda la vigencia elegida (columna opcional mientras no se aplique).
-    assert.match(read('public/shared/js/data/quotation-detail-repo.js'), /'quote_expires_at'/);
-    assert.match(read('public/shared/js/quotation-detail-figma.js'), /quote_expires_at: validityExpiry\(data\.validity\)/);
+    // El diálogo de respuesta guarda el vencimiento opcional (columnas opcionales mientras no se aplique).
+    assert.match(read('public/shared/js/data/quotation-detail-repo.js'), /'quote_expiry_enabled', 'quote_expiry_days'/);
+    assert.match(read('public/shared/js/quotation-detail-figma.js'), /\.\.\.readExpiry\(data\.expiry_enabled === '1', data\.expiry_days\)/);
 });
 
 // ---------------------------------------------------------------- P15

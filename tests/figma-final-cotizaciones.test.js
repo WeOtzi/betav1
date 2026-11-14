@@ -176,7 +176,8 @@ test('client preview reproduces the empty Figma state (801:557)', () => {
     assert.deepEqual(p.items.map((i) => [i.qtyLine, i.total]), [['1 × $0', '$0']]);
     assert.equal(p.total, '$0');
     assert.equal(p.depositLine, 'Seña $0 · Saldo $0');
-    assert.equal(p.conditions, 'Vigencia: 14 días. La seña no es reembolsable. Reprogramaciones con 48 h de aviso.');
+    // 13 nov 2026: el vencimiento es opcional y arranca apagado.
+    assert.equal(p.conditions, 'Sin vencimiento. La seña no es reembolsable. Reprogramaciones con 48 h de aviso.');
 });
 
 test('client search covers name, email and phone; new clients are validated', () => {

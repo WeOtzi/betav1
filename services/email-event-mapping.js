@@ -30,6 +30,24 @@ function atHandle(value, fallback) {
     return handle ? `@${handle}` : fallback;
 }
 
+// ── borrado ── evento de baja de cuenta (misma plantilla para los 4 estados).
+function accountDeletionEvent(name, description) {
+    return {
+        name,
+        templateHint: 'account-deletion',
+        description,
+        recipient: p => p.email,
+        attribs: p => ({
+            user_name: p.user_name || '-',
+            status_title: p.status_title || 'actualizamos tu solicitud de baja',
+            status_detail: p.status_detail || '',
+            support_note: p.support_note || '-',
+            request_reference: p.request_reference || '-',
+            account_url: p.account_url || ''
+        })
+    };
+}
+
 const EVENTS = {
     studio_roster_invite: {
         name: 'Estudio: invitación al equipo',
@@ -311,6 +329,18 @@ const EVENTS = {
             dashboard_url: p.dashboard_url || ''
         })
     },
+    // ── borrado ── (ronda 3c) bajas de cuenta gestionadas por soporte. Server-only
+    // (services/email-request-context.js SERVER_ONLY_EVENTS); payload armado por
+    // lib/account-deletion.js buildEmailPayload(). Transaccionales: no se filtran
+    // por notification_prefs.
+    account_deletion_received: accountDeletionEvent('Cuenta: solicitud de baja recibida',
+        'Confirma al usuario (cliente, artista o estudio) que soporte recibió su pedido de baja y explica plazos.'),
+    account_deletion_approved: accountDeletionEvent('Cuenta: baja aprobada por soporte',
+        'Aviso cuando soporte aprueba la baja (sin bloqueos pendientes).'),
+    account_deletion_rejected: accountDeletionEvent('Cuenta: baja rechazada por soporte',
+        'Aviso cuando soporte rechaza la baja, con la nota de soporte.'),
+    account_deletion_completed: accountDeletionEvent('Cuenta: baja completada',
+        'Confirmación final: la cuenta fue eliminada.'),
     ambassador_status_updated: {
         name: 'Artista: estado embajador actualizado',
         templateHint: 'ambassador-updated',

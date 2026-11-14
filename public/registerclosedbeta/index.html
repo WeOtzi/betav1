@@ -9,20 +9,6 @@
          el navegador acepta movimiento; sin JS no se oculta nada. -->
     <script>try{if(!window.matchMedia||!window.matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('wo-motion-in')}catch(e){}</script>
 
-    <!-- Microsoft Clarity - Behavior Analytics -->
-    <!-- Activates only when window.CLARITY_PROJECT_ID is set to a real ID. -->
-    <script type="text/javascript">
-        (function(){
-            var id = window.CLARITY_PROJECT_ID;
-            if (!id || id === 'CLARITY_TRACKING_ID') return;
-            (function(c,l,a,r,i,t,y){
-                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-            })(window,document,"clarity","script",id);
-        })();
-    </script>
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -46,6 +32,8 @@
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
+    <script src="/shared/js/wo-consent.js" defer></script>
 </head>
 
 <body class="wo-app registerclosedbeta-page">
@@ -186,6 +174,7 @@
 <script src="/shared/js/artist-registration-progress.js"></script>
 <script src="/shared/js/instagram-import.js"></script>
 <script src="/shared/js/geocoder.js"></script>
+<script src="/shared/js/email-confirmation.js"></script>
 <script src="/shared/js/main.js?v=20261112-registro-review"></script>
 
 </body>

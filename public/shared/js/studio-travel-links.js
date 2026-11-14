@@ -17,7 +17,7 @@
         const auth = window.WeOtziStudioAuth;
         if (!auth || !D.Travel) return;
         studio = auth.getCurrent() || await auth.check();
-        if (!studio) return;
+        if (!studio || studio.access === 'manager') return; // el manager no gestiona Visitas
 
         document.addEventListener('click', event => {
             if (event.target.closest('.studio-dash-tab[data-tab="travel"]')) load();

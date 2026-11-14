@@ -279,3 +279,7 @@
 @media (prefers-reduced-motion: reduce) {
     .si-row, .si-side-item, .si-send { transition: none; }
 }
+
+/* Manager del estudio (20261113101000): solo Mensajes y Equipo → solicitudes de cambio.
+   La nav del producto es un web component que puede renderizar después del JS del panel. */
+body[data-studio-access="manager"] .studio-dash-tab[data-tab]:not([data-tab="mensajes"]):not([data-tab="roster"]) { display: none !important; }

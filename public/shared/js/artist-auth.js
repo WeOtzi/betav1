@@ -225,7 +225,9 @@
             const searchParams = new URLSearchParams();
             searchParams.set('select', artistSelect);
             searchParams.set('user_id', `eq.${session.user.id}`);
-            const path = `artists_db?${searchParams.toString()}`;
+            // pii-artistas: la fila propia completa (email, fecha de nacimiento...)
+            // sale de la RPC; artists_db tiene privilegios por columna.
+            const path = `rpc/get_my_artist_profile?${searchParams.toString()}`;
             const accessToken = session.access_token || anonKey;
             // Centraliza el GET crudo en la capa (WeotziData.restGet) cuando esta
             // disponible; en el entorno de tests (sin window.WeotziData) degrada
@@ -250,6 +252,18 @@
             console.warn('ArtistAuth: REST artist lookup failed', error);
             return null;
         }
+    }
+
+    // pii-artistas (20261113106000): ARTIST_PROGRESS_FIELDS incluye columnas
+    // privadas (email, birth_date, subscribed_newsletter...) que anon y
+    // authenticated ya no pueden leer de artists_db. La fila propia completa sale
+    // de la RPC get_my_artist_profile() (admite select/eq/maybeSingle). Clientes
+    // sin .rpc (stubs de tests) siguen por la tabla.
+    function ownArtistLookup(supabase, artistSelect, userId) {
+        if (supabase && typeof supabase.rpc === 'function') {
+            return supabase.rpc('get_my_artist_profile').select(artistSelect).eq('user_id', userId);
+        }
+        return supabase.from('artists_db').select(artistSelect).eq('user_id', userId);
     }
 
     function mergeArtistSelect(artistSelect) {
@@ -403,10 +417,7 @@
         let artistError = null;
 
         try {
-            const lookup = supabase
-                .from('artists_db')
-                .select(artistSelect)
-                .eq('user_id', currentUser.id);
+            const lookup = ownArtistLookup(supabase, artistSelect, currentUser.id);
 
             if (typeof lookup.maybeSingle === 'function') {
                 ({ data: artist, error: artistError } = await withTimeout(
@@ -432,10 +443,7 @@
             artistError = null;
             await delay(200);
             try {
-                const retryLookup = supabase
-                    .from('artists_db')
-                    .select(artistSelect)
-                    .eq('user_id', currentUser.id);
+                const retryLookup = ownArtistLookup(supabase, artistSelect, currentUser.id);
 
                 if (typeof retryLookup.maybeSingle === 'function') {
                     ({ data: artist, error: artistError } = await withTimeout(

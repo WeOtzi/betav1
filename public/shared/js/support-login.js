@@ -80,6 +80,23 @@ window.handleSupportLogin = async function(event) {
             password
         });
 
+        // ── confirmacion-email: cuenta sin confirmar → aviso con "Reenviar email".
+        const EC = window.WeotziEmailConfirm;
+        if (authError && EC && EC.isEmailNotConfirmedError(authError)) {
+            const box = document.getElementById('form-message');
+            if (box) {
+                box.className = '';
+                EC.renderLoginNotice(box, {
+                    email,
+                    client: _supabase,
+                    redirectTo: EC.redirectUrl('/support/login', { confirmado: '1' })
+                });
+            }
+            btn.classList.remove('loading');
+            btn.disabled = false;
+            return;
+        }
+
         if (authError) {
             throw new Error(authError.message === 'Invalid login credentials'
                 ? 'Email o contrasena incorrectos'

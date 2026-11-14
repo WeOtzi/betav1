@@ -258,6 +258,15 @@ body.aac-page{margin:0;background:var(--surface-page)}
 .av-sync-action{padding:0;border:0;background:none;font-family:var(--font-mono);font-size:11.5px;font-weight:var(--weight-bold);letter-spacing:0.1em;text-transform:uppercase;color:var(--text-heading);cursor:pointer}
 .av-sync-action:hover{color:var(--blue-400)}
 .av-sync-action.is-connected{cursor:pointer}
+/* gcal (ronda 3b): cuenta conectada, última sincronización y error. */
+.av-sync-action:focus-visible,.av-sync-link:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.av-sync-action:disabled{cursor:not-allowed;color:var(--text-muted)}
+.av-sync-detail,.av-sync-error{flex-basis:calc(100% - 32px);margin:0 0 0 32px;font-family:var(--font-body);font-size:12.5px;line-height:1.5}
+.av-sync-detail{color:var(--text-muted)}
+.av-sync-detail strong{color:var(--text-heading);font-weight:var(--weight-bold)}
+.av-sync-error{padding:8px 12px;background:var(--status-error-bg);color:var(--status-error-fg)}
+.av-sync-link{padding:0;border:0;background:none;font:inherit;color:var(--text-heading);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.av-sync-link:hover{color:var(--blue-400)}
 .av-travel{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-4);margin-top:var(--space-8);padding:21px 23px;background:var(--neutral-100);border:var(--border-hairline) solid var(--border-subtle)}
 .av-travel-copy{display:flex;flex-direction:column;gap:5px;max-width:32.5rem}
 .av-travel-copy strong{font-family:var(--font-body);font-size:14.5px;color:var(--text-heading)}

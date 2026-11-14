@@ -667,23 +667,12 @@ function getGeolocation() {
     }
 
     // Fallback: Use IP-based geolocation service
+    // ── privacidad ── sin respaldo por IP: antes se consultaba ipapi.co con la
+    // IP del navegador. Si el GPS no responde, se pide la ubicación a mano.
     async function tryIPGeolocation() {
-        try {
-            // Use ipapi.co for IP-based geolocation (free, no API key needed)
-            const response = await fetch('https://ipapi.co/json/');
-            if (!response.ok) throw new Error('IP geolocation failed');
-            const data = await response.json();
-            
-            if (data.latitude && data.longitude) {
-                await handleLocationSuccess(data.latitude, data.longitude);
-            } else {
-                throw new Error('No coordinates in IP response');
-            }
-        } catch (error) {
-            btn.classList.remove('loading');
-            hint.textContent = 'No se pudo obtener la ubicacion. Ingresala manualmente.';
-            hint.style.color = 'var(--primary-red)';
-        }
+        btn.classList.remove('loading');
+        hint.textContent = 'No se pudo obtener la ubicacion. Ingresala manualmente.';
+        hint.style.color = 'var(--primary-red)';
     }
 
     // Try browser geolocation first
@@ -1034,6 +1023,8 @@ function validateBirthDateSelects() {
 // ============================================
 
 async function initializeAuth() {
+    // ── confirmacion-email: vuelta desde el link de confirmación.
+    if (await resumeArtistAfterEmailConfirmation()) return;
     try {
         const requestedReturnTo = window.ArtistAuth?.getReturnTo(window.location.search, '') || '';
         const authUrls = window.ArtistAuth?.getRouteUrls(window.ConfigManager, requestedReturnTo) || {
@@ -4821,6 +4812,121 @@ function wait(ms) {
 }
 
 // La pantalla de éxito saluda con el nombre artístico y lleva al panel.
+// ============================================
+// ── confirmacion-email ── registro de artista sin sesión hasta confirmar
+// ============================================
+const ARTIST_CONFIRM_KEY = 'artist-register';
+const ARTIST_CONFIRM_FILES_KEY = 'artist-register-media';
+const ARTIST_CONFIRM_FIELDS = ['instagram_handle', 'ig_import_consent', 'work_type', 'studio_id', 'studio_name',
+    'address', 'city', 'country', 'location_city', 'location_country', 'artistic_name'];
+
+function artistConfirmRedirectUrl() {
+    const EC = window.WeotziEmailConfirm;
+    if (EC) return EC.redirectUrl('/register-artist/', { confirmado: '1' });
+    return window.location.origin + appUrl('/register-artist/?confirmado=1');
+}
+
+async function stashArtistPendingSetup(finalizeData, email) {
+    const EC = window.WeotziEmailConfirm;
+    if (!EC) return;
+    const media = getPortfolioMediaDraft();
+    const data = {};
+    ARTIST_CONFIRM_FIELDS.forEach((k) => {
+        if (formState.data[k] !== undefined) data[k] = formState.data[k];
+    });
+    EC.savePending(ARTIST_CONFIRM_KEY, {
+        userId: finalizeData.user_id,
+        email,
+        sentAt: Date.now(),
+        studioId: finalizeData.artist?.studio_id || formState.data.studio_id || null,
+        registrationCity: getRegistrationCity() || null,
+        data,
+        // Ítems de Instagram (sin File) y cantidad de archivos locales.
+        igItems: media.filter((it) => it.source === 'ig').map((it) => ({
+            id: it.id, source: 'ig', permalink: it.permalink || null, cdn_url: it.cdn_url || null,
+            kind: it.kind || 'image', caption: it.caption || '', timestamp: it.timestamp || null
+        })),
+        localKinds: media.filter((it) => it.source === 'local' && it.file).map((it) => it.kind || 'image')
+    });
+    await EC.stashFiles(ARTIST_CONFIRM_FILES_KEY, media.filter((it) => it.source === 'local' && it.file).map((it) => it.file));
+}
+
+function renderArtistEmailConfirmation(email) {
+    const EC = window.WeotziEmailConfirm;
+    const section = document.getElementById('ra-success');
+    if (!section) return;
+    const title = section.querySelector('.ra-success-title');
+    if (title) title.textContent = 'Tu perfil quedó enviado. Falta confirmar tu email.';
+    const sub = section.querySelector('.ra-success-sub');
+    if (sub) sub.textContent = 'Para entrar a tu panel, abrí el link que te enviamos. Tu galería y tu sede se terminan de guardar en ese momento.';
+    const cta = document.getElementById('ra-success-cta');
+    if (cta) cta.hidden = true;
+    let box = document.getElementById('ra-email-confirm');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'ra-email-confirm';
+        (cta && cta.parentNode ? cta.parentNode : section).insertBefore(box, cta || null);
+    }
+    if (!EC) {
+        box.textContent = 'Revisá tu email para confirmar la cuenta.';
+        return;
+    }
+    EC.renderPending(box, {
+        email,
+        client: _supabase,
+        redirectTo: artistConfirmRedirectUrl(),
+        title: 'Revisá tu email para confirmar la cuenta',
+        note: 'Abrí el link desde este navegador: así subimos las fotos que elegiste.',
+        focus: false
+    });
+}
+
+// Vuelta desde el link: con sesión, termina la galería y la sede guardadas y
+// sigue al panel. Devuelve true si se ocupó de la página.
+async function resumeArtistAfterEmailConfirmation() {
+    const EC = window.WeotziEmailConfirm;
+    const confirmed = new URLSearchParams(window.location.search || '').get('confirmado') === '1';
+    const pending = EC ? EC.readPending(ARTIST_CONFIRM_KEY) : null;
+    if (!confirmed && !pending) return false;
+    let session = null;
+    try {
+        const { data } = await _supabase.auth.getSession();
+        session = data && data.session;
+    } catch (_) { session = null; }
+    if (!session) {
+        if (!confirmed) return false;
+        // El link no abrió sesión (otro navegador o link vencido): al login.
+        window.location.href = appUrl('/artist/login?confirmado=1');
+        return true;
+    }
+    const sameAccount = pending && (pending.userId === session.user.id ||
+        String(pending.email || '').toLowerCase() === String(session.user.email || '').toLowerCase());
+    if (!sameAccount) {
+        if (!confirmed) return false;
+        redirectAfterRegistration(appUrl('/artist/dashboard'));
+        return true;
+    }
+    currentUser = session.user;
+    goToStep('saving');
+    try {
+        Object.assign(formState.data, pending.data || {});
+        const files = await EC.takeFiles(ARTIST_CONFIRM_FILES_KEY);
+        const local = files.map((file, i) => ({
+            id: 'confirm-local-' + i, source: 'local', file,
+            kind: (pending.localKinds && pending.localKinds[i]) || 'image'
+        }));
+        formState.data.portfolio_media_draft = (pending.igItems || []).concat(local);
+        await persistSelectedStudioLocation(pending.studioId);
+        await persistPortfolioMedia();
+    } catch (err) {
+        console.warn('[register] completar tras confirmar el email:', err);
+    }
+    EC.clearPending(ARTIST_CONFIRM_KEY);
+    EC.clearFiles(ARTIST_CONFIRM_FILES_KEY);
+    redirectAfterRegistration(appUrl('/artist/dashboard'));
+    return true;
+}
+
 function renderSuccessScreen(destinationUrl) {
     const nameEl = document.getElementById('ra-success-name');
     if (nameEl) nameEl.textContent = formState.data.artistic_name || 'artista';
@@ -5026,6 +5132,38 @@ async function submitFormNow() {
 
             const finalizeData = await finalizePreAuthRegistration(username);
             currentUser = { id: finalizeData.user_id, email: formState.data.email };
+
+            // ── confirmacion-email: con "Confirm email" activo el servidor deja
+            // la cuenta sin confirmar y envía el email. Supabase no abre sesión
+            // hasta confirmar, así que la galería y la sede se guardan en este
+            // navegador y se completan al volver del link.
+            if (finalizeData.email_confirmation_required) {
+                await stashArtistPendingSetup(finalizeData, newEmail);
+                clearRegistrationDraft();
+                clearRegistrationDraftContext();
+                clearInstagramSignupFlag();
+                sendArtistRegistrationCompletedEvent({
+                    email: formState.data.email,
+                    username,
+                    password: formState.data.signup_password || null,
+                    user_id: finalizeData.user_id,
+                    registration_status: finalizeData.registration_status || 'pendiente de validacion',
+                    name: fullNameCapitalized,
+                    artistic_name: formState.data.artistic_name,
+                    city: registrationCity || null,
+                    country: registrationCountry || null,
+                    email_confirmation_required: true,
+                    dashboard_url: finalizeData.dashboard_url || (window.location.origin + appUrl(authUrls.dashboard)),
+                    login_url: finalizeData.login_url || (window.location.origin + appUrl(authUrls.registerClosedBeta))
+                });
+                await finishRegistrationWaitScreen(waitStartedAt);
+                btnNext.disabled = false;
+                renderSuccessScreen(postRegistrationUrl);
+                renderStudioClaim(finalizeData.studio_claim_url, finalizeData.studio_claim_expires_at);
+                renderArtistEmailConfirmation(newEmail);
+                goToStep('success');
+                return;
+            }
 
             // The finalize endpoint creates the auth user server-side via the
             // admin API, which does NOT establish a browser session. We sign

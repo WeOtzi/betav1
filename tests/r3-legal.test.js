@@ -33,3 +33,24 @@ test('el mapa de Invitaciones carga Natural Earth 1:110m vendorizado', () => {
     assert.ok(topo.objects.countries && topo.objects.land);
     assert.ok(fs.existsSync(path.join(root, 'public/shared/geo/LICENSE-world-atlas.txt')));
 });
+
+test('términos y privacidad v1.0: aviso de revisión, versión, índice anclado y marcadores', () => {
+    const { TERMS_VERSION } = require('../lib/terms-acceptance');
+    assert.equal(TERMS_VERSION, '2026-11-13');
+    for (const slug of ['terms', 'privacy']) {
+        const html = read(`public/legal/${slug}/index.html`);
+        assert.match(html, /Versión 1\.0 · pendiente de revisión legal/);
+        assert.ok(html.includes(`<code>${TERMS_VERSION}</code>`), `${slug}: muestra la versión ${TERMS_VERSION}`);
+        assert.match(html, /<time datetime="2026-11-13">/);
+        assert.match(html, /class="legal-toc"/);
+        // Cada link del índice apunta a un id que existe en la página.
+        const anchors = [...html.matchAll(/<li><a href="#([a-z0-9-]+)">/g)].map((m) => m[1]);
+        assert.ok(anchors.length >= 10, `${slug}: índice con secciones`);
+        for (const id of anchors) assert.ok(html.includes(`id="${id}"`), `${slug}: falta #${id}`);
+        // Datos societarios como marcadores visibles, nunca inventados.
+        assert.match(html, /\[A COMPLETAR: razón social\]/);
+        assert.match(html, /mailto:artistas@weotzi\.com/);
+    }
+    const privacy = read('public/legal/privacy/index.html');
+    assert.match(privacy, /href="https:\/\/weotzi\.com\/privacy-policy\/"/);
+});

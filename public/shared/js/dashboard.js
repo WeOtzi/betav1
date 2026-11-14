@@ -468,7 +468,9 @@ async function fetchDashboardArtistViaRest(session) {
         url,
         anonKey,
         accessToken: session.access_token,
-        path: `artists_db?${params.toString()}`
+        // pii-artistas: DASHBOARD_SELECT trae columnas privadas (email, fecha de
+        // nacimiento, dirección): la fila propia sale de la RPC, no de la tabla.
+        path: `rpc/get_my_artist_profile?${params.toString()}`
     }), DASHBOARD_ARTIST_QUERY_TIMEOUT_MS, 'Stored session artist REST query');
 
     if (response?.dashboardTimedOut || !response?.ok) return null;
@@ -2218,7 +2220,7 @@ function initDashboardGooglePlaces() {
 }
 
 
-// Cross-platform geolocation: GPS (navigator.geolocation) with IP-based fallback (ipapi.co).
+// Cross-platform geolocation: GPS (navigator.geolocation); sin respaldo por IP (privacidad).
 // Covers iOS Safari, Android Chrome/Firefox, Desktop (Win/Mac/Linux), all modern browsers.
 function getDashboardGeolocation() {
     const btn = document.getElementById('dashboard-geolocation-btn');
@@ -2275,21 +2277,12 @@ function getDashboardGeolocation() {
     }
 
     // Layer 2: IP-based geolocation — used when GPS is unavailable or times out
+    // ── privacidad ── sin respaldo por IP: antes se consultaba ipapi.co con la
+    // IP del navegador. Si el GPS no responde, se pide la ubicación a mano.
     async function tryIPGeolocation() {
-        try {
-            const response = await fetch('https://ipapi.co/json/');
-            if (!response.ok) throw new Error('IP geolocation failed');
-            const data = await response.json();
-            if (data.latitude && data.longitude) {
-                await handleLocationSuccess(data.latitude, data.longitude);
-            } else {
-                throw new Error('No coordinates in IP response');
-            }
-        } catch (err) {
-            btn.classList.remove('loading');
-            hint.textContent = 'No se pudo obtener la ubicacion. Ingresala manualmente.';
-            hint.style.color = 'var(--primary-red, #e53935)';
-        }
+        btn.classList.remove('loading');
+        hint.textContent = 'No se pudo obtener la ubicacion. Ingresala manualmente.';
+        hint.style.color = 'var(--primary-red, #e53935)';
     }
 
     // Layer 1: Browser GPS (works on all platforms including iOS Safari with HTTPS)

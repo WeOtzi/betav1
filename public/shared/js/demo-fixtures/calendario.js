@@ -115,7 +115,8 @@
                 }
             });
             (store.rows('artist_trips') || []).forEach(function (t) {
-                if (t.artist_user_id !== args.p_artist_user_id || t.status === 'cancelado') return;
+                // 20261113100500: solo los viajes confirmados bloquean días.
+                if (t.artist_user_id !== args.p_artist_user_id || t.status !== 'confirmado' || t.cancelled_at) return;
                 eachDay(t.start_date + 'T00:00:00', new Date(Date.parse(t.end_date + 'T00:00:00') + DAY).toISOString(), 3);
             });
             var labels = ['', 'available', 'full', 'unavailable'];

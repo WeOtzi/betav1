@@ -121,7 +121,8 @@ function showSection(sectionId) {
         'support': 'Usuarios de Soporte',
         'events': 'Eventos y Webhooks',
         'email-routing': 'Email Routing (n8n / BillionMail)',
-        'currencies': 'Monedas y Tipos de Cambio'
+        'currencies': 'Monedas y Tipos de Cambio',
+        'privacy': 'Cookies y privacidad' // ── privacidad
     };
     document.getElementById('section-title').textContent = titles[sectionId];
 
@@ -152,6 +153,9 @@ function showSection(sectionId) {
         if (typeof loadEmailRouting === 'function') loadEmailRouting();
     } else if (sectionId === 'currencies') {
         loadCurrenciesAdmin();
+    } else if (sectionId === 'privacy') {
+        // ── privacidad ── backoffice-privacy.js
+        if (typeof window.loadPrivacyAdmin === 'function') window.loadPrivacyAdmin();
     } else if (sectionId === 'analytics') {
         loadAnalyticsData();
     }
@@ -3740,7 +3744,7 @@ async function legacySupabaseBrowserAPITest() {
         const testClient = window.supabase.createClient(url, key);
         const { count, error } = await testClient
             .from('artists_db')
-            .select('*', { count: 'exact', head: true });
+            .select('id', { count: 'exact', head: true });
         
         if (error) throw error;
         
@@ -5185,7 +5189,11 @@ async function createSystemBackup() {
             let tableCount = 0;
             for (const table of tables) {
                 try {
-                    const { data, error } = await WeotziData.from(table).select('*');
+                    // pii-artistas: artists_db tiene privilegios por columna; la
+                    // fila completa solo sale por la RPC de soporte.
+                    const { data, error } = table === 'artists_db'
+                        ? await WeotziData.Artists.listForSupport(null, '*')
+                        : await WeotziData.from(table).select('*');
                     if (!error && data) {
                         dbData[table] = data;
                         console.log(`[System Backup] Exported ${table}: ${data.length} records`);
@@ -5831,133 +5839,10 @@ async function editSupportUserLegacy(userId) {
  * Save support user (create or update)
  */
 async function saveSupportUserLegacy(event) {
-    event.preventDefault();
-    
-    const client = window.ConfigManager?.getSupabaseClient();
-    if (!client) {
-        showToast('Error: Supabase no esta conectado', 'error');
-        return;
-    }
-    
-    const userId = document.getElementById('support-user-id').value;
-    const fullName = document.getElementById('support-user-name').value.trim();
-    const email = document.getElementById('support-user-email').value.trim().toLowerCase();
-    const password = document.getElementById('support-user-password').value;
-    const role = document.getElementById('support-user-role').value;
-    const isActive = document.getElementById('support-user-active').checked;
-    
-    const isNewUser = !userId;
-    
-    try {
-        if (isNewUser) {
-            // Validate password for new users
-            if (!password || password.length < 6) {
-                showToast('La contrasena debe tener al menos 6 caracteres', 'error');
-                return;
-            }
-            
-            // Step 1: Create auth user via Supabase Auth
-            const { data: authData, error: authError } = await client.auth.signUp({
-                email: email,
-                password: password,
-                options: {
-                    data: {
-                        full_name: fullName,
-                        role: 'support_user'
-                    }
-                }
-            });
-            
-            if (authError) {
-                if (authError.message.includes('already registered')) {
-                    throw new Error('Este email ya esta registrado en el sistema');
-                }
-                throw authError;
-            }
-            
-            if (!authData.user) {
-                throw new Error('No se pudo crear el usuario de autenticacion');
-            }
-            
-            // Step 2: Insert record in support_users_db
-            const { error: insertError } = await WeotziData
-                .from('support_users_db')
-                .insert({
-                    user_id: authData.user.id,
-                    email: email,
-                    full_name: fullName,
-                    role: role,
-                    is_active: true,
-                    created_at: new Date().toISOString()
-                });
-            
-            if (insertError) {
-                console.error('Error inserting support user record:', insertError);
-                // Try to clean up the auth user if possible
-                showToast('Usuario auth creado pero error al guardar datos: ' + insertError.message, 'warning');
-            } else {
-                showToast('Usuario de soporte creado exitosamente', 'success');
-            }
-            
-        } else {
-            // Update existing user
-            const newPassword = document.getElementById('support-user-new-password')?.value || '';
-            
-            // If new password is provided, update it via server endpoint
-            if (newPassword) {
-                if (newPassword.length < 6) {
-                    showToast('La nueva contrasena debe tener al menos 6 caracteres', 'error');
-                    return;
-                }
-                
-                // Call server endpoint to update password (keys are read server-side from env)
-                const headers = await _getApifyAuthHeaders();
-                if (headers._noSession) {
-                    throw new Error('No hay sesion de superadmin activa');
-                }
-
-                const passwordResponse = await fetch('/api/admin/update-user-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...headers },
-                    body: JSON.stringify({
-                        userId: userId,
-                        newPassword: newPassword
-                    })
-                });
-                
-                const passwordResult = await passwordResponse.json();
-                
-                if (!passwordResult.success) {
-                    throw new Error(passwordResult.error || 'Error al actualizar contrasena');
-                }
-                
-                console.log('Password updated successfully for user:', userId);
-            }
-            
-            // Update user data in support_users_db
-            const { error: updateError } = await WeotziData
-                .from('support_users_db')
-                .update({
-                    full_name: fullName,
-                    role: role,
-                    is_active: isActive,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('user_id', userId);
-            
-            if (updateError) throw updateError;
-            
-            showToast(newPassword ? 'Usuario y contrasena actualizados' : 'Usuario de soporte actualizado', 'success');
-        }
-        
-        // Close modal and refresh list
-        closeModal();
-        loadSupportUsers();
-        
-    } catch (err) {
-        console.error('Error saving support user:', err);
-        showToast('Error: ' + err.message, 'error');
-    }
+    // ── confirmacion-email: el alta de soporte ya no usa auth.signUp desde el
+    // navegador (reemplazaba la sesión del admin y no respetaba la
+    // confirmación de email). Todo pasa por POST /api/admin/support-users.
+    return saveSupportUser(event);
 }
 
 /**
@@ -6131,12 +6016,16 @@ async function saveSupportUser(event) {
                 return;
             }
 
-            await _fetchAdminJson('/api/admin/support-users', {
+            const created = await _fetchAdminJson('/api/admin/support-users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ fullName, email, password, role, isActive: true })
             });
-            showToast('Usuario de soporte creado exitosamente', 'success');
+            // ── confirmacion-email: con "Confirm email" activo la cuenta queda
+            // pendiente hasta que la persona abra el link que le llega.
+            showToast(created && created.email_confirmation_required
+                ? 'Usuario creado. Le enviamos un email para que confirme la cuenta antes de ingresar.'
+                : 'Usuario de soporte creado exitosamente', 'success');
         } else {
             const newPassword = document.getElementById('support-user-new-password')?.value || '';
             if (newPassword) {

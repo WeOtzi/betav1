@@ -21,7 +21,8 @@
             if (!auth) return;
             try {
                 const studio = auth.getCurrent() || await auth.check();
-                if (studio) cb(auth.getSupabase(), studio);
+                // Un manager del estudio no opera estas áreas (solo Mensajes y solicitudes de cambio).
+                if (studio && studio.access !== 'manager') cb(auth.getSupabase(), studio);
             } catch (error) { status('ops-status', 'error', error.message || 'No pudimos cargar el estudio.'); }
         };
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });

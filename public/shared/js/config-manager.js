@@ -1774,35 +1774,36 @@ document.head.appendChild(modesScript);
     // esta lista ya fue eliminada de la tabla). PostgREST has no "exclude"
     // syntax, so we enumerate every column we want to expose. When a new
     // column is added to artists_db, append it here.
-    // Use `select('*')` only on paths that hit RLS rows the user owns
-    // (own dashboard, own register, own quotations) or admin/support paths.
+    // pii-artistas (migración 20261113106000): artists_db tiene privilegios
+    // POR COLUMNA. anon/authenticated solo pueden leer las columnas de esta
+    // lista (subconjunto de WeotziData.Artists.PUBLIC_COLUMNS); pedir una
+    // privada (email, birth_date, whatsapp_*, dirección/lat-lng exactas,
+    // datos de registro, ms_*, dashboard_config...) hace FALLAR la consulta.
+    // `select('*')` sobre artists_db ya no funciona desde el navegador: el
+    // propio artista usa la RPC get_my_artist_profile() y soporte
+    // support_list_artists() (ver data/artists-repo.js).
     window.ARTIST_PUBLIC_COLUMNS = [
-        'id', 'user_id', 'username', 'name', 'email', 'instagram',
-        'whatsapp_number', 'whatsapp_url', 'portafolio',
+        'id', 'user_id', 'username', 'name', 'instagram', 'portafolio',
         'ubicacion', 'city', 'country', 'country_code', 'state_province',
-        'locality', 'street', 'street_number', 'unit', 'postal_code',
-        'formatted_address', 'google_place_id', 'latitude', 'longitude',
-        'geocoded_at', 'geocoded_address',
+        'locality',
         'estudios', 'studio_id', 'work_type',
         'estilo', 'styles_array',
         'session_price', 'session_price_amount', 'session_price_currency',
         'session_price_amount_usd', 'session_price_amount_eur',
         'preferred_display_currency',
-        'years_experience', 'bio_description', 'birth_date',
+        'years_experience', 'bio_description',
         'profile_picture', 'gallery_images', 'gallery_feed_items',
-        'languages', 'custom_canvas_labels',
+        'languages',
         'vacation_start', 'vacation_end',
         'embajador', 'nivel', 'is_recommended', 'verification_state',
-        'email_confirmed', 'subscribed_newsletter',
-        'ms_profile_complete', 'ms_first_quote_received',
-        'ms_whatsapp_shared', 'ms_profile_shared', 'ms_first_quote_completed',
         'artist_index', 'idx', 'profile_completeness', 'index_updated_at',
-        'dashboard_config',
-        'registration_status', 'registration_step',
-        'registration_source', 'registration_started_at',
-        'registration_submitted_at', 'registration_last_saved_at',
-        'registration_draft_id'
-        // INTENTIONALLY OMITTED: password
+        'registration_status'
+        // PRIVADAS (sin grant): email, email_confirmed, whatsapp_number,
+        // whatsapp_url, birth_date, street, street_number, unit, postal_code,
+        // formatted_address, google_place_id, latitude, longitude, geocoded_*,
+        // subscribed_newsletter, newsletter_topics, registration_* (salvo
+        // status), terms_*, instagram_verified_handle, dashboard_config,
+        // custom_canvas_labels, ms_*.
     ].join(', ');
 
     if (window.__WEOTZI_DEBUG) console.log('ConfigManager ready',

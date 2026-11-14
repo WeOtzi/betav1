@@ -68,11 +68,97 @@
 
     // Columnas del fallback a artists_db cuando la vista artists_with_location no
     // esta desplegada (explore-map / explore-globe).
+    // Sin coordenadas ni dirección exactas (privadas): sin la vista no hay pines.
     const FOR_MAP_SELECT =
         'user_id, username, name, profile_picture, styles_array, city, country, ubicacion, ' +
         'session_price, years_experience, languages, bio_description, is_recommended, ' +
-        'latitude, longitude, formatted_address, locality, street, street_number, ' +
-        'postal_code, work_type, studio_id, location_source, studio_name';
+        'locality, work_type, studio_id';
+
+    // ===================== pii-artistas (20261113106000) =====================
+    // artists_db tiene privilegios POR COLUMNA: anon y authenticated solo leen
+    // PUBLIC_COLUMNS (misma lista blanca que la migración). Las columnas de
+    // PRIVATE_COLUMNS (email, fecha de nacimiento, WhatsApp, dirección y
+    // coordenadas exactas, datos internos del registro...) solo se leen:
+    //   - el propio artista -> rpc get_my_artist_profile() (fila completa propia)
+    //   - soporte           -> rpc support_list_artists(p_user_ids)
+    // `select('*')` directo sobre artists_db FALLA con privilegios por columna:
+    // los métodos de abajo lo enrutan a la RPC que corresponde.
+    const PUBLIC_COLUMNS = Object.freeze([
+        'id', 'user_id', 'username', 'name',
+        'instagram', 'portafolio', 'profile_links', 'instagram_verified_at',
+        'ubicacion', 'city', 'country', 'country_code', 'state_province', 'locality',
+        'estudios', 'studio_id', 'work_type',
+        'estilo', 'styles_array',
+        'session_price', 'session_price_amount', 'session_price_currency',
+        'session_price_amount_usd', 'session_price_amount_eur',
+        'preferred_display_currency',
+        'years_experience', 'bio_description',
+        'profile_picture', 'gallery_images', 'gallery_feed_items',
+        'languages', 'vacation_start', 'vacation_end',
+        'embajador', 'nivel', 'is_recommended', 'verification_state',
+        'artist_index', 'idx', 'profile_completeness', 'index_updated_at',
+        'registration_status'
+    ]);
+    const PRIVATE_COLUMNS = Object.freeze([
+        'email', 'email_confirmed', 'whatsapp_number', 'whatsapp_url', 'birth_date',
+        'street', 'street_number', 'unit', 'postal_code', 'formatted_address',
+        'google_place_id', 'latitude', 'longitude', 'geocoded_at', 'geocoded_address',
+        'subscribed_newsletter', 'newsletter_topics',
+        'registration_draft_id', 'registration_source', 'registration_step',
+        'registration_started_at', 'registration_last_saved_at', 'registration_submitted_at',
+        'terms_accepted_at', 'terms_version', 'instagram_verified_handle',
+        'dashboard_config', 'custom_canvas_labels',
+        'ms_profile_complete', 'ms_first_quote_received', 'ms_whatsapp_shared',
+        'ms_profile_shared', 'ms_first_quote_completed', 'password'
+    ]);
+    const PUBLIC_SET = new Set(PUBLIC_COLUMNS);
+
+    // Nombres de columna de un select de PostgREST ("a, alias:b, c::text").
+    function columnNames(columns) {
+        return String(columns == null ? '*' : columns).split(',')
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .map((part) => {
+                const noCast = part.split('::')[0];
+                const colon = noCast.indexOf(':');
+                return (colon === -1 ? noCast : noCast.slice(colon + 1)).trim();
+            });
+    }
+    // true si el select pide algo fuera de la lista blanca ('*' incluido).
+    function needsPrivate(columns) {
+        return columnNames(columns).some((name) => !PUBLIC_SET.has(name));
+    }
+    // Lecturas sobre OTROS artistas: descarta las columnas privadas ('*' ->
+    // lista pública) para que la consulta no falle por privilegios y nunca
+    // pida datos personales.
+    function publicOnly(columns) {
+        const parts = String(columns == null ? '*' : columns).split(',').map((p) => p.trim()).filter(Boolean);
+        const names = columnNames(columns);
+        if (names.indexOf('*') !== -1) return (typeof window !== 'undefined' && window.ARTIST_PUBLIC_COLUMNS) || PUBLIC_COLUMNS.join(', ');
+        const kept = parts.filter((part, i) => PUBLIC_SET.has(names[i]));
+        return kept.length ? kept.join(', ') : 'user_id';
+    }
+    function client() {
+        const c = typeof D.getClient === 'function' ? D.getClient() : null;
+        if (!c) throw new Error('[artists-repo] Supabase client unavailable');
+        return c;
+    }
+    // Fila completa del artista con sesión (RPC security definer). Admite
+    // select/eq/maybeSingle igual que una tabla. Para otro user_id devuelve 0 filas.
+    function ownProfile(columns) {
+        return client().rpc('get_my_artist_profile').select(columns || '*');
+    }
+    // Filas completas para soporte (RPC; falla con 42501 si no es soporte).
+    function supportRows(userIds, columns) {
+        const args = Array.isArray(userIds) && userIds.length ? { p_user_ids: userIds } : {};
+        return client().rpc('support_list_artists', args).select(columns || '*');
+    }
+    // Lectura por user_id: columnas públicas -> tabla; privadas -> RPC propia.
+    function byUserId(userId, columns) {
+        return needsPrivate(columns)
+            ? ownProfile(columns).eq('user_id', userId)
+            : from('artists_db').select(columns).eq('user_id', userId);
+    }
 
     // ===================== artists_db =====================
     const Artists = {
@@ -83,37 +169,37 @@
         // archive.js:60, quotations.js:104, reviews.js:332, client-auth.js (varios),
         // job-board-feed.js:287, artist-login.js:107.
         getByUserId(userId, columns = '*') {
-            return from('artists_db').select(columns).eq('user_id', userId).maybeSingle();
+            return byUserId(userId, columns).maybeSingle();
         },
 
         // Igual que getByUserId pero con .single() (rutas que exigen fila, p.ej.
         // calendar/archive/quotations initializeAdmin con select('*')).
         getByUserIdSingle(userId, columns = '*') {
-            return from('artists_db').select(columns).eq('user_id', userId).single();
+            return byUserId(userId, columns).single();
         },
 
         // Registro completo del dashboard del artista (loadArtistData).
         // Cubre dashboard.js:693. columns FIJAS (DASHBOARD_SELECT). .maybeSingle().
         getDashboardByUserId(userId) {
-            return from('artists_db').select(DASHBOARD_SELECT).eq('user_id', userId).maybeSingle();
+            return byUserId(userId, DASHBOARD_SELECT).maybeSingle();
         },
 
         // Registro del centro de la cuenta (/artist/account). columns FIJAS
         // (ACCOUNT_SELECT). .maybeSingle(). Cubre artist-account.js.
         getAccountByUserId(userId) {
-            return from('artists_db').select(ACCOUNT_SELECT).eq('user_id', userId).maybeSingle();
+            return byUserId(userId, ACCOUNT_SELECT).maybeSingle();
         },
 
         // Perfil del artista para auth/onboarding (ARTIST_PROFILE_SELECT, sin
         // password) por user_id. Cubre main.js:181, main.js:687.
         getProfileByUserId(userId) {
-            return from('artists_db').select(PROFILE_SELECT).eq('user_id', userId).maybeSingle();
+            return byUserId(userId, PROFILE_SELECT).maybeSingle();
         },
 
         // email + whatsapp_number del usuario (enriquecimiento de logging).
         // Cubre logging-service.js:185. .maybeSingle().
         getContactByUserId(userId) {
-            return from('artists_db').select('email, whatsapp_number').eq('user_id', userId).maybeSingle();
+            return byUserId(userId, 'email, whatsapp_number').maybeSingle();
         },
 
         // gallery_feed_items existentes del artista (paso de lectura del merge en
@@ -127,7 +213,8 @@
         // Perfil incompleto por email para ofrecer reanudar alta (ARTIST_PROFILE_SELECT).
         // Cubre main.js:499. .maybeSingle().
         getProfileByEmail(email) {
-            return from('artists_db').select(PROFILE_SELECT).eq('email', email).maybeSingle();
+            // Solo la fila propia: filtrar por email exige leer la columna privada.
+            return ownProfile(PROFILE_SELECT).eq('email', email).maybeSingle();
         },
 
         // --- reads por username (perfil publico) ---
@@ -135,21 +222,21 @@
         // Perfil publico por username (case-insensitive ilike + .single()). columns
         // variable (ARTIST_PUBLIC_COLUMNS). Cubre script.js:546, script.js:1856.
         getPublicByUsername(username, columns = '*') {
-            return from('artists_db').select(columns).ilike('username', username).single();
+            return from('artists_db').select(publicOnly(columns)).ilike('username', username).single();
         },
 
         // Perfil publico por username con match exacto + .maybeSingle() (pagina
         // publica del artista). columns FIJAS via ARTIST_PUBLIC_FIELDS por defecto,
         // o explicitas. Cubre artist-profile.js:946.
         getPublicByExactUsername(username, columns = '*') {
-            return from('artists_db').select(columns).eq('username', username).maybeSingle();
+            return from('artists_db').select(publicOnly(columns)).eq('username', username).maybeSingle();
         },
 
         // Busqueda de un artista por username para el feed de galeria; exact=true
         // usa eq, exact=false usa ilike (fallback case-insensitive). limit(1).
         // Cubre artist-gallery-feed.js:94 (exact) y :107 (ilike).
         findByUsername(username, columns, { exact = true } = {}) {
-            const q = from('artists_db').select(columns);
+            const q = from('artists_db').select(publicOnly(columns));
             return (exact ? q.eq('username', username) : q.ilike('username', username)).limit(1);
         },
 
@@ -166,19 +253,19 @@
         // (ARTIST_PUBLIC_COLUMNS). Cubre script.js:2154 (fetchAllArtists),
         // marketplace.js:142 (fetchArtists).
         listPublic(columns = '*') {
-            return from('artists_db').select(columns);
+            return from('artists_db').select(publicOnly(columns));
         },
 
         // Lista completa de artistas para soporte/backoffice (select('*')).
         // Cubre support-dashboard.js:197.
         listAll(columns = '*') {
-            return from('artists_db').select(columns);
+            return supportRows(null, columns);
         },
 
         // Batch fetch de perfiles por user_ids (.in). columns variable. Cubre
         // client-dashboard.js:1569 (tarjetas de postulacion del job board).
         listByUserIds(userIds, columns = '*') {
-            return from('artists_db').select(columns).in('user_id', userIds);
+            return from('artists_db').select(publicOnly(columns)).in('user_id', userIds);
         },
 
         // Artistas por username/nombre (ilike sobre or) para invitar al roster.
@@ -208,7 +295,7 @@
         // Fallback a artists_db cuando la vista no esta desplegada. columns FIJAS
         // (FOR_MAP_SELECT). Cubre explore-map.js:213, explore-globe.js:408.
         listForMap(columns = FOR_MAP_SELECT) {
-            return from('artists_db').select(columns);
+            return from('artists_db').select(publicOnly(columns));
         },
 
         // --- count ---
@@ -216,7 +303,7 @@
         // Conteo total de artistas (head:true). Cubre config-manager.js:1186,
         // config-manager.js:1220 (canaria), admin.js:470.
         count() {
-            return from('artists_db').select('*', { count: 'exact', head: true });
+            return from('artists_db').select('id', { count: 'exact', head: true });
         },
 
         // --- updates ---
@@ -239,9 +326,15 @@
         // --- upsert ---
 
         // Crea o actualiza el registro principal del artista (wizard de registro).
-        // onConflict 'user_id'; .select(). Cubre register.js:4166.
+        // Cubre register.js (envío final). pii-artistas: con privilegios por
+        // columna, `INSERT … ON CONFLICT (user_id) DO UPDATE SET birth_date =
+        // excluded.birth_date` desde el navegador falla (42501: Postgres exige
+        // SELECT sobre las columnas del DO UPDATE). Va por la RPC security
+        // definer upsert_my_artist_profile (fuerza user_id = auth.uid() y solo
+        // acepta columnas editables por el artista). Devuelve {data, error};
+        // data = { id, user_id, username, name, registration_status }.
         upsertProfile(artistData) {
-            return from('artists_db').upsert(artistData, { onConflict: 'user_id' }).select();
+            return client().rpc('upsert_my_artist_profile', { p_profile: artistData || {} });
         },
     };
 
@@ -344,6 +437,12 @@
     // Expone la proyeccion del dashboard para el fallback raw-REST de dashboard.js
     // (unica fuente de verdad de estas columnas; evita duplicar la constante).
     Artists.DASHBOARD_SELECT = DASHBOARD_SELECT;
+    Artists.PUBLIC_COLUMNS = PUBLIC_COLUMNS;
+    Artists.PRIVATE_COLUMNS = PRIVATE_COLUMNS;
+    Artists.needsPrivate = needsPrivate;
+    Artists.publicOnly = publicOnly;
+    Artists.getOwnProfile = (columns) => ownProfile(columns).maybeSingle();
+    Artists.listForSupport = (userIds, columns) => supportRows(userIds, columns);
     D.Artists = Artists;
     D.ArtistLocations = ArtistLocations;
     D.ArtistVisits = ArtistVisits;

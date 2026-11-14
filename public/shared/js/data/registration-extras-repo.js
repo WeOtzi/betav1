@@ -83,8 +83,12 @@
         async getProfileExtras(userId) {
             if (!userId) return { data: null, error: null };
             try {
-                const { data, error } = await from('artists_db')
-                    .select('profile_links, newsletter_topics')
+                // pii-artistas: newsletter_topics es privada; la fila propia sale
+                // de la RPC get_my_artist_profile() 
+                const c = typeof D.getClient === 'function' ? D.getClient() : null;
+                if (!c || typeof c.rpc !== 'function') return { data: null, error: new Error('Supabase client unavailable') };
+                const base = c.rpc('get_my_artist_profile').select('profile_links, newsletter_topics');
+                const { data, error } = await base
                     .eq('user_id', userId)
                     .maybeSingle();
                 if (error) return { data: null, error, missingColumns: isMissingColumnError(error) };

@@ -386,7 +386,19 @@ async function handleArtistLogin(e) {
         const message = String(error?.message || '');
         if (message.includes('Invalid login credentials')) {
             errorMessage = 'Email o contraseña incorrectos.';
-        } else if (message.includes('Email not confirmed')) {
+        } else if (message.includes('Email not confirmed') || window.WeotziEmailConfirm?.isEmailNotConfirmedError(error)) {
+            // ── confirmacion-email: aviso con "Reenviar email" (DS).
+            const EC = window.WeotziEmailConfirm;
+            const box = document.getElementById('form-message');
+            if (EC && box) {
+                box.className = 'wo-auth-message';
+                EC.renderLoginNotice(box, {
+                    email,
+                    client: _supabase,
+                    redirectTo: EC.redirectUrl('/register-artist/', { confirmado: '1' })
+                });
+                return;
+            }
             errorMessage = 'Confirmá tu email antes de iniciar sesión.';
         } else if (error?.code === 'PREVIEW_INPUT') {
             errorMessage = escapeHtml(message);

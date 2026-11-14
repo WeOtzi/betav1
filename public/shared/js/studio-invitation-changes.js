@@ -71,7 +71,13 @@
         const host = el('roster-change-requests');
         const pending = state.requests.filter(r => r.status === 'pending');
         const resolved = state.requests.filter(r => r.status !== 'pending').slice(0, 5);
-        if (!state.requests.length) { host.innerHTML = ''; host.hidden = true; return; }
+        if (!state.requests.length) {
+            if (isManager()) {
+                host.hidden = false;
+                host.innerHTML = '<p class="studio-help">No hay solicitudes de cambio pendientes.</p>';
+            } else { host.innerHTML = ''; host.hidden = true; }
+            return;
+        }
         host.hidden = false;
         host.innerHTML =
             '<h3 class="studio-h2 si-cr-title">Solicitudes de <span class="accent">cambio</span>' +
@@ -92,6 +98,8 @@
     function cardHtml(r) {
         const name = artistName(r);
         const summary = M.changeRequestSummary(r) || 'Sin condiciones cargadas todavía';
+        // Invitaciones con rol manager: solo las responde el dueño (la RPC también lo exige).
+        const ownerOnly = isManager() && r.membership && r.membership.role === 'manager';
         const contract = r.membership && r.membership.has_contract
             ? '<p class="wo-help si-cr-note">Hay un contrato en curso: el rol y el reparto se cambian con una nueva versión del contrato.</p>' : '';
         return '<article class="studio-location-row si-cr-card" data-change-request="' + esc(r.id) + '" tabindex="-1" aria-labelledby="si-cr-name-' + esc(r.id) + '">' +
@@ -103,9 +111,11 @@
             '</div>' +
             '<blockquote class="si-cr-quote">' + esc(r.message) + '</blockquote>' +
             '<p class="wo-help"><strong>Invitación vigente:</strong> ' + esc(summary) + '</p>' + contract +
+            (ownerOnly ? '<p class="wo-help si-cr-note">Es una invitación como manager: la responde el dueño del estudio.</p>' : '') +
             '<div class="studio-actions si-cr-actions">' +
+                (ownerOnly ? '' :
                 '<button type="button" class="wo-btn" data-cr-action="update"><i data-wo-icon="edit-2" aria-hidden="true"></i>Actualizar invitación</button>' +
-                '<button type="button" class="wo-btn wo-btn--secondary" data-cr-action="decline">Mantener condiciones</button>' +
+                '<button type="button" class="wo-btn wo-btn--secondary" data-cr-action="decline">Mantener condiciones</button>') +
                 (r.thread_id ? '<button type="button" class="wo-btn wo-btn--secondary" data-cr-action="thread" data-thread="' + esc(r.thread_id) + '"><i data-wo-icon="message-circle" aria-hidden="true"></i>Ver conversación</button>' : '') +
             '</div>' +
             '<div class="si-cr-form-host"></div>' +
@@ -117,7 +127,9 @@
         const d = r.details || {};
         const id = esc(r.id);
         const locked = !!m.has_contract;
-        const roleOptions = Object.keys(M.ROLE_LABELS).map(role =>
+        // El manager no nombra managers ni toca el reparto (lo define el dueño).
+        const manager = isManager();
+        const roleOptions = Object.keys(M.ROLE_LABELS).filter(role => !manager || role !== 'manager' || role === m.role).map(role =>
             '<option value="' + role + '"' + (role === m.role ? ' selected' : '') + '>' + esc(M.ROLE_LABELS[role]) + '</option>').join('');
         const locationOptions = '<option value="">Sin asignar</option>' + state.locations.map(l =>
             '<option value="' + esc(l.id) + '"' + (l.id === m.location_id ? ' selected' : '') + '>' + esc(l.label || 'Sede') + (l.is_primary ? ' (principal)' : '') + '</option>').join('');
@@ -126,7 +138,7 @@
             '<div class="si-cr-grid">' +
                 field('Rol', '<select class="wo-select" id="cr-role-' + id + '" name="role"' + (locked ? ' disabled' : '') + '>' + roleOptions + '</select>', 'cr-role-' + id) +
                 field('Sede', '<select class="wo-select" id="cr-location-' + id + '" name="location_id">' + locationOptions + '</select>', 'cr-location-' + id) +
-                field('Split del artista (%)', '<input class="wo-input" id="cr-split-' + id + '" name="revenue_split_pct" type="number" min="0" max="100" step="1" inputmode="numeric" value="' + (m.revenue_split_pct == null ? '' : esc(Number(m.revenue_split_pct))) + '"' + (locked ? ' disabled' : '') + '>', 'cr-split-' + id) +
+                field('Split del artista (%)', '<input class="wo-input" id="cr-split-' + id + '" name="revenue_split_pct" type="number" min="0" max="100" step="1" inputmode="numeric" value="' + (m.revenue_split_pct == null ? '' : esc(Number(m.revenue_split_pct))) + '"' + (locked || manager ? ' disabled' : '') + (manager ? ' aria-describedby="cr-split-help-' + id + '"' : '') + '>' + (manager ? '<p class="wo-help" id="cr-split-help-' + id + '">El reparto lo define el dueño del estudio.</p>' : ''), 'cr-split-' + id) +
                 field('Duración', '<input class="wo-input" id="cr-duration-' + id + '" name="duration_label" maxlength="80" placeholder="Ej.: 2 semanas" value="' + esc(d.duration_label || '') + '">', 'cr-duration-' + id) +
                 field('Inicio', '<input class="wo-input" id="cr-start-' + id + '" name="proposed_start_date" type="date" value="' + esc(d.proposed_start_date || '') + '">', 'cr-start-' + id) +
                 field('Fin', '<input class="wo-input" id="cr-end-' + id + '" name="proposed_end_date" type="date" value="' + esc(d.proposed_end_date || '') + '">', 'cr-end-' + id) +
@@ -261,6 +273,7 @@
         window.setTimeout(() => { node.hidden = true; }, 6000);
     }
 
+    function isManager() { return !!(state.studio && state.studio.access === 'manager'); }
     function findRequest(id) { return state.requests.find(r => r.id === id) || null; }
     function artistName(r) { return (r.artist && (r.artist.name || (r.artist.username ? '@' + r.artist.username : ''))) || 'Artista'; }
     function statusLabel(status) {

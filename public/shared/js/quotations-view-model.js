@@ -340,12 +340,16 @@
         cancelled: []
     };
 
-    // ---------- vigencia (P10) ----------
-    // Misma regla que la RPC expire_stale_quotations y lib/quotation-expiry.js:
-    // una respuesta vence en quote_expires_at, o respuesta + vigencia (validity
-    // de la cotización manual o 14 días). Mientras el job no corre, la vista
-    // ya la muestra como "Vencida" (vista calculada).
-    var DEFAULT_VALIDITY_DAYS = 14;
+    // ---------- vencimiento (P10 · decisión del dueño 13 nov 2026) ----------
+    // Misma regla que la RPC expire_stale_quotations (20261113100000) y
+    // lib/quotation-expiry.js: el vencimiento es OPCIONAL y por cotización.
+    // Solo vence una respuesta con quote_expiry_enabled, en quote_expires_at
+    // (lo calcula el trigger al activarlo) o respuesta + quote_expiry_days.
+    // Nada vence por defecto. Mientras el job no corre, la vista ya la
+    // muestra como "Vencida" (vista calculada).
+    var DEFAULT_VALIDITY_DAYS = 14; // valor sugerido al activar el vencimiento
+    var EXPIRY_MIN_DAYS = 1;
+    var EXPIRY_MAX_DAYS = 365;
     var DAY_MS = 86400000;
 
     function timeOf(value) {
@@ -354,24 +358,54 @@
         return isFinite(t) ? t : null;
     }
 
-    function offerExpiresAt(quote, opts) {
-        opts = opts || {};
-        if (!quote || quote.quote_status !== 'responded') return null;
+    // Días válidos (entero 1–365) o null.
+    function normalizeExpiryDays(value) {
+        var raw = String(value == null ? '' : value).trim();
+        if (!/^\d+$/.test(raw)) return null;
+        var n = parseInt(raw, 10);
+        return n >= EXPIRY_MIN_DAYS && n <= EXPIRY_MAX_DAYS ? n : null;
+    }
+
+    // Patch de quotations_db para el control "Vencimiento" (toggle + días).
+    // { ok, patch } o { ok: false, error } con un mensaje para el artista.
+    function expirySettingsPatch(enabled, days) {
+        if (!enabled) return { ok: true, patch: { quote_expiry_enabled: false, quote_expiry_days: null } };
+        var n = normalizeExpiryDays(days);
+        if (n == null) return { ok: false, error: 'Indicá entre ' + EXPIRY_MIN_DAYS + ' y ' + EXPIRY_MAX_DAYS + ' días de vencimiento.' };
+        return { ok: true, patch: { quote_expiry_enabled: true, quote_expiry_days: n } };
+    }
+
+    function expiryEnabled(quote) {
+        return !!(quote && quote.quote_expiry_enabled === true && normalizeExpiryDays(quote.quote_expiry_days) != null);
+    }
+
+    function offerExpiresAt(quote) {
+        if (!quote || quote.quote_status !== 'responded' || !expiryEnabled(quote)) return null;
         var explicit = timeOf(quote.quote_expires_at);
         if (explicit != null) return new Date(explicit);
         var base = timeOf(quote.artist_responded_at);
         if (base == null) base = timeOf(quote.updated_at);
         if (base == null) base = timeOf(quote.created_at);
         if (base == null) return null;
-        var days = Number(opts.validityDays) > 0 ? Number(opts.validityDays) : (Number(opts.defaultDays) > 0 ? Number(opts.defaultDays) : DEFAULT_VALIDITY_DAYS);
-        return new Date(base + days * DAY_MS);
+        return new Date(base + normalizeExpiryDays(quote.quote_expiry_days) * DAY_MS);
     }
 
-    function effectiveStatus(quote, now, opts) {
+    function effectiveStatus(quote, now) {
         var status = quote && quote.quote_status;
-        var at = offerExpiresAt(quote, opts);
+        var at = offerExpiresAt(quote);
         if (at && at.getTime() <= new Date(now || Date.now()).getTime()) return 'expired';
         return status;
+    }
+
+    // Texto corto para el detalle: "Sin vencimiento", "Vence el 27 nov",
+    // "14 días desde que respondés" (todavía sin responder).
+    function expirySummary(quote, now) {
+        if (!expiryEnabled(quote)) return 'Sin vencimiento';
+        var days = normalizeExpiryDays(quote.quote_expiry_days);
+        var at = offerExpiresAt(quote);
+        if (!at) return days + (days === 1 ? ' día' : ' días') + ' desde que respondés';
+        var past = at.getTime() <= new Date(now || Date.now()).getTime();
+        return (past ? 'Venció el ' : 'Vence el ') + shortDate(at.toISOString());
     }
 
     // Transiciones que el selector puede mostrar para un estado.
@@ -456,6 +490,12 @@
         RESPOND_NEEDS_DIALOG: RESPOND_NEEDS_DIALOG,
         offerExpiresAt: offerExpiresAt,
         effectiveStatus: effectiveStatus,
+        EXPIRY_MIN_DAYS: EXPIRY_MIN_DAYS,
+        EXPIRY_MAX_DAYS: EXPIRY_MAX_DAYS,
+        normalizeExpiryDays: normalizeExpiryDays,
+        expirySettingsPatch: expirySettingsPatch,
+        expiryEnabled: expiryEnabled,
+        expirySummary: expirySummary,
         canTransition: canTransition,
         respondUrl: respondUrl,
         MONTH_NAMES: MONTH_NAMES,

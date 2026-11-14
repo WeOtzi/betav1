@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>We Ötzi · Política de privacidad</title>
+    <meta name="description" content="Política de privacidad de la plataforma We Ötzi. Versión 1.0, vigente desde el 13 de noviembre de 2026.">
     <meta name="robots" content="noindex">
     <link rel="icon" href="/favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,8 +12,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/legal-ds.css">
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
+    <script src="/shared/js/wo-consent.js" defer></script>
 </head>
 <body class="legal-page">
+    <a class="legal-skip" href="#contenido">Saltar al contenido</a>
     <header class="legal-top">
         <a class="legal-brand" href="/"><span class="legal-shapes" aria-hidden="true"><i></i><i></i><i></i></span>WE ÖTZI</a>
         <nav aria-label="Documentos legales">
@@ -20,17 +24,170 @@
             <a href="/legal/privacy" aria-current="page">Privacidad</a>
         </nav>
     </header>
-    <main class="legal-main" id="contenido">
-        <p class="legal-eyebrow">Legal</p>
+    <main class="legal-main" id="contenido" tabindex="-1">
+        <p class="legal-review" role="note">Versión 1.0 · pendiente de revisión legal</p>
+        <p class="legal-eyebrow">Legal · Privacidad</p>
         <h1>Política de privacidad</h1>
-        <div class="legal-notice" role="note">
-            <strong>Versión vigente</strong>
-            La política de privacidad vigente de We Ötzi está publicada en <a href="https://weotzi.com/privacy-policy/" target="_blank" rel="noopener">weotzi.com/privacy-policy</a> (en inglés). Estamos preparando la versión en español para la plataforma.
+        <dl class="legal-meta">
+            <dt>Versión</dt><dd>1.0 (<code>2026-11-13</code>)</dd>
+            <dt>Vigente desde</dt><dd><time datetime="2026-11-13">13 de noviembre de 2026</time></dd>
+            <dt>Versión anterior</dt><dd><a href="https://weotzi.com/privacy-policy/" target="_blank" rel="noopener">weotzi.com/privacy-policy<span class="visually-hidden"> (se abre en una pestaña nueva)</span></a> (en inglés)</dd>
+        </dl>
+
+        <p>En esta política te contamos qué datos personales tratamos cuando usás We Ötzi, para qué los usamos, con quién los compartimos y qué podés hacer con ellos. Complementa los <a href="/legal/terms">Términos y condiciones</a>.</p>
+
+        <nav class="legal-toc" aria-labelledby="toc-titulo">
+            <h2 id="toc-titulo">Índice</h2>
+            <ol>
+                <li><a href="#responsable">Responsable</a></li>
+                <li><a href="#alcance">Alcance</a></li>
+                <li><a href="#datos">Qué datos tratamos</a></li>
+                <li><a href="#finalidades">Para qué los usamos</a></li>
+                <li><a href="#visibilidad">Qué es público y qué no</a></li>
+                <li><a href="#proveedores">Proveedores y terceros</a></li>
+                <li><a href="#transferencias">Transferencias internacionales</a></li>
+                <li><a href="#cookies">Cookies y almacenamiento local</a></li>
+                <li><a href="#conservacion">Cuánto tiempo los guardamos</a></li>
+                <li><a href="#seguridad">Seguridad</a></li>
+                <li><a href="#derechos">Tus derechos</a></li>
+                <li><a href="#menores">Menores de edad</a></li>
+                <li><a href="#cambios">Cambios en esta política</a></li>
+                <li><a href="#contacto">Contacto</a></li>
+                <li><a href="#anterior">Versión anterior</a></li>
+            </ol>
+        </nav>
+
+        <h2 id="responsable">1. Responsable</h2>
+        <p>El responsable del tratamiento de tus datos es <span class="legal-todo">[A COMPLETAR: razón social]</span>, <span class="legal-todo">[A COMPLETAR: CUIT o identificación fiscal]</span>, con domicilio en <span class="legal-todo">[A COMPLETAR: domicilio legal]</span>. Podés escribirnos por cualquier tema de privacidad a <a href="mailto:artistas@weotzi.com">artistas@weotzi.com</a>.</p>
+        <p>Cuando un artista o un estudio carga datos de sus propios clientes, proveedores o colaboradores (por ejemplo, en una cotización manual o en las herramientas internas del estudio), ese artista o estudio decide para qué los usa y es responsable de tener autorización para cargarlos; nosotros los guardamos por su cuenta.</p>
+
+        <h2 id="alcance">2. Alcance</h2>
+        <p>Esta política aplica a la plataforma We Ötzi (beta cerrada) y a todos sus módulos: clientes, artistas, estudios, Store, Travel, Inbox y soporte. No aplica a sitios de terceros a los que enlacemos (por ejemplo, Instagram o Google Maps), que tienen sus propias políticas.</p>
+
+        <h2 id="datos">3. Qué datos tratamos</h2>
+        <div class="legal-table-wrap">
+        <table>
+            <caption class="visually-hidden">Categorías de datos según el uso de la plataforma</caption>
+            <thead><tr><th scope="col">Categoría</th><th scope="col">Ejemplos</th><th scope="col">De dónde vienen</th></tr></thead>
+            <tbody>
+                <tr><th scope="row">Cuenta</th><td>Nombre, email, contraseña (no la vemos: el servicio de autenticación guarda solo un hash), teléfono, tipo de cuenta, fecha y versión de los términos aceptados, preferencias de notificación.</td><td>Vos, o Google / Facebook si iniciás sesión con ellos (nombre, email y foto de perfil).</td></tr>
+                <tr><th scope="row">Perfil de artista</th><td>Nombre artístico, usuario, foto, bio, estilos, precios de referencia, monedas, ubicaciones y estudios (con coordenadas), redes, portafolio, fecha de nacimiento (para verificar la mayoría de edad).</td><td>Vos; opcionalmente importado desde tu Instagram.</td></tr>
+                <tr><th scope="row">Perfil de estudio</th><td>Nombre, logo, portada, fotos, sedes y direcciones, contacto, roster, spots.</td><td>El estudio.</td></tr>
+                <tr><th scope="row">Cotizaciones y Job Board</th><td>Idea del tatuaje, estilo, tamaño, zona del cuerpo, ciudad, fechas, presupuesto, imágenes de referencia, propuestas, sesiones, notas del artista, estados e historial.</td><td>Cliente y artista.</td></tr>
+                <tr><th scope="row">Mensajes</th><td>Chats con artistas, estudios y soporte, adjuntos, estado de lectura, favoritos y archivados.</td><td>Vos y las personas con quienes hablás.</td></tr>
+                <tr><th scope="row">Pagos y Wallet</th><td>Pagos registrados por el artista (monto, moneda, fecha, comprobante opcional), movimientos del Wallet, destinos de retiro (titular, método, moneda, país e identificador de cuenta) y solicitudes de retiro.</td><td>Artista y equipo de soporte.</td></tr>
+                <tr><th scope="row">Store</th><td>Pedidos, comprador, titular de la licencia, dirección de envío o retiro, pago informado, licencias emitidas y registro de descargas.</td><td>Comprador y vendedor.</td></tr>
+                <tr><th scope="row">Verificación</th><td>Documentos de identidad, de bioseguridad y de domicilio, estado de revisión y notas de soporte; validación de tu cuenta de Instagram (código enviado por email, guardado solo como hash).</td><td>Artista y equipo de soporte.</td></tr>
+                <tr><th scope="row">Travel</th><td>Destinos, fechas, estudios vinculados, tareas, documentos privados, cronología y, si lo activás, enlace público del itinerario.</td><td>Artista y estudios vinculados.</td></tr>
+                <tr><th scope="row">Reseñas</th><td>Calificaciones y comentarios sobre artistas.</td><td>Clientes.</td></tr>
+                <tr><th scope="row">Uso y diagnóstico</th><td>Dirección IP anonimizada (sin el último bloque), país aproximado estimado a partir de la zona horaria y el idioma de tu navegador, navegador, sistema operativo, dispositivo, páginas visitadas, duración de la sesión y errores técnicos; resultados de chequeos de salud del servicio.</td><td>Tu navegador, automáticamente.</td></tr>
+                <tr><th scope="row">Soporte</th><td>Tickets, feedback, conversaciones de soporte y notas internas del equipo.</td><td>Vos y el equipo de soporte.</td></tr>
+            </tbody>
+        </table>
         </div>
-        <h2>Consultas sobre tus datos</h2>
-        <p>Para pedir acceso, corrección o eliminación de tus datos, escribinos a <a href="mailto:artistas@weotzi.com">artistas@weotzi.com</a> o usá el <a href="/artist/inbox?filter=support">soporte dentro de la app</a>.</p>
-        <p>Ver también los <a href="/legal/terms">términos y condiciones</a>.</p>
+        <p>No te pedimos datos sobre tu salud. Si los incluís por tu cuenta en una cotización o un mensaje (por ejemplo, una alergia), los vamos a tratar solo para que el artista pueda atender tu pedido.</p>
+
+        <h2 id="finalidades">4. Para qué los usamos</h2>
+        <ul>
+            <li><strong>Prestar el servicio</strong>: crear y administrar tu cuenta, mostrar perfiles, gestionar cotizaciones, Job Board, spots, invitaciones, Travel, Inbox, Store y Wallet. Es necesario para cumplir los términos que aceptaste.</li>
+            <li><strong>Comunicaciones transaccionales</strong>: emails sobre tu cuenta, cotizaciones, vencimientos, pedidos, verificaciones, decisiones de soporte y recuperación de contraseña. Podés ajustar algunas notificaciones desde tu cuenta; las esenciales para la seguridad o el funcionamiento no se pueden desactivar.</li>
+            <li><strong>Verificar identidad y prevenir fraude</strong>: revisar documentos, destinos de retiro e Instagram; detectar cuentas falsas o abusos.</li>
+            <li><strong>Seguridad y diagnóstico</strong>: registrar sesiones y errores para resolver fallas, limitar intentos abusivos y proteger la plataforma.</li>
+            <li><strong>Mejorar la plataforma</strong>: estadísticas agregadas de uso, rankings y completitud de perfiles, estimaciones del pre-cotizador basadas en precios de referencia de los artistas.</li>
+            <li><strong>Funciones opcionales</strong>: importación de Instagram y generación de imágenes con IA, solo cuando las usás y con tu consentimiento.</li>
+            <li><strong>Cumplir obligaciones legales</strong> y atender requerimientos de autoridades competentes.</li>
+        </ul>
+        <p>No vendemos tus datos personales ni los usamos para publicidad de terceros.</p>
+
+        <h2 id="visibilidad">5. Qué es público y qué no</h2>
+        <ul>
+            <li><strong>Público</strong> (cualquiera, incluso sin cuenta): el perfil del artista y su portafolio, el perfil del estudio y sus sedes, la ubicación aproximada de artistas y estudios en el mapa, las reseñas, la vitrina de la Store, la verificación de una licencia por su código y el itinerario de Travel solo si activás el enlace para compartir.</li>
+            <li><strong>Visible para otros usuarios con un motivo</strong>: el artista ve los datos que el cliente incluye en su cotización; los artistas registrados ven las solicitudes del Job Board; los estudios ven los perfiles y postulaciones de quienes se postulan a sus spots o integran su roster; comprador y vendedor ven los datos necesarios del pedido.</li>
+            <li><strong>Privado</strong>: tu email y teléfono (salvo que los publiques en tu perfil), documentos de verificación, destinos de retiro, documentos de Travel, archivos originales de diseños, comprobantes de pago y notas internas.</li>
+            <li><strong>Fotos importadas de Instagram</strong>: no se muestran al público hasta que valides la cuenta. Tené en cuenta que, durante la beta, este control evita que se publiquen en tu perfil pero los archivos del portafolio se alojan en un almacenamiento de acceso público por URL.</li>
+            <li><strong>Equipo de We Ötzi</strong>: soporte y administración pueden acceder a los datos que necesiten para atenderte, revisar verificaciones, moderar contenido y resolver problemas, con acceso restringido a personal autorizado.</li>
+        </ul>
+
+        <h2 id="proveedores">6. Proveedores y terceros</h2>
+        <p>Usamos proveedores que tratan datos por cuenta nuestra para que la plataforma funcione:</p>
+        <div class="legal-table-wrap">
+        <table>
+            <caption class="visually-hidden">Proveedores de servicios y datos que reciben</caption>
+            <thead><tr><th scope="col">Proveedor</th><th scope="col">Para qué</th><th scope="col">Qué datos recibe</th></tr></thead>
+            <tbody>
+                <tr><th scope="row">Supabase</th><td>Base de datos, autenticación y almacenamiento de archivos.</td><td>Prácticamente todos los datos de la plataforma.</td></tr>
+                <tr><th scope="row">Google Drive</th><td>Carpeta de cada cotización con sus imágenes de referencia.</td><td>Referencias e identificación de la cotización.</td></tr>
+                <tr><th scope="row">Google Gemini</th><td>Generación de imágenes y conceptos con IA, cuando la usás.</td><td>La descripción o instrucciones que escribís.</td></tr>
+                <tr><th scope="row">Google Maps / Places</th><td>Buscar direcciones, geocodificar y mostrar mapas.</td><td>Direcciones y búsquedas que ingresás; Google recibe además tu IP al cargar el mapa.</td></tr>
+                <tr><th scope="row">Google y Facebook (Meta)</th><td>Inicio de sesión con esas cuentas, si lo elegís.</td><td>Datos básicos del perfil que autorizás.</td></tr>
+                <tr><th scope="row">Apify</th><td>Leer el perfil público de Instagram que pediste importar.</td><td>El usuario de Instagram que ingresás.</td></tr>
+                <tr><th scope="row">Instagram (Meta)</th><td>Validación de tu cuenta por mensaje directo a @weotzi.</td><td>El código y tu usuario, que vos enviás desde Instagram.</td></tr>
+                <tr><th scope="row">n8n y proveedor de correo</th><td>Automatizaciones y envío de emails transaccionales.</td><td>Nombre, email y datos del aviso (por ejemplo, la cotización o el pedido).</td></tr>
+                <tr><th scope="row">EmailJS</th><td>Algunas notificaciones heredadas.</td><td>Nombre, email y contenido del aviso.</td></tr>
+                                <tr><th scope="row">Microsoft Clarity</th><td>Analítica de comportamiento, solo si la aceptás en el banner de cookies (categoría Analítica).</td><td>Interacciones con la página, dispositivo e IP.</td></tr>
+                <tr><th scope="row">Proveedor de hosting</th><td>Servidor donde corre la aplicación.</td><td>Datos en tránsito y registros técnicos del servidor.</td></tr>
+                <tr><th scope="row">CDNs y Google Fonts</th><td>Servir tipografías, íconos y librerías.</td><td>Tu IP y datos técnicos del navegador.</td></tr>
+            </tbody>
+        </table>
+        </div>
+        <p>También compartimos datos con otros usuarios según el uso que hagas (ver sección 5), con autoridades cuando la ley lo exija, y con un eventual comprador o sucesor si We Ötzi se reorganiza o se transfiere, que deberá respetar esta política.</p>
+
+        <h2 id="transferencias">7. Transferencias internacionales</h2>
+        <p>Varios de nuestros proveedores alojan o procesan datos fuera de tu país. Los datos de la plataforma se alojan en <span class="legal-todo">[A COMPLETAR: región de Supabase y del hosting]</span>. Cuando transferimos datos a otro país lo hacemos con proveedores que ofrecen medidas de protección contractuales y técnicas: <span class="legal-todo">[A COMPLETAR: mecanismo de transferencia aplicable]</span>.</p>
+
+        <h2 id="cookies">8. Cookies y almacenamiento local</h2>
+        <p>La primera vez que entrás te mostramos un banner para que elijas qué cookies aceptás: <strong>aceptar todas</strong>, <strong>rechazar las no esenciales</strong> o <strong>configurar por categoría</strong>. Ningún servicio no esencial se carga antes de tu elección ni si lo rechazás. Podés cambiarla cuando quieras desde «Configuración de cookies», en el pie de página o con este botón: <button type="button" class="legal-cookie-settings" data-wo-cookie-settings>Configuración de cookies</button></p>
+        <ul>
+            <li><strong>Necesarias</strong> (siempre activas): guardamos en tu navegador (localStorage y sessionStorage) la sesión iniciada, tu configuración y borradores, por ejemplo de un registro o una cotización a medio completar, y el traspaso del pre-cotizador; también tu elección de cookies (<code>wo_cookie_consent</code> en localStorage y la cookie propia <code>wo_consent</code>, con la versión y la fecha, durante 12 meses). Sin esto la plataforma no funciona.</li>
+            <li><strong>Preferencias</strong>: recordamos opciones de la interfaz, como el modo demo o el recorrido guiado. Son parte de las necesarias.</li>
+            <li><strong>Analítica</strong> (solo con tu permiso): Microsoft Clarity, cuando está activada, mide el uso y graba sesiones de forma anónima con sus cookies (por ejemplo <code>_clck</code> y <code>_clsk</code>). Si retirás el permiso, borramos esas cookies y dejamos de cargarlo.</li>
+            <li><strong>Marketing</strong>: hoy no usamos ningún servicio de publicidad ni de medición de campañas. Si lo sumáramos, te lo pediríamos por separado.</li>
+            <li><strong>Terceros funcionales</strong>: Google Maps se carga solo en las pantallas donde buscás una dirección; Google Fonts y las CDNs sirven tipografías y librerías. Pueden recibir tu IP según sus políticas.</li>
+        </ul>
+        <p>Si tu navegador envía la señal <strong>Global Privacy Control</strong>, la tomamos como un rechazo de todo lo no esencial. Si iniciaste sesión, guardamos además tu elección en tu cuenta (versión, categorías y fecha, sin tu IP) para respetarla en otros dispositivos. Cuando cambiamos esta sección actualizamos la versión del consentimiento y te volvemos a preguntar.</p>
+        <p><strong>Ubicación e IP</strong>: no enviamos tu IP a servicios de geolocalización. El país aproximado de una sesión se estima con la zona horaria y el idioma de tu navegador, y en los registros de diagnóstico guardamos la IP anonimizada (sin su último bloque). El botón «usar mi ubicación» usa la geolocalización de tu navegador solo si le das permiso.</p>
+        <p>También podés borrar o bloquear cookies y almacenamiento local desde tu navegador; si lo hacés se cerrará tu sesión y se perderán los borradores.</p>
+
+        <h2 id="conservacion">9. Cuánto tiempo los guardamos</h2>
+        <ul>
+            <li>Mientras tengas la cuenta activa guardamos los datos necesarios para prestarte el servicio.</li>
+            <li>Si pedís eliminar tu cuenta, borramos o anonimizamos tus datos. Algunos datos pueden conservarse un tiempo más: los vinculados a pedidos, pagos, retiros o disputas pendientes; los que la ley nos obligue a guardar; y los necesarios para prevenir fraudes. Las conversaciones de soporte se anonimizan.</li>
+            <li>Los mensajes y cotizaciones compartidos con otra persona pueden seguir visibles para ella, sin tus datos de contacto.</li>
+            <li>Plazos concretos: <span class="legal-todo">[A COMPLETAR: plazos de conservación por categoría (registros de sesión, documentos de verificación, datos de pagos)]</span>.</li>
+        </ul>
+
+        <h2 id="seguridad">10. Seguridad</h2>
+        <p>Aplicamos medidas razonables para proteger tus datos: conexión cifrada, controles de acceso por fila en la base de datos para que cada usuario vea solo lo suyo, almacenamiento privado para documentos y archivos sensibles, enlaces de descarga temporales, límites de intentos y acceso de soporte restringido a personal autorizado. Ningún sistema es infalible; si detectamos un incidente que afecte tus datos te vamos a avisar según corresponda.</p>
+
+        <h2 id="derechos">11. Tus derechos</h2>
+        <p>Podés pedirnos en cualquier momento:</p>
+        <ul>
+            <li><strong>Acceso</strong>: saber qué datos tuyos tenemos y recibir una copia.</li>
+            <li><strong>Rectificación</strong>: corregir datos inexactos. Muchos los podés editar vos desde tu cuenta.</li>
+            <li><strong>Supresión</strong>: eliminar tu cuenta y tus datos. Podés pedirlo desde tu cuenta con «Eliminar mi cuenta» (artistas en <a href="/artist/account#seguridad">Cuenta · Seguridad</a>, clientes en <a href="/client/profile#seguridad">Centro de cuenta · Seguridad</a> y estudios en <a href="/studio/dashboard#cuenta">Panel · Cuenta</a>) o por email.</li>
+            <li><strong>Oposición y retiro del consentimiento</strong>: dejar de usar funciones opcionales (importación de Instagram, IA, notificaciones no esenciales) o revocar un enlace compartido de Travel.</li>
+        </ul>
+        <p id="baja-de-cuenta"><strong>Cómo funciona la baja de tu cuenta.</strong> Al pedirla no se borra nada todavía: tu cuenta sigue activa y te confirmamos por email que recibimos la solicitud. Nuestro equipo de soporte la revisa (te mostramos el estado en tu cuenta) y verifica que no queden asuntos abiertos que te afecten a vos o a otras personas: disputas sin resolver, dinero en tu wallet (saldo disponible o retiros en proceso), trabajos o sesiones en curso, pedidos de la Store pendientes o membresías y contratos activos con estudios. Si hay algo pendiente, te lo indicamos para que lo resuelvas y la solicitud queda en espera. Cuando no queda nada, la aprobamos, eliminamos tu cuenta y te avisamos por email. Hasta que la baja se complete podés cancelar la solicitud desde tu cuenta. Guardamos solo un registro mínimo de la solicitud (fecha, estado y quién la gestionó) y los datos indicados en «Cuánto tiempo los guardamos». Plazo de revisión: <span class="legal-todo">[A COMPLETAR: plazo legal de respuesta a la supresión; hoy la app indica hasta 30 días]</span>.</p>
+        <p>Escribinos a <a href="mailto:artistas@weotzi.com">artistas@weotzi.com</a> desde el email de tu cuenta o usá el <a href="/artist/inbox?filter=support">soporte dentro de la app</a>. Podemos pedirte que confirmes tu identidad. Te respondemos dentro de <span class="legal-todo">[A COMPLETAR: plazo de respuesta]</span>. Si no quedás conforme, podés recurrir a <span class="legal-todo">[A COMPLETAR: autoridad de control de datos personales aplicable]</span>.</p>
+
+        <h2 id="menores">12. Menores de edad</h2>
+        <p>We Ötzi es solo para mayores de 18 años. No recolectamos a sabiendas datos de menores. Si creés que un menor nos dio sus datos, escribinos y los vamos a eliminar.</p>
+
+        <h2 id="cambios">13. Cambios en esta política</h2>
+        <p>Si cambiamos esta política, vamos a publicar la nueva versión acá con su fecha y número de versión. Si el cambio es importante te vamos a avisar por email o dentro de la plataforma antes de que entre en vigencia.</p>
+
+        <h2 id="contacto">14. Contacto</h2>
+        <ul>
+            <li>Email: <a href="mailto:artistas@weotzi.com">artistas@weotzi.com</a></li>
+            <li>Soporte dentro de la app: <a href="/artist/inbox?filter=support">Inbox · Soporte</a></li>
+            <li>Domicilio postal: <span class="legal-todo">[A COMPLETAR: domicilio legal]</span></li>
+        </ul>
+
+        <h2 id="anterior">15. Versión anterior</h2>
+        <p>La versión anterior de nuestra política de privacidad, en inglés, sigue publicada en <a href="https://weotzi.com/privacy-policy/" target="_blank" rel="noopener">weotzi.com/privacy-policy<span class="visually-hidden"> (se abre en una pestaña nueva)</span></a>. Para la plataforma We Ötzi rige esta versión 1.0 desde el 13 de noviembre de 2026.</p>
+        <p>Ver también los <a href="/legal/terms">Términos y condiciones</a>.</p>
+        <p><a class="legal-back" href="#contenido">Volver arriba ↑</a></p>
     </main>
-    <footer class="legal-foot">© 2026 We Ötzi · Beta cerrada</footer>
+    <footer class="legal-foot">© 2026 We Ötzi · Beta cerrada · Privacidad v1.0 · 13/11/2026</footer>
 </body>
 </html>

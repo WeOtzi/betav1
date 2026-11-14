@@ -121,8 +121,6 @@
     let notifMatrix = {};
     let verifAvailable = false;
     let verifDocs = [];
-    let integrations = [];
-    let integrationsAvailable = false;
     let currentSessionId = null;
     let accountSessions = [];
     let verifiedMfaFactors = [];
@@ -257,7 +255,8 @@
     }
 
     function currentSection() {
-        const raw = (window.location.hash || '').replace('#', '');
+        // "#disponibilidad?gcal=ok" (vuelta de Google Calendar) → disponibilidad.
+        const raw = (window.location.hash || '').replace('#', '').split('?')[0];
         return SECTIONS.includes(raw) ? raw : 'perfil';
     }
 
@@ -2083,16 +2082,43 @@
         }
     }
 
-    // Google Calendar (artist_integration_connections) — sincronización externa.
+    // ── gcal ── Google Calendar real (ronda 3b): OAuth en el servidor
+    // (/api/google-calendar/*), estado vía WeotziData.GoogleCalendar. El viejo
+    // pedido 'pending' de artist_integration_connections ya no se graba.
+    let gcalState = null;
+    let gcalBusy = false;
+    const GCAL_RETURN_MESSAGES = {
+        denied: 'Cancelaste la conexión con Google Calendar.',
+        scope: 'Para sincronizar necesitamos permiso para ver y editar los eventos de tu calendario. Probá de nuevo y dejá tildado ese permiso.',
+        state: 'El pedido de conexión no es válido. Probá de nuevo desde este navegador.',
+        expired: 'El pedido de conexión venció. Probá de nuevo.',
+        config: 'Google Calendar todavía no está disponible.'
+    };
+
     async function loadIntegrations() {
-        try {
-            integrationsAvailable = !!(D.AccountIntegrations && await D.AccountIntegrations.isAvailable());
-            integrations = integrationsAvailable ? await D.AccountIntegrations.list(user.id).catch(() => []) : [];
-        } catch { integrationsAvailable = false; integrations = []; }
+        await refreshGcal();
         document.querySelectorAll('[data-integration-action]').forEach((button) => {
             button.addEventListener('click', () => handleIntegrationAction(button.dataset.integrationAction));
         });
+        $('av-sync-detail')?.addEventListener('click', (event) => {
+            if (event.target.closest('[data-gcal-disconnect]')) handleIntegrationAction('google_calendar', { disconnect: true });
+        });
+        handleGcalReturn();
+    }
+
+    async function refreshGcal() {
+        try {
+            gcalState = D.GoogleCalendar ? await D.GoogleCalendar.status() : null;
+        } catch { gcalState = null; }
         renderSync();
+    }
+
+    function gcalWhen(iso) {
+        const d = iso ? new Date(iso) : null;
+        if (!d || Number.isNaN(d.getTime())) return '';
+        try {
+            return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        } catch { return d.toISOString().slice(0, 16).replace('T', ' '); }
     }
 
     function renderSync() {
@@ -2100,52 +2126,95 @@
         if (!row) return;
         const action = row.querySelector('[data-integration-action]');
         const note = $('av-sync-note');
-        const connection = integrations.find((item) => item.provider === 'google_calendar');
-        const status = connection?.status || 'disconnected';
+        const detail = $('av-sync-detail');
+        const errorEl = $('av-sync-error');
+        const st = gcalState || {};
         const active = avState.locations.filter((l) => statusOf(l) !== 'closed').length;
         const word = ['', 'la ubicación activa', 'las dos ubicaciones activas', 'las tres ubicaciones activas'][active] || `las ${active} ubicaciones activas`;
-        if (status === 'connected') {
-            note.textContent = active === 1 ? `Sincroniza ${word}` : `Sincroniza ${word}`;
+        const connected = !!st.connected;
+        const reauth = connected && !!st.needs_reauth;
+        let detailHtml = '';
+        let errorText = '';
+
+        if (st.configured === false) {
+            note.textContent = 'Google Calendar todavía no está disponible';
+            action.textContent = 'Conectar';
+            detailHtml = 'La conexión se habilita cuando We Ötzi termine de configurarla con Google.';
+        } else if (reauth) {
+            note.textContent = 'Hay que volver a conectar tu cuenta';
+            action.textContent = 'Reconectar';
+            errorText = st.last_error || 'Google revocó el acceso. Volvé a conectar tu cuenta.';
+        } else if (connected) {
+            note.textContent = `Sincroniza ${word}`;
             action.textContent = 'Conectado';
-        } else if (status === 'pending') {
-            note.textContent = 'Autorización pendiente con Google';
-            action.textContent = 'Pendiente';
+            const parts = [];
+            if (st.google_email) parts.push(`<strong>${esc(st.google_email)}</strong>`);
+            parts.push(st.last_sync_at ? `Última sincronización: ${esc(gcalWhen(st.last_sync_at))}` : 'Primera sincronización en curso…');
+            if (!st.readonly) parts.push('<button type="button" class="av-sync-link" data-gcal-disconnect>Desconectar</button>');
+            detailHtml = parts.join(' · ');
+            errorText = st.last_error || '';
         } else {
             note.textContent = 'Sincronizá tus ubicaciones con tu calendario';
             action.textContent = 'Conectar';
         }
-        action.classList.toggle('is-connected', status === 'connected');
-        action.disabled = !integrationsAvailable;
-        action.title = integrationsAvailable ? (connection?.account_label || '') : 'Integración no disponible en este entorno';
+
+        action.classList.toggle('is-connected', connected && !reauth);
+        action.disabled = gcalBusy || st.configured === false || (!st.available && !connected);
+        action.setAttribute('aria-busy', gcalBusy ? 'true' : 'false');
+        if (connected && !reauth) {
+            action.setAttribute('aria-label', 'Google Calendar conectado. Desconectar');
+            action.title = 'Desconectar Google Calendar';
+        } else {
+            action.removeAttribute('aria-label');
+            action.title = action.disabled && st.configured !== false && !gcalBusy ? 'Integración no disponible en este entorno' : '';
+        }
+        if (detail) { detail.innerHTML = detailHtml; detail.hidden = !detailHtml; }
+        if (errorEl) { errorEl.textContent = errorText; errorEl.hidden = !errorText; }
     }
 
-    async function handleIntegrationAction(provider) {
-        if (!integrationsAvailable) { toast('La sincronización con Google Calendar no está disponible en este entorno', false); return; }
-        const current = integrations.find((item) => item.provider === provider);
+    // Vuelta del callback: #disponibilidad?gcal=ok|error&reason=…
+    function handleGcalReturn() {
+        const hash = window.location.hash || '';
+        const idx = hash.indexOf('?');
+        if (idx === -1) return;
+        const params = new URLSearchParams(hash.slice(idx + 1));
+        const result = params.get('gcal');
+        if (!result) return;
+        try { history.replaceState(null, '', `${window.location.pathname}${window.location.search}#disponibilidad`); } catch { /* sin history */ }
+        if (result === 'ok') {
+            toast('Google Calendar conectado. Estamos sincronizando tu agenda.');
+            setTimeout(() => { refreshGcal(); }, 8000);
+        } else {
+            toast(GCAL_RETURN_MESSAGES[params.get('reason')] || 'No pudimos conectar Google Calendar. Probá de nuevo.', false);
+        }
+    }
+
+    async function handleIntegrationAction(provider, opts = {}) {
+        if (provider !== 'google_calendar' || gcalBusy) return;
+        const st = gcalState || {};
+        if (st.configured === false) { toast('Google Calendar todavía no está disponible', false); return; }
+        const wantsDisconnect = !!(opts.disconnect || (st.connected && !st.needs_reauth));
+        if (wantsDisconnect && !window.confirm('¿Querés desconectar Google Calendar? Dejamos de sincronizar tu agenda y revocamos el acceso de We Ötzi. Los eventos que ya están en Google quedan ahí.')) return;
+        gcalBusy = true;
+        renderSync();
         try {
-            if (current?.status === 'connected' || current?.status === 'pending') {
-                if (!window.confirm('¿Querés desconectar Google Calendar?')) return;
-                await D.AccountIntegrations.save(user.id, provider, { status: 'disconnected' });
+            if (wantsDisconnect) {
+                await D.GoogleCalendar.disconnect();
                 toast('Google Calendar desconectado');
+                await refreshGcal();
             } else {
-                const authorizeUrl = window.CONFIG?.integrations?.[provider]?.authorizeUrl;
-                if (authorizeUrl) {
-                    const returnTo = `${window.location.origin}/artist/account#disponibilidad`;
-                    window.location.href = `${authorizeUrl}${authorizeUrl.includes('?') ? '&' : '?'}return_to=${encodeURIComponent(returnTo)}`;
-                    return;
-                }
-                await D.AccountIntegrations.save(user.id, provider, {
-                    status: 'pending',
-                    scopes: ['calendar.readonly'],
-                    metadata: { authorization_required: true, requested_from: 'account_availability' }
-                });
-                toast('Pedido de conexión registrado: falta autorizar Google Calendar');
+                const url = await D.GoogleCalendar.authorizeUrl();
+                window.location.assign(url);
+                return;
             }
-            integrations = await D.AccountIntegrations.list(user.id);
-            renderSync();
         } catch (error) {
-            console.error('[account] integración:', error);
-            toast('No pudimos actualizar la sincronización', false);
+            console.error('[account] Google Calendar:', error && error.message);
+            toast(error && error.configured === false
+                ? 'Google Calendar todavía no está disponible'
+                : (wantsDisconnect ? 'No pudimos desconectar Google Calendar. Probá de nuevo.' : 'No pudimos iniciar la conexión con Google. Probá de nuevo.'), false);
+        } finally {
+            gcalBusy = false;
+            renderSync();
         }
     }
 
@@ -2244,15 +2313,15 @@
         $('aac-close-others').addEventListener('click', closeOtherSessions);
         $('aac-mfa-toggle').addEventListener('change', handleMfaToggle);
         $('aac-mfa-form').addEventListener('submit', verifyMfaEnrollment);
-        $('aac-delete-request').addEventListener('click', () => $('aac-delete-dialog').showModal());
-        $('aac-delete-form').addEventListener('submit', requestAccountDeletion);
+        // ── borrado ── (ronda 3c) baja gestionada por soporte: account-deletion.js.
+        mountAccountDeletion();
         $('aac-phone-edit').addEventListener('click', openPhoneDialog);
         $('aac-phone-form').addEventListener('submit', submitPhone);
         $('aac-question-edit').addEventListener('click', openQuestionDialog);
         $('aac-question-form').addEventListener('submit', submitQuestion);
         renderRecovery();
 
-        await Promise.all([loadAccountSessions(), loadMfaState(), loadDeletionRequests()]);
+        await Promise.all([loadAccountSessions(), loadMfaState()]);
     }
 
     async function changePassword() {
@@ -2424,39 +2493,13 @@
         } finally { if (submit) submit.disabled = false; }
     }
 
-    async function loadDeletionRequests() {
-        const status = $('aac-delete-status');
-        const available = D.AccountDeletionRequests && await D.AccountDeletionRequests.isAvailable();
-        if (!available) {
-            status.textContent = 'Para eliminar tu cuenta escribinos por soporte.';
-            $('aac-delete-request').disabled = true;
-            return;
-        }
-        const rows = await D.AccountDeletionRequests.list(user.id).catch(() => []);
-        const open = rows.find((row) => ['requested', 'in_review', 'approved'].includes(row.status));
-        if (open) {
-            status.textContent = `Solicitud ${open.status === 'requested' ? 'recibida' : 'en revisión'} · ${formatShortDate(open.requested_at)}`;
-            $('aac-delete-request').disabled = true;
-        } else {
-            status.textContent = '';
-            $('aac-delete-request').disabled = false;
-        }
-    }
-
-    async function requestAccountDeletion(event) {
-        event.preventDefault();
-        if (!$('aac-delete-confirm').checked) { toast('Confirmá que entendés que la eliminación es permanente', false); return; }
-        const submit = event.submitter;
-        if (submit) submit.disabled = true;
-        try {
-            await D.AccountDeletionRequests.request(user.id, $('aac-delete-reason').value);
-            $('aac-delete-dialog').close();
-            await loadDeletionRequests();
-            toast('Solicitud de eliminación registrada');
-        } catch (error) {
-            console.error('[account] solicitud de eliminación:', error);
-            toast('No pudimos registrar la solicitud', false);
-        } finally { if (submit) submit.disabled = false; }
+    // ── borrado ── (ronda 3c) "Eliminar mi cuenta": proceso, bloqueos en vivo,
+    // confirmación con ELIMINAR y estado de la solicitud (lo gestiona soporte).
+    // Reemplaza a D.AccountDeletionRequests (tabla vieja, solo artistas).
+    function mountAccountDeletion() {
+        const host = $('aac-delete-host');
+        if (!host || !window.WeotziAccountDeletion) return;
+        window.WeotziAccountDeletion.mount(host, { role: 'artist', titleClass: 'aac-danger-title', textClass: 'aac-danger-text' });
     }
 
     // ---- Recuperación: verificación telefónica + pregunta de seguridad ----

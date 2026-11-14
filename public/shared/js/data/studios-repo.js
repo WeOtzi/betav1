@@ -88,6 +88,13 @@
             return from('studios').select(columns).eq('id', studioId).eq('user_id', userId).maybeSingle();
         },
 
+        // Estudios que opera la cuenta autenticada: dueño u otro rol con acceso
+        // al panel (manager activo). RPC list_my_studio_access (20261113101000).
+        // Filas: { studio_id, access: 'owner'|'manager', name, slug, logo_image }.
+        listMyAccess() {
+            return client().rpc('list_my_studio_access');
+        },
+
         // Busqueda por nombre normalizado (ilike, mayusculas) para autocompletado.
         // columns variable: por defecto 'id, name, normalized_name' (dashboard) o
         // 'name, normalized_name' / el set largo de register segun el caller.

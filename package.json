@@ -1,6 +1,6 @@
 {
   "name": "weotzi-unified",
-  "version": "2.2.11",
+  "version": "2.2.12",
   "description": "We Ötzi - Unified Web Application",
   "main": "server.js",
   "scripts": {

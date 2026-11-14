@@ -87,6 +87,15 @@ cliente por **inyección de dependencia** para tests (p.ej. `resolveArtistAuthSt
 - No re-crear clientes con `supabase.createClient(...)`: usar el singleton de
   `config-manager.js` (lo hace la capa por vos).
 - Filtros con valores de usuario (emails, etc.) → la capa los escapa (`orValue`).
+- **`artists_db` tiene privilegios por columna** (migración `20261113106000`):
+  anon y authenticated solo leen `WeotziData.Artists.PUBLIC_COLUMNS`. Email, fecha
+  de nacimiento, WhatsApp, dirección/coordenadas exactas, datos de registro, `ms_*`
+  y `dashboard_config` son privadas: `select('*')` o una columna privada sobre la
+  tabla **falla**. El propio artista lee su fila por `rpc('get_my_artist_profile')`
+  y soporte por `rpc('support_list_artists', { p_user_ids })`; `WeotziData.Artists`
+  ya enruta solo. Columna nueva pública → `grant select (col) on public.artists_db
+  to anon, authenticated` en la migración + sumarla a `PUBLIC_COLUMNS`
+  (`tests/r3c-pii.test.js` compara las listas).
 
 ---
 

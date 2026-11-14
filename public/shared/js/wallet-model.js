@@ -289,6 +289,16 @@
         return '···· ' + clean.slice(-4);
     }
     function last4(value) { return String(value || '').replace(/\s+/g, '').slice(-4); }
+    // ── cifrado ── El navegador solo recibe los últimos 4 del destino
+    // (account_identifier_last4); account_identifier queda por compatibilidad.
+    function destinationLast4(dest) {
+        if (!dest) return '';
+        return String(dest.account_identifier_last4 || last4(dest.account_identifier) || '');
+    }
+    function maskDestination(dest) {
+        var tail = destinationLast4(dest);
+        return tail ? '···· ' + tail : '';
+    }
 
     // Número de tarjeta (PAN): 12-19 dígitos que pasan el dígito verificador de
     // Luhn, con cualquier separador que no sea una letra (espacios, guiones,
@@ -310,8 +320,10 @@
         return sum % 10 === 0;
     }
 
-    function validateDestination(input) {
+    // opts.keepIdentifier: edición sin reescribir la cuenta (se conserva la guardada).
+    function validateDestination(input, opts) {
         var errors = {};
+        var keepIdentifier = !!(opts && opts.keepIdentifier) && !String(input && input.accountIdentifier || '').trim();
         var method = DESTINATION_METHODS[input && input.method];
         if (!method || !method.available) errors.method = 'Elegí un método disponible.';
         var holder = String(input && input.holderName || '').trim();
@@ -319,7 +331,8 @@
         var currency = upper(input && input.currency, '');
         if (!/^[A-Z]{3,4}$/.test(currency)) errors.currency = 'Elegí una moneda.';
         var id = String(input && input.accountIdentifier || '').trim();
-        if (looksLikeCardNumber(id)) errors.accountIdentifier = 'No ingreses números de tarjeta. Usá el CBU, IBAN o alias de la cuenta.';
+        if (keepIdentifier) { /* se conserva la cuenta guardada */ }
+        else if (looksLikeCardNumber(id)) errors.accountIdentifier = 'No ingreses números de tarjeta. Usá el CBU, IBAN o alias de la cuenta.';
         else if (id.length < 4 || id.length > 64) errors.accountIdentifier = 'Ingresá el CBU, IBAN o alias de la cuenta.';
         else if (!/^[A-Za-z0-9 .\-_]+$/.test(id)) errors.accountIdentifier = 'Usá solo letras, números, puntos o guiones.';
         return { ok: Object.keys(errors).length === 0, errors: errors };
@@ -391,6 +404,7 @@
         movementView: movementView, releaseView: releaseView, hoursUntil: hoursUntil, formatHours: formatHours,
         formatMoney: formatMoney, formatShortDate: formatShortDate, parseAmount: parseAmount,
         maskIdentifier: maskIdentifier, last4: last4, validateDestination: validateDestination,
+        destinationLast4: destinationLast4, maskDestination: maskDestination,
         looksLikeCardNumber: looksLikeCardNumber,
         validateWithdrawal: validateWithdrawal, initials: initials,
         fromFinancialEntries: fromFinancialEntries, fromQuotations: fromQuotations

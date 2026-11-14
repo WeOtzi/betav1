@@ -41,6 +41,11 @@ const LABELS = {
     decision_detail: 'Detalle',
     support_note: 'Nota de soporte',
     support_reference: 'Referencia',
+    // ── borrado ── baja de cuenta
+    user_name: 'Nombre',
+    status_title: 'Estado',
+    status_detail: 'Detalle',
+    request_reference: 'Solicitud',
     artist_studio_name: 'Estudio',
     artistic_name: 'Nombre artistico',
     attachments_count: 'Referencias adjuntas',
@@ -322,6 +327,15 @@ const SPECS = {
         intro: 'Hola {{artist_name}}: {{reminder_title}} ({{reminder_when}}). Lo agendaste en tu calendario de We Ötzi.',
         ctaLabel: 'Abrir mi calendario',
         ctaVar: 'dashboard_url'
+    },
+    // Ronda 3c · borrado: estado de una solicitud de baja de cuenta (recibida,
+    // aprobada, rechazada, completada). Sin frame en el Figma; mismo lenguaje que support-decision.
+    'account-deletion': {
+        eyebrow: 'CUENTA / BAJA',
+        headline: 'Tu solicitud de baja.',
+        intro: 'Hola {{user_name}}: {{status_title}}. {{status_detail}}',
+        ctaLabel: 'Ver mi cuenta',
+        ctaVar: 'account_url'
     },
     // Ronda 3 · integracion: soporte decidió sobre un documento, un destino de
     // retiro o un retiro (sin frame en el Figma; mismo lenguaje que calendar-reminder).
@@ -643,10 +657,11 @@ function minify(html) {
         .trim();
 }
 
-function writeTemplates() {
+function writeTemplates(only) {
     const baseDir = path.join(ROOT, 'templates/email');
     const bmDir = path.join(baseDir, 'billionmail');
-    const names = Object.keys(manifest).sort();
+    // `--only=<nombre>` regenera una sola plantilla (sin tocar las demás).
+    const names = Object.keys(manifest).sort().filter((name) => !only || name === only);
     for (const name of names) {
         const html = buildEmailHtml(name, { mode: 'local' });
         const min = minify(html);
@@ -735,7 +750,8 @@ async function syncN8nWorkflows() {
 
 async function main() {
     const args = new Set(process.argv.slice(2));
-    const count = writeTemplates();
+    const onlyArg = [...args].find((a) => a.startsWith('--only='));
+    const count = writeTemplates(onlyArg ? onlyArg.slice('--only='.length) : null);
     console.log(`Generated ${count} email templates in templates/email and templates/email/billionmail.`);
     if (args.has('--sync-n8n')) {
         const result = await syncN8nWorkflows();

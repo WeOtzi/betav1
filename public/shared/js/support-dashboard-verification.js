@@ -114,6 +114,21 @@
         const clean = String(value || '').replace(/\s+/g, '');
         return clean ? '···· ' + clean.slice(-4) : '—';
     }
+    // ── cifrado ── El panel recibe solo los últimos 4 (account_identifier_last4).
+    function maskDestination(dest) {
+        return maskIdentifier((dest && (dest.account_identifier_last4 || dest.account_identifier)) || '');
+    }
+    // Número completo: botón que lo pide al servidor (auditado, con motivo).
+    function revealFact(destId, purpose) {
+        if (!destId) return fact('Cuenta (CBU / IBAN / alias)', '-');
+        return `<div><dt>Cuenta (CBU / IBAN / alias)</dt><dd><span class="svq-mono" id="svq-account-value" aria-live="polite">${esc(maskDestination(state.revealSource && state.revealSource[destId]))}</span>
+            <button type="button" class="svq-link" data-svq-reveal="${esc(destId)}" data-svq-purpose="${esc(purpose)}">Ver número completo</button></dd></div>`;
+    }
+    function rememberDest(dest) {
+        state.revealSource = state.revealSource || {};
+        if (dest && dest.id) state.revealSource[dest.id] = dest;
+        return true;
+    }
 
     // Arma la decisión: { decision, note } o { error, field }.
     //   kind 'destinations' → 'verified' | 'rejected'
@@ -460,7 +475,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
                 <div class="svq-cell svq-artist"><span class="svq-name">${esc(name)}</span><span class="svq-muted">${esc(sub)}</span></div>
                 <div class="svq-cell svq-mono" data-label="Monto">${esc(amount)}</div>
                 <div class="svq-cell" data-label="Destino"><span class="svq-name">${esc(dest.label || item.title || 'Destino')}</span><span class="svq-muted">${esc(METHOD_LABELS[dest.method] || dest.method || '')}</span></div>
-                <div class="svq-cell svq-mono" data-label="Cuenta">${esc(maskIdentifier(dest.account_identifier))}</div>
+                <div class="svq-cell svq-mono" data-label="Cuenta">${esc(maskDestination(dest))}</div>
                 <div class="svq-cell" data-label="Estado">${badge(item.status, 'withdrawals')}</div>
                 <div class="svq-cell svq-mono" data-label="Pedido">${esc(fmtDate(item.occurred_at || item.created_at))}</div>
             </div>`;
@@ -470,7 +485,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
                 <div class="svq-cell svq-artist"><span class="svq-name">${esc(name)}</span><span class="svq-muted">${esc(sub)}</span></div>
                 <div class="svq-cell" data-label="Destino"><span class="svq-name">${esc(item.label)}</span><span class="svq-muted">${esc(METHOD_LABELS[item.method] || item.method)}</span></div>
                 <div class="svq-cell svq-mono" data-label="Moneda">${esc(item.currency)}</div>
-                <div class="svq-cell svq-mono" data-label="Cuenta">${esc(maskIdentifier(item.account_identifier))}</div>
+                <div class="svq-cell svq-mono" data-label="Cuenta">${esc(maskDestination(item))}</div>
                 <div class="svq-cell" data-label="Estado">${badge(item.verification_status)}</div>
                 <div class="svq-cell svq-mono" data-label="Alta">${esc(fmtDate(item.created_at))}</div>
             </div>`;
@@ -545,7 +560,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
                     ${fact('Moneda', item.currency)}
                     ${fact('Riel', item.rail || '-')}
                     ${fact('País', item.country_code || a.country || '-')}
-                    ${fact('Cuenta (CBU / IBAN / alias)', item.account_identifier)}
+                    ${rememberDest(item) && revealFact(item.id, 'verification')}
                     ${fact('Alta', fmtDateTime(item.created_at))}
                     ${item.verified_at ? fact('Verificado', fmtDateTime(item.verified_at)) : ''}
                     ${review && review.note ? fact('Nota de la última revisión', review.note) : ''}
@@ -593,7 +608,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
                     ${fact('Titular', dest.holder_name || '-')}
                     ${fact('Método', METHOD_LABELS[dest.method] || dest.method || '-')}
                     ${fact('Riel', dest.rail || '-')}
-                    ${fact('Cuenta (CBU / IBAN / alias)', dest.account_identifier || '-')}
+                    ${rememberDest(dest) && revealFact(dest.id, 'withdrawal_settlement')}
                     ${fact('Destino verificado', dest.verification_status === 'verified' ? 'Sí' : (dest.verification_status ? 'No' : '-'))}
                     ${fact('Pedido', fmtDateTime(item.occurred_at || item.created_at))}
                     ${fact('Artista', a.email || a.name || '-')}
@@ -819,6 +834,32 @@ textarea.svq-input{min-height:88px;resize:vertical}
         }
     }
 
+    // ── cifrado ── ver el número completo (se oculta a los 60 s).
+    let revealTimer = null;
+    async function runReveal(btn) {
+        const out = $('svq-account-value');
+        const id = btn.dataset.svqReveal;
+        if (btn.dataset.revealed) {
+            clearTimeout(revealTimer);
+            if (out) out.textContent = maskDestination(state.revealSource[id]);
+            btn.textContent = 'Ver número completo';
+            btn.dataset.revealed = '';
+            return;
+        }
+        btn.disabled = true;
+        try {
+            const res = await repo().revealDestination(id, btn.dataset.svqPurpose);
+            if (!res.available) { feedback('svq-feedback', 'error', 'No disponible en la vista previa: el número completo solo lo entrega el servidor.'); return; }
+            if (out) out.textContent = res.value;
+            btn.textContent = 'Ocultar';
+            btn.dataset.revealed = '1';
+            clearTimeout(revealTimer);
+            revealTimer = setTimeout(() => { if (btn.dataset.revealed) runReveal(btn); }, 60000);
+        } catch (err) {
+            feedback('svq-feedback', 'error', (err && err.message) || MSG.generic);
+        } finally { btn.disabled = false; }
+    }
+
     async function onDrawerClick(e) {
         if (!$('svq-detail')) return;
         const action = e.target.closest('[data-svq-action]');
@@ -827,6 +868,8 @@ textarea.svq-input{min-height:88px;resize:vertical}
         if (settle) { e.preventDefault(); runSettle(settle.dataset.svqSettle); return; }
         const st = e.target.closest('[data-svq-state]');
         if (st) { e.preventDefault(); runArtistState(st); return; }
+        const reveal = e.target.closest('[data-svq-reveal]');
+        if (reveal) { e.preventDefault(); runReveal(reveal); return; }
         const open = e.target.closest('[data-svq-open]');
         if (open) {
             e.preventDefault();
@@ -857,7 +900,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
 
     return {
         boot,
-        _internal: { MSG, DOC_LABELS, normalizeStatus, statusMeta, maskIdentifier, buildReview, requiredDocsStatus, errorText, esc,
+        _internal: { MSG, DOC_LABELS, normalizeStatus, statusMeta, maskIdentifier, maskDestination, buildReview, requiredDocsStatus, errorText, esc,
             buildSettlement, formatAmount, notifyText, KINDS }
     };
 }));

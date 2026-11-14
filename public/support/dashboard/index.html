@@ -22,6 +22,8 @@
     <script src="/shared/js/data/store-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/currency-utils.js"></script>
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
+    <script src="/shared/js/wo-consent.js" defer></script>
 </head>
 <body>
     <header class="top-nav-header">
@@ -79,6 +81,16 @@
                     <polyline points="9 12 11 14 15 10"/>
                 </svg>
                 VERIFICACIONES <span class="svq-count" hidden></span>
+            </a>
+            <!-- borrado (ronda 3c): cola de bajas de cuenta (support-dashboard-account-deletion.js) -->
+            <a href="#" class="nav-item nav-menu-item" data-tab="bajas">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="8.5" cy="7" r="4"/>
+                    <line x1="18" y1="8" x2="23" y2="13"/>
+                    <line x1="23" y1="8" x2="18" y2="13"/>
+                </svg>
+                BAJAS DE CUENTA <span class="adq-count" hidden></span>
             </a>
             <div class="nav-divider"></div>
             <button class="nav-item nav-logout" onclick="handleLogout()">LOGOUT</button>
@@ -158,6 +170,15 @@
                         <polyline points="9 12 11 14 15 10"/>
                     </svg>
                     VERIFICACIONES <span class="svq-count" hidden></span>
+                </button>
+                <button class="tab-btn" data-tab="bajas" type="button">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="8.5" cy="7" r="4"/>
+                        <line x1="18" y1="8" x2="23" y2="13"/>
+                        <line x1="23" y1="8" x2="18" y2="13"/>
+                    </svg>
+                    BAJAS DE CUENTA <span class="adq-count" hidden></span>
                 </button>
             </div>
 
@@ -263,5 +284,8 @@
     <!-- Pestaña VERIFICACIONES (grupo pagos): destinos de retiro + documentos del artista -->
     <script src="/shared/js/data/support-verification-repo.js?v=20261112-integracion"></script>
     <script src="/shared/js/support-dashboard-verification.js?v=20261112-integracion"></script>
+    <!-- Pestaña BAJAS DE CUENTA (ronda 3c · borrado): cola, checklist de bloqueos en vivo y ejecución -->
+    <script src="/shared/js/data/account-deletion-repo.js?v=20261113-borrado"></script>
+    <script src="/shared/js/support-dashboard-account-deletion.js?v=20261113-borrado"></script>
 </body>
 </html>

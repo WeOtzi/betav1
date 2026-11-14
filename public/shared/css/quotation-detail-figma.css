@@ -749,6 +749,24 @@ a.qd-evidence-chip:hover { border-color: var(--red-300); }
 .qd-dialog-error { margin: 0; color: var(--text-danger); font-size: var(--body-s-size); }
 /* Ronda 3 · P10: ayuda bajo "Vigencia de la propuesta" (diseño propio, mismo tono que .qd-dialog-copy). */
 .qd-field-help { display: block; margin-top: var(--space-1); color: var(--text-muted); font-size: var(--body-s-size); line-height: 1.4; }
+/* 13 nov 2026 · Vencimiento opcional por cotización (diseño propio: .wo-toggle del DS +
+   días numérico; mismo lenguaje que el bloque de presupuesto y los campos del diálogo). */
+.qd-expiry { display: grid; gap: var(--space-2); min-width: 0; }
+.qd-expiry-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); }
+.qd-expiry-switch { display: inline-flex; align-items: center; gap: var(--space-3); font-size: var(--body-s-size); font-weight: var(--weight-semibold); cursor: pointer; }
+.qd-expiry-switch .wo-toggle input:focus-visible + .knob { outline: 2px solid var(--yellow-300); outline-offset: 2px; }
+.qd-expiry-days { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--body-s-size); }
+.qd-expiry-days .wo-input { width: 88px; }
+.qd-dialog .qd-expiry-days .wo-input { width: 88px; }
+.qd-expiry-days .wo-input:disabled { opacity: .5; cursor: not-allowed; }
+.qd-expiry-panel { justify-items: start; }
+.qd-expiry-panel .qd-label { color: var(--neutral-300); }
+.qd-expiry-panel .qd-expiry-switch, .qd-expiry-panel .qd-expiry-days { color: var(--neutral-100); }
+.qd-expiry-panel .qd-field-help { color: var(--figma-sand); }
+.qd-expiry-panel .qd-expiry-days .wo-input { height: 35px; background: var(--neutral-100); color: var(--neutral-500); border: var(--border-hairline) solid var(--neutral-500); }
+@media (prefers-reduced-motion: reduce) {
+    .qd-expiry-switch .wo-toggle .knob, .qd-expiry-switch .wo-toggle .knob::before { transition: none; }
+}
 .qd-dialog .wo-modal-actions { margin-top: var(--space-2); }
 
 .qd-toast {

@@ -16,7 +16,9 @@ const REQUIRED_QUOTE_STATUS = {
 const CLIENT_EVENTS = new Set(['client_approved_quotation', 'client_rejected_quotation', 'client_left_rating', 'chat_message_to_artist']);
 // Sent only by trusted server routes (they carry secrets such as verification codes).
 // Without this guard they would fall through to the quotation branch below.
-const SERVER_ONLY_EVENTS = new Set(['instagram_verification_code', 'quotation_expired', 'artist_calendar_reminder', 'artist_support_decision']);
+const SERVER_ONLY_EVENTS = new Set(['instagram_verification_code', 'quotation_expired', 'artist_calendar_reminder', 'artist_support_decision',
+    // ── borrado ── bajas de cuenta: solo el servidor (lib/account-deletion.js).
+    'account_deletion_received', 'account_deletion_approved', 'account_deletion_rejected', 'account_deletion_completed']);
 const fail = (status, error) => ({ ok: false, status, error });
 const same = (left, right) => !!left && !!right && String(left).toLowerCase() === String(right).toLowerCase();
 
