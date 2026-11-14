@@ -40,7 +40,8 @@
     "file": "templates/email/billionmail/ambassador-updated.html",
     "variables": [
       "ambassador_status",
-      "artist_name"
+      "artist_name",
+      "dashboard_url"
     ]
   },
   "application-accepted": {
@@ -51,14 +52,16 @@
       "quote_id",
       "tattoo_body_part",
       "tattoo_size",
-      "tattoo_style"
+      "tattoo_style",
+      "dashboard_url"
     ]
   },
   "application-rejected": {
     "file": "templates/email/billionmail/application-rejected.html",
     "variables": [
       "artist_name",
-      "request_code"
+      "request_code",
+      "dashboard_url"
     ]
   },
   "artist-quotation-notification": {
@@ -66,21 +69,13 @@
     "variables": [
       "artist_name",
       "attachments_count",
-      "attachments_html",
-      "client_age",
-      "client_allergies",
       "client_budget_amount",
       "client_budget_currency",
       "client_city_residence",
-      "client_contact_preference",
-      "client_email",
       "client_flexible_dates",
       "client_full_name",
-      "client_health_conditions",
-      "client_instagram",
       "client_preferred_date",
       "client_travel_willing",
-      "client_whatsapp",
       "quotation_medium",
       "quote_id",
       "tattoo_body_part",
@@ -91,7 +86,9 @@
       "tattoo_is_first_tattoo",
       "tattoo_references",
       "tattoo_size",
-      "tattoo_style"
+      "tattoo_style",
+      "quotation_url",
+      "preferences_url"
     ]
   },
   "artist-responded": {
@@ -106,7 +103,10 @@
       "quote_id",
       "tattoo_body_part",
       "tattoo_size",
-      "tattoo_style"
+      "tattoo_style",
+      "message_preview",
+      "quotation_url",
+      "preferences_url"
     ]
   },
   "artist-welcome": {
@@ -133,7 +133,9 @@
       "artist_name",
       "client_name",
       "message_preview",
-      "quote_id"
+      "quote_id",
+      "chat_url",
+      "preferences_url"
     ]
   },
   "chat-message-client": {
@@ -142,7 +144,9 @@
       "artist_name",
       "client_name",
       "message_preview",
-      "quote_id"
+      "quote_id",
+      "chat_url",
+      "preferences_url"
     ]
   },
   "client-rating": {
@@ -152,7 +156,9 @@
       "client_name",
       "quote_id",
       "rating",
-      "rating_comment"
+      "rating_comment",
+      "quotation_url",
+      "preferences_url"
     ]
   },
   "client-welcome": {
@@ -199,7 +205,8 @@
       "estimated_price",
       "estimated_sessions",
       "message",
-      "request_code"
+      "request_code",
+      "dashboard_url"
     ]
   },
   "job-board-confirmed": {
@@ -214,7 +221,8 @@
       "tattoo_color_type",
       "tattoo_idea_description",
       "tattoo_size",
-      "tattoo_style"
+      "tattoo_style",
+      "dashboard_url"
     ]
   },
   "password-reset": {
@@ -234,13 +242,15 @@
       "feature_2_title",
       "feature_3_description",
       "feature_3_title",
-      "recipient_name"
+      "recipient_name",
+      "dashboard_url"
     ]
   },
   "profile-verified": {
     "file": "templates/email/billionmail/profile-verified.html",
     "variables": [
-      "artist_name"
+      "artist_name",
+      "account_url"
     ]
   },
   "quotation-approved": {
@@ -253,7 +263,9 @@
       "quote_id",
       "tattoo_body_part",
       "tattoo_size",
-      "tattoo_style"
+      "tattoo_style",
+      "quotation_url",
+      "preferences_url"
     ]
   },
   "quotation-completed": {
@@ -269,7 +281,9 @@
       "quote_id",
       "tattoo_body_part",
       "tattoo_size",
-      "tattoo_style"
+      "tattoo_style",
+      "quotation_url",
+      "preferences_url"
     ]
   },
   "quotation-confirmation-client": {
@@ -279,13 +293,10 @@
       "artist_name",
       "artist_studio_name",
       "attachments_count",
-      "attachments_html",
-      "client_allergies",
       "client_budget_amount",
       "client_budget_currency",
       "client_flexible_dates",
       "client_full_name",
-      "client_health_conditions",
       "client_preferred_date",
       "client_travel_willing",
       "quote_id",
@@ -296,7 +307,8 @@
       "tattoo_is_first_tattoo",
       "tattoo_references",
       "tattoo_size",
-      "tattoo_style"
+      "tattoo_style",
+      "quotation_url"
     ]
   },
   "quotation-rejected": {
@@ -307,7 +319,9 @@
       "quote_id",
       "tattoo_body_part",
       "tattoo_size",
-      "tattoo_style"
+      "tattoo_style",
+      "quotation_url",
+      "preferences_url"
     ]
   },
   "request-rating": {
@@ -316,7 +330,8 @@
       "artist_name",
       "client_name",
       "tattoo_body_part",
-      "tattoo_style"
+      "tattoo_style",
+      "review_url"
     ]
   },
   "session-cancelled": {
@@ -327,7 +342,9 @@
       "quote_id",
       "recipient_name",
       "session_date",
-      "session_number"
+      "session_number",
+      "quotation_url",
+      "preferences_url"
     ]
   },
   "session-completed": {
@@ -336,7 +353,9 @@
       "artist_name",
       "client_name",
       "session_date",
-      "session_number"
+      "session_number",
+      "quotation_url",
+      "preferences_url"
     ]
   },
   "session-reminder": {
@@ -347,7 +366,8 @@
       "dashboard_url",
       "recipient_name",
       "session_date",
-      "session_number"
+      "session_number",
+      "quote_id"
     ]
   },
   "session-rescheduled": {
@@ -356,7 +376,9 @@
       "artist_name",
       "client_name",
       "session_date",
-      "session_number"
+      "session_number",
+      "quotation_url",
+      "preferences_url"
     ]
   },
   "session-scheduled": {
@@ -367,7 +389,9 @@
       "duration_hours",
       "quote_id",
       "session_date",
-      "session_number"
+      "session_number",
+      "quotation_url",
+      "preferences_url"
     ]
   },
   "support-decision": {
@@ -385,7 +409,8 @@
     "file": "templates/email/billionmail/verification-denied.html",
     "variables": [
       "artist_name",
-      "reason"
+      "reason",
+      "account_url"
     ]
   },
   "weekly-digest": {
@@ -422,7 +447,8 @@
       "tattoo_body_part",
       "tattoo_size",
       "tattoo_style",
-      "dashboard_url"
+      "dashboard_url",
+      "preferences_url"
     ]
   },
   "quotation-ready-client": {
@@ -434,7 +460,8 @@
       "tattoo_body_part",
       "tattoo_size",
       "tattoo_style",
-      "dashboard_url"
+      "dashboard_url",
+      "preferences_url"
     ]
   },
   "dispute-artist-response": {
@@ -454,7 +481,8 @@
       "artist_name",
       "client_name",
       "quote_id",
-      "dashboard_url"
+      "dashboard_url",
+      "preferences_url"
     ]
   },
   "calendar-reminder": {

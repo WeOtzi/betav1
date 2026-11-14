@@ -983,7 +983,8 @@
                 await updateQuote(patch);
                 const message = (data.message || '').trim();
                 if (message && q.client_user_id) {
-                    await D().Chat.sendMessage({ quoteId: q.quote_id, senderType: 'artist', senderId: state.user.id, message })
+                    // notify:false → el mensaje viaja en artist_responded_quotation (sin correo doble · EM-N7).
+                    await D().Chat.sendMessage({ quoteId: q.quote_id, senderType: 'artist', senderId: state.user.id, message, notify: false })
                         .catch((error) => console.warn('[quotation-detail] respond message', error));
                 }
                 notify('artist_responded_quotation', Object.assign(eventBase(), {

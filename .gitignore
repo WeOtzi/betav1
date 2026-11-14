@@ -42,3 +42,6 @@ output/marketing/
 *.dpapi
 deploy_package.zip
 supabase/.temp/
+
+# Previews de emails (node scripts/email-preview.js)
+output/email-previews/

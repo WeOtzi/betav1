@@ -8,6 +8,72 @@ We Otzi utiliza webhooks de n8n para enviar notificaciones por email en diferent
 
 **Remitente de emails**: `isai@weotzi.com` (configurado en n8n)
 
+## Relé genérico de envío (`smtp_relay`) — recomendado para la beta
+
+Desde la beta cerrada el servidor **arma el correo completo** (asunto, HTML
+responsive con la base común de `lib/email-render/layout.js`, versión de texto
+plano y headers) y lo entrega a **un único webhook** de n8n que solo lo manda
+por SMTP. Así los eventos sin webhook propio (`instagram_verification_code`,
+`studio_*`, `inbox_message_received`, `session_reminder_24h`, …) salen igual,
+cada destinatario recibe su versión (cliente / artista) y los valores ya van
+escapados y formateados en español.
+
+**Configuración** (servidor): `N8N_EMAIL_RELAY_URL` (o `app_settings.email_relay_url`,
+privada) y `N8N_EMAIL_RELAY_TOKEN` (o `N8N_WEBHOOK_SECRET`). Elegir el canal por
+evento en `app_settings.email_routing` (`{"<evento>": {"channel": "smtp_relay"}}`,
+o `{"*": {"channel": "smtp_relay"}}` para todos) desde Backoffice → Email routing.
+Un evento en `n8n` **sin** webhook propio sale por el relé automáticamente si el
+relé está configurado.
+
+**Request** (`POST`, un correo = un request = un destinatario):
+
+```http
+POST <N8N_EMAIL_RELAY_URL>
+Content-Type: application/json
+X-Weotzi-Webhook-Token: <secreto>
+
+{
+  "event_id": "session_scheduled",
+  "event_name": "Sesión: agendada",
+  "category": "calendar",            // transactional | quotations | messages | calendar | account | studios
+  "role": "client",                  // destinatario: client | artist | studio | admin | support
+  "from_name": "We Ötzi",
+  "to": "persona@example.com",       // siempre UNA dirección
+  "reply_to": "soporte@weotzi.com",  // solo si SUPPORT_EMAIL está definido
+  "subject": "Sesión agendada: sábado, 21 de noviembre de 2026",
+  "html": "<!DOCTYPE html>…",        // listo para enviar, < 90 KB
+  "text": "WE ÖTZI\n\nHola, Lucía.\n…",
+  "headers": {
+    "X-Weotzi-Event": "session_scheduled",
+    "List-Unsubscribe": "<https://beta.weotzi.com/client/profile#notificaciones>, <mailto:soporte@weotzi.com?subject=…>"
+  },
+  "idempotency_key": "WO-2026-0142:session:…:client"   // si viene, n8n puede deduplicar
+}
+```
+
+**Workflow esperado** ("We Ötzi · Enviar email"): `Webhook` (POST, Header Auth
+con la credencial existente de `X-Weotzi-Webhook-Token`, responde con *Respond to
+Webhook*) → `Send Email` (SMTP de notificaciones: To `{{$json.body.to}}`,
+Subject `{{$json.body.subject}}`, HTML `{{$json.body.html}}`, Text
+`{{$json.body.text}}`, Reply-To `{{$json.body.reply_to}}`, headers extra
+`{{$json.body.headers}}` si el nodo lo permite) → `Respond to Webhook` con
+`{ "messageId": "{{$json.messageId}}" }`.
+
+**Respuesta**: `200` + `{ "messageId": "…" }` = aceptado por SMTP. Sin
+`messageId`, con `{ "error" }`, `success:false` o 5xx el envío queda
+**incierto** y no se reintenta solo (`email_delivery_ledger`). `401/403` sin
+ejecutar = rechazo seguro (se puede reintentar). Una respuesta HTML se toma como
+error.
+
+**Seguridad**: un POST sin el header correcto tiene que responder `403`. El
+webhook nunca debe aceptar HTML del navegador: solo lo llama el servidor.
+
+> Los webhooks por evento siguen funcionando (canal `n8n`). Desde ahora su body
+> trae además `rendered: { subject, html, text, headers }` (el mismo correo del
+> relé) y `data` / `vars` llegan **escapados** (EM-N4) y sin datos de salud.
+> Las URLs de los webhooks ya no son públicas (`app_settings.n8n_events`
+> privado; migración `20261115180000_emails_settings_privados.sql`).
+
 ## Eventos Disponibles
 
 | ID del Evento | Nombre | Descripcion |

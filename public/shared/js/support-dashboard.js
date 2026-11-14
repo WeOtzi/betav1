@@ -1581,6 +1581,8 @@ window.updateArtistField = async function(userId, field, value) {
 
         const artist = artists.find(a => a.user_id === userId);
         if (artist) artist[field] = updateData[field];
+        // ── emails ── verificación aprobada/denegada → aviso por email al artista.
+        if (field === 'verification_state' && (value === 'Yes' || value === 'Denied')) notifyArtistVerificationEmail(userId);
 
         applyFiltersAndSort();
         updateStats();
@@ -1590,6 +1592,21 @@ window.updateArtistField = async function(userId, field, value) {
         alert('Error updating: ' + err.message);
     }
 };
+
+async function notifyArtistVerificationEmail(userId) {
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!session) return;
+        const res = await fetch('/api/support/artist-verification-notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+            body: JSON.stringify({ artist_user_id: userId })
+        });
+        if (!res.ok) console.warn('[support] aviso de verificación por email no confirmado:', res.status);
+    } catch (err) {
+        console.warn('[support] aviso de verificación por email:', err && err.message);
+    }
+}
 
 async function syncArtistPasswordViaApi(userId, newPassword) {
     const artist = artists.find(a => a.user_id === userId);

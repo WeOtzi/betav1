@@ -666,6 +666,27 @@ textarea.svq-input{min-height:88px;resize:vertical}
         }
     }
 
+    // ── emails ── verificación aprobada/denegada → email al artista
+    // (POST /api/support/artist-verification-notify relee el estado guardado).
+    async function notifyVerification(artistUserId) {
+        try {
+            const token = await supportToken();
+            if (!token || typeof root.fetch !== 'function') return null;
+            const res = await root.fetch('/api/support/artist-verification-notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: 'Bearer ' + token },
+                body: JSON.stringify({ artist_user_id: artistUserId }),
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
+            const json = await res.json().catch(() => ({}));
+            return res.ok && json && json.success ? json : null;
+        } catch (err) {
+            console.warn('[support-verification] aviso de verificación:', err && err.message);
+            return null;
+        }
+    }
+
     function notifyText(result) {
         if (!result) return ' El artista lo ve en su cuenta (no pudimos confirmar el email).';
         if (result.sent || result.deduplicated) return ' Le avisamos al artista por email y en su panel.';
@@ -824,7 +845,9 @@ textarea.svq-input{min-height:88px;resize:vertical}
             await repo().setArtistVerification(d.item.artist_user_id, target);
             const a = state.artists[d.item.artist_user_id];
             if (a) a.verification_state = target;
-            feedback('svq-state-feedback', 'success', target === 'Yes' ? 'Artista verificado: su perfil muestra la insignia.' : 'Verificación denegada.');
+            const mailed = (target === 'Yes' || target === 'Denied') ? await notifyVerification(d.item.artist_user_id) : null;
+            feedback('svq-state-feedback', 'success', (target === 'Yes' ? 'Artista verificado: su perfil muestra la insignia.' : 'Verificación denegada.')
+                + ((target === 'Yes' || target === 'Denied') ? notifyText(mailed) : ''));
             renderRows();
         } catch (err) {
             feedback('svq-state-feedback', 'error', errorText(err));

@@ -250,6 +250,24 @@ Cada vez que soporte o el artista ven un número completo queda registrado en
 
 ---
 
+## Variables de entorno · Emails
+
+| Variable | Uso |
+|---|---|
+| `PUBLIC_APP_URL` | **Obligatoria en beta**: `https://beta.weotzi.com`. Base de TODOS los links de los correos, del perfil público y de Google Calendar. Sin ella el servidor usa `https://beta.weotzi.com` y avisa al arrancar (nunca el header `Host`). |
+| `SUPPORT_EMAIL` | Copia de las disputas y `reply_to` de los correos del relé. |
+| `N8N_EMAIL_RELAY_URL` | Webhook genérico de n8n "We Ötzi · Enviar email" (canal `smtp_relay`, contrato en `docs/N8N_EMAIL_WEBHOOKS.md`). También se puede cargar en `app_settings.email_relay_url`. |
+| `N8N_EMAIL_RELAY_TOKEN` | Header `X-Weotzi-Webhook-Token` del relé. Vacío → `N8N_WEBHOOK_SECRET` / `app_settings.n8n_webhook_secret`. |
+| `EMAIL_DEFAULT_CHANNEL` | Canal por defecto (`n8n` si falta). `email_routing['*'].channel` lo pisa; cada evento puede tener el suyo. |
+| `QUOTATION_ADMIN_EMAIL` | Opcional: copia al admin de cada solicitud nueva cuando `client_quotation_submitted` sale por el relé. |
+| `CHAT_EMAIL_WINDOW_MS` / `CHAT_EMAIL_DELAY_MS` | Ventana (15 min) y espera (2 min) de los avisos de chat e inbox. |
+| `EMAIL_DISPATCH_RATE_MAX` | Avisos por minuto y usuario en `POST /api/email/:eventId` (30). |
+| `SESSION_REMINDERS_JOB` / `SESSION_REMINDERS_INTERVAL_MS` | Recordatorio 24 h de sesiones (on cada 30 min; `off` lo apaga). Cron alternativo: `POST /api/sessions/reminders/dispatch` con `X-Cron-Token`. |
+
+Previews de todos los correos: `node scripts/email-preview.js` → `output/email-previews/index.html`.
+
+---
+
 ## Reglas para el agente
 
 | Situación                                           | Acción                                      |

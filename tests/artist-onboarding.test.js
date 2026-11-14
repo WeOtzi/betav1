@@ -525,7 +525,7 @@ test('buildProfileUrl: saca el sufijo .wo y respeta la base /beta', () => withEn
     assert.equal(buildProfileUrl('laura.wo', { headers: { host: 'localhost:3000' } }),
         'http://localhost:3000/artist/profile?artist=laura');
     assert.equal(buildProfileUrl('laura.wo', { headers: { host: 'evil.example' }, weotziBasePath: '/beta' }),
-        'https://weotzi.com/beta/artist/profile?artist=laura', 'el Host de la request no es confiable');
+        'https://beta.weotzi.com/artist/profile?artist=laura', 'el Host de la request no es confiable (PP-12: fallback beta.weotzi.com)');
     withEnv({ PUBLIC_APP_URL: 'https://beta.weotzi.com/' }, () => {
         assert.equal(buildProfileUrl('laura.wo', { headers: { host: 'localhost:3000' }, weotziBasePath: '/beta' }),
             'https://beta.weotzi.com/artist/profile?artist=laura');

@@ -327,17 +327,20 @@
             );
             return data || [];
         },
-        async sendMessage({ quoteId, senderType, senderId, message }) {
+        // notify:false → no avisa por email (p. ej. la respuesta del artista,
+        // que ya viaja como extracto en artist_responded_quotation · EM-N7).
+        async sendMessage({ quoteId, senderType, senderId, message, notify = true }) {
             const { data } = await run('chat.sendMessage', (c) =>
                 c.from('chat_messages').insert({ quotation_id: quoteId, sender_type: senderType, sender_id: senderId, message }).select('id')
             );
             const savedMessage = Array.isArray(data) ? data[0] : data;
-            if (savedMessage?.id && window.ConfigManager?.sendN8NEvent) {
+            if (notify !== false && savedMessage?.id && window.ConfigManager?.sendN8NEvent) {
                 // The server resolves the saved sender, recipient, and message.
-                // Mail failure must not turn a persisted chat into a failed send.
-                void window.ConfigManager.sendN8NEvent(senderType === 'artist' ? 'chat_message_to_client' : 'chat_message_to_artist', {
+                // Mail failure must not turn a persisted chat into a failed send:
+                // el aviso es secundario y nunca muestra un error (INB-15).
+                void Promise.resolve(window.ConfigManager.sendN8NEvent(senderType === 'artist' ? 'chat_message_to_client' : 'chat_message_to_artist', {
                     quote_id: quoteId, message_id: savedMessage.id
-                }).catch(() => window.showToast?.('El mensaje se guardó, pero no pudimos confirmar el correo.', 'error'));
+                })).catch(() => {});
             }
             return data || [];
         },
