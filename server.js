@@ -7034,7 +7034,7 @@ app.post('/api/privacy/cookie-consent', async (req, res) => {
     }
 });
 // ── fin privacidad ──
-require('./lib/routes/cot-artista').register(app, { authLimiter }); // ── cot-artista ── avisos de sesión y acuerdo
+require('./lib/routes/cot-artista').register(app); // ── cot-artista ── avisos de sesión y acuerdo (límite propio)
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {

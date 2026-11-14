@@ -1920,6 +1920,11 @@
             .catch(() => {});
     }
 
+    function isOpenSession(event) {
+        const status = String(event?.sessionStatus || 'scheduled').toLowerCase();
+        return status === 'scheduled' || status === 'rescheduled';
+    }
+
     function sameInstant(a, b) {
         const left = asDate(a);
         const right = asDate(b);
@@ -1939,7 +1944,9 @@
     async function persistUpdate(kind, event, payload) {
         const Calendar = window.WeotziData.Calendar;
         if (kind === 'session') {
-            const rescheduled = !sameInstant(event.start, payload.starts_at);
+            // Solo un turno vigente pasa a "reprogramado": una sesión realizada
+            // (o ausente) conserva su estado aunque se corrija la fecha.
+            const rescheduled = isOpenSession(event) && !sameInstant(event.start, payload.starts_at);
             const result = await Calendar.updateQuoteSession(event.baseId, payload, { rescheduled });
             if (rescheduled) noticeSession('session_rescheduled', sessionQuoteRef(event, payload), event.baseId);
             return result;
@@ -2073,6 +2080,12 @@
         const editing = state.editingEvent;
         if (!editing) return;
         const isSession = editing.sourceType === 'quotation_session';
+        // Una sesión realizada es parte del trabajo entregado: no se cancela
+        // desde el calendario (se gestiona en el detalle de la cotización).
+        if (isSession && !isOpenSession(editing)) {
+            showToast('Esta sesión ya se registró. Gestionala desde el detalle de la cotización.', true);
+            return;
+        }
         const message = isSession
             ? `¿Cancelar “${editing.title}”? La sesión queda cancelada en ${editing.quoteCode || 'la cotización'} y le avisamos al cliente.`
             : `¿Eliminar “${editing.title}”?${editing.recurrenceRule === 'weekly' ? ' Se borran todas las repeticiones.' : ''}`;

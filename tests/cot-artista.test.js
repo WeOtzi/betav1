@@ -373,7 +373,7 @@ test('rutas: register agrega las dos rutas y server.js las registra con una lín
     const registered = [];
     const app = { post: (route, ...handlers) => registered.push({ route, handlers }) };
     const limiter = (req, res, next) => next();
-    routes.register(app, { authLimiter: limiter, noticeDeps: { useDefaults: false } });
+    routes.register(app, { limiter, noticeDeps: { useDefaults: false } });
     assert.deepEqual(registered.map((r) => r.route), [
         '/api/cot-artista/quotations/:quoteId/session-notice',
         '/api/cot-artista/quotations/:quoteId/agreement-notice'
@@ -386,7 +386,14 @@ test('rutas: register agrega las dos rutas y server.js las registra con una lín
     assert.equal(res.body.success, false);
     assert.deepEqual(routes.summarize({ client: { ok: true, recipients: ['x@y.z'] } }), { client: { ok: true, skipped: false, deduplicated: false } });
     const server = read('server.js');
-    assert.equal((server.match(/require\('\.\/lib\/routes\/cot-artista'\)\.register\(app, \{ authLimiter \}\)/g) || []).length, 1);
+    assert.equal((server.match(/require\('\.\/lib\/routes\/cot-artista'\)\.register\(app\)/g) || []).length, 1);
+    // Sin limiter inyectado usa uno propio (nunca authLimiter, que comparten alta y reset de contraseña).
+    const own = [];
+    routes.register({ post: (route, ...handlers) => own.push(handlers[0]) }, { noticeDeps: { useDefaults: false } });
+    assert.equal(own.length, 2);
+    assert.equal(typeof own[0], 'function');
+    assert.notEqual(own[0], limiter);
+    assert.doesNotMatch(read('lib/routes/cot-artista.js'), /deps\.authLimiter/);
     assert.ok(server.indexOf("require('./lib/routes/cot-artista')") < server.indexOf('app.listen('));
 });
 
@@ -425,4 +432,23 @@ test('COT-A-16: los tests que leen archivos normalizan CRLF y *.sql se versiona 
         assert.match(read(rel), /const read = \([a-z]+\) => fs\.readFileSync\([^)]*\), 'utf8'\)\.replace\(\/\\r\\n\/g, '\\n'\)/, rel);
     }
     assert.match(read('.gitattributes'), /^\*\.sql text eol=lf$/m);
+});
+
+// ------------------------------------------------------------ revisión (escéptica)
+test('revisión: el calendario no reprograma ni cancela sesiones ya realizadas', () => {
+    const cal = read('public/shared/js/calendar.js');
+    assert.match(cal, /function isOpenSession\(event\) \{\n\s+const status = String\(event\?\.sessionStatus \|\| 'scheduled'\)\.toLowerCase\(\);\n\s+return status === 'scheduled' \|\| status === 'rescheduled';/);
+    assert.match(cal, /const rescheduled = isOpenSession\(event\) && !sameInstant\(event\.start, payload\.starts_at\);/);
+    const del = cal.slice(cal.indexOf('async function deleteCurrentEvent'), cal.indexOf('window.confirm(message)'));
+    assert.match(del, /if \(isSession && !isOpenSession\(editing\)\) \{[\s\S]*?return;\n\s+\}/);
+});
+
+test('revisión: el email al artista por solicitud nueva tiene CTA al detalle', () => {
+    const { SPECS } = require('../scripts/redesign-email-templates.js');
+    assert.equal(SPECS['artist-quotation-notification'].ctaVar, 'quotation_url');
+    for (const rel of ['templates/email/artist-quotation-notification.html', 'templates/email/billionmail/artist-quotation-notification.html']) {
+        assert.match(read(rel), /href="\{\{quotation_url\}\}"[^>]*>Ver solicitud/, rel);
+    }
+    const p = notices.newQuotationPayload({ quote_id: 'QN9', artist_email: 'a@b.c' }, 'https://x.test/beta');
+    assert.equal(p.quotation_url, 'https://x.test/beta/my-quotations/detail?quote=QN9');
 });

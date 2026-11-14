@@ -193,7 +193,10 @@ const SPECS = {
     'artist-quotation-notification': {
         eyebrow: 'ARTISTA / NUEVA COTIZACION',
         headline: 'Tienes una nueva solicitud.',
-        intro: 'Un cliente envio una idea para cotizar. Este email incluye el brief completo, datos de contacto y referencias disponibles.'
+        intro: 'Un cliente envio una idea para cotizar. Este email incluye el brief completo, datos de contacto y referencias disponibles.',
+        // COT-A-03 (beta cerrada): CTA al detalle de la solicitud en el panel del artista.
+        ctaLabel: 'Ver solicitud',
+        ctaVar: 'quotation_url'
     },
     'artist-responded': {
         eyebrow: 'COTIZACION / RESPUESTA',
