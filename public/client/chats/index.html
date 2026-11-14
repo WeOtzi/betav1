@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>We Ötzi · Chats</title>
+    <title>We Ötzi · Inbox</title>
     <meta name="description" content="Tus conversaciones con artistas del tatuaje: cotizaciones, reservas y mensajes en un mismo lugar.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,16 +23,15 @@
 </head>
 <body class="wo-app cch-page">
 
-    <!-- TopBar de cliente (misma nav que /client/dashboard, con Chats activo) -->
+    <!-- TopBar de cliente (Figma 801:1149: Explorar artistas · Job board · Tattoglobe · Inbox) -->
     <header class="wo-topbar cch-topbar">
         <div class="wo-topbar-left">
             <a class="wo-topbar-brand" href="/client/dashboard">WE ÖTZI</a>
             <nav class="wo-topbar-nav" aria-label="Navegación principal de cliente">
-                <a class="wo-topbar-item" href="/client/dashboard">Cotizaciones</a>
-                <a class="wo-topbar-item" href="/client/dashboard">Job board</a>
-                <a class="wo-topbar-item" href="/marketplace">Explorar artistas</a>
-                <a class="wo-topbar-item" href="/explore">Tattoo globe</a>
-                <a class="wo-topbar-item is-active" href="/client/chats" aria-current="page">Chats</a>
+                <a class="wo-topbar-item" href="/marketplace/">Explorar artistas</a>
+                <a class="wo-topbar-item" href="/client/requests/">Job board</a>
+                <a class="wo-topbar-item" href="/explore/globe/">Tattoglobe</a>
+                <a class="wo-topbar-item is-active" href="/client/chats/" aria-current="page">Inbox</a>
                 <a class="wo-topbar-item" href="/store/purchases/" data-store-entry hidden>Compras</a>
             </nav>
         </div>
@@ -56,7 +55,7 @@
             <i data-wo-icon="message-circle" class="cch-empty-icon" aria-hidden="true"></i>
             <h1 class="cch-empty-title">Tu recorrido en el tatuaje empieza con una conversación.</h1>
             <p class="cch-empty-sub">Conectate con un artista y empezá a darle forma a tu próximo tatuaje.</p>
-            <a class="wo-btn" href="/marketplace">Explorar artistas <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+            <a class="wo-btn" href="/marketplace/">Explorar artistas <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
         </section>
 
         <!-- Dos paneles (ref 333:1540) -->
@@ -112,22 +111,35 @@
 
                     <div class="cch-banner" id="cch-banner">
                         <div class="cch-banner-main">
-                            <p class="wo-eyebrow">Proyecto de tatuaje</p>
+                            <p class="wo-eyebrow" id="cch-banner-eyebrow">Proyecto de tatuaje</p>
                             <h3 class="cch-banner-title" id="cch-banner-title"></h3>
                             <p class="cch-banner-meta wo-meta" id="cch-banner-meta"></p>
+                            <div class="cch-banner-refs wo-hidden" id="cch-banner-refs" aria-label="Referencias de la cotización"></div>
                         </div>
                         <span class="wo-tag cch-tag-s" id="cch-banner-status"></span>
                     </div>
 
                     <div class="cch-messages" id="cch-messages" aria-live="polite"></div>
 
-                    <p class="cch-composer-error wo-hidden" id="cch-composer-error">No pudimos enviar el mensaje. Probá de nuevo.</p>
-                    <form class="cch-composer" id="cch-composer">
-                        <input class="wo-input" type="text" id="cch-input" placeholder="Escribí un mensaje…" aria-label="Escribí un mensaje" autocomplete="off">
-                        <button class="wo-btn cch-send" type="submit" id="cch-send" disabled>
-                            <span class="cch-send-label">Enviar</span>
-                            <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>
-                        </button>
+                    <p class="cch-composer-error wo-hidden" id="cch-composer-error" role="alert">No pudimos enviar el mensaje. Probá de nuevo.</p>
+                    <form class="cch-composer" id="cch-composer" autocomplete="off">
+                        <input type="file" id="cch-file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain" multiple hidden>
+                        <div class="cch-composer-top">
+                            <button class="cch-reference" type="button" id="cch-reference">
+                                <i data-wo-icon="image" class="wo-icon-16" aria-hidden="true"></i>Enviar referencia
+                            </button>
+                            <div class="cch-pending wo-hidden" id="cch-pending" aria-label="Adjuntos seleccionados"></div>
+                        </div>
+                        <div class="cch-composer-row">
+                            <button class="wo-iconbtn cch-attach" type="button" id="cch-attach" aria-label="Adjuntar archivo" title="Adjuntar archivo">
+                                <i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i>
+                            </button>
+                            <input class="wo-input" type="text" id="cch-input" placeholder="Escribí un mensaje…" aria-label="Escribí un mensaje" autocomplete="off" maxlength="2000">
+                            <button class="wo-btn cch-send" type="submit" id="cch-send" disabled>
+                                <span class="cch-send-label">Enviar</span>
+                                <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </form>
                 </div>
             </section>
@@ -138,6 +150,8 @@
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/data/inbox-repo.js"></script>
+    <script src="/shared/js/inbox-chat-model.js"></script>
     <script src="/shared/js/client-chats.js"></script>
 </body>
 </html>

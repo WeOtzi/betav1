@@ -185,6 +185,7 @@ async function loadQuotations() {
         // Render quotations
         renderQuotations();
         loadNextAppointment();
+        openQuotationFromQuery();
         
         // Load unread message counts
         await loadUnreadCounts();
@@ -221,6 +222,20 @@ function updateStats() {
     }
 }
 
+// Enlace profundo ?quote=<quote_id> (tarjeta "Ver cotización" del Inbox):
+// abre el detalle una sola vez si la cotización es del cliente.
+let quoteDeepLinkHandled = false;
+function openQuotationFromQuery() {
+    if (quoteDeepLinkHandled) return;
+    quoteDeepLinkHandled = true;
+    try {
+        const quoteId = (new URLSearchParams(window.location.search).get('quote') || '').trim();
+        if (quoteId && currentQuotations.some(q => q.quote_id === quoteId)) viewQuotationDetail(quoteId);
+    } catch (error) {
+        console.warn('Deep link de cotización:', error);
+    }
+}
+
 // Sessions reference quotations_db.id (numeric), not the public quote_id.
 async function loadNextAppointment() {
     const card = document.getElementById('next-appointment');
@@ -234,7 +249,11 @@ async function loadNextAppointment() {
         }
         const ids = currentQuotations.map(q => q.id).filter(id => id != null);
         if (!ids.length) return;
-        const sessions = await WeotziData.Sessions.listByQuotationIds(ids);
+        // INB-10: quotation_sessions solo es legible por el artista; el cliente
+        // usa la RPC con columnas seguras (list_client_quotation_sessions).
+        const sessions = WeotziData.Sessions.listForClient
+            ? await WeotziData.Sessions.listForClient(ids)
+            : await WeotziData.Sessions.listByQuotationIds(ids);
         const upcoming = sessions.filter(s =>
             !['cancelled', 'canceled', 'completed'].includes(s.status) &&
             new Date(s.session_date).getTime() >= Date.now() &&
@@ -987,13 +1006,10 @@ async function loadChatMessages(quoteId) {
             return;
         }
         
-        chatContainer.innerHTML = messages.map(msg => `
-            <div class="chat-message ${msg.sender_type}">
-                ${msg.message}
-                <span class="time">${formatTime(msg.created_at)}</span>
-            </div>
-        `).join('');
-        
+        // INB-01: el texto del mensaje es del usuario → siempre textContent.
+        chatContainer.textContent = '';
+        messages.forEach(msg => chatContainer.appendChild(buildChatMessageEl(msg)));
+
         // Scroll to bottom
         chatContainer.scrollTop = chatContainer.scrollHeight;
         
@@ -1077,20 +1093,39 @@ function addMessageToChat(message) {
         emptyState.remove();
     }
     
-    const messageEl = document.createElement('div');
-    messageEl.className = `chat-message ${message.sender_type}`;
-    messageEl.innerHTML = `
-        ${message.message}
-        <span class="time">${formatTime(message.created_at)}</span>
-    `;
-    
-    chatContainer.appendChild(messageEl);
+    // Eco realtime de un mensaje ya pintado (mismo id): no se duplica.
+    if (message.id && chatContainer.querySelector(`[data-message-id="${CSS.escape(String(message.id))}"]`)) return;
+
+    chatContainer.appendChild(buildChatMessageEl(message));
     chatContainer.scrollTop = chatContainer.scrollHeight;
     
     // Mark as read if from artist
     if (message.sender_type === 'artist') {
         markMessagesAsRead(message.quotation_id);
     }
+}
+
+// Burbuja de chat construida con DOM: el texto y la hora van por textContent
+// (nunca innerHTML con datos del usuario). Los adjuntos se abren en el Inbox.
+function buildChatMessageEl(msg) {
+    const messageEl = document.createElement('div');
+    messageEl.className = 'chat-message ' + (msg.sender_type === 'artist' ? 'artist' : 'client');
+    if (msg.id) messageEl.dataset.messageId = String(msg.id);
+    const text = String(msg.message || '').trim();
+    if (text) messageEl.appendChild(document.createTextNode(text));
+    if (msg.attachment_path) {
+        const link = document.createElement('a');
+        link.className = 'chat-attachment-link';
+        link.href = (window.WEOTZI_BASE_PATH || '') + '/client/chats/?quote=' + encodeURIComponent(msg.quotation_id || '');
+        link.textContent = (msg.message_kind === 'image' ? 'Imagen adjunta' : 'Archivo adjunto') + (msg.attachment_name ? ': ' + msg.attachment_name : '') + ' · ver en Inbox';
+        if (text) messageEl.appendChild(document.createElement('br'));
+        messageEl.appendChild(link);
+    }
+    const time = document.createElement('span');
+    time.className = 'time';
+    time.textContent = formatTime(msg.created_at);
+    messageEl.appendChild(time);
+    return messageEl;
 }
 
 function openChat(quoteId) {

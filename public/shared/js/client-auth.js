@@ -23,6 +23,7 @@ let currentClientData = null;
 
 const RETURN_TO_PARAM = 'returnTo';
 const RETURN_TO_PREFIX = '/store/';
+const RETURN_TO_EXACT = ['/client/chats', '/client/chats/'];
 
 function clientBasePath() {
     const w = typeof window !== 'undefined' ? window : {};
@@ -58,7 +59,9 @@ function normalizeReturnTo(value) {
     if (/%(2e|2f|5c)/i.test(pathPart)) return null;
     if (pathPart.split('/').some((seg) => seg === '.' || seg === '..')) return null;
     if (pathPart === '/store') pathPart = RETURN_TO_PREFIX;
-    if (pathPart.indexOf(RETURN_TO_PREFIX) !== 0) return null;
+    // Inbox del cliente: el CTA del correo de chat (/client/chats?quote=…)
+    // vuelve a la conversación después de iniciar sesión.
+    if (pathPart.indexOf(RETURN_TO_PREFIX) !== 0 && RETURN_TO_EXACT.indexOf(pathPart) === -1) return null;
     return pathPart + rest;
 }
 

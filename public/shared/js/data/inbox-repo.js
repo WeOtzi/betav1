@@ -28,10 +28,33 @@
             .replace(/^_+|_+$/g, '') || 'archivo';
     }
 
+    // Aviso por correo de mensaje nuevo del inbox directo (evento
+    // inbox_message_received, definido por el frente de emails). El servidor
+    // resuelve destinatarios y throttling desde el mensaje guardado; acá solo
+    // se informa qué mensaje se guardó. Nunca bloquea ni falla el envío.
+    function notifyRecipient(threadId, saved) {
+        const message = Array.isArray(saved) ? saved[0] : saved;
+        if (!message || !message.id || !window.ConfigManager || typeof window.ConfigManager.sendN8NEvent !== 'function') return;
+        try {
+            void Promise.resolve(window.ConfigManager.sendN8NEvent('inbox_message_received', {
+                thread_id: threadId, message_id: message.id,
+            })).catch(() => {});
+        } catch (_) { /* correo secundario */ }
+    }
+
     const Inbox = {
         async listThreads() {
             const { data } = await D.run('inbox.listThreads', (c) =>
                 c.rpc('list_artist_inbox_threads')
+            );
+            return data || [];
+        },
+
+        // Lado cliente: hilos del inbox unificado donde el usuario participa
+        // como 'client' (p. ej. Job Board). Migración 20261115170100.
+        async listClientThreads() {
+            const { data } = await D.run('inbox.listClientThreads', (c) =>
+                c.rpc('list_client_inbox_threads')
             );
             return data || [];
         },
@@ -60,6 +83,7 @@
             const { data } = await D.run('inbox.sendMessage', (c) =>
                 c.rpc('send_inbox_message', payload)
             );
+            notifyRecipient(threadId, data);
             return data;
         },
 
@@ -102,8 +126,8 @@
             return data?.signedUrl || null;
         },
 
-        subscribeThread(threadId, onMessage) {
-            return D.channel(`artist-inbox-thread-${threadId}`)
+        subscribeThread(threadId, onMessage, prefix = 'artist-inbox-thread') {
+            return D.channel(`${prefix}-${threadId}`)
                 .on('postgres_changes', {
                     event: 'INSERT', schema: 'public', table: 'inbox_messages',
                     filter: `thread_id=eq.${threadId}`,
@@ -111,8 +135,8 @@
                 .subscribe();
         },
 
-        subscribeList(userId, onChange) {
-            const channel = D.channel(`artist-inbox-list-${userId}`)
+        subscribeList(userId, onChange, prefix = 'artist-inbox-list') {
+            const channel = D.channel(`${prefix}-${userId}`)
                 .on('postgres_changes', {
                     event: '*', schema: 'public', table: 'inbox_thread_participants',
                     filter: `user_id=eq.${userId}`,
