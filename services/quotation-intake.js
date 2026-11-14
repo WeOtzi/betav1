@@ -95,6 +95,19 @@ async function existingDraft(quoteId) {
         .eq('quote_id', quoteId).limit(1).single().execute();
 }
 
+// quotations_db.client_user_id es FK a clients_db: solo se vincula una cuenta
+// de cliente. Un artista (u otra cuenta sin perfil de cliente) que cotiza con
+// su propio correo queda como anónimo en vez de romper el guardado (23503).
+async function isClientAccount(userId) {
+    try {
+        const row = await pgrest('clients_db').select('user_id').eq('user_id', userId).limit(1).single().execute();
+        return !!row;
+    } catch (error) {
+        console.warn('[quotation-intake] clients_db:', error.status, String(error.message || '').slice(0, 200));
+        return false;
+    }
+}
+
 async function callSaveRpc(q, extras) {
     try {
         return await pgrest.raw('rpc/save_web_quotation', { method: 'POST', body: { p_quote: q, p_extras: extras } });
@@ -116,6 +129,10 @@ async function saveQuotation(body, user, { forceNoArtist = false } = {}) {
     const previous = await existingDraft(q.quote_id);
     if (previous && previous.job_board_request_id) {
         return { q, extras, references, artist, previous, result: { quote_id: q.quote_id, status: 'job_board' } };
+    }
+    if (q.client_user_id && !(previous && previous.client_user_id === q.client_user_id)
+        && !(await isClientAccount(q.client_user_id))) {
+        q.client_user_id = null;
     }
     // Un autosave sin sesión (o con sesión vencida) no desvincula la cuenta
     // que ya había reclamado la cotización con el mismo correo.

@@ -750,11 +750,11 @@ async function viewQuotationDetail(quoteId) {
             <div class="detail-grid">
                 <div class="detail-field">
                     <label>Zona del cuerpo</label>
-                    <span>${quotation.tattoo_body_part || '–'} ${quotation.tattoo_body_side ? `(${quotation.tattoo_body_side})` : ''}</span>
+                    <span>${escapeFeedHtml(quotation.tattoo_body_part || '–')} ${quotation.tattoo_body_side ? `(${escapeFeedHtml(quotation.tattoo_body_side)})` : ''}</span>
                 </div>
                 <div class="detail-field">
                     <label>Tamaño</label>
-                    <span>${quotation.tattoo_size || '–'}</span>
+                    <span>${escapeFeedHtml(quotation.tattoo_size || '–')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Estilo</label>
@@ -762,17 +762,17 @@ async function viewQuotationDetail(quoteId) {
                 </div>
                 <div class="detail-field">
                     <label>Color</label>
-                    <span>${quotation.tattoo_color_type || '–'}</span>
+                    <span>${escapeFeedHtml(quotation.tattoo_color_type || '–')}</span>
                 </div>
             </div>
             <div class="detail-field" style="margin-top: var(--space-4);">
                 <label>Descripción de la idea</label>
-                <span>${quotation.tattoo_idea_description || 'Sin descripción'}</span>
+                <span>${escapeFeedHtml(quotation.tattoo_idea_description || 'Sin descripción')}</span>
             </div>
-            ${quotation.tattoo_references ? `
+            ${/^https:\/\//i.test(String(quotation.tattoo_references || '')) ? `
                 <div class="detail-field" style="margin-top: var(--space-4);">
                     <label>Referencias</label>
-                    <a href="${quotation.tattoo_references}" target="_blank" class="detail-link">Ver imágenes de referencia →</a>
+                    <a href="${escapeFeedHtml(quotation.tattoo_references)}" target="_blank" rel="noopener noreferrer" class="detail-link">Ver imágenes de referencia →</a>
                 </div>
             ` : ''}
         </div>
@@ -782,19 +782,19 @@ async function viewQuotationDetail(quoteId) {
             <div class="detail-grid">
                 <div class="detail-field">
                     <label>Nombre</label>
-                    <span>${quotation.artist_name || '–'}</span>
+                    <span>${escapeFeedHtml(quotation.artist_name || '–')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Estudio</label>
-                    <span>${quotation.artist_studio_name || '–'}</span>
+                    <span>${escapeFeedHtml(quotation.artist_studio_name || '–')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Ciudad</label>
-                    <span>${quotation.artist_current_city || '–'}</span>
+                    <span>${escapeFeedHtml(quotation.artist_current_city || '–')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Costo por sesión</label>
-                    <span>${quotation.artist_session_cost_amount || '–'}</span>
+                    <span>${escapeFeedHtml(quotation.artist_session_cost_amount || '–')}</span>
                 </div>
             </div>
         </div>
@@ -804,11 +804,11 @@ async function viewQuotationDetail(quoteId) {
             <div class="detail-grid">
                 <div class="detail-field">
                     <label>Fecha preferida</label>
-                    <span>${quotation.client_preferred_date || 'Flexible'}</span>
+                    <span>${escapeFeedHtml(quotation.client_preferred_date || 'Flexible')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Presupuesto</label>
-                    <span>${quotation.client_budget_amount ? `${quotation.client_budget_amount} ${quotation.client_budget_currency || 'USD'}` : '–'}</span>
+                    <span>${quotation.client_budget_amount ? `${escapeFeedHtml(quotation.client_budget_amount)} ${escapeFeedHtml(quotation.client_budget_currency || 'USD')}` : '–'}</span>
                 </div>
             </div>
         </div>
@@ -828,11 +828,11 @@ async function viewQuotationDetail(quoteId) {
                 </div>
                 <div class="detail-field">
                     <label>Alergias</label>
-                    <span>${quotation.client_allergies || 'Ninguna'}</span>
+                    <span>${escapeFeedHtml(quotation.client_allergies || 'Ninguna')}</span>
                 </div>
                 <div class="detail-field">
                     <label>Condiciones de salud</label>
-                    <span>${quotation.client_health_conditions || 'Ninguna'}</span>
+                    <span>${escapeFeedHtml(quotation.client_health_conditions || 'Ninguna')}</span>
                 </div>
             </div>
         </div>

@@ -13,6 +13,7 @@ create policy "Public Insert for quotation-references" on storage.objects
   with check (bucket_id = 'quotation-references');
 
 drop function if exists private.is_open_web_quote_draft(text);
+drop function if exists private.is_own_quote_folder(text);
 
 update storage.buckets
    set file_size_limit = null,
@@ -67,6 +68,11 @@ create policy qie_update_draft_or_parties on public.quotation_intake_extras
   );
 
 -- 2. quotation_status_history
+drop policy if exists "Allow authenticated insert on status history" on public.quotation_status_history;
+create policy "Allow authenticated insert on status history" on public.quotation_status_history
+  for insert to authenticated
+  with check (true);
+
 drop policy if exists "Allow anon insert on status history" on public.quotation_status_history;
 create policy "Allow anon insert on status history" on public.quotation_status_history
   for insert to anon

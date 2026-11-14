@@ -87,6 +87,22 @@ create trigger trg_a_quotations_client_column_guard
 -- ---------------------------------------------------------------------------
 drop policy if exists "Allow anon insert on status history" on public.quotation_status_history;
 
+-- El insert de authenticated era libre (with check true): cualquier cuenta
+-- podía escribir historial falso de cotizaciones ajenas. El trigger (no es
+-- security definer) inserta con el rol del que cambia el estado: el artista
+-- dueño o soporte. Se acota a soporte o a las partes de la cotización.
+drop policy if exists "Allow authenticated insert on status history" on public.quotation_status_history;
+create policy "Allow authenticated insert on status history" on public.quotation_status_history
+  for insert to authenticated
+  with check (
+    public.is_support_user()
+    or exists (
+      select 1 from public.quotations_db q
+       where q.quote_id::text = quotation_status_history.quote_id::text
+         and (q.artist_id = (select auth.uid()) or q.client_user_id = (select auth.uid()))
+    )
+  );
+
 -- ---------------------------------------------------------------------------
 -- 3. quotation_intake_extras: solo las partes o soporte (el intake usa service role)
 -- ---------------------------------------------------------------------------
@@ -149,11 +165,14 @@ create policy attachments_select_visible on public.quotations_attachments
 -- 5. Bucket quotation-references: tamaño, tipos y destino de las subidas
 -- ---------------------------------------------------------------------------
 -- El wizard comprime a JPEG (~1 MB); 10 MB y los videos cubren la media de
--- body-parts/expanded que sube el backoffice.
+-- body-parts/expanded que sube el backoffice. La cotización manual del
+-- artista (/my-quotations/new) acepta imágenes y PDF. Sin SVG: el bucket es
+-- público y un SVG puede llevar scripts.
 update storage.buckets
    set file_size_limit = 10485760,
        allowed_mime_types = array[
-         'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+         'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'image/avif',
+         'application/pdf',
          'video/mp4', 'video/webm', 'video/quicktime'
        ]
  where id = 'quotation-references';
@@ -179,6 +198,31 @@ $$;
 revoke all on function private.is_open_web_quote_draft(text) from public;
 grant execute on function private.is_open_web_quote_draft(text) to anon, authenticated, service_role;
 
+-- ¿El folder es una cotización del artista que sube (o la sube soporte)?
+-- Lo usa la cotización manual (quotation-new.js sube a <quote_id>/<archivo>).
+create or replace function private.is_own_quote_folder(p_quote_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select coalesce(p_quote_id, '') <> ''
+     and (
+       public.is_support_user()
+       or exists (
+         select 1 from public.quotations_db q
+          where q.quote_id = p_quote_id
+            and q.artist_id = (select auth.uid())
+       )
+     );
+$$;
+
+revoke all on function private.is_own_quote_folder(text) from public;
+-- anon también: la política es una sola para anon y authenticated (para un
+-- anónimo devuelve false; auth.uid() es null).
+grant execute on function private.is_own_quote_folder(text) to anon, authenticated, service_role;
+
 drop policy if exists "Public Insert for quotation-references" on storage.objects;
 create policy "Public Insert for quotation-references" on storage.objects
   for insert to anon, authenticated
@@ -191,6 +235,11 @@ create policy "Public Insert for quotation-references" on storage.objects
       )
       -- Imágenes y media de zonas del cuerpo (backoffice, con sesión).
       or (name like 'body-parts/%' and (select auth.role()) = 'authenticated')
+      -- Referencias de la cotización manual: el artista dueño o soporte.
+      or (
+        (select auth.role()) = 'authenticated'
+        and private.is_own_quote_folder(split_part(name, '/', 1))
+      )
     )
   );
 
