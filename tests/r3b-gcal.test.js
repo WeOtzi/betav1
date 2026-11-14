@@ -37,6 +37,7 @@ function memoryDb(seed = {}) {
         busy: new Map(),
         manual: seed.manual || [],
         sessions: seed.sessions || [],
+        trips: seed.trips || [],
         integration: [],
         sourceIds: [],
         artists: new Set(seed.artists || [USER]),
@@ -58,6 +59,7 @@ function memoryDb(seed = {}) {
         async deleteLink(uid, key) { state.links.delete(`${uid}|${key}`); },
         async listManualEvents() { return state.manual; },
         async listSessions() { return state.sessions; },
+        async listTrips() { return state.trips; },
         async setSourceGoogleId(source, id) { state.sourceIds.push([source.key, id]); },
         async replaceBusy(uid, blocks) { state.busy.set(uid, blocks); return blocks.length; },
         async getTimezone() { return 'America/Argentina/Buenos_Aires'; },
@@ -544,4 +546,42 @@ test('migración 20261114100000: solo de ida, sin Google en días ocupados y con
     assert.match(down, /artist_google_calendar_busy b/);
     assert.match(down, /grant select on table public\.artist_google_calendar_busy to authenticated/);
     assert.match(read('supabase/pending/20261114100500_drop_gcal_busy.sql'), /drop table if exists public\.artist_google_calendar_busy/);
+});
+
+test('viajes de Travel (2.2.14): guest spot y convención como eventos de todo el día', () => {
+    const tz = 'America/Argentina/Buenos_Aires';
+    const conv = sync.normalizeTrip({ id: 't1', trip_type: 'convencion', status: 'planificado', city: 'Caracas', country: 'Venezuela', event_name: 'God of Ink', start_date: '2026-11-14', end_date: '2026-11-16' }, tz, 'https://beta.weotzi.com');
+    assert.equal(conv.key, 'trip:t1');
+    assert.equal(conv.title, 'God of Ink');
+    const body = sync.buildGoogleEvent(conv, { tz });
+    assert.deepEqual(body.start, { date: '2026-11-14' });
+    assert.deepEqual(body.end, { date: '2026-11-17' }, 'fin exclusivo: incluye el 16');
+    assert.equal(body.location, 'Caracas, Venezuela');
+    assert.match(body.description, /Estado: Planificado/);
+    const guest = sync.normalizeTrip({ id: 't2', trip_type: 'guest_spot', status: 'confirmado', city: 'Lima', studio_name_hint: 'Tinta Sur', start_date: '2026-12-01', end_date: '2026-12-01' }, tz);
+    assert.equal(guest.title, 'Guest spot en Tinta Sur');
+    assert.equal(sync.normalizeTrip({ id: 't3', status: 'cancelado', start_date: '2026-12-01', end_date: '2026-12-02' }, tz), null);
+    assert.equal(sync.normalizeTrip({ id: 't4', status: 'confirmado', cancelled_at: '2026-11-01', start_date: '2026-12-01', end_date: '2026-12-02' }, tz), null);
+    assert.equal(sync.normalizeTrip({ id: 't5', status: 'confirmado', start_date: '2026-12-03', end_date: '2026-12-01' }, tz), null);
+});
+
+test('syncUser publica los viajes y los borra de Google al cancelarlos', async () => {
+    const trips = [{ id: 'trip-1', trip_type: 'convencion', status: 'planificado', city: 'Caracas', event_name: 'God of Ink', start_date: '2026-11-14', end_date: '2026-11-16' }];
+    const { db, svc } = await connected({ trips });
+    const r1 = await svc.syncUser(USER);
+    assert.equal(r1.pushed.created, 1);
+    assert.ok(db.state.links.has(`${USER}|trip:trip-1`));
+    assert.ok(!db.state.sourceIds.some(([key]) => key === 'trip:trip-1'), 'artist_trips no tiene google_event_id');
+    db.state.trips = [];
+    const r2 = await svc.syncUser(USER);
+    assert.equal(r2.pushed.removed, 1);
+    assert.ok(!db.state.links.has(`${USER}|trip:trip-1`));
+});
+
+test('travel-repo pide sincronizar con Google tras escribir un viaje', () => {
+    const repo = read('public/shared/js/data/travel-repo.js');
+    assert.ok(repo.includes("['create', 'update', 'cancel', 'reactivate', 'updateDates']"));
+    assert.ok(repo.includes('D.GoogleCalendar?.syncSoon?.()'));
+    assert.ok(read('public/artist/travel/index.html').includes('google-calendar-repo.js'));
+    assert.ok(read('lib/repos/google-calendar.js').includes('listTrips(userId, sinceDate)'));
 });
