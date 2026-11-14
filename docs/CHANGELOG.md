@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.13] - 2026-11-14
+
+- Google Calendar solo de ida (We Ötzi → Google): la sincronización publica los eventos del artista y ya no lee su calendario. Se quitan la importación de horarios ocupados, los bloques "Ocupado · Google Calendar" del calendario y su efecto en los días ocupados del cotizador.
+- Migración: 20261114100000 gcal_solo_escritura (list_artist_public_busy_days sin Google, sin gcal_replace_busy_blocks, sin lectura de artist_google_calendar_busy). La tabla y sus filas no se borran: queda supabase/pending/20261114100500_drop_gcal_busy.sql para aplicar con OK.
+- Validación: node --test 1654/1654; migración validada con begin…rollback en flbgmlvfiejfttlawnfu.
+- Rollback: controlador a la release 2.2.12 y supabase/rollbacks/20261114100000_gcal_solo_escritura.down.sql.
+
 ## [2.2.12] - 2026-11-13
 
 - Cotizaciones: el vencimiento es opcional por cotización (el artista lo activa y elige los días); el job corre cada hora y solo vence las que lo tienen activo. Días ocupados del cotizador: solo cuentan los viajes confirmados.

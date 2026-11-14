@@ -10,7 +10,7 @@
  *   authorizeUrl()  → URL de consentimiento de Google (la arma el servidor).
  *   disconnect()    → revoca en Google y borra la conexión.
  *   syncSoon()      → pide una sincronización (debounce de 4 s; no bloquea).
- *   listBusy(userId, from, to) → bloques "ocupado" importados (RLS: solo los propios).
+ *   Solo de ida (20261114100000): no se lee el calendario de Google.
  *
  * Nunca recibe ni guarda tokens: todo eso vive en el servidor.
  * Carga: postgrest-client.js primero.
@@ -24,7 +24,6 @@
         return;
     }
 
-    const BUSY_TABLE = 'artist_google_calendar_busy';
     let syncTimer = null;
     let cachedStatus = null;
 
@@ -135,21 +134,6 @@
                     await api('/api/google-calendar/sync', 'POST');
                 } catch (_error) { /* la próxima corrida del job lo levanta */ }
             }, delayMs);
-        },
-
-        async listBusy(artistUserId, rangeStart, rangeEnd) {
-            const from = new Date(rangeStart).toISOString();
-            const to = new Date(rangeEnd).toISOString();
-            const { data } = await D.run('googlecalendar.listBusy', (c) =>
-                c.from(BUSY_TABLE)
-                    .select('google_event_id,starts_at,ends_at,all_day')
-                    .eq('user_id', artistUserId)
-                    .lt('starts_at', to)
-                    .gt('ends_at', from)
-                    .order('starts_at', { ascending: true })
-                    .limit(1000)
-            );
-            return data || [];
         },
     };
 

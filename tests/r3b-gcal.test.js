@@ -241,11 +241,7 @@ test('createGoogleClient: intercambio con code_verifier y errores sin tokens', a
     await assert.rejects(g.refreshAccessToken('1//SECRETO'), (err) => err.code === 'invalid_grant' && !err.message.includes('SECRETO'));
     assert.equal(await g.revoke('ya-revocado'), true, 'invalid_token al revocar cuenta como éxito');
     await g.deleteEvent('a', 'primary', 'gone'); // 410 no lanza
-    await g.listEvents('a', 'primary', { timeMin: 'x', timeMax: 'y' });
-    const listUrl = new URL(seen.at(-1).url);
-    assert.match(listUrl.searchParams.get('fields'), /items\(id,status,start,end,transparency/);
-    assert.ok(!/summary|description|attendees/.test(listUrl.searchParams.get('fields')), 'no pide títulos ajenos');
-    assert.equal(seen.at(-1).init.headers.Authorization, 'Bearer a');
+    assert.equal(typeof g.listEvents, 'undefined', 'solo de ida: el cliente no lee el calendario de Google');
 });
 
 /* ------------------------------ zonas ----------------------------------- */
@@ -299,13 +295,11 @@ test('planPush: crea, actualiza solo lo que cambió y borra lo que ya no está',
     assert.deepEqual(plan.remove.map((l) => l.google_event_id), ['gv']);
 });
 
-test('googleItemToBusy: ignora libres, cancelados y los nuestros; nunca guarda títulos', () => {
-    const tz = 'America/Argentina/Buenos_Aires';
-    assert.equal(sync.googleItemToBusy({ id: 'x', transparency: 'transparent', start: { dateTime: '2026-11-20T13:00:00Z' }, end: { dateTime: '2026-11-20T14:00:00Z' } }, tz), null);
-    assert.equal(sync.googleItemToBusy({ id: 'x', status: 'cancelled', start: { date: '2026-11-20' }, end: { date: '2026-11-21' } }, tz), null);
-    assert.equal(sync.googleItemToBusy({ id: 'x', extendedProperties: { private: { weotzi: '1' } }, start: { date: '2026-11-20' }, end: { date: '2026-11-21' } }, tz), null);
-    const b = sync.googleItemToBusy({ id: 'x', summary: 'Médico', start: { date: '2026-11-20' }, end: { date: '2026-11-21' } }, tz);
-    assert.deepEqual(b, { google_event_id: 'x', starts_at: '2026-11-20T03:00:00.000Z', ends_at: '2026-11-21T03:00:00.000Z', all_day: true });
+test('solo de ida: no se importa nada de Google', () => {
+    assert.equal(sync.googleItemToBusy, undefined);
+    const src = read('lib/gcal-sync.js');
+    const code = src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+    assert.ok(!/listEvents|replaceBusy|artist_google_calendar_busy/.test(code), 'el servicio no lee Google');
 });
 
 /* ------------------------------ servicio -------------------------------- */
@@ -386,13 +380,13 @@ const MANUAL = [
 ];
 const SESSIONS = [{ session: { id: 7, quotation_id: 3, session_date: '2026-11-19T17:00:00Z', duration_hours: 2, status: 'scheduled' }, quote: { quote_id: 'WO-3', client_full_name: 'Lucía' } }];
 
-test('syncUser: push crea/actualiza/borra con google_event_id y pull importa solo ocupados', async () => {
+test('syncUser: push crea/actualiza/borra con google_event_id sin leer el calendario de Google', async () => {
     const { db, google, svc } = await connected({ manual: MANUAL.map((r) => ({ ...r })), sessions: SESSIONS });
     const r1 = await svc.syncUser(USER);
     assert.deepEqual(r1.pushed, { created: 3, updated: 0, removed: 0, failed: 0, deferred: 0 });
-    assert.equal(r1.pulled, 2);
-    assert.deepEqual(db.state.busy.get(USER).map((b) => b.google_event_id).sort(), ['ajeno-1', 'ajeno-2']);
-    assert.ok(db.state.busy.get(USER).every((b) => Object.keys(b).sort().join() === 'all_day,ends_at,google_event_id,starts_at'));
+    assert.equal(r1.pulled, undefined);
+    assert.ok(!google.calls.some((c) => c[0] === 'list'), 'nunca lista eventos de Google');
+    assert.equal(db.state.busy.size, 0);
     assert.equal(db.state.sourceIds.length, 3, 'escribe google_event_id en la fila de origen');
     assert.ok(db.state.connections.get(USER).last_sync_at);
     assert.equal(db.state.connections.get(USER).last_error, null);
@@ -497,7 +491,7 @@ test('migración 20261113102000: tablas con RLS, tokens solo service_role y reve
     assert.ok(!down.includes('artist_google_calendar_busy b'), 'la reversa restaura los días ocupados sin Google');
 });
 
-test('UI: Cuenta usa el estado real y el calendario estiliza los ocupados de Google', () => {
+test('UI: Cuenta usa el estado real y el calendario no muestra ocupados de Google', () => {
     const html = read('public/artist/account/index.html');
     assert.match(html, /google-calendar-repo\.js/);
     assert.match(html, /id="av-sync-detail"/);
@@ -508,23 +502,20 @@ test('UI: Cuenta usa el estado real y el calendario estiliza los ocupados de Goo
     assert.ok(!js.includes('AccountIntegrations.save'), 'ya no graba el pedido pending');
     assert.match(js, /split\('\?'\)\[0\]/, '#disponibilidad?gcal=ok abre Disponibilidad');
     const repo = read('public/shared/js/data/calendar-repo.js');
-    assert.match(repo, /listGoogleBusyProjection/);
-    assert.match(repo, /external: 'google'/);
-    assert.match(read('public/shared/js/calendar.js'), /is-external-google/);
-    assert.match(read('public/shared/css/calendar-figma.css'), /\.cal-event\.is-external-google/);
+    assert.ok(!/listGoogleBusyProjection|external: 'google'/.test(repo), 'sin bloques importados');
+    assert.ok(!read('public/shared/js/data/google-calendar-repo.js').includes('listBusy'));
     assert.match(read('public/calendar/index.html'), /google-calendar-repo\.js/);
 });
 
-test('fixtures demo: gcal registrada con estado conectado y bloques sin títulos', () => {
+test('fixtures demo: gcal registrada con estado conectado y sin bloques importados', () => {
     const Fixtures = require('../public/shared/js/wo-demo-fixtures.js');
     assert.ok(Fixtures.EXTENSIONS.includes('gcal'));
     global.self = global.self || global;
     require('../public/shared/js/demo-fixtures/gcal.js');
     const ctx = { tables: {}, rpcs: {}, TABLES: [], identity: { userId: USER } };
     global.self.WoDemoFixtureExtensions.gcal(ctx);
-    assert.ok(ctx.TABLES.includes('artist_google_calendar_busy'));
-    assert.equal(ctx.tables.artist_google_calendar_busy.length, 3);
-    assert.ok(ctx.tables.artist_google_calendar_busy.every((b) => !('summary' in b) && !('title' in b)));
+    assert.ok(!ctx.TABLES.includes('artist_google_calendar_busy'));
+    assert.equal(ctx.tables.artist_google_calendar_busy, undefined);
     const st = ctx.rpcs.get_my_google_calendar_connection()[0];
     assert.equal(st.connected, true);
     assert.equal(JSON.stringify(st).includes('token'), false);
@@ -538,4 +529,19 @@ test('.env.example y DEPLOY.md documentan las variables', () => {
     const deploy = read('deployments/DEPLOY.md');
     assert.match(deploy, /GCAL_TOKEN_ENC_KEY/);
     assert.match(deploy, /https:\/\/beta\.weotzi\.com\/api\/google-calendar\/callback/);
+});
+
+test('migración 20261114100000: solo de ida, sin Google en días ocupados y con reversa', () => {
+    const sql = read('supabase/migrations/20261114100000_gcal_solo_escritura.sql');
+    assert.match(sql, /create or replace function public\.list_artist_public_busy_days/);
+    assert.ok(!sql.includes('artist_google_calendar_busy b'), 'los días ocupados no leen Google');
+    assert.match(sql, /t\.status = 'confirmado'/);
+    assert.match(sql, /drop function if exists public\.gcal_replace_busy_blocks\(uuid, jsonb\)/);
+    assert.match(sql, /revoke all on table public\.artist_google_calendar_busy from public, anon, authenticated/);
+    assert.ok(!/drop table/i.test(sql), 'no borra datos: eso queda en supabase/pending');
+    const down = read('supabase/rollbacks/20261114100000_gcal_solo_escritura.down.sql');
+    assert.match(down, /create or replace function public\.gcal_replace_busy_blocks/);
+    assert.match(down, /artist_google_calendar_busy b/);
+    assert.match(down, /grant select on table public\.artist_google_calendar_busy to authenticated/);
+    assert.match(read('supabase/pending/20261114100500_drop_gcal_busy.sql'), /drop table if exists public\.artist_google_calendar_busy/);
 });
