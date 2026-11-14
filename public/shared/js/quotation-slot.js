@@ -104,20 +104,51 @@
             });
     }
 
+    var MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+    // Precarga solo el día (sin turno): mismo formato que el calendario del paso
+    // Fecha ("23 nov 2026"), sin fechas pasadas (CC-10).
+    function applyDate(fd, iso) {
+        if (!fd || !/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) return;
+        var t = new Date();
+        if (iso < t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate())) return;
+        if (typeof window.pickCalendarDay === 'function') {
+            try { window.pickCalendarDay(iso); return; } catch (e) { /* paso no visible: se completa abajo */ }
+        }
+        var p = iso.split('-').map(Number);
+        fd._preferred_date_iso = iso;
+        fd.client_preferred_date = p[2] + ' ' + MONTHS_SHORT[p[1] - 1] + ' ' + p[0];
+        fd.client_flexible_dates = false;
+        persist();
+    }
+
+    // Día local del artista de un turno de la URL (para precargar al menos la fecha).
+    function slotDate(want, info) {
+        if (!want) return null;
+        if (want.date) return want.date;
+        if (want.slot && window.WoBookingSlots && info && info.timezone) {
+            try { return window.WoBookingSlots.zonedDate(want.slot, info.timezone); } catch (e) { return null; }
+        }
+        return null;
+    }
+
     // Con el artista cargado: info de reservas + validación del turno de la URL.
     function onArtist(fd) {
         form = fd;
         var u = username(fd);
-        if (!u || !repo()) return Promise.resolve();
         var want = pending;
         pending = null;
+        if (!u || !repo()) {
+            if (want && want.date) applyDate(fd, want.date);
+            return Promise.resolve();
+        }
         var center = want && want.slot ? Date.parse(want.slot)
             : want && want.date ? Date.parse(want.date + 'T12:00:00Z') : Date.now();
         var from = Math.max(Date.now(), center - DAY_MS);
         return fetchSlots(u, from, from + 2 * DAY_MS + (want ? 0 : DAY_MS)).then(function (r) {
             if (!want) { rerenderDate(); return; }
             if (!r.info.enabled) {
-                if (want.date) { fd._preferred_date_iso = want.date; persist(); }
+                applyDate(fd, slotDate(want, r.info));
                 if (want.slot) toast('Este artista no está tomando reservas online. Elegí una fecha y te propone horario.');
                 rerenderDate();
                 return;
@@ -129,12 +160,15 @@
                 setSlot(fd, match, r.info);
             } else {
                 clearSlot(fd);
-                if (want.date) fd._preferred_date_iso = want.date;
+                applyDate(fd, slotDate(want, r.info));
                 if (want.slot || want.time) toast('Ese turno ya no está disponible. Elegí otro horario del artista.');
             }
             persist();
             rerenderDate();
-        }).catch(function () { /* sin servidor: el formulario sigue como siempre */ });
+        }).catch(function () {
+            // Sin servidor: el formulario sigue como siempre, con el día de la URL.
+            if (want && want.date) applyDate(fd, want.date);
+        });
     }
 
     function cardInner(fd) {

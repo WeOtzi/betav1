@@ -102,7 +102,7 @@
         }).catch(function (err) {
             var e = new Error(err && err.message ? err.message : 'No pudimos reservar el turno.');
             e.userMessage = err && err.code === 'slot_taken'
-                ? 'Ese horario ya está ocupado por otro turno, evento o cita. Proponé otro horario o destildá "Reservar el turno pedido".'
+                ? 'Ese horario ya está ocupado por otro turno, evento o cita. Elegí otro horario o seguí sin reservar el turno pedido.'
                 : e.message;
             e.code = err && err.code;
             throw e;
@@ -207,13 +207,30 @@
         respondFieldHtml: function (q) {
             var hold = holdOf(q);
             if (!pendingLike(hold)) return '';
-            return '<label class="wo-field is-wide bk-switch"><input type="checkbox" name="reserve_slot" value="1" checked>' +
-                '<span>Reservar el turno pedido: ' + esc(hold.label) + '</span></label>';
+            return '<div class="wo-field is-wide"><input type="hidden" name="reserve_slot_offered" value="1">' +
+                '<label class="bk-switch"><input type="checkbox" name="reserve_slot" value="1" checked aria-describedby="qd-reserve-slot-help">' +
+                '<span>Reservar el turno pedido: ' + esc(hold.label) + '</span></label>' +
+                '<p class="wo-help" id="qd-reserve-slot-help">Si lo destildás, el turno se libera y vuelve a estar disponible para otros clientes.</p></div>';
         },
-        confirmFor: function (q) {
+        // options: { starts_at, minutes } para agendarlo en otro horario.
+        confirmFor: function (q, options) {
             var hold = holdOf(q);
             if (!pendingLike(hold)) return Promise.resolve(null);
-            return confirmHold(q);
+            return confirmHold(q, options);
+        },
+        // El artista respondió sin reservar el turno: se libera (no queda tomado 72 h).
+        releaseFor: function (q, reason) {
+            var hold = holdOf(q);
+            if (!hold || hold.status !== 'pending' || !repo()) return Promise.resolve(null);
+            return repo().releaseHold(hold.id, reason || 'artist').then(function (res) {
+                delete cache[q.id];
+                return res;
+            });
+        },
+        // Inicio del turno apartado (pendiente o vencido), para precargar el acuerdo.
+        pendingStart: function (q) {
+            var hold = holdOf(q);
+            return pendingLike(hold) ? hold.starts_at : null;
         },
         confirmedSessionId: function (q) {
             var hold = holdOf(q);

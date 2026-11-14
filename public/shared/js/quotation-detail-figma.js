@@ -263,6 +263,14 @@
         if (amount == null || amount <= 0) throw userError('Ingresá un monto válido.');
         return amount;
     }
+    // ISO → valor de <input type="datetime-local"> en la hora del navegador.
+    function localInputValue(iso) {
+        const d = iso ? new Date(iso) : null;
+        if (!d || Number.isNaN(d.getTime())) return '';
+        const p = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+
     function readDateTime(value, required) {
         if (!value) {
             if (required) throw userError('Elegí fecha y hora.');
@@ -992,6 +1000,10 @@
                 // Turnos: "Reservar el turno pedido" crea la sesión y bloquea el turno antes de responder.
                 if (data.reserve_slot === '1' && window.WoSlotHold) await window.WoSlotHold.confirmFor(q);
                 await updateQuote(patch);
+                // Destildado: el turno se libera para otros clientes (no queda apartado hasta que venza).
+                if (data.reserve_slot_offered === '1' && data.reserve_slot !== '1' && window.WoSlotHold) {
+                    await window.WoSlotHold.releaseFor(q, 'artist_declined').catch((error) => console.warn('[quotation-detail] liberar turno', error));
+                }
                 const message = (data.message || '').trim();
                 if (message && q.client_user_id) {
                     await D().Chat.sendMessage({ quoteId: q.quote_id, senderType: 'artist', senderId: state.user.id, message })
@@ -1035,6 +1047,8 @@
         // Turnos: si el turno reservado ya creó la primera sesión, no se pide otra.
         const holdSessionId = !edit && window.WoSlotHold ? window.WoSlotHold.confirmedSessionId(q) : null;
         const holdSession = holdSessionId ? state.sessions.find((s) => String(s.id) === String(holdSessionId) && s.status !== 'cancelled') : null;
+        // Turnos: turno pedido todavía apartado → la primera sesión sale de ahí (se precarga y se reserva al confirmar).
+        const heldStart = !edit && !holdSession && window.WoSlotHold && window.WoSlotHold.pendingStart ? window.WoSlotHold.pendingStart(q) : null;
         const sessions = M.agreedSessions(q) || 1;
         const amount = M.numberFrom(q.final_budget_amount != null ? q.final_budget_amount : q.artist_budget_amount);
         openDialog({
@@ -1050,7 +1064,7 @@
                 ${field('Sesiones acordadas', `<input class="wo-input" name="sessions" type="number" min="${Math.max(1, existing)}" max="30" value="${esc(sessions)}" required>`)}
                 <span></span>
                 ${durationFields(M.minutesFrom(q.artist_session_minutes) || 120)}
-                ${edit ? '' : holdSession ? `<p class="wo-help is-wide">Primera sesión: el turno reservado (${esc(window.WoSlotHold.labelFor(q))}).</p>` : field('Primera sesión', `<input class="wo-input" name="first" type="datetime-local" required>`, true)}
+                ${edit ? '' : holdSession ? `<p class="wo-help is-wide">Primera sesión: el turno reservado (${esc(window.WoSlotHold.labelFor(q))}).</p>` : field('Primera sesión', `<input class="wo-input" name="first" type="datetime-local" value="${esc(localInputValue(heldStart))}" required>${heldStart ? '<span class="wo-help">Precargada con el turno que pidió el cliente: al confirmar, queda reservado y bloqueado.</span>' : ''}`, true)}
                 ${field('Comentario del acuerdo (opcional)', `<textarea class="wo-textarea" name="comment" maxlength="600" placeholder="Va a llevar un amigo. Solicita anestesia.">${esc(q.final_comment || '')}</textarea>`, true)}
             </div>`,
             onSubmit: async (form, data) => {
@@ -1069,9 +1083,20 @@
                     artist_session_minutes: minutes,
                 };
                 if (!edit) patch.quote_status = 'client_approved';
+                // Turnos: con turno apartado, la primera sesión se agenda desde el apartado
+                // (crea la sesión, bloquea el turno y avisa al cliente). Si choca, no se guarda nada.
+                const slotBooking = heldStart && first
+                    ? await window.WoSlotHold.confirmFor(q, { starts_at: first, minutes })
+                    : null;
                 await updateQuote(patch);
                 let created = null;
-                if (!edit && holdSession) {
+                if (!edit && slotBooking && slotBooking.session_id) {
+                    created = { id: slotBooking.session_id, session_number: slotBooking.session_number };
+                    notify('client_approved_quotation', Object.assign(eventBase(), {
+                        final_budget_amount: value, final_budget_currency: patch.final_budget_currency, final_sessions: count,
+                        first_session_date: first, final_comment: patch.final_comment || '',
+                    }));
+                } else if (!edit && holdSession) {
                     created = holdSession;
                     notify('client_approved_quotation', Object.assign(eventBase(), {
                         final_budget_amount: value, final_budget_currency: patch.final_budget_currency, final_sessions: count,

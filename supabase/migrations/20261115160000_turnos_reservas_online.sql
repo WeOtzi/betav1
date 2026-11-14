@@ -351,6 +351,17 @@ begin
      set requested_slot_start = v_start, requested_slot_minutes = v_minutes
    where id = v_quote.id;
 
+  -- Un borrador reabierto puede arrastrar un apartado anterior: se reemplaza
+  -- (índice único: un apartado activo por cotización). Si ya hay un turno
+  -- confirmado, se respeta y no se aparta otro.
+  if exists (select 1 from public.artist_booking_holds h
+             where h.quotation_id = v_quote.id and h.status = 'confirmed') then
+    return v_saved || jsonb_build_object('id', v_quote.id, 'slot_status', 'none');
+  end if;
+  update public.artist_booking_holds
+     set status = 'released', released_reason = 'resubmitted'
+   where quotation_id = v_quote.id and status = 'pending';
+
   insert into public.artist_booking_holds (artist_user_id, quotation_id, starts_at, ends_at, status, expires_at)
   values (v_artist, v_quote.id, v_start, v_end, 'pending', pg_catalog.now() + make_interval(hours => v_settings.hold_hours))
   returning * into v_hold;
