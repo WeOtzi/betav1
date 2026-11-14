@@ -60,7 +60,10 @@
         actions.innerHTML = [
             studio.instagram ? `<a class="studio-btn" target="_blank" href="${escapeAttr(igUrl(studio.instagram))}"><i class="fa-brands fa-instagram"></i></a>` : '',
             safeUrl(studio.website) ? `<a class="studio-btn" target="_blank" rel="noopener noreferrer" href="${escapeAttr(safeUrl(studio.website))}"><i class="fa-solid fa-globe"></i> Sitio</a>` : '',
-            studio.whatsapp  ? `<a class="studio-btn" target="_blank" href="${escapeAttr(waUrl(studio.whatsapp))}"><i class="fa-brands fa-whatsapp"></i></a>` : ''
+            studio.whatsapp  ? `<a class="studio-btn" target="_blank" href="${escapeAttr(waUrl(studio.whatsapp))}"><i class="fa-brands fa-whatsapp"></i></a>` : '',
+            // ── roster (ROSTER-14): un artista pide sumarse desde su cuenta (si no
+            // inició sesión, el login lo trae de vuelta). Solo estudios con dueño.
+            studio.user_id ? `<a class="studio-btn" href="${escapeAttr(joinStudioUrl(studio.id))}">Soy artista: quiero sumarme</a>` : ''
         ].filter(Boolean).join('');
 
         // Photos
@@ -90,6 +93,11 @@
         renderAggregatedStyles(memberships || []);
         await renderSponsors(studio.id);
         renderStudioReviews(studio);
+    }
+
+    function joinStudioUrl(studioId) {
+        const base = window.WEOTZI_BASE_PATH ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '') : '';
+        return base + '/artist/invitations?estudio=' + encodeURIComponent(studioId);
     }
 
     function renderStudioReviews(studio) {

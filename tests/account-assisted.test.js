@@ -300,7 +300,9 @@ test('runtime: Mi perfil guarda el WhatsApp normalizado y el email por auth', ()
     assert.match(sync, /updateArtist\(\{ email: CM\.normalizeEmail\(user\.email\) \}\)/);
 });
 
-test('runtime: guardar la modalidad escribe work_type, estudios y studio_id y sincroniza el estudio base', () => {
+// ── roster (ROSTER-05): studio_id ya no se escribe desde el cliente (el guard
+// vivo lo revertía en silencio); un estudio nuevo es una solicitud de alta.
+test('runtime: guardar la modalidad escribe work_type y estudios, pide el alta y sincroniza el estudio base', () => {
     assert.match(js, /const INDEPENDENT_STUDIO = 'Sin estudio\/Independiente';/);
     assert.match(js, /const PRIVATE_STUDIO_NAME = 'ESTUDIO PRIVADO';/);
     assert.match(js, /const WORK_TYPES = \['studio', 'independent', 'both'\];/);
@@ -308,10 +310,12 @@ test('runtime: guardar la modalidad escribe work_type, estudios y studio_id y si
     const save = fnBody(js, 'async function saveModality()');
     assert.match(save, /work_type: type,/);
     assert.match(save, /estudios: withStudio \? nameUpper : INDEPENDENT_STUDIO,/);
-    assert.match(save, /studio_id: studioId/);
+    assert.doesNotMatch(save, /studio_id: studioId/);
+    assert.match(save, /requestStudioLink\(studioId, name, open\)/);
+    assert.match(save, /D\.StudioMemberships\.endMembership\(currentResident\.id\)/);
     assert.match(save, /await updateArtist\(patch\)/);
     assert.match(save, /findOrCreateStudio\(name\)/);
-    assert.match(save, /syncBaseLocation\(type, studioId, nameUpper\)/);
+    assert.match(save, /syncBaseLocation\(type, linkedNow \? studioId : null, nameUpper\)/);
     assert.match(save, /await loadLocations\(\)/);
 
     const find = fnBody(js, 'async function findOrCreateStudio(name)');

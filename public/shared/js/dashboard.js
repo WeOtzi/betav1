@@ -2896,7 +2896,8 @@ async function handleProfileSave(e) {
             session_price_currency: currency || null,
             portafolio: portfolio || null,
             estudios: estudios,
-            studio_id: resolvedStudioId,
+            // ── roster (ROSTER-05): studio_id lo fija la membresía aprobada (el
+            // guard revierte cambios del cliente); un estudio nuevo se pide abajo.
             work_type: normalizedWorkType,
             birth_date: birthDate || null,
             subscribed_newsletter: newsletter,
@@ -2924,6 +2925,26 @@ async function handleProfileSave(e) {
 
         await saveArtistTattooLocations(tattooLocationsPayload);
 
+        // ── roster (ROSTER-05): estudio distinto al actual = solicitud de alta.
+        let studioRequestNote = '';
+        if (resolvedStudioId && resolvedStudioId !== (artistData && artistData.studio_id)
+            && WeotziData.StudioMemberships && typeof WeotziData.StudioMemberships.requestMembership === 'function') {
+            const { data: reqData, error: reqError } = await WeotziData.StudioMemberships.requestMembership({ studioId: resolvedStudioId, role: 'resident' });
+            if (!reqError) {
+                studioRequestNote = ' Enviamos tu solicitud al estudio: queda vinculado cuando la apruebe.';
+                const accessToken = await getDashboardAccessToken();
+                if (accessToken && reqData && reqData.membership_id) {
+                    fetch(dashboardAppPath('/api/artist/studio-notify'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + accessToken },
+                        body: JSON.stringify({ kind: 'membership_request_created', membership_id: reqData.membership_id })
+                    }).catch(() => {});
+                }
+            } else if (!/Ya tenés/i.test(String(reqError.message || ''))) {
+                console.warn('[dashboard] solicitud de alta:', reqError);
+            }
+        }
+
         // Update local data
         artistData = { ...artistData, ...updateData };
 
@@ -2934,7 +2955,7 @@ async function handleProfileSave(e) {
         // Recheck profile completion milestone
         checkProfileCompletion();
 
-        showStatusMessage('Perfil actualizado correctamente.', 'success');
+        showStatusMessage('Perfil actualizado correctamente.' + studioRequestNote, 'success');
 
     } catch (error) {
         console.error('Error saving profile:', error);

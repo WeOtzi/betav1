@@ -259,20 +259,53 @@
     const StudioMemberships = {
         // Roster del estudio (active/pending/paused) con artista embebido. Cubre
         // studio-dashboard.js:841. Orden por status y role.
+        // ── roster: suma current_contract_id (rol/reparto se bloquean con
+        // contrato vigente), notes, invited_at, initiated_by y pending_invite.
         listRoster(studioId) {
             return from('studio_artist_memberships')
-                .select(`id, role, status, started_at, ended_at, location_id, revenue_split_pct, ${ARTIST_EMBED}`)
+                .select(`id, artist_user_id, role, status, started_at, ended_at, invited_at, initiated_by, location_id, revenue_split_pct, current_contract_id, notes, ${ARTIST_EMBED}`)
                 .eq('studio_id', studioId)
-                .in('status', ['active', 'pending_acceptance', 'paused'])
+                .in('status', ['active', 'pending_acceptance', 'pending_invite', 'paused'])
                 .order('status', { ascending: true })
                 .order('role', { ascending: true });
         },
 
-        // Roster activo con artista embebido para el perfil publico del estudio.
-        // Cubre studio-profile.js:95.
-        listActiveRosterWithArtists(studioId) {
+        // Roster PUBLICO (perfil del estudio, perfil del artista, directorio de
+        // spots). ── roster (ROSTER-04): la RLS de studio_artist_memberships
+        // solo deja leer al artista, al dueño y a soporte; los visitantes leen
+        // la vista studio_public_roster (sin PII) y los perfiles publicos de
+        // artists_db. Si la vista no devuelve filas (p. ej. el modo demo, que
+        // sirve la tabla desde memoria) se cae a la lectura directa.
+        async listActiveRosterWithArtists(studioId) {
+            const publicArtistCols = 'user_id, username, name, profile_picture, styles_array, session_price, city, country';
+            const viewRes = await from('studio_public_roster')
+                .select('membership_id, studio_id, artist_user_id, location_id, role, started_at, ends_on')
+                .eq('studio_id', studioId);
+            const viewRows = !viewRes.error && Array.isArray(viewRes.data) ? viewRes.data : [];
+            if (viewRows.length) {
+                const ids = [...new Set(viewRows.map((row) => row.artist_user_id).filter(Boolean))];
+                const artistsRes = ids.length
+                    ? await from('artists_db').select(publicArtistCols).in('user_id', ids)
+                    : { data: [], error: null };
+                const byId = new Map((artistsRes.data || []).map((artist) => [artist.user_id, artist]));
+                return {
+                    data: viewRows
+                        .map((row) => ({
+                            id: row.membership_id,
+                            role: row.role,
+                            status: 'active',
+                            artist_user_id: row.artist_user_id,
+                            location_id: row.location_id,
+                            started_at: row.started_at,
+                            ends_on: row.ends_on,
+                            artists_db: byId.get(row.artist_user_id) || null
+                        }))
+                        .filter((row) => row.artists_db),
+                    error: null
+                };
+            }
             return from('studio_artist_memberships')
-                .select('role, status, artists_db ( user_id, username, name, profile_picture, styles_array, session_price )')
+                .select('role, status, artist_user_id, artists_db ( user_id, username, name, profile_picture, styles_array, session_price )')
                 .eq('studio_id', studioId)
                 .eq('status', 'active');
         },
@@ -352,10 +385,15 @@
             return client().rpc('end_studio_membership', { p_membership_id: membershipId });
         },
 
-        // Reactiva una membership finalizada (status 'active', ended_at null).
-        // Cubre studio-dashboard.js:961.
+        // Reactiva una membership PAUSADA (el guard vivo solo permite
+        // paused -> active; una finalizada se vuelve a invitar).
         resumeMembership(membershipId) {
-            return from('studio_artist_memberships').update({ status: 'active', ended_at: null }).eq('id', membershipId);
+            return from('studio_artist_memberships').update({ status: 'active', ended_at: null }).eq('id', membershipId).eq('status', 'paused');
+        },
+
+        // ── roster: pausa un vinculo activo (active -> paused, permitido por el guard).
+        pauseMembership(membershipId) {
+            return from('studio_artist_memberships').update({ status: 'paused' }).eq('id', membershipId).eq('status', 'active');
         },
 
         // Elimina (cancela) una membership/invitacion por id. Cubre
@@ -393,6 +431,96 @@
                 .eq('artist_user_id', artistUserId)
                 .eq('status', 'pending')
                 .order('created_at', { ascending: false });
+        },
+
+        // ===== roster · altas en dos sentidos (ROSTER-02/05/14) =====
+
+        // Solicitudes de alta pendientes del estudio ('requested', las pidio el
+        // artista: registro, enlace o desde su cuenta) con el detalle y el
+        // artista embebidos. La RLS deja leerlas al duenio y a soporte.
+        listRequestsForStudio(studioId) {
+            return from('studio_artist_memberships')
+                .select(`id, studio_id, artist_user_id, role, status, location_id, invited_at, initiated_by, ` +
+                    'request:studio_membership_request_details ( message, portfolio_url, proposed_start_date, styles, created_at ), ' +
+                    ARTIST_EMBED)
+                .eq('studio_id', studioId)
+                .eq('status', 'requested')
+                .order('invited_at', { ascending: false });
+        },
+
+        // El estudio (duenio o soporte) decide una solicitud: 'accept' | 'reject'
+        // (la RPC no acepta 'approve'); rol y sede opcionales al aprobar.
+        decideRequest(membershipId, decision, { role = null, locationId = null } = {}) {
+            return client().rpc('decide_studio_membership_request', {
+                p_membership_id: membershipId,
+                p_decision: decision,
+                p_role: role || null,
+                p_location_id: locationId || null,
+            });
+        },
+
+        // El artista pide sumarse a un estudio. Devuelve
+        // { membership_id, studio_has_owner }.
+        requestMembership({ studioId, role = 'resident', locationId = null, message = null, portfolioUrl = null, proposedStartDate = null } = {}) {
+            return client().rpc('request_studio_membership', {
+                p_studio_id: studioId,
+                p_role: role || 'resident',
+                p_location_id: locationId || null,
+                p_message: message || null,
+                p_portfolio_url: portfolioUrl || null,
+                p_proposed_start_date: proposedStartDate || null,
+            });
+        },
+
+        // El artista retira su solicitud (requested -> ended).
+        withdrawRequest(membershipId) {
+            return client().rpc('withdraw_studio_membership_request', { p_membership_id: membershipId });
+        },
+
+        // Solicitudes enviadas por el artista, pendientes, con estudio y sede.
+        listRequestsForArtist(artistUserId) {
+            return from('studio_artist_memberships')
+                .select('id, studio_id, role, status, location_id, invited_at, initiated_by, ' +
+                    'studios:studio_id ( id, slug, name, logo_image, cover_image, city, country ), ' +
+                    'location:location_id ( id, label, city, country, formatted_address ), ' +
+                    'request:studio_membership_request_details ( message, proposed_start_date )')
+                .eq('artist_user_id', artistUserId)
+                .eq('status', 'requested')
+                .order('invited_at', { ascending: false });
+        },
+
+        // Vinculos abiertos del artista (cualquier estado abierto), para saber
+        // si ya puede o no pedir el alta en un estudio.
+        listOpenForArtist(artistUserId) {
+            return from('studio_artist_memberships')
+                .select('id, studio_id, role, status, initiated_by, studios:studio_id ( id, name )')
+                .eq('artist_user_id', artistUserId)
+                .in('status', ['requested', 'pending_invite', 'pending_acceptance', 'active', 'paused']);
+        },
+
+        // Condiciones de una invitacion (E-TEAM-02/03).
+        getInvitationDetails(membershipId) {
+            return from('studio_membership_invitation_details')
+                .select('membership_id, message, proposed_start_date, proposed_end_date, duration_label, response_due_at, studio_provides, artist_expectations, requirements, benefits, contact_name, contact_email, contact_title')
+                .eq('membership_id', membershipId)
+                .maybeSingle();
+        },
+
+        // Upsert de las condiciones (RLS smid_studio_support_insert/update).
+        saveInvitationDetails(membershipId, details) {
+            return from('studio_membership_invitation_details')
+                .upsert({ ...details, membership_id: membershipId }, { onConflict: 'membership_id' });
+        },
+
+        // Sesiones futuras del artista en el estudio (aviso de E-TEAM-04).
+        listFutureBookingsForArtist(studioId, artistUserId) {
+            return from('studio_bookings')
+                .select('id, starts_at, status, client_name')
+                .eq('studio_id', studioId)
+                .eq('artist_user_id', artistUserId)
+                .gte('starts_at', new Date().toISOString())
+                .order('starts_at', { ascending: true })
+                .limit(20);
         },
     };
 
