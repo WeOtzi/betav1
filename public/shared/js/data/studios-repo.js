@@ -48,13 +48,73 @@
         'country, country_code, state_province, city, locality, street, street_number, ' +
         'unit, postal_code, formatted_address, latitude, longitude, google_place_id';
 
+    // ===================== pii-studios (20261115200100) =====================
+    // studios tiene privilegios POR COLUMNA: anon y authenticated leen todo
+    // MENOS PRIVATE_COLUMNS (email del dueño, teléfono interno, datos internos
+    // de verificación, quién creó la ficha). SESSION_COLUMNS (condiciones de
+    // trabajo del roster) solo las lee alguien con sesión (invitaciones).
+    // `select('*')` directo sobre studios FALLA: '*' se traduce a
+    // PUBLIC_COLUMNS y el dueño lee su fila completa con la RPC get_my_studio().
+    const PRIVATE_COLUMNS = Object.freeze([
+        'email', 'contact_phone', 'verification_reason', 'verification_required',
+        'instagram_verified_handle', 'created_by_artist_user_id'
+    ]);
+    const SESSION_COLUMNS = Object.freeze(['artist_requirements', 'default_revenue_split_pct']);
+    const PUBLIC_COLUMNS = Object.freeze([
+        'id', 'name', 'normalized_name', 'slug', 'tagline', 'bio', 'cover_image', 'logo_image',
+        'photo_feed_items', 'founded_year', 'languages', 'instagram', 'tiktok', 'website',
+        'whatsapp', 'phone', 'ubicacion', 'country', 'country_code', 'state_province', 'city',
+        'locality', 'street', 'street_number', 'unit', 'postal_code', 'formatted_address',
+        'latitude', 'longitude', 'google_place_id', 'google_maps_url', 'geocoded_at',
+        'is_verified', 'is_active', 'profile_complete', 'primary_location_id',
+        'is_seeking_artists', 'verification_status', 'verified_at', 'instagram_verified_at',
+        'specialty_styles', 'station_count', 'equipment', 'accepts_guest_spots',
+        'guest_window_start', 'guest_window_end', 'accepts_artist_inquiries',
+        'location_verified', 'user_id', 'created_at', 'updated_at'
+    ]);
+    const PRIVATE_SET = new Set(PRIVATE_COLUMNS);
+    const SESSION_SET = new Set(SESSION_COLUMNS);
+
+    // Nombres de columna de un select de PostgREST ("a, alias:b, c::text").
+    function studioColumnNames(columns) {
+        return String(columns == null ? '*' : columns).split(',')
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .map((part) => {
+                const noCast = part.split('::')[0];
+                const colon = noCast.indexOf(':');
+                return (colon === -1 ? noCast : noCast.slice(colon + 1)).trim();
+            });
+    }
+    // true si el select pide '*' o alguna columna privada / solo-con-sesión.
+    function studioNeedsPrivate(columns) {
+        return studioColumnNames(columns).some((name) => name === '*' || PRIVATE_SET.has(name) || SESSION_SET.has(name));
+    }
+    // Lecturas públicas: '*' -> lista pública; descarta las privadas para que
+    // la consulta no falle por privilegios (las de sesión se conservan: si no
+    // hay sesión, quien las pide recibe el error de privilegios y lo maneja).
+    function studioPublicOnly(columns) {
+        const parts = String(columns == null ? '*' : columns).split(',').map((p) => p.trim()).filter(Boolean);
+        const names = studioColumnNames(columns);
+        if (!parts.length || names.indexOf('*') !== -1) return PUBLIC_COLUMNS.join(', ');
+        const kept = parts.filter((part, i) => !PRIVATE_SET.has(names[i]));
+        return kept.length ? kept.join(', ') : 'id';
+    }
+    // PGRST202 / 42883 = la RPC todavía no existe en este backend.
+    function isMissingRpc(error) {
+        if (!error) return false;
+        return error.code === 'PGRST202' || error.code === '42883'
+            || /could not find the function|function .* does not exist/i.test(String(error.message || ''));
+    }
+
     // ===================== studios =====================
     const Studios = {
         // --- reads ---
 
         // Estudio por id. columns variable; .maybeSingle().
+        // pii-studios: '*' = columnas públicas (nunca email ni datos internos).
         getById(studioId, columns = '*') {
-            return from('studios').select(columns).eq('id', studioId).maybeSingle();
+            return from('studios').select(studioPublicOnly(columns)).eq('id', studioId).maybeSingle();
         },
 
         // Solo las columnas de direccion del estudio (borrador de direccion del
@@ -66,13 +126,21 @@
         // Estudio por slug. columns variable; .maybeSingle(). Parte del lookup
         // por id-o-slug del perfil publico (studio-profile.js:40).
         getBySlug(slug, columns = '*') {
-            return from('studios').select(columns).eq('slug', slug).maybeSingle();
+            return from('studios').select(studioPublicOnly(columns)).eq('slug', slug).maybeSingle();
         },
 
         // Estudio propiedad del usuario autenticado (panel de estudio). columns
         // variable; .maybeSingle(). Cubre studio-auth.js:42 (select '*'),
         // studio-auth.js:83 (id,user_id,name,slug,profile_complete).
-        getByUserId(userId, columns = '*') {
+        // pii-studios: con '*' o columnas privadas lee la fila completa propia
+        // con la RPC get_my_studio() (solo devuelve el estudio de la sesión);
+        // si la RPC todavía no existe, cae a la lectura directa de siempre.
+        async getByUserId(userId, columns = '*') {
+            if (!studioNeedsPrivate(columns)) {
+                return from('studios').select(columns).eq('user_id', userId).maybeSingle();
+            }
+            const own = await client().rpc('get_my_studio').select(columns).eq('user_id', userId).maybeSingle();
+            if (!isMissingRpc(own && own.error)) return own;
             return from('studios').select(columns).eq('user_id', userId).maybeSingle();
         },
 
@@ -891,6 +959,11 @@
         },
     };
 
+    Studios.PUBLIC_COLUMNS = PUBLIC_COLUMNS;
+    Studios.PRIVATE_COLUMNS = PRIVATE_COLUMNS;
+    Studios.SESSION_COLUMNS = SESSION_COLUMNS;
+    Studios.publicOnly = studioPublicOnly;
+    Studios.needsPrivate = studioNeedsPrivate;
     D.Studios = Studios;
     D.StudioLocations = StudioLocations;
     D.StudioMemberships = StudioMemberships;

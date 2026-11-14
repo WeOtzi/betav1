@@ -278,6 +278,31 @@
     box-shadow: var(--shadow-hard);
 }
 .explore-card:active { transform: none; box-shadow: none; }
+/* Botón real sobre la card: foco con Tab y Enter/Espacio abren el detalle */
+.explore-card-hit {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+.explore-card:focus-within { box-shadow: var(--shadow-focus); }
+.explore-card-hit:focus-visible { box-shadow: none; }
+/* Sello "Verificado" (VER-A6) en la card y en el modal */
+.explore-card-verified,
+.modal-verified {
+    display: inline-flex;
+    vertical-align: middle;
+    color: var(--yellow-300);
+}
+.explore-card-verified [data-wo-icon] { width: 16px; height: 16px; }
+.modal-verified { color: var(--blue-400); margin-left: var(--space-2); }
+.modal-verified [data-wo-icon] { width: 20px; height: 20px; }
+.explore-map-empty .wo-btn { margin-left: var(--space-3); }
 .explore-card.is-active { box-shadow: var(--shadow-hard-sm); transform: translate(-2px, -2px); }
 
 .explore-card-img {

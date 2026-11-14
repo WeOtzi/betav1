@@ -7,16 +7,18 @@
 (function () {
     'use strict';
 
+    // Lógica compartida con el marketplace (estilos sin tildes, precio en USD).
+    var Core = window.WeotziMarketplaceCore;
+
+    function emptyExploreFilters() {
+        return { style: null, country: null, priceRange: null, language: null, experience: null, verified: false };
+    }
+
     var STATE = {
         all: [],
         filtered: [],
-        currentFilters: {
-            style: null,
-            country: null,
-            priceRange: null,
-            language: null,
-            experience: null
-        },
+        currentFilters: emptyExploreFilters(),
+        lastFocus: null,
         view: 'map',
         markers: new Map(),
         activeArtistId: null,
@@ -135,6 +137,10 @@
         return match ? parseInt(match[0], 10) : 0;
     }
 
+    function isVerified(artist) {
+        return !!(artist && artist.verification_state === 'Yes');
+    }
+
     function escapeHtml(value) {
         return String(value == null ? '' : value)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -173,9 +179,12 @@
         return null;
     }
 
-    function waitForConfigManager(maxWait) {
+    // Espera a que exista ConfigManager Y a que termine de leer app-config.json
+    // (ready()). Antes la consulta salía con la config por defecto (sin URL,
+    // modo demo) y /explore mostraba 000 artistas en silencio (MK-01).
+    async function waitForConfigManager(maxWait) {
         maxWait = maxWait || 5000;
-        return new Promise(function (resolve) {
+        await new Promise(function (resolve) {
             var start = Date.now();
             (function poll() {
                 if (window.ConfigManager) return resolve();
@@ -183,13 +192,25 @@
                 setTimeout(poll, 50);
             })();
         });
+        if (window.ConfigManager && typeof window.ConfigManager.ready === 'function') {
+            await window.ConfigManager.ready();
+        }
+    }
+
+    // Alias del catálogo de estilos del registro; sin él rige la copia local.
+    async function loadStyleCatalog() {
+        try {
+            var res = await fetch((window.WEOTZI_BASE_PATH || '') + '/api/registration/catalogs');
+            if (res.ok && Core) Core.setStyleCatalog(await res.json());
+        } catch (err) {
+            console.warn('[explore-map] catálogo de estilos no disponible:', err && err.message);
+        }
     }
 
     async function fetchArtists() {
         var supabase = window.ConfigManager && window.ConfigManager.getSupabaseClient();
         if (!supabase || window.ConfigManager.isDemoMode()) {
-            console.warn('[explore-map] Demo mode or no Supabase. Using empty list.');
-            return [];
+            throw new Error('La conexión con los artistas no está disponible');
         }
         // Prefer the artists_with_location view: it COALESCEs the studio's
         // address (when work_type ∈ {studio, both} and studio_id is set) onto
@@ -205,7 +226,10 @@
             'latitude', 'longitude', 'google_place_id', 'geocoded_at'
         ].join(',');
 
-        var resp = await WeotziData.Artists.listWithLocation(viewCols);
+        // v4 de la vista (20261115200000) suma precio en USD y verificación; si
+        // todavía no está aplicada se reintenta con las columnas de siempre.
+        var resp = await WeotziData.Artists.listWithLocation(viewCols + ',session_price_amount_usd,verification_state');
+        if (resp.error) resp = await WeotziData.Artists.listWithLocation(viewCols);
 
         if (resp.error) {
             console.warn('[explore-map] artists_with_location view unavailable, falling back to artists_db:', resp.error.message);
@@ -214,12 +238,14 @@
         }
         if (resp.error) {
             console.error('[explore-map] Supabase error:', resp.error);
-            return [];
+            throw new Error(resp.error.message || 'No se pudieron cargar los artistas');
         }
+        // Sin país real queda null: nunca se inventa "Desconocido" (no aparece
+        // como opción del filtro ni se geocodifica).
         return (resp.data || []).map(function (a) {
             return Object.assign({}, a, {
                 languages: a.languages || ['Español'],
-                country: a.country || 'Desconocido'
+                country: a.country && String(a.country).trim() ? a.country : null
             });
         });
     }
@@ -227,10 +253,8 @@
     function applyFilters() {
         var f = STATE.currentFilters;
         STATE.filtered = STATE.all.filter(function (a) {
-            if (f.style) {
-                var styles = parseStyles(a.styles_array).map(function (s) { return s.toLowerCase(); });
-                if (!styles.some(function (s) { return s.includes(f.style.toLowerCase()); })) return false;
-            }
+            if (f.style && !Core.hasStyle(a.styles_array, f.style)) return false;
+            if (f.verified && !isVerified(a)) return false;
             if (f.country && a.country !== f.country) return false;
             if (f.language) {
                 var langs = Array.isArray(a.languages) ? a.languages : [a.languages];
@@ -242,12 +266,9 @@
                 if (f.experience === 'mid' && (years < 4 || years > 7)) return false;
                 if (f.experience === 'senior' && years < 8) return false;
             }
-            if (f.priceRange) {
-                var p = parsePrice(a.session_price);
-                if (f.priceRange === 'low' && p > 200) return false;
-                if (f.priceRange === 'medium' && (p < 200 || p > 800)) return false;
-                if (f.priceRange === 'high' && p < 800) return false;
-            }
+            // Precio en USD normalizado, tramos sin solape; sin precio no entra
+            // en ningún tramo (antes caía en "Económico").
+            if (f.priceRange && Core.priceBucket(a.session_price_amount_usd) !== f.priceRange) return false;
             return true;
         });
         renderList();
@@ -257,14 +278,13 @@
     function initFilterUI() {
         var pillsContainer = document.getElementById('style-filter-pills');
         if (pillsContainer) {
-            // Build the style pills HTML.
-            var stylePillsHtml = TOP_STYLES.map(function (s) {
-                var count = STATE.all.filter(function (a) {
-                    return parseStyles(a.styles_array).some(function (x) { return x.toLowerCase() === s.label.toLowerCase(); });
-                }).length;
-                return '<button class="filter-pill" type="button" data-style="' + escapeHtml(s.label) + '">'
+            // Pills desde los estilos REALES de los perfiles, agrupados sin
+            // tildes ni mayúsculas ("Japones" = "Japonés"); sin pills en 0.
+            // TOP_STYLES queda como catálogo de referencia.
+            var stylePillsHtml = Core.buildStyleOptions(STATE.all, function (a) { return a.styles_array; }).map(function (s) {
+                return '<button class="filter-pill" type="button" aria-pressed="false" data-style="' + escapeHtml(s.value) + '">'
                     + '<span>' + escapeHtml(s.label) + '</span>'
-                    + '<span class="pill-count">' + count + '</span>'
+                    + '<span class="pill-count">' + s.count + '</span>'
                     + '</button>';
             }).join('');
 
@@ -288,7 +308,9 @@
                 STATE.currentFilters.style = STATE.currentFilters.style === style ? null : style;
                 document.querySelectorAll('.filter-pill').forEach(function (b) {
                     if (b.id === 'toggle-studios-btn') return; // skip the toggle when re-styling
-                    b.classList.toggle('is-active', b.dataset.style === STATE.currentFilters.style);
+                    var on = b.dataset.style === STATE.currentFilters.style;
+                    b.classList.toggle('is-active', on);
+                    b.setAttribute('aria-pressed', on ? 'true' : 'false');
                 });
                 applyFilters();
             });
@@ -336,13 +358,28 @@
             STATE.currentFilters.experience = expSelect.value || null; applyFilters();
         });
 
+        // Verificados (VER-A6): verification_state = 'Yes'.
+        var verifiedSelect = document.getElementById('filter-verified');
+        if (verifiedSelect) {
+            var verifiedCount = STATE.all.filter(isVerified).length;
+            var verifiedOpt = verifiedSelect.querySelector('option[value="yes"]');
+            if (verifiedOpt) verifiedOpt.textContent = 'Solo verificados (' + verifiedCount + ')';
+            verifiedSelect.addEventListener('change', function () {
+                STATE.currentFilters.verified = verifiedSelect.value === 'yes'; applyFilters();
+            });
+        }
+
         var clearBtn = document.getElementById('explore-clear-btn');
         if (clearBtn) clearBtn.addEventListener('click', function () {
-            STATE.currentFilters = { style: null, country: null, priceRange: null, language: null, experience: null };
-            ['filter-country', 'filter-price', 'filter-language', 'filter-experience'].forEach(function (id) {
+            STATE.currentFilters = emptyExploreFilters();
+            ['filter-country', 'filter-price', 'filter-language', 'filter-experience', 'filter-verified'].forEach(function (id) {
                 var el = document.getElementById(id); if (el) el.value = '';
             });
-            document.querySelectorAll('.filter-pill.is-active').forEach(function (b) { b.classList.remove('is-active'); });
+            document.querySelectorAll('.filter-pill.is-active').forEach(function (b) {
+                if (b.id === 'toggle-studios-btn') return;
+                b.classList.remove('is-active');
+                b.setAttribute('aria-pressed', 'false');
+            });
             applyFilters();
         });
     }
@@ -437,6 +474,8 @@
             }
 
             setText('modal-artist-name', toTitleCase(artist.name || artist.username || 'Artista'));
+            var verifiedEl = document.getElementById('modal-verified');
+            if (verifiedEl) verifiedEl.hidden = !isVerified(artist);
 
             // Source badge: studio name when affiliated, "Independiente" otherwise.
             var badgeEl = document.getElementById('modal-source-badge');
@@ -499,8 +538,7 @@
 
             setBioHtml('modal-bio', artist.bio_description, 'Este artista todavia no escribio una bio.');
 
-            var price = artist.session_price ? String(artist.session_price).replace(',00', '') : 'Consultar';
-            setText('modal-price', price);
+            setText('modal-price', priceLabel(artist));
 
             var quoteBtn = document.getElementById('modal-cta-quote');
             var profileBtn = document.getElementById('modal-cta-profile');
@@ -515,8 +553,11 @@
             console.error('[explore-map] Error populating modal, opening anyway:', err);
         }
 
+        STATE.lastFocus = document.activeElement;
         backdrop.classList.remove('hidden');
         backdrop.setAttribute('aria-hidden', 'false');
+        var closeBtn = document.getElementById('modal-close-btn');
+        if (closeBtn) closeBtn.focus();
     }
 
     function closeArtistModal() {
@@ -532,6 +573,17 @@
         var card = document.querySelector('.explore-card.is-active');
         if (card) card.classList.remove('is-active');
         STATE.activeArtistId = null;
+        // Devuelve el foco a quien abrió el modal (card o pin).
+        if (STATE.lastFocus && typeof STATE.lastFocus.focus === 'function' && document.contains(STATE.lastFocus)) {
+            STATE.lastFocus.focus();
+        }
+        STATE.lastFocus = null;
+    }
+
+    function priceLabel(artist) {
+        var usd = Number(artist && artist.session_price_amount_usd);
+        if (Number.isFinite(usd) && usd > 0) return 'USD ' + Math.round(usd);
+        return artist && artist.session_price ? String(artist.session_price).replace(',00', '') : 'Consultar';
     }
 
     function renderList() {
@@ -559,12 +611,17 @@
                 ? 'style="background-image: url(\'' + escapeHtml(a.profile_picture) + '\')"'
                 : '';
             var imgClass = a.profile_picture ? '' : ' no-image';
-            var price = a.session_price ? String(a.session_price).replace(',00', '') : 'Consultar';
+            var price = priceLabel(a);
             var indexLabel = String(idx + 1).padStart(3, '0');
             var recTag = a.is_recommended
                 ? '<span class="explore-card-rec">Recomendado</span>'
                 : '';
+            var displayName = toTitleCase(a.name || a.username);
+            var verifiedTag = isVerified(a)
+                ? ' <span class="explore-card-verified" title="Artista verificado"><i data-wo-icon="check-circle" aria-hidden="true"></i><span class="wo-sr-only">Verificado</span></span>'
+                : '';
             return '<article class="explore-card" data-user-id="' + escapeHtml(a.user_id) + '" data-index="' + escapeHtml(indexLabel) + '">'
+                +   '<button type="button" class="explore-card-hit" aria-label="' + escapeHtml('Ver detalle de ' + displayName) + '"></button>'
                 +   '<div class="explore-card-img' + imgClass + '" ' + img + '></div>'
                 +   '<span class="explore-card-index">' + escapeHtml(indexLabel) + '</span>'
                 +   '<span class="explore-card-price">' + escapeHtml(price) + '</span>'
@@ -573,7 +630,7 @@
                 +     '<div class="explore-card-styles">'
                 +       styles.map(function (s) { return '<span class="tag-mini">' + escapeHtml(s) + '</span>'; }).join('')
                 +     '</div>'
-                +     '<h3 class="explore-card-name">' + escapeHtml(toTitleCase(a.name || a.username)) + '</h3>'
+                +     '<h3 class="explore-card-name">' + escapeHtml(displayName) + verifiedTag + '</h3>'
                 +     '<div class="explore-card-meta">' + escapeHtml(toTitleCase(a.city || a.country || 'Ubicación reservada')) + '</div>'
                 +   '</div>'
                 + '</article>';
@@ -630,7 +687,9 @@
             },
             styles: currentMapStyle(),
             backgroundColor: isDark ? '#0A0A0A' : '#f0ede4',
-            gestureHandling: 'greedy',
+            // En móvil el mapa no secuestra el scroll de la página: dos dedos
+            // para moverlo (MK-14).
+            gestureHandling: (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) ? 'cooperative' : 'greedy',
             clickableIcons: false
         });
 
@@ -816,28 +875,6 @@
         STATE.overlayClass = PriceOverlay;
     }
 
-    function persistGeocode(userId, lat, lng, displayName) {
-        return fetch('/api/artists/geocode', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: userId,
-                latitude: lat,
-                longitude: lng,
-                geocoded_address: displayName || null
-            })
-        })
-            .then(function (r) { return r.json().catch(function () { return {}; }); })
-            .then(function (data) {
-                if (!data.success) console.warn('[explore-map] Geocode persist failed:', userId, data.error);
-                return data;
-            })
-            .catch(function (err) {
-                console.warn('[explore-map] Geocode persist error:', userId, err);
-                return null;
-            });
-    }
-
     function fitBoundsSafely(points) {
         if (!STATE.map || !points || points.length === 0) return;
         if (points.length === 1) {
@@ -876,8 +913,9 @@
 
         fitBoundsSafely(plotted);
 
-        // Geocode missing artists with a debounced re-fit so the map zooms to
-        // include new pins as they trickle in (rate-limited by the geocoder).
+        // Geocodifica ciudad/país de quien no tiene coordenadas, con re-encuadre
+        // debounced. Solo queda en la caché del visitante (geocoder.js): nunca
+        // se escribe en artists_db (MK-03).
         if (!pendingGeocode.length) return;
 
         var refitTimer = null;
@@ -898,7 +936,6 @@
                 plotArtistMarker(artist, point.lat, point.lng);
                 plotted.push({ lat: point.lat, lng: point.lng });
                 scheduleRefit();
-                persistGeocode(artist.user_id, point.lat, point.lng, point.displayName);
             } catch (err) {
                 console.warn('[explore-map] Geocode loop error:', err);
             }
@@ -969,8 +1006,8 @@
         showLoading();
         try {
             await waitForConfigManager();
+            await loadStyleCatalog();
             STATE.all = await fetchArtists();
-            console.log('[explore-map] Loaded', STATE.all.length, 'artists');
 
             initFilterUI();
             initTabs();
@@ -979,10 +1016,33 @@
             initMap();
         } catch (err) {
             console.error('[explore-map] Init failed:', err);
+            showLoadError();
         } finally {
             hideLoading();
         }
     });
+
+    // Error visible con "Reintentar" en vez de "000 artistas" silencioso.
+    function showLoadError() {
+        var countEl = document.getElementById('explore-results-count');
+        if (countEl) countEl.textContent = 'No pudimos cargar los artistas';
+        var emptyEl = document.getElementById('explore-list-empty');
+        if (emptyEl) {
+            emptyEl.innerHTML = '<div class="wo-empty-title">No pudimos cargar los artistas</div>'
+                + '<p>Revisá tu conexión y reintentá.</p>'
+                + '<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-explore-retry>Reintentar</button>';
+            emptyEl.classList.remove('hidden');
+        }
+        var mapEmpty = document.getElementById('explore-map-empty');
+        if (mapEmpty) {
+            mapEmpty.innerHTML = '<span class="wo-meta">No pudimos cargar el atlas.</span> '
+                + '<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-explore-retry>Reintentar</button>';
+            mapEmpty.classList.remove('hidden');
+        }
+        document.querySelectorAll('[data-explore-retry]').forEach(function (btn) {
+            btn.addEventListener('click', function () { window.location.reload(); });
+        });
+    }
 
     window.__exploreMap = STATE;
 })();

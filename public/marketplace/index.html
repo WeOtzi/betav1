@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>We Ötzi · Marketplace de artistas</title>
-    <meta name="description" content="Descubrí artistas y encontrá el tatuador que encaja con tu estilo en We Ötzi.">
+    <meta name="description" content="Descubrí artistas y estudios y encontrá el tatuador que encaja con tu estilo en We Ötzi.">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <!-- Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase (versión fija: misma en /marketplace, /explore y /explore/globe) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4"></script>
 
     <!-- We Ötzi Design System -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
@@ -24,7 +24,7 @@
 <body class="wo-app mk-page">
 
     <!-- TopBar · marketplace.js la cambia por la del cliente logueado si hay sesión -->
-    <header class="wo-topbar">
+    <header class="wo-topbar mk-topbar">
         <div class="wo-topbar-left">
             <a href="/" class="wo-topbar-brand">
                 <span class="wo-o-tile">Ö</span>
@@ -33,138 +33,66 @@
             <nav class="wo-topbar-nav" id="mk-nav" aria-label="Navegación principal">
                 <a href="/marketplace" class="wo-topbar-item is-active" aria-current="page">Marketplace</a>
                 <a href="/explore" class="wo-topbar-item">Mapa</a>
-                <a href="/studio/login" class="wo-topbar-item">Estudios</a>
+                <a href="/marketplace?modo=estudios" class="wo-topbar-item" data-mk-mode="studios">Estudios</a>
+                <a href="/client/login" class="wo-topbar-item">Ingresar</a>
             </nav>
         </div>
         <div class="wo-topbar-right" id="mk-topbar-right">
             <a href="/quotation" class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard mk-topbar-cta">Cotizá &rarr;</a>
+            <button class="wo-iconbtn wo-iconbtn--s mk-burger" id="mk-menu-toggle" type="button"
+                    aria-expanded="false" aria-controls="mk-mobile-menu" aria-label="Abrir menú">
+                <i data-wo-icon="menu" class="wo-icon-18" aria-hidden="true"></i>
+            </button>
         </div>
     </header>
+
+    <!-- Navegación móvil (≤ 768px) -->
+    <nav class="mk-mobile-menu" id="mk-mobile-menu" aria-label="Navegación móvil" hidden>
+        <a href="/marketplace" class="mk-mobile-menu-link is-active" aria-current="page">Marketplace</a>
+        <a href="/explore" class="mk-mobile-menu-link">Mapa</a>
+        <a href="/explore/globe" class="mk-mobile-menu-link">Tattooglobe</a>
+        <a href="/marketplace?modo=estudios" class="mk-mobile-menu-link" data-mk-mode="studios">Estudios</a>
+        <a href="/quotation" class="mk-mobile-menu-link">Cotizá</a>
+        <a href="/client/login" class="mk-mobile-menu-link">Ingresar</a>
+    </nav>
 
     <main id="marketplace-content" class="wo-container mk-main">
 
         <!-- Hero + búsqueda -->
-        <section class="mk-hero">
+        <section class="mk-hero" aria-labelledby="mk-title">
             <div class="mk-hero-top">
                 <div class="mk-hero-heading">
-                    <h1 class="mk-title">Descubrí artistas</h1>
-                    <p class="mk-sub">Encontrá el tatuador que encaja con tu estilo.</p>
+                    <h1 class="mk-title" id="mk-title">Descubrí artistas</h1>
+                    <p class="mk-sub" id="mk-sub">Encontrá el tatuador que encaja con tu estilo.</p>
                 </div>
                 <!-- Atajos del Figma 286:11953: corazón (solo favoritos) + Filtros (drawer) -->
                 <div class="mk-hero-actions" id="mk-hero-actions">
                     <button type="button" class="wo-iconbtn wo-iconbtn--s mk-fav-toggle" id="mk-fav-toggle"
-                            aria-pressed="false" title="Ver solo tus favoritos" aria-label="Ver solo tus favoritos"
-                            onclick="toggleFavoritesOnly()">
+                            aria-pressed="false" title="Ver solo tus favoritos" aria-label="Ver solo tus favoritos" data-fav-only>
                         <i data-wo-icon="heart" class="wo-icon-18" aria-hidden="true"></i>
                     </button>
                     <button type="button" class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard" id="mk-filters-open"
-                            aria-expanded="false" aria-controls="mk-filter-drawer" onclick="toggleAllFilters()">
+                            aria-expanded="false" aria-controls="mk-filter-drawer" data-allfilters-toggle>
                         <i data-wo-icon="sliders" class="wo-icon-18" aria-hidden="true"></i>
                         Filtros
                     </button>
                 </div>
             </div>
 
-            <div class="mk-search">
+            <div class="mk-search" role="search">
                 <span class="mk-search-icon" aria-hidden="true"><i data-wo-icon="search" class="wo-icon-18"></i></span>
-                <input type="text" id="smart-search" class="wo-input mk-search-input"
-                       placeholder="Buscar artistas, estilos, ciudades…" autocomplete="off"
-                       aria-label="Buscar artistas, estilos, ciudades">
-                <div id="search-suggestions" class="mk-suggestions hidden"></div>
+                <input type="search" id="smart-search" class="wo-input mk-search-input"
+                       placeholder="Buscar artistas, estilos, ciudades…" autocomplete="off" enterkeyhint="search"
+                       aria-label="Buscar artistas, estilos, ciudades" aria-controls="search-suggestions" aria-expanded="false">
+                <div id="search-suggestions" class="mk-suggestions hidden" aria-label="Sugerencias"></div>
             </div>
 
-            <!-- Fila de filtros (6 dropdowns del Figma) -->
-            <div class="mk-filters" id="mk-filters" role="group" aria-label="Filtros">
-                <div class="mk-filter" data-filter-key="style">
-                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('style')">
-                        <span class="mk-filter-label" id="mk-filter-label-style">Estilo</span>
-                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
-                    </button>
-                    <div class="mk-filter-menu" id="mk-filter-menu-style" role="listbox" hidden></div>
-                </div>
-                <div class="mk-filter" data-filter-key="location">
-                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('location')">
-                        <span class="mk-filter-label" id="mk-filter-label-location">Ubicación</span>
-                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
-                    </button>
-                    <div class="mk-filter-menu" id="mk-filter-menu-location" role="listbox" hidden></div>
-                </div>
-                <div class="mk-filter" data-filter-key="priceRange">
-                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('priceRange')">
-                        <span class="mk-filter-label" id="mk-filter-label-priceRange">Precio</span>
-                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
-                    </button>
-                    <div class="mk-filter-menu" id="mk-filter-menu-priceRange" role="listbox" hidden></div>
-                </div>
-                <div class="mk-filter" data-filter-key="availability">
-                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('availability')">
-                        <span class="mk-filter-label" id="mk-filter-label-availability">Disponibilidad</span>
-                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
-                    </button>
-                    <div class="mk-filter-menu" id="mk-filter-menu-availability" role="listbox" hidden></div>
-                </div>
-                <div class="mk-filter" data-filter-key="travel">
-                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('travel')">
-                        <span class="mk-filter-label" id="mk-filter-label-travel">Viajes</span>
-                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
-                    </button>
-                    <div class="mk-filter-menu" id="mk-filter-menu-travel" role="listbox" hidden></div>
-                </div>
-                <div class="mk-filter" data-filter-key="studio">
-                    <button type="button" class="mk-filter-btn" aria-expanded="false" aria-haspopup="listbox" onclick="toggleFilterMenu('studio')">
-                        <span class="mk-filter-label" id="mk-filter-label-studio">Estudio</span>
-                        <i data-wo-icon="chevron-down" aria-hidden="true"></i>
-                    </button>
-                    <div class="mk-filter-menu" id="mk-filter-menu-studio" role="listbox" hidden></div>
-                </div>
-                <span class="mk-filters-sep" aria-hidden="true"></span>
-                <button type="button" class="mk-filter-btn mk-allfilters-btn" id="mk-allfilters-btn"
-                        aria-expanded="false" aria-controls="mk-filter-drawer" onclick="toggleAllFilters()">
-                    <i data-wo-icon="sliders" aria-hidden="true"></i>
-                    <span class="mk-filter-label">Todos los filtros</span>
-                </button>
-            </div>
+            <!-- Fila de filtros: la arma marketplace.js según el modo (artistas: 6; estudios: 4) -->
+            <div class="mk-filters" id="mk-filters" role="group" aria-label="Filtros"></div>
 
-            <!-- Drawer "Todos los filtros": los 6 filtros expandidos (patrón de /explore) -->
+            <!-- Drawer "Todos los filtros": los filtros expandidos en selects (patrón de /explore) -->
             <div class="mk-filter-drawer" id="mk-filter-drawer" hidden>
-                <div class="mk-drawer-grid">
-                    <div class="wo-field">
-                        <label class="wo-label" for="mk-drawer-style">Estilo</label>
-                        <select id="mk-drawer-style" class="wo-select" data-drawer-key="style">
-                            <option value="">Todos los estilos</option>
-                        </select>
-                    </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="mk-drawer-location">Ubicación</label>
-                        <select id="mk-drawer-location" class="wo-select" data-drawer-key="location">
-                            <option value="">Todas las ciudades</option>
-                        </select>
-                    </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="mk-drawer-priceRange">Precio</label>
-                        <select id="mk-drawer-priceRange" class="wo-select" data-drawer-key="priceRange">
-                            <option value="">Cualquier precio</option>
-                        </select>
-                    </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="mk-drawer-availability">Disponibilidad</label>
-                        <select id="mk-drawer-availability" class="wo-select" data-drawer-key="availability">
-                            <option value="">Cualquier disponibilidad</option>
-                        </select>
-                    </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="mk-drawer-travel">Viajes</label>
-                        <select id="mk-drawer-travel" class="wo-select" data-drawer-key="travel">
-                            <option value="">Cualquier estado de viaje</option>
-                        </select>
-                    </div>
-                    <div class="wo-field">
-                        <label class="wo-label" for="mk-drawer-studio">Estudio</label>
-                        <select id="mk-drawer-studio" class="wo-select" data-drawer-key="studio">
-                            <option value="">Todos los estudios</option>
-                        </select>
-                    </div>
-                </div>
+                <div class="mk-drawer-grid" id="mk-drawer-grid"></div>
                 <div class="mk-drawer-actions">
                     <button type="button" class="wo-btn wo-btn--nav" onclick="clearAllFilters()">Limpiar filtros</button>
                 </div>
@@ -172,37 +100,37 @@
         </section>
 
         <!-- Filtros activos -->
-        <section id="active-filters-section" class="mk-active-filters hidden">
+        <section id="active-filters-section" class="mk-active-filters hidden" aria-label="Filtros activos">
             <span class="wo-meta mk-active-label">Filtros activos</span>
             <div id="active-filters-list" class="mk-active-list"></div>
             <button type="button" class="wo-btn wo-btn--nav mk-clear-btn" onclick="clearAllFilters()">Limpiar todo</button>
         </section>
 
         <!-- Resultados -->
-        <section class="mk-results">
+        <section class="mk-results" aria-label="Resultados">
             <div class="mk-results-bar">
-                <span id="results-count" class="wo-meta mk-count">Cargando artistas…</span>
+                <span id="results-count" class="wo-meta mk-count" role="status" aria-live="polite">Cargando artistas…</span>
                 <div class="mk-results-tools">
                     <div class="mk-seg" role="group" aria-label="Tipo de resultado">
-                        <button type="button" class="mk-seg-btn is-active" id="mode-artists" onclick="setBrowseMode('artists')">Artistas</button>
-                        <button type="button" class="mk-seg-btn" id="mode-studios" onclick="setBrowseMode('studios')">Estudios</button>
+                        <button type="button" class="mk-seg-btn is-active" id="mode-artists" aria-pressed="true" data-mk-mode="artists">Artistas</button>
+                        <button type="button" class="mk-seg-btn" id="mode-studios" aria-pressed="false" data-mk-mode="studios">Estudios</button>
                     </div>
                     <div class="mk-seg" role="group" aria-label="Vista de resultados">
-                        <span class="mk-seg-btn is-active"><i data-wo-icon="grid" class="wo-icon-18"></i>Lista</span>
-                        <a class="mk-seg-btn" href="/explore" title="Explorar en mapa"><i data-wo-icon="map" class="wo-icon-18"></i>Mapa</a>
+                        <span class="mk-seg-btn is-active" aria-current="true"><i data-wo-icon="grid" class="wo-icon-18" aria-hidden="true"></i>Lista</span>
+                        <a class="mk-seg-btn" href="/explore" title="Explorar en mapa"><i data-wo-icon="map" class="wo-icon-18" aria-hidden="true"></i>Mapa</a>
                     </div>
                 </div>
             </div>
 
-            <!-- Artistas destacados (Figma 286:12580) · solo en modo artistas sin filtros -->
+            <!-- Destacados (Figma 286:12580 / 2113:9145) · solo sin filtros -->
             <section id="mk-featured" class="mk-featured hidden" aria-labelledby="mk-featured-title">
                 <div class="mk-featured-head">
                     <div class="mk-featured-heading">
                         <p class="mk-featured-eyebrow">Destacados <span class="mk-featured-eyebrow-alt">/ Patrocinados</span></p>
                         <h2 class="mk-featured-title" id="mk-featured-title">Artistas destacados</h2>
-                        <p class="mk-featured-sub">Artistas promocionados en We Ötzi</p>
+                        <p class="mk-featured-sub" id="mk-featured-sub">Artistas promocionados en We Ötzi</p>
                     </div>
-                    <button type="button" class="wo-btn wo-btn--nav mk-featured-link" onclick="scrollFeaturedIntoView()">Ver artistas destacados →</button>
+                    <button type="button" class="wo-btn wo-btn--nav mk-featured-link" id="mk-featured-link" data-featured-link>Ver artistas destacados →</button>
                 </div>
                 <div id="mk-featured-grid" class="mk-grid mk-featured-grid">
                     <!-- Cards inyectadas por marketplace.js -->
@@ -213,18 +141,23 @@
                 <!-- Cards inyectadas por marketplace.js -->
             </div>
 
-            <!-- Estado vacío -->
-            <div id="empty-state" class="wo-empty hidden">
-                <i data-wo-icon="image" class="mk-empty-icon"></i>
-                <div class="wo-empty-title">No encontramos artistas con esos criterios</div>
-                <p>Probá con otro estilo o ciudad, o limpiá los filtros para ver todos.</p>
-                <button type="button" class="wo-btn wo-btn--ghost wo-btn--hard" onclick="clearAllFilters()">Ver todos los artistas</button>
+            <!-- Paginado: "Cargar más" (Figma 2113:9145) -->
+            <div class="mk-load-more hidden" id="mk-load-more-wrap">
+                <button type="button" class="wo-btn wo-btn--ghost wo-btn--s mk-load-more-btn" id="mk-load-more">Cargar más</button>
             </div>
 
-            <!-- Artistas para vos (Figma 286:12794) · ranking client-side por búsquedas recientes -->
+            <!-- Estado vacío / error -->
+            <div id="empty-state" class="wo-empty hidden">
+                <i data-wo-icon="image" class="mk-empty-icon" aria-hidden="true"></i>
+                <div class="wo-empty-title" id="empty-title">No encontramos artistas con esos criterios</div>
+                <p id="empty-text">Probá con otro estilo o ciudad, o limpiá los filtros para ver todos.</p>
+                <button type="button" class="wo-btn wo-btn--ghost wo-btn--hard" id="empty-cta" onclick="clearAllFilters()">Ver todos los artistas</button>
+            </div>
+
+            <!-- Para vos (Figma 286:12794 / 2113:9145) · ranking client-side por búsquedas recientes -->
             <section id="mk-foryou" class="mk-foryou hidden" aria-labelledby="mk-foryou-title">
                 <h2 class="mk-foryou-title" id="mk-foryou-title">Artistas para vos</h2>
-                <p class="mk-foryou-sub">Basado en tu búsqueda e intereses</p>
+                <p class="mk-foryou-sub" id="mk-foryou-sub">Basado en tu búsqueda e intereses</p>
                 <div id="mk-foryou-grid" class="mk-grid mk-foryou-grid">
                     <!-- Cards inyectadas por marketplace.js -->
                 </div>
@@ -232,23 +165,25 @@
         </section>
     </main>
 
+    <!-- Fondo del bottom sheet de filtros (solo móvil) -->
+    <div class="wo-overlay mk-filter-scrim" id="mk-filter-scrim" hidden></div>
+
     <!-- Loading Overlay -->
-    <div id="loading-overlay" class="wo-overlay mk-loading hidden">
+    <div id="loading-overlay" class="wo-overlay mk-loading hidden" role="status" aria-live="polite">
         <div class="mk-loading-box">
-            <div class="wo-spinner"></div>
+            <div class="wo-spinner" aria-hidden="true"></div>
             <p class="wo-meta">Buscando inspiración…</p>
         </div>
     </div>
 
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
-    <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/data/favorites-repo.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
-    <script src="/shared/js/email-client.js"></script>
-    <script src="/shared/js/currency-utils.js"></script>
+    <script src="/shared/js/data/marketplace-repo.js"></script>
+    <script src="/shared/js/marketplace-core.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
     <script src="/shared/js/marketplace.js"></script>

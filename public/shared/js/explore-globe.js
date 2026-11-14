@@ -370,8 +370,11 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         return axis === 'lat' ? v[0] : v[1];
     }
 
-    function waitForConfigManager(maxWait = 5000) {
-        return new Promise(resolve => {
+    // Espera a que exista ConfigManager Y a que termine de leer app-config.json
+    // (ready()). Sin ready() la config es la por defecto (URL vacía, demo) y el
+    // directorio vuelve vacío (marketplace MK-01).
+    async function waitForConfigManager(maxWait = 5000) {
+        await new Promise(resolve => {
             const start = Date.now();
             (function poll() {
                 if (window.ConfigManager) return resolve();
@@ -379,6 +382,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
                 setTimeout(poll, 50);
             })();
         });
+        if (window.ConfigManager && typeof window.ConfigManager.ready === 'function') await window.ConfigManager.ready();
     }
 
     // -------------------------------------------------------------

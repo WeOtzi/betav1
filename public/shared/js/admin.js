@@ -53,7 +53,9 @@ async function waitForConfigManager(timeout = 5000) {
     }
     if (!window.ConfigManager) {
         console.warn('⚠️ ConfigManager not available after timeout');
+        return;
     }
+    if (typeof window.ConfigManager.ready === 'function') await window.ConfigManager.ready();
 }
 
 async function syncQuestionsFromDB() {

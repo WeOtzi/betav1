@@ -72,7 +72,7 @@ Google Drive, Gemini, Google Maps, n8n, EmailJS, Apify/Instagram, CDNs
 | Supabase Storage | Imagenes de cotizacion, perfil, galeria, media importada, estudios, spots y documentos | Buckets `quotation-references`, `profile-pictures`, `artist-gallery`, `studio-photos`, `studio-documents`, `studio-spot-attachments` |
 | Google Drive | Carpeta por cotizacion y subida de referencias | `/api/google-drive/*` |
 | Gemini | Generacion de imagen/concepto para tatuajes | `/api/gemini/generate-image` |
-| Google Maps/Geocoder | Direcciones, mapas, pins, exploracion | `geocoder.js`, `address-picker.js`, `/api/artists/geocode` |
+| Google Maps/Geocoder | Direcciones, mapas, pins, exploracion | `geocoder.js` (caché del visitante, no persiste), `address-picker.js` |
 | n8n | Webhooks de email/eventos de negocio | `app-config.json`, `/api/studio/notify`, flujos de registro/cotizacion/job board |
 | EmailJS | Notificaciones frontend heredadas | Config publica en `app-config.json` |
 | Apify/Instagram | Importacion de bio, links, fotos y reels | `/api/admin/integrations/apify*`, `/api/instagram/*`, `lib/instagram-import.js` |
@@ -88,7 +88,7 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/quotation` | Cliente | `public/quotation/index.html` | Wizard principal de cotizacion con referencias, seleccion de artista, calendario y handoff a Drive/n8n/Supabase. |
 | `/quotations` | Cliente/legacy | `public/quotations/index.html` | Redirecciona a `/quotation` preservando query/hash. |
 | `/pre-cotizador` | Cliente | `public/pre-cotizador/index.html` | Estimador previo de costo y artistas sugeridos antes de iniciar la cotizacion completa. |
-| `/marketplace` | Cliente/publico | `public/marketplace/index.html` | Busqueda/listado de artistas desde `artists_db`. |
+| `/marketplace` | Cliente/publico | `public/marketplace/index.html` | Busqueda/listado de artistas y estudios (`?modo=estudios`, Figma 801:1127 y 2113:9145). Lee por `WeotziData.Marketplace` (`data/marketplace-repo.js`); filtros puros en `marketplace-core.js` (estilo canónico sin tildes, precio en USD, agenda + `public_artist_trips`, verificados, paginado). |
 | `/explore` | Cliente/publico | `public/explore/index.html` | Mapa 2D de artistas y estudios usando `artists_with_location` y `studio_locations`. |
 | `/explore/globe` | Cliente/publico | `public/explore/globe/index.html` | Globo 3D con artistas, itinerarios, filtros y spotlight. |
 | `/client/register` | Cliente | `public/client/register/index.html` | Registro de cuenta cliente. |
@@ -178,7 +178,6 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `GET` | `/api/analytics/locations` | Pais/ciudad/IP de sesiones. | `analytics_user_sessions` |
 | `GET` | `/api/analytics/quotations` | Metricas de cotizaciones, conversion y tiempos de respuesta. | `quotations_db` |
 | `GET` | `/api/analytics/summary` | Resumen de analytics para dashboard. | `analytics_user_sessions`, `analytics_devices` |
-| `POST` | `/api/artists/geocode` | Persiste lat/lng y direccion geocodificada de artistas. | `artists_db` |
 | `POST` | `/api/studio/notify` | Notifica decisiones de spots o invitaciones de roster a artistas; exige Bearer JWT y ownership del estudio. | Supabase REST, n8n |
 | `POST` | `/api/pre-quote/estimate` | Calcula rango de costo y artistas sugeridos. | `artists_db`, `lib/prequote-estimator.js` |
 | `GET` | `/api/admin/integrations/apify` | Devuelve metadata del token Apify sin exponerlo. | `app_settings`, `verifyAdminCaller` |
@@ -358,7 +357,9 @@ RPC principales: `create_store_order`, `report_store_payment`, `confirm_store_or
 
 ### Vistas y funciones SQL importantes
 
-- `artists_with_location`: fuente unificada para mapa/explore; combina ubicacion propia de artista con sede primaria del estudio.
+- `artists_with_location`: fuente unificada para mapa/explore; combina ubicacion propia de artista con sede primaria del estudio. v4 (20261115200000) suma `session_price_amount_usd` y `verification_state`; `studio_phone` es el teléfono público de la sede/estudio.
+- `public_artist_trips`: viajes vigentes de Travel (planificado/confirmado) con solo ciudad, país, fechas y tipo, para el filtro Viajes del marketplace.
+- `studios` tiene privilegios por columna (20261115200100): anon/authenticated no leen `email`, `contact_phone`, `verification_reason`, `verification_required`, `instagram_verified_handle` ni `created_by_artist_user_id`; `artist_requirements` y `default_revenue_split_pct` solo con sesión. El dueño lee su fila con la RPC `get_my_studio()`.
 - `analytics_devices`, `analytics_user_sessions`: vistas de analytics sobre `session_logs`.
 - `studio_dashboard_metrics_view`, `studio_artist_performance_view`, `studio_inventory_health_view`: consumidas por `studio-dashboard-ops.js`.
 - `studio_public_sponsors_view`: superficie publica limitada para sponsors del perfil de estudio.
