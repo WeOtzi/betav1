@@ -211,7 +211,31 @@
             );
             return data || null;
         },
+
+        // Inbox (deep link ?quote= sin mensajes previos + tarjeta de cotización).
+        // Columnas para el chat: sin datos de salud ni contacto del cliente.
+        // La RLS del artista ("Artists can view own quotations") acota.
+        async getForArtistByQuoteId(quoteId, select = CHAT_QUOTE_COLUMNS) {
+            const { data } = await run('quotations.getForArtistByQuoteId', (c) =>
+                c.from('quotations_db').select(select).eq('quote_id', quoteId).maybeSingle()
+            );
+            return data || null;
+        },
+        // Lado cliente (clients_select_own_quotations acota a las propias).
+        async getForClientByQuoteId(quoteId, select = CHAT_QUOTE_COLUMNS) {
+            const { data } = await run('quotations.getForClientByQuoteId', (c) =>
+                c.from('quotations_db').select(select).eq('quote_id', quoteId).maybeSingle()
+            );
+            return data || null;
+        },
     };
+
+    // Columnas de quotations_db que necesita el chat (lista, banner y tarjeta).
+    const CHAT_QUOTE_COLUMNS = 'id, quote_id, artist_id, artist_name, artist_username, client_user_id, client_full_name, ' +
+        'quote_status, tattoo_style, tattoo_body_part, tattoo_size, tattoo_estimated_sessions, final_budget_amount, ' +
+        'final_budget_currency, final_sessions, artist_budget_amount, artist_budget_currency, artist_session_minutes, ' +
+        'artist_responded_at, client_deleted_at, created_at, updated_at';
+    Quotations.CHAT_COLUMNS = CHAT_QUOTE_COLUMNS;
 
     // ===================== quotation_notes (key = int id) =====================
     const Notes = {
@@ -244,6 +268,17 @@
         async listByQuotationIds(quotationIds) {
             const { data } = await run('sessions.listByQuotationIds', (c) =>
                 c.from('quotation_sessions').select('*').in('quotation_id', quotationIds).order('session_date', { ascending: true })
+            );
+            return data || [];
+        },
+        // Lado cliente: la tabla solo tiene policy del artista. La RPC security
+        // definer (migración 20261115170100) devuelve columnas seguras (sin
+        // notes, photo_urls ni google_event_id) de cotizaciones propias.
+        async listForClient(quotationIds) {
+            const ids = (quotationIds || []).map(Number).filter(Number.isInteger);
+            if (!ids.length) return [];
+            const { data } = await run('sessions.listForClient', (c) =>
+                c.rpc('list_client_quotation_sessions', { p_quotation_ids: ids })
             );
             return data || [];
         },
@@ -302,11 +337,20 @@
             );
             return data || [];
         },
-        // notify:false → no avisa por email (p. ej. la respuesta del artista,
-        // que ya viaja como extracto en artist_responded_quotation · EM-N7).
-        async sendMessage({ quoteId, senderType, senderId, message, notify = true }) {
+        // notify:false → no avisa por email (p. ej. la respuesta del artista, que ya
+        // viaja como extracto en artist_responded_quotation · EM-N7). Devuelve [fila
+        // guardada] con su id real (para deduplicar contra el eco realtime).
+        // `attachment` = { path, name, type, size } de uploadAttachment.
+        async sendMessage({ quoteId, senderType, senderId, message, attachment = null, notify = true }) {
+            const row = { quotation_id: quoteId, sender_type: senderType, sender_id: senderId, message: String(message || '').trim() };
+            if (attachment && attachment.path) {
+                row.attachment_path = attachment.path;
+                row.attachment_name = attachment.name || null;
+                row.attachment_mime = attachment.type || null;
+                row.attachment_size = attachment.size ?? null;
+            }
             const { data } = await run('chat.sendMessage', (c) =>
-                c.from('chat_messages').insert({ quotation_id: quoteId, sender_type: senderType, sender_id: senderId, message }).select('id')
+                c.from('chat_messages').insert(row).select('*')
             );
             const savedMessage = Array.isArray(data) ? data[0] : data;
             if (notify !== false && savedMessage?.id && window.ConfigManager?.sendN8NEvent) {
@@ -318,6 +362,30 @@
                 })).catch(() => {});
             }
             return data || [];
+        },
+        // Adjuntos del chat de cotización (bucket privado chat-attachments,
+        // migración 20261115170000). Ruta <quote_id>/<user_id>/<ts>-<nombre>.
+        async uploadAttachment(quoteId, userId, file) {
+            const model = window.WeotziInboxChat;
+            const check = model ? model.validateAttachment(file) : { ok: !!file, error: 'Elegí un archivo.' };
+            if (!check.ok) throw new Error(check.error);
+            const path = model
+                ? model.chatAttachmentPath(quoteId, userId, file.name, Date.now())
+                : `${quoteId}/${userId}/${Date.now()}-archivo`;
+            const client = D.getClient();
+            if (!client) throw new Error('Supabase client unavailable');
+            const { error } = await client.storage.from('chat-attachments').upload(path, file, {
+                cacheControl: '3600', upsert: false, contentType: file.type || undefined,
+            });
+            if (error) throw error;
+            return { path, name: file.name, type: file.type || null, size: file.size };
+        },
+        async signedAttachmentUrl(path, expiresIn = 3600) {
+            const client = D.getClient();
+            if (!client) throw new Error('Supabase client unavailable');
+            const { data, error } = await client.storage.from('chat-attachments').createSignedUrl(path, expiresIn);
+            if (error) throw error;
+            return data?.signedUrl || null;
         },
         // Marca como leidos los mensajes NO leidos enviados por `fromSenderType`.
         async markRead(quoteId, fromSenderType) {

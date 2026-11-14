@@ -147,11 +147,16 @@ button.ai-side-item.is-active { border-bottom-color: var(--ai-blue); background:
 .ai-row-star {
     position: absolute; z-index: 2; right: 8px; bottom: 7px; width: 28px; height: 28px;
     display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent;
-    color: var(--neutral-300); opacity: 0; cursor: pointer;
+    color: var(--neutral-300); opacity: 1; cursor: pointer;
     transition: opacity var(--duration-fade), color var(--duration-fade);
 }
-.ai-row:hover .ai-row-star,
-.ai-row-star:focus-visible { opacity: 1; }
+/* INB-12: con mouse la estrella aparece al pasar; en táctil queda visible. */
+@media (hover: hover) and (pointer: fine) {
+    .ai-row-star { opacity: 0; }
+    .ai-row:hover .ai-row-star,
+    .ai-row-star:focus-visible,
+    .ai-row-star.is-active { opacity: 1; }
+}
 .ai-row-star:hover,
 .ai-row-star.is-active { color: var(--yellow-400); }
 
@@ -242,9 +247,47 @@ button.ai-side-item.is-active { border-bottom-color: var(--ai-blue); background:
 .ai-ctx-status { align-self: flex-start; padding: 6px 10px; background: var(--success-bg); color: var(--success-fg); font: 700 9px/1 var(--font-mono); letter-spacing: .11em; text-transform: uppercase; }
 .ai-ctx-status.is-warning { background: var(--warning-bg); color: var(--warning-fg); }
 .ai-ctx-status.is-muted { background: var(--neutral-200); color: var(--neutral-500); }
-.ai-ctx-link { position: absolute; left: 20px; bottom: 20px; opacity: 0; pointer-events: none; transition: opacity var(--duration-fade); }
-.ai-context:hover .ai-ctx-link,
-.ai-ctx-link:focus-visible { opacity: 1; pointer-events: auto; }
+.ai-ctx-link { align-self: flex-start; margin-top: auto; }
+.ai-ctx-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.ai-ctx-close { width: var(--control-h-sm); height: var(--control-h-sm); min-height: var(--control-h-sm); border-width: var(--border-hairline); }
+.ai-info-toggle { margin-left: auto; flex: none; width: var(--control-h-sm); height: var(--control-h-sm); min-height: var(--control-h-sm); border-width: var(--border-hairline); }
+.ai-thread-tools + .ai-info-toggle { margin-left: 0; }
+.ai-composer-tools .ai-attach[hidden] { display: none; }
+.ai-context-scrim { display: none; }
+
+/* INB-12: hasta 1280px el contexto se abre como hoja lateral (botón Info).
+   Desde 1281px vuelve a ser la cuarta columna fija (ver media query abajo). */
+.ai-shell.is-context-open .ai-context {
+    position: fixed; z-index: 950; top: 0; right: 0; bottom: 0; width: min(360px, 100%);
+    display: flex; box-sizing: border-box; padding-bottom: max(22px, env(safe-area-inset-bottom));
+    border-left: var(--border-strong-width) solid var(--border-strong);
+    box-shadow: -12px 0 32px color-mix(in srgb, var(--neutral-500) 18%, transparent);
+}
+.ai-shell.is-context-open .ai-context-scrim {
+    position: fixed; z-index: 940; inset: 0; display: block;
+    background: color-mix(in srgb, var(--neutral-500) 40%, transparent);
+}
+.ai-context-scrim[hidden] { display: none !important; }
+
+/* Tarjeta "Cotización" del timeline (Figma 801:1149). */
+.ai-quote-card {
+    align-self: flex-start; width: min(322px, 100%); box-sizing: border-box; padding: 20px 21px 18px;
+    display: flex; flex-direction: column; gap: 6px; border: var(--border-hairline) solid var(--neutral-500);
+    background: var(--figma-white); color: var(--ink);
+}
+.ai-quote-card-eyebrow { margin: 0; color: var(--neutral-300); font: 400 9px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.ai-quote-card-title { margin: 0; color: var(--ink); font: 400 17px/1.25 var(--font-display); overflow-wrap: anywhere; }
+.ai-quote-card-price { margin: 4px 0 0; color: var(--ink); font: 400 24px/1.1 var(--font-display); }
+.ai-quote-card-meta { margin: 0; color: var(--neutral-500); font: 400 10px/1.4 var(--font-mono); letter-spacing: .04em; }
+.ai-quote-card-link { margin-top: 8px; align-self: flex-start; color: var(--ink); font: 500 10px/1.2 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; text-decoration: none; }
+.ai-quote-card-link:hover,
+.ai-quote-card-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Adjuntos de imagen: miniatura con URL firmada (bucket privado). */
+.ai-msg-attachment.is-image { flex-wrap: wrap; }
+.ai-msg-thumb { display: none; width: 100%; }
+.ai-msg-attachment.has-thumb .ai-msg-thumb { display: block; }
+.ai-msg-thumb img { display: block; width: 100%; max-height: 220px; object-fit: cover; background: var(--neutral-200); }
 
 .ai-list-empty { padding: var(--space-12) var(--space-5); }
 .ai-toast { position: fixed; z-index: 1000; right: var(--space-4); bottom: var(--space-4); max-width: min(360px, calc(100vw - var(--space-8))); padding: var(--space-3) var(--space-4); border: var(--border-strong-width) solid var(--border-strong); background: var(--surface-inverse); color: var(--neutral-100); font-size: var(--body-s-size); }
@@ -301,9 +344,13 @@ button.ai-side-item.is-active { border-bottom-color: var(--ai-blue); background:
     .ai-list { padding-right: 20px; padding-left: 12px; }
     .ai-thread-head { padding-right: 24px; padding-left: 24px; }
     .ai-thread-head .ai-head-copy { display: none; }
-    .ai-thread-tools { opacity: 0; pointer-events: none; transition: opacity var(--duration-fade); }
-    .ai-thread-head:hover .ai-thread-tools,
-    .ai-thread-tools:focus-within { opacity: 1; pointer-events: auto; }
+    .ai-info-toggle,
+    .ai-ctx-close { display: none; }
+    .ai-shell.is-context-open .ai-context {
+        position: relative; z-index: auto; top: auto; right: auto; bottom: auto; width: auto;
+        padding-bottom: 22px; border-left: var(--border-hairline) solid var(--ai-rule); box-shadow: none;
+    }
+    .ai-shell.is-context-open .ai-context-scrim { display: none; }
     .ai-messages { padding: 23px 24px 22px 25px; }
     .ai-msg { width: min(259px, 74%); max-width: 259px; }
     .ai-day,
@@ -326,4 +373,15 @@ button.ai-side-item.is-active { border-bottom-color: var(--ai-blue); background:
     .ai-threadcol,
     .ai-shell.is-thread-open .ai-threadcol,
     .ai-context { height: 100%; }
+}
+
+/* Escritorio ancho con mouse: herramientas del hilo y enlace del contexto
+   aparecen al pasar (Figma 801:1085). En táctil quedan siempre visibles. */
+@media (min-width: 1281px) and (hover: hover) and (pointer: fine) {
+    .ai-thread-tools { opacity: 0; pointer-events: none; transition: opacity var(--duration-fade); }
+    .ai-thread-head:hover .ai-thread-tools,
+    .ai-thread-tools:focus-within { opacity: 1; pointer-events: auto; }
+    .ai-ctx-link { position: absolute; left: 20px; bottom: 20px; margin-top: 0; opacity: 0; pointer-events: none; transition: opacity var(--duration-fade); }
+    .ai-context:hover .ai-ctx-link,
+    .ai-ctx-link:focus-visible { opacity: 1; pointer-events: auto; }
 }

@@ -75,6 +75,36 @@
             return data || [];
         },
 
+        // Abre (o recupera la activa) la conversación de soporte del usuario
+        // logueado: POST /api/support-chat/conversation con su Bearer. Devuelve
+        // { conversation, messages }.
+        async openConversation(pageContext) {
+            const headers = await authHeaders();
+            if (!headers.Authorization) throw new Error('Iniciá sesión para escribir a soporte.');
+            const res = await fetch(basePath() + '/api/support-chat/conversation', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ page_context: pageContext || (window.location && window.location.pathname) || null }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body.success === false || !body.conversation) {
+                throw new Error(body.error || `HTTP ${res.status}`);
+            }
+            return { conversation: body.conversation, messages: body.messages || [] };
+        },
+
+        // Realtime: mensajes nuevos de una conversación propia (support_messages
+        // está en la publicación; la RLS acota a las conversaciones del usuario).
+        subscribeMessages(conversationId, onInsert) {
+            if (typeof D.channel !== 'function') return null;
+            return D.channel(`support-inbox-${conversationId}`)
+                .on('postgres_changes', {
+                    event: 'INSERT', schema: 'public', table: 'support_messages',
+                    filter: `conversation_id=eq.${conversationId}`,
+                }, onInsert)
+                .subscribe();
+        },
+
         // Envia un mensaje via el endpoint del servidor (INSERT directo bloqueado
         // por RLS). Devuelve el body { success, response, status } del endpoint;
         // `response` trae la respuesta inmediata del bot cuando status='bot'.

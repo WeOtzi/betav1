@@ -292,6 +292,7 @@
         var uid = state.user.id;
         state.feed = [];
         state.threads = [];
+        state.inboxThreads = [];
         state.counts = { msgs: 0, inv: 0, solic: 0, apps: 0, updates: 0, store: 0 };
         var seen = await loadRemoteSeen(D, uid);
         var jobs = [];
@@ -301,17 +302,37 @@
             jobs.push(D.Chat.listThreadsForArtist(uid).then(function (threads) {
                 state.threads = threads || [];
                 var unread = state.threads.filter(function (t) { return (t.unread_for_artist || 0) > 0; });
-                state.counts.msgs = unread.reduce(function (n, t) { return n + (t.unread_for_artist || 0); }, 0);
+                state.counts.msgs += unread.reduce(function (n, t) { return n + (t.unread_for_artist || 0); }, 0);
                 pushFeed(unread.map(function (t) {
                     return {
                         key: 'msg:' + t.quote_id + ':' + t.last_message_at,
                         type: 'mensaje', icon: 'message-circle',
                         title: 'Nuevo mensaje',
                         desc: (t.client_full_name || 'Un cliente') + ' te escribió sobre su cotización.',
-                        ts: t.last_message_at, unread: true, href: '/artist/inbox',
+                        ts: t.last_message_at, unread: true,
+                        href: '/artist/inbox?quote=' + encodeURIComponent(t.quote_id),
                     };
                 }));
             }).catch(function (e) { console.warn('[wo-menu] mensajes:', e && e.message); }));
+        }
+
+        // INB-05: mensajes sin leer del inbox unificado (Job Board, estudios,
+        // viajes, invitaciones…). Los archivados no cuentan.
+        if (D && D.Inbox && typeof D.Inbox.listThreads === 'function') {
+            jobs.push(D.Inbox.listThreads().then(function (threads) {
+                state.inboxThreads = (threads || []).filter(function (t) { return !t.is_archived && Number(t.unread_count) > 0; });
+                state.counts.msgs += state.inboxThreads.reduce(function (n, t) { return n + (Number(t.unread_count) || 0); }, 0);
+                pushFeed(state.inboxThreads.map(function (t) {
+                    return {
+                        key: 'inbox:' + t.id + ':' + t.last_message_at,
+                        type: 'mensaje', icon: 'message-circle',
+                        title: 'Nuevo mensaje',
+                        desc: (t.counterparty_name || 'Alguien') + ' te escribió' + (t.subject ? ': ' + t.subject : '.'),
+                        ts: t.last_message_at, unread: true,
+                        href: '/artist/inbox?thread=' + encodeURIComponent(t.id),
+                    };
+                }));
+            }).catch(function (e) { console.warn('[wo-menu] inbox:', e && e.message); }));
         }
 
         if (D && D.StudioMemberships && typeof D.StudioMemberships.listPendingForArtist === 'function') {
@@ -774,6 +795,11 @@
                 D.Chat.markRead(t.quote_id, 'client').catch(function () { /* mejor esfuerzo */ });
             });
         }
+        if (D && D.Inbox && typeof D.Inbox.markRead === 'function') {
+            (state.inboxThreads || []).forEach(function (t) {
+                D.Inbox.markRead(t.id).catch(function () { /* mejor esfuerzo */ });
+            });
+        }
         state.counts.msgs = 0;
         state.counts.updates = 0;
         renderAll();
@@ -861,6 +887,11 @@
                 var D = window.WeotziData;
                 return Boolean(D && D.Reminders);
             }).catch(function (e) { console.warn('[wo-menu] recordatorios:', e && e.message); }),
+            // Inbox unificado: contador de mensajes sin leer del tile Ö.
+            loadCounterRepository('/shared/js/data/inbox-repo.js', function () {
+                var D = window.WeotziData;
+                return Boolean(D && D.Inbox && D.Inbox.listThreads);
+            }).catch(function (e) { console.warn('[wo-menu] inbox:', e && e.message); }),
             loadCounterRepository('/shared/js/notification-feed-model.js', function () {
                 return Boolean(window.WoNotificationFeedModel);
             }).catch(function (e) { console.warn('[wo-menu] contraofertas:', e && e.message); }),
@@ -1020,16 +1051,47 @@
 
         // Keep counters and decisions fresh without requiring a page reload.
         var refreshing = false;
+        var refreshQueued = false;
         async function refresh() {
-            if (refreshing || document.hidden) return;
+            if (document.hidden) return;
+            // Un aviso realtime que llega durante una recarga no se pierde:
+            // queda encolado y se recarga una vez más al terminar.
+            if (refreshing) { refreshQueued = true; return; }
             refreshing = true;
             try { await loadAll(); safeRender(); }
             catch (e) { console.warn('[wo-menu] refrescar:', e && e.message); }
-            finally { refreshing = false; }
+            finally {
+                refreshing = false;
+                if (refreshQueued) { refreshQueued = false; refresh(); }
+            }
         }
         window.setInterval(refresh, 60000);
         document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
         document.addEventListener('weotzi:reminders-changed', function () { refresh(); });
+        subscribeMessageCounters(refresh);
+    }
+
+    // INB-05: el contador de mensajes del tile Ö se actualiza en tiempo real
+    // (mensajes de clientes en cotizaciones + inbox unificado) y cuando el
+    // inbox marca un hilo como leído.
+    function subscribeMessageCounters(refresh) {
+        var timer = null;
+        function soon() {
+            window.clearTimeout(timer);
+            timer = window.setTimeout(refresh, 600);
+        }
+        var D = window.WeotziData;
+        var uid = state.user && state.user.id;
+        if (!D || !uid) return;
+        try {
+            if (D.Realtime && typeof D.Realtime.subscribeNewChatFromSender === 'function') {
+                D.Realtime.subscribeNewChatFromSender('wo-menu-chat-' + uid, 'client', soon);
+            }
+            if (D.Inbox && typeof D.Inbox.subscribeList === 'function') {
+                D.Inbox.subscribeList(uid, soon, 'wo-menu-inbox');
+            }
+        } catch (e) { console.warn('[wo-menu] realtime:', e && e.message); }
+        document.addEventListener('weotzi:inbox-read', soon);
     }
 
     // Configuración y accesibilidad global + 2FA (Cuenta 801:574/575):
