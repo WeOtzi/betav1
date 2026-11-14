@@ -4200,7 +4200,8 @@ async function lookupProfileVisitArtist({ artistId, username }) {
     const normalizedUsername = normalizeProfileVisitArtistUsername(username);
     if (!normalizedUsername) return null;
     const rows = await _supabaseFetch(
-        `artists_db?username=ilike.${encodeURIComponent(normalizedUsername)}&select=user_id,username&limit=1`
+        // eq (no ilike: `_` es comodín) y solo perfiles publicados, como el perfil público.
+        `artists_db?username=eq.${encodeURIComponent(normalizedUsername)}&or=(registration_status.is.null,registration_status.neq.incompleto)&select=user_id,username&limit=1`
     );
     return Array.isArray(rows) ? rows[0] : null;
 }
@@ -7043,6 +7044,9 @@ app.get('/', (req, res) => {
 app.get('/travel/t/:slug', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'travel', 'share', 'index.html'));
 });
+
+// Perfil público: meta OG del lado servidor y URL corta /<handle> (antes del estático).
+require('./lib/routes/perfil').register(app, { publicDir: path.join(__dirname, 'public') });
 
 // Rutas del artista retiradas por el Figma final: redirigen a su reemplazo
 // solo cuando su carpeta ya no existe en public/ (ver lib/legacy-routes.js).

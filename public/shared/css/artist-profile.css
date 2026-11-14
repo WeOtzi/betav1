@@ -3192,3 +3192,193 @@
     width: 14px;
     height: 14px;
 }
+
+/* ============================================================================
+   Frente perfil (beta cerrada, nov 2026)
+   - Barra pública / de cliente según la sesión (auditoría PP-03).
+   - Franja del dueño y botón Compartir (PP-09).
+   - Portafolio vacío sin huecos para el visitante (PP-05).
+   ========================================================================== */
+
+.profile-topbar-slot {
+    position: relative;
+    z-index: 120;
+    flex: none;
+}
+
+.profile-public-topbar .wo-topbar-right {
+    gap: var(--space-2);
+}
+
+.profile-topbar-login {
+    padding-block: var(--space-2);
+}
+
+.profile-topbar-cta {
+    align-self: center;
+}
+
+.profile-client-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex: none;
+    background: var(--yellow-300);
+    border: var(--border-strong-width) solid var(--border-strong);
+    color: var(--neutral-500);
+    font-family: var(--font-display);
+    font-size: 16px;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+
+.wo-app a.profile-client-tile:hover {
+    color: var(--neutral-500);
+    text-decoration: none;
+    box-shadow: var(--shadow-hard-sm);
+    transform: translate(-2px, -2px);
+}
+
+@media (max-width: 30rem) {
+    .profile-public-topbar {
+        gap: var(--space-2);
+        min-height: 56px;
+    }
+
+    .profile-public-topbar .wo-topbar-brand {
+        padding-inline: var(--space-3) var(--space-2);
+        font-size: 16px;
+    }
+
+    .profile-public-topbar .wo-topbar-right {
+        padding-inline: var(--space-2) var(--space-3);
+    }
+
+    .profile-topbar-login {
+        padding-inline: var(--space-2);
+    }
+
+    .profile-topbar-cta {
+        padding-inline: var(--space-3);
+    }
+}
+
+@media (max-width: 22.5rem) {
+    /* 360px o menos: entran la marca y la CTA; el ingreso sigue en /inicio. */
+    .profile-topbar-login {
+        display: none;
+    }
+}
+
+/* Franja del dueño: tinta sobre amarillo, mono en mayúsculas como el hero. */
+.profile-owner-bar {
+    background: var(--yellow-300);
+    border-bottom: var(--border-strong-width) solid var(--border-strong);
+    color: var(--neutral-500);
+}
+
+.profile-owner-bar[hidden] {
+    display: none;
+}
+
+.profile-owner-bar-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-6);
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: var(--space-3) var(--margin-xs);
+}
+
+.profile-owner-bar-text {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.profile-owner-bar-dot {
+    width: 10px;
+    height: 10px;
+    flex: none;
+    background: var(--red-300);
+    clip-path: circle(50%);
+}
+
+.profile-owner-bar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.profile-owner-bar-link {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--neutral-500);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.wo-app a.profile-owner-bar-link:hover {
+    color: var(--neutral-500);
+}
+
+.profile-owner-bar .wo-btn {
+    gap: var(--space-2);
+}
+
+.hero-cta-row .hero-cta-share[hidden] {
+    display: none;
+}
+
+/* Turnos publicados (sección #turnos de otro módulo). */
+.cta-turnos-link {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--neutral-100);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.cta-turnos-link[hidden] {
+    display: none;
+}
+
+.wo-app a.cta-turnos-link:hover {
+    color: var(--neutral-100);
+}
+
+.gallery-grid[hidden],
+.portfolio-intro-band[hidden],
+.gallery-chips[hidden] {
+    display: none;
+}
+
+.gallery-owner-cta {
+    gap: var(--space-2);
+    margin-top: var(--space-6);
+}
+
+.gallery-owner-cta[hidden] {
+    display: none;
+}
+
+@media (min-width: 48.0625rem) {
+    .profile-owner-bar-inner {
+        padding-inline: var(--margin-md);
+    }
+}
