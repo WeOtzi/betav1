@@ -17,6 +17,7 @@
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/wo-welcome.js" defer></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
@@ -76,9 +77,10 @@
                         <span class="btn-text">Entrar</span>
                         <img src="/shared/assets/figma/artist-login/arrow-right.svg" alt="">
                     </button>
+                    <button type="button" class="ca-forgot" onclick="handlePasswordRecovery(event)">¿Olvidaste tu contraseña?</button>
                 </form>
 
-                <div id="form-message" class="form-message" role="status"></div>
+                <div id="form-message" class="form-message" role="status" aria-live="polite"></div>
 
                 <div class="ca-divider" aria-hidden="true">O continuá con</div>
 
@@ -88,10 +90,10 @@
                         <button type="button" class="wo-btn wo-btn--ghost" onclick="handleClientSocialUnavailable('Instagram')" aria-describedby="social-access-message">
                             <img src="/shared/assets/figma/artist-login/instagram.svg" alt=""><span>Instagram</span>
                         </button>
-                        <button type="button" class="wo-btn wo-btn--ghost" onclick="focusClientEmailLogin()">
+                        <button type="button" class="wo-btn wo-btn--ghost" id="btn-client-magic-link" onclick="handleClientMagicLink()" aria-label="Email: recibir un link de acceso sin contraseña">
                             <img src="/shared/assets/figma/artist-login/email.svg" alt=""><span>Email</span>
                         </button>
-                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleClientSocialUnavailable('Facebook')" aria-describedby="social-access-message">
+                        <button type="button" class="wo-btn wo-btn--ghost" onclick="handleClientFacebookLogin()" aria-label="Continuar con Facebook">
                             <img src="/shared/assets/figma/artist-login/facebook.svg" alt=""><span>Facebook</span>
                         </button>
                     </div>
@@ -99,6 +101,7 @@
                         <p id="social-access-message" role="status"></p>
                         <button type="button" class="wo-btn wo-btn--ghost" onclick="handleGoogleLogin()">Continuar con Google</button>
                     </div>
+                    <p class="ca-legal">Al continuar con Facebook o Google aceptás los <a href="/legal/terms" target="_blank" rel="noopener">Términos</a> y la <a href="/legal/privacy" target="_blank" rel="noopener">Política de Privacidad</a>.</p>
                 </div>
 
                 <div class="ca-links">

@@ -15,7 +15,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
-const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n'); // CRLF del checkout en Windows
 
 const Currency = require('../public/shared/js/currency-utils.js');
 const RegCore = require('../public/shared/js/acceso-register-final.js');
@@ -200,7 +200,8 @@ test('soporte: la pestaña VERIFICACIONES tiene la cola de retiros y avisa al ar
     const repo = read('public/shared/js/data/support-verification-repo.js');
     assert.match(repo, /c\.rpc\('support_settle_artist_withdrawal'/);
     assert.match(repo, /async listWithdrawals\(status\)/);
-    assert.match(read('public/support/dashboard/index.html'), /support-dashboard-verification\.js\?v=20261112-integracion/);
+    // verif-artista sube la versión (20261115-verif) al sumar la cola por artista.
+    assert.match(read('public/support/dashboard/index.html'), /support-dashboard-verification\.js\?v=\d{8}-[a-z-]+/);
 });
 
 /* ------------------------------ 5 · avisos al artista ------------------------------ */

@@ -581,6 +581,10 @@ a.qd-reference-card { cursor: pointer; }
 .qd-sessions-note { margin: 0; color: var(--neutral-400); font-size: 12.5px; }
 .qd-inline-link { border: 0; background: transparent; padding: 0; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .qd-inline-link:hover { color: var(--blue-400); }
+.qd-inline-link:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+/* Acciones secundarias de una sesión (cancelar / no se presentó): texto, con
+   el alto táctil de los botones de la fila. */
+.qd-session-actions .qd-inline-link { display: inline-flex; align-items: center; min-height: var(--control-h-sm); }
 
 /* ----------------------- cierre · proyecto completado (801:583) ----------------------- */
 .qd-closeout {

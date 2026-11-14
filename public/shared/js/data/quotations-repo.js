@@ -178,38 +178,13 @@
             await run('quotations.hardDeleteByQuoteIds', (c) => c.from('quotations_db').delete().in('quote_id', quoteIds));
         },
 
-        // ---- wizard (upsert por quote_id) ----
-        async upsert(payload) {
-            const { data } = await run('quotations.upsert', (c) =>
-                c.from('quotations_db').upsert([payload], { onConflict: 'quote_id' })
-            );
-            return data || [];
-        },
+        // El wizard /quotation no escribe quotations_db desde el navegador: usa
+        // POST /api/quotations/intake (services/quotation-intake.js).
 
         // ---- lookups por email / claim ----
-        async findLatestByEmailForReuse(email, select) {
-            const cols = select || 'quote_id, client_full_name, client_whatsapp, client_birth_date, client_instagram, client_city_residence, client_contact_preference, client_health_conditions, client_allergies';
-            const { data } = await run('quotations.findLatestByEmailForReuse', (c) =>
-                c.from('quotations_db').select(cols).ilike('client_email', email).neq('quote_status', 'in_progress').order('created_at', { ascending: false }).limit(1)
-            );
-            return (data && data[0]) || null;
-        },
-        async findUnclaimedByEmail(email) {
-            const { data } = await run('quotations.findUnclaimedByEmail', (c) =>
-                c.from('quotations_db').select('quote_id').ilike('client_email', email).is('client_user_id', null)
-            );
-            return data || [];
-        },
-        async claimByQuoteIds(userId, quoteIds) {
-            await run('quotations.claimByQuoteIds', (c) =>
-                c.from('quotations_db').update({ client_user_id: userId }).in('quote_id', quoteIds)
-            );
-        },
-        async claimByQuoteId(userId, quoteId) {
-            await run('quotations.claimByQuoteId', (c) =>
-                c.from('quotations_db').update({ client_user_id: userId }).eq('quote_id', quoteId).is('client_user_id', null)
-            );
-        },
+        // El vínculo de cotizaciones de invitado lo hace el servidor
+        // (POST /api/client/quotations/claim · Api.claimMine): desde el navegador
+        // la RLS no deja ver ni reclamar filas ajenas (CC-02).
 
         // ---- cotización manual del artista (Figma final 801:556 · /my-quotations/new) ----
         // Contactos de clientes de cotizaciones anteriores del artista (buscador
@@ -236,7 +211,31 @@
             );
             return data || null;
         },
+
+        // Inbox (deep link ?quote= sin mensajes previos + tarjeta de cotización).
+        // Columnas para el chat: sin datos de salud ni contacto del cliente.
+        // La RLS del artista ("Artists can view own quotations") acota.
+        async getForArtistByQuoteId(quoteId, select = CHAT_QUOTE_COLUMNS) {
+            const { data } = await run('quotations.getForArtistByQuoteId', (c) =>
+                c.from('quotations_db').select(select).eq('quote_id', quoteId).maybeSingle()
+            );
+            return data || null;
+        },
+        // Lado cliente (clients_select_own_quotations acota a las propias).
+        async getForClientByQuoteId(quoteId, select = CHAT_QUOTE_COLUMNS) {
+            const { data } = await run('quotations.getForClientByQuoteId', (c) =>
+                c.from('quotations_db').select(select).eq('quote_id', quoteId).maybeSingle()
+            );
+            return data || null;
+        },
     };
+
+    // Columnas de quotations_db que necesita el chat (lista, banner y tarjeta).
+    const CHAT_QUOTE_COLUMNS = 'id, quote_id, artist_id, artist_name, artist_username, client_user_id, client_full_name, ' +
+        'quote_status, tattoo_style, tattoo_body_part, tattoo_size, tattoo_estimated_sessions, final_budget_amount, ' +
+        'final_budget_currency, final_sessions, artist_budget_amount, artist_budget_currency, artist_session_minutes, ' +
+        'artist_responded_at, client_deleted_at, created_at, updated_at';
+    Quotations.CHAT_COLUMNS = CHAT_QUOTE_COLUMNS;
 
     // ===================== quotation_notes (key = int id) =====================
     const Notes = {
@@ -269,6 +268,17 @@
         async listByQuotationIds(quotationIds) {
             const { data } = await run('sessions.listByQuotationIds', (c) =>
                 c.from('quotation_sessions').select('*').in('quotation_id', quotationIds).order('session_date', { ascending: true })
+            );
+            return data || [];
+        },
+        // Lado cliente: la tabla solo tiene policy del artista. La RPC security
+        // definer (migración 20261115170100) devuelve columnas seguras (sin
+        // notes, photo_urls ni google_event_id) de cotizaciones propias.
+        async listForClient(quotationIds) {
+            const ids = (quotationIds || []).map(Number).filter(Number.isInteger);
+            if (!ids.length) return [];
+            const { data } = await run('sessions.listForClient', (c) =>
+                c.rpc('list_client_quotation_sessions', { p_quotation_ids: ids })
             );
             return data || [];
         },
@@ -327,19 +337,55 @@
             );
             return data || [];
         },
-        async sendMessage({ quoteId, senderType, senderId, message }) {
+        // notify:false → no avisa por email (p. ej. la respuesta del artista, que ya
+        // viaja como extracto en artist_responded_quotation · EM-N7). Devuelve [fila
+        // guardada] con su id real (para deduplicar contra el eco realtime).
+        // `attachment` = { path, name, type, size } de uploadAttachment.
+        async sendMessage({ quoteId, senderType, senderId, message, attachment = null, notify = true }) {
+            const row = { quotation_id: quoteId, sender_type: senderType, sender_id: senderId, message: String(message || '').trim() };
+            if (attachment && attachment.path) {
+                row.attachment_path = attachment.path;
+                row.attachment_name = attachment.name || null;
+                row.attachment_mime = attachment.type || null;
+                row.attachment_size = attachment.size ?? null;
+            }
             const { data } = await run('chat.sendMessage', (c) =>
-                c.from('chat_messages').insert({ quotation_id: quoteId, sender_type: senderType, sender_id: senderId, message }).select('id')
+                c.from('chat_messages').insert(row).select('*')
             );
             const savedMessage = Array.isArray(data) ? data[0] : data;
-            if (savedMessage?.id && window.ConfigManager?.sendN8NEvent) {
+            if (notify !== false && savedMessage?.id && window.ConfigManager?.sendN8NEvent) {
                 // The server resolves the saved sender, recipient, and message.
-                // Mail failure must not turn a persisted chat into a failed send.
-                void window.ConfigManager.sendN8NEvent(senderType === 'artist' ? 'chat_message_to_client' : 'chat_message_to_artist', {
+                // Mail failure must not turn a persisted chat into a failed send:
+                // el aviso es secundario y nunca muestra un error (INB-15).
+                void Promise.resolve(window.ConfigManager.sendN8NEvent(senderType === 'artist' ? 'chat_message_to_client' : 'chat_message_to_artist', {
                     quote_id: quoteId, message_id: savedMessage.id
-                }).catch(() => window.showToast?.('El mensaje se guardó, pero no pudimos confirmar el correo.', 'error'));
+                })).catch(() => {});
             }
             return data || [];
+        },
+        // Adjuntos del chat de cotización (bucket privado chat-attachments,
+        // migración 20261115170000). Ruta <quote_id>/<user_id>/<ts>-<nombre>.
+        async uploadAttachment(quoteId, userId, file) {
+            const model = window.WeotziInboxChat;
+            const check = model ? model.validateAttachment(file) : { ok: !!file, error: 'Elegí un archivo.' };
+            if (!check.ok) throw new Error(check.error);
+            const path = model
+                ? model.chatAttachmentPath(quoteId, userId, file.name, Date.now())
+                : `${quoteId}/${userId}/${Date.now()}-archivo`;
+            const client = D.getClient();
+            if (!client) throw new Error('Supabase client unavailable');
+            const { error } = await client.storage.from('chat-attachments').upload(path, file, {
+                cacheControl: '3600', upsert: false, contentType: file.type || undefined,
+            });
+            if (error) throw error;
+            return { path, name: file.name, type: file.type || null, size: file.size };
+        },
+        async signedAttachmentUrl(path, expiresIn = 3600) {
+            const client = D.getClient();
+            if (!client) throw new Error('Supabase client unavailable');
+            const { data, error } = await client.storage.from('chat-attachments').createSignedUrl(path, expiresIn);
+            if (error) throw error;
+            return data?.signedUrl || null;
         },
         // Marca como leidos los mensajes NO leidos enviados por `fromSenderType`.
         async markRead(quoteId, fromSenderType) {
@@ -406,23 +452,15 @@
     // ============ quotation_intake_extras (key = text quote_id) ============
     // Campos nuevos del wizard rediseñado 2026 (modo de idea, nivel de
     // personalización, notas por referencia). Satélite 1:1 de quotations_db
-    // (migración 20260825160000): insert abierto + borrador anónimo mientras la
-    // cotización padre sigue in_progress, después solo partes y soporte.
+    // (migración 20260825160000). La escribe solo el servidor (save_web_quotation
+    // vía /api/quotations/intake); la lectura es de las partes o soporte
+    // (migración 20261115130000).
     const IntakeExtras = {
         async getByQuoteId(quoteId) {
             const { data } = await run('intakeExtras.getByQuoteId', (c) =>
                 c.from('quotation_intake_extras').select('*').eq('quote_id', quoteId).maybeSingle()
             );
             return data || null;
-        },
-        // Upsert por quote_id. Llamar DESPUÉS del upsert del padre (autosave) o
-        // ANTES de pasarlo a pending (submit): la RLS de UPDATE exige que el
-        // padre exista y siga in_progress para el borrador anónimo.
-        async upsert(payload) {
-            const { data } = await run('intakeExtras.upsert', (c) =>
-                c.from('quotation_intake_extras').upsert([payload], { onConflict: 'quote_id' })
-            );
-            return data || [];
         },
     };
 
@@ -477,14 +515,20 @@
             const p = window.location && window.location.pathname || '';
             return p === '/beta' || p.indexOf('/beta/') === 0 ? '/beta' : '';
         },
-        async _post(path, accessToken) {
+        async _post(path, accessToken, payload) {
+            const headers = { Authorization: `Bearer ${accessToken}` };
+            if (payload !== undefined) headers['Content-Type'] = 'application/json';
             const res = await fetch(this.basePath() + path, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${accessToken}` },
+                headers,
+                body: payload !== undefined ? JSON.stringify(payload) : undefined,
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.error || `HTTP ${res.status}`);
+                const error = new Error(body.error || `HTTP ${res.status}`);
+                error.status = res.status;
+                error.code = body.code || null;
+                throw error;
             }
             return body;
         },
@@ -493,6 +537,17 @@
         },
         confirmCompletionByClient(quoteId, accessToken) {
             return this._post(`/api/client/quotations/${encodeURIComponent(quoteId)}/complete`, accessToken);
+        },
+        // cot-cliente: vincula las cotizaciones de invitado hechas con el email
+        // verificado de la cuenta. Idempotente; { linked, quote_ids }.
+        claimMine(accessToken) {
+            return this._post('/api/client/quotations/claim', accessToken, {});
+        },
+        // cot-cliente: el cliente acepta ('approve') o rechaza ('reject') la
+        // propuesta del artista. El servidor valida dueño, estado y vencimiento.
+        decideByClient(quoteId, decision, reason, accessToken) {
+            return this._post(`/api/client/quotations/${encodeURIComponent(quoteId)}/decision`, accessToken,
+                { decision, reason: reason || '' });
         },
     };
 

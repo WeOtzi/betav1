@@ -50,6 +50,7 @@
         $('poster-recovery').hidden = false;
         $('studio-back-to-login').hidden = false;
         $('have-recovery-code').hidden = true;
+        $('studio-magic-link').hidden = true;
         $('forgot-password-link').hidden = !withCode;
         (withCode ? (email ? $('recovery-code') : $('recovery-email')) : $('recovery-password')).focus();
     }
@@ -66,6 +67,7 @@
         $('studio-login-copy').textContent = 'Ingresá para gestionar tu estudio.';
         $('studio-back-to-login').hidden = true;
         $('have-recovery-code').hidden = false;
+        $('studio-magic-link').hidden = false;
         $('forgot-password-link').hidden = false;
         $('login-email').focus();
     }
@@ -92,6 +94,11 @@
         setBusy(button, 'Accediendo…');
         try {
             const studio = await auth.login(email, password);
+            if (!studio) {
+                // Reclamo en revisión o alta con conflicto: studio-auth.js ya redirige al registro.
+                showStatus('info', 'Te llevamos a revisar el registro de tu estudio…');
+                return;
+            }
             showStatus('success', 'Acceso correcto. Redirigiendo…');
             const showRegistration = studio.mediaPending || new URLSearchParams(window.location.search).get('confirmed') === '1';
             window.location.href = auth.appUrl(showRegistration ? '/studio/register?registered=1' : '/studio/dashboard');
@@ -160,6 +167,51 @@
             showStatus('error', error?.message || 'No pudimos enviar el email.', true);
         } finally { setBusy(button, false); }
     });
+    // ── acceso (ER-17): enlace mágico, sin contraseña. Mensaje neutro también
+    // si el email no tiene cuenta (no revela qué emails existen).
+    $('studio-magic-link').addEventListener('click', async () => {
+        if (busy) return;
+        clearStatus();
+        const emailInput = $('login-email');
+        if (!emailInput.value.trim()) {
+            showStatus('info', 'Escribí el email del estudio arriba y te mandamos un link de acceso, sin contraseña.');
+            emailInput.focus();
+            return;
+        }
+        if (!emailInput.reportValidity()) return;
+        const button = $('studio-magic-link');
+        setBusy(button, 'Enviando link…');
+        try {
+            const outcome = await auth.sendMagicLink(emailInput.value);
+            showStatus(outcome.ok ? 'success' : 'error', outcome.message, !outcome.ok);
+        } catch (error) {
+            showStatus('error', error?.message || 'No pudimos enviar el link de acceso.', true);
+        } finally { setBusy(button, false); }
+    });
+    // ── acceso (ACC-17): link de confirmación, recuperación o acceso vencido o
+    // ya usado. Aviso DS con la salida que corresponde.
+    const linkError = typeof auth.linkError === 'function' ? auth.linkError() : null;
+    if (linkError) {
+        const EC = window.WeotziEmailConfirm;
+        const params = new URLSearchParams(window.location.search);
+        const isRecoveryLink = params.get('recovery') === '1';
+        const isConfirmLink = params.get('confirmed') === '1';
+        if (EC && typeof EC.renderLinkErrorNotice === 'function') {
+            EC.readAuthLinkError();
+            status.className = 'studio-status';
+            EC.renderLinkErrorNotice(status, {
+                linkError,
+                what: isRecoveryLink ? 'link para restablecer la contraseña' : isConfirmLink ? 'link de confirmación' : 'link de acceso',
+                hint: isRecoveryLink
+                    ? 'Escribí tu email y tocá «¿Olvidaste tu contraseña?» para recibir un código nuevo.'
+                    : isConfirmLink
+                        ? 'Si ya confirmaste tu email, ingresá con tu contraseña. Si no, ingresá igual y te ofrecemos reenviarlo.'
+                        : 'Pedí otro link de acceso o ingresá con tu contraseña.'
+            });
+        } else {
+            showStatus('error', 'El link venció o ya se usó. Pedí uno nuevo o ingresá con tu contraseña.');
+        }
+    }
     // Keep links correct both at /beta and at a branch preview prefix.
     const prefix = auth.appUrl('/');
     document.querySelectorAll('a[href^="/"]').forEach(link => {

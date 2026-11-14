@@ -5,8 +5,12 @@
 //   · Destinos de retiro en 'pending': VERIFICAR / RECHAZAR con nota. Sin
 //     destino verificado, request_artist_wallet_withdrawal rechaza el retiro.
 //   · Documentos de verificación del artista: APROBAR / RECHAZAR con nota (la
-//     nota la ve el artista en Cuenta · Verificación) + estado general del
-//     artista (MARCAR VERIFICADO / DENEGAR).
+//     nota la ve el artista en Cuenta · Verificación).
+//   · ── verif-artista ── Solicitudes de artistas (cola por ARTISTA, no por
+//     documento): ficha, documentos, historial y la decisión final MARCAR
+//     VERIFICADO / DENEGAR / REVOCAR con motivo. La RPC deja historial y el
+//     servidor le avisa al artista por email (profile_verified /
+//     profile_verification_denied); el aviso in-app sale de la misma fila.
 // Módulo aparte (no edita support-dashboard.js): envuelve window.switchTab
 // como support-dashboard-instagram.js, pinta #svq-panel y usa el drawer.
 // Datos: WeotziData.SupportVerification (lecturas con RLS is_support_user();
@@ -25,7 +29,10 @@
     const NOTE_MIN = 5;
     const NOTE_MAX = 500;
     // ── integracion ── 'withdrawals': liquidar retiros (support_settle_artist_withdrawal).
-    const KINDS = ['destinations', 'documents', 'withdrawals'];
+    // ── verif-artista ── 'requests': solicitudes de verificación por artista.
+    const KINDS = ['requests', 'destinations', 'documents', 'withdrawals'];
+    const REQUEST_FILTER_LABELS = { pending: 'Por revisar', verified: 'Verificados', rejected: 'Denegados', all: 'Todos' };
+    const IN_REVIEW_STATES = ['Requested', 'In Progress', 'In Analysis'];
     const REF_MIN = 3;
     const REF_MAX = 120;
     const WD_META = {
@@ -45,7 +52,15 @@
     };
     const ARTIST_STATE_LABELS = {
         Yes: 'Verificado', Requested: 'Solicitó verificación', 'In Progress': 'En revisión', 'In Analysis': 'En revisión',
-        Denied: 'Denegado', No: 'Sin solicitar'
+        Denied: 'Denegado', rejected: 'Denegado', Canceled: 'Sin solicitar', No: 'Sin solicitar'
+    };
+    // Estado del artista → tono del badge (Por revisar / Verificado / Denegado / Sin solicitar).
+    const ARTIST_STATE_TONES = {
+        Yes: 'verified', Requested: 'pending', 'In Progress': 'pending', 'In Analysis': 'pending',
+        Denied: 'rejected', rejected: 'rejected'
+    };
+    const HISTORY_LABELS = {
+        approved: 'Verificado', rejected: 'Denegado', pending_review: 'Solicitud del artista', revoked: 'Verificación revocada'
     };
     const STATUS_META = {
         pending: { label: 'Pendiente', tone: 'pending' },
@@ -67,7 +82,12 @@
         refRequired: 'Escribí la referencia de la transferencia (mínimo ' + REF_MIN + ' caracteres).',
         refLong: 'La referencia puede tener hasta ' + REF_MAX + ' caracteres.',
         noteFail: 'Escribí el motivo del fallo (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
-        rpcMissingWd: 'Falta aplicar la migración 20261112220000 (liquidar retiros).'
+        rpcMissingWd: 'Falta aplicar la migración 20261112220000 (liquidar retiros).',
+        rpcMissingVerif: 'Falta aplicar la migración 20261115190000 (verificación de artistas).',
+        emptyRequests: 'No hay solicitudes de verificación en este estado.',
+        noteDeny: 'Escribí el motivo para denegar (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
+        noteRevoke: 'Escribí el motivo para revocar la verificación (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
+        missingDocs: 'Faltan documentos obligatorios aprobados. Tocá de nuevo para verificar igual.'
     };
 
     // ---------------- helpers puros (testeados en Node) ----------------
@@ -152,9 +172,49 @@
         return { ok: missing.length === 0, missing: missing.map((t) => DOC_LABELS[t]) };
     }
 
+    // ── verif-artista ── decisión final sobre el artista: { state, note } o { error, field }.
+    //   'Yes'    → verificar (nota opcional).
+    //   'Denied' → denegar, motivo obligatorio (lo ve el artista).
+    //   'No'     → revocar una verificación ('Yes') o cerrar la solicitud; motivo obligatorio si estaba verificado.
+    function buildStateDecision(target, note, previousState) {
+        const clean = String(note == null ? '' : note).trim();
+        if (['Yes', 'Denied', 'No'].indexOf(target) === -1) return { error: MSG.generic };
+        if (clean.length > NOTE_MAX) return { error: MSG.noteLong, field: 'note' };
+        if (target === 'Denied' && clean.length < NOTE_MIN) return { error: MSG.noteDeny, field: 'note' };
+        if (target === 'No' && previousState === 'Yes' && clean.length < NOTE_MIN) return { error: MSG.noteRevoke, field: 'note' };
+        return { state: target, note: clean || null };
+    }
+
+    // Botones de decisión según el estado actual del artista.
+    function stateActions(currentState) {
+        return currentState === 'Yes'
+            ? [{ state: 'No', label: 'REVOCAR VERIFICACIÓN', tone: 'danger' }]
+            : [{ state: 'Yes', label: 'MARCAR ARTISTA VERIFICADO', tone: 'accent' }, { state: 'Denied', label: 'DENEGAR VERIFICACIÓN', tone: 'danger' }];
+    }
+
+    function artistStateMeta(raw) {
+        const s = String(raw || 'No');
+        return { label: ARTIST_STATE_LABELS[s] || s, tone: ARTIST_STATE_TONES[s] || 'muted' };
+    }
+
+    // Filas de support_list_verification_requests → ítems de la cola (id = user_id).
+    function requestItems(rows) {
+        return (Array.isArray(rows) ? rows : []).filter((r) => r && r.user_id).map((r) => Object.assign({}, r, {
+            id: String(r.user_id),
+            artist_user_id: String(r.user_id),
+            documents: (Array.isArray(r.documents) ? r.documents : []).map((d) => Object.assign({ artist_user_id: String(r.user_id) }, d))
+        }));
+    }
+
+    function docStatusOf(docs, type) {
+        const doc = (docs || []).find((d) => d && d.doc_type === type);
+        return doc ? normalizeStatus(doc.status) : 'missing';
+    }
+
     function errorText(err) {
         const cause = (err && err.cause) || {};
         const msg = String(cause.message || (err && err.message) || '').replace(/^\[[^\]]+\]\s*/, '');
+        if (/support_list_verification_requests|support_set_artist_verification_state|p_note/i.test(msg) && (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202')) return MSG.rpcMissingVerif;
         if (/support_settle_artist_withdrawal/i.test(msg) && (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202')) return MSG.rpcMissingWd;
         if (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202') return MSG.rpcMissing;
         if (/Ese retiro|referencia/i.test(msg)) return msg;
@@ -166,7 +226,7 @@
     // ---------------- estado ----------------
 
     const state = {
-        kind: 'documents', status: 'pending', search: '',
+        kind: 'requests', status: 'pending', search: '',
         items: [], artists: {}, destinations: {}, loaded: false, loading: false, error: null, seq: 0,
         detail: null, busy: false
     };
@@ -175,6 +235,12 @@
     const hiddenSiblings = new Map();
     const $ = (id) => root.document.getElementById(id);
     function repo() { return root.WeotziData && root.WeotziData.SupportVerification; }
+    // Rutas internas respetando el base path (/beta en producción).
+    function appPath(path) {
+        const loc = String((root.location && root.location.pathname) || '');
+        const base = root.WEOTZI_BASE_PATH ? String(root.WEOTZI_BASE_PATH).replace(/\/$/, '') : (/^\/beta(?:\/|$)/.test(loc) ? '/beta' : '');
+        return base && String(path).indexOf(base + '/') !== 0 ? base + path : path;
+    }
 
     // ---------------- estilos ----------------
     // La página de soporte no carga ds/tokens.css: cada token lleva respaldo
@@ -206,6 +272,15 @@ textarea.svq-input{min-height:88px;resize:vertical}
 .svq-badge--pending{background:var(--accent,Mark);color:var(--accent-fg,MarkText);border-color:var(--accent,currentColor)}
 .svq-badge--verified{background:var(--system-success,CanvasText);color:var(--white,Canvas);border-color:var(--system-success,CanvasText)}
 .svq-badge--rejected{background:transparent;color:var(--action-danger,CanvasText);border-color:var(--action-danger,currentColor)}
+.svq-badge--muted{background:transparent;color:GrayText;border-color:currentColor}
+.svq-doclist .svq-docrow{flex-wrap:wrap;align-items:center}
+.svq-docname{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
+.svq-docname small{display:block;font-family:var(--font-mono,'Space Mono',monospace);font-size:11px;color:GrayText}
+.svq-docside{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.svq-history{list-style:none;margin:0;padding:0}
+.svq-history li{padding:8px 0;border-bottom:1px solid GrayText;font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+.svq-history li:last-child{border-bottom:0}
+.svq-history time{display:block;font-family:var(--font-mono,'Space Mono',monospace);font-size:11px;color:GrayText}
 .svq-detail{min-height:100%;box-sizing:border-box;background:Canvas;color:CanvasText}
 .svq-eyebrow{margin:0 0 8px;font-family:var(--font-mono,'Space Mono',monospace);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:GrayText}
 .svq-title{margin:0 0 8px;font-family:var(--font-display,'Archivo Black',sans-serif);font-size:24px;line-height:1.15;overflow-wrap:anywhere}
@@ -255,11 +330,14 @@ textarea.svq-input{min-height:88px;resize:vertical}
     function syncStatusLabels() {
         const select = $('svq-status');
         if (!select) return;
-        const labels = state.kind === 'withdrawals' ? WD_FILTER_LABELS : QUEUE_FILTER_LABELS;
+        const labels = state.kind === 'withdrawals' ? WD_FILTER_LABELS : state.kind === 'requests' ? REQUEST_FILTER_LABELS : QUEUE_FILTER_LABELS;
         Array.prototype.forEach.call(select.options, (opt) => { if (labels[opt.value]) opt.textContent = labels[opt.value]; });
     }
 
     function columns() {
+        if (state.kind === 'requests') {
+            return { tpl: 'minmax(0,2fr) 140px 110px 110px 110px 100px', heads: ['Artista', 'Estado', 'Identidad', 'Domicilio', 'Bioseguridad', 'Pedido'] };
+        }
         if (state.kind === 'withdrawals') {
             return { tpl: 'minmax(0,2fr) 140px minmax(0,1.6fr) 120px 120px 100px', heads: ['Artista', 'Monto', 'Destino', 'Cuenta', 'Estado', 'Pedido'] };
         }
@@ -273,15 +351,16 @@ textarea.svq-input{min-height:88px;resize:vertical}
             <div class="svq-toolbar">
                 <label class="svq-sr" for="svq-kind">Cola</label>
                 <select id="svq-kind" class="svq-select">
+                    <option value="requests">Solicitudes de artistas</option>
                     <option value="documents">Documentos</option>
                     <option value="destinations">Destinos de retiro</option>
                     <option value="withdrawals">Retiros</option>
                 </select>
                 <label class="svq-sr" for="svq-status">Estado</label>
                 <select id="svq-status" class="svq-select">
-                    <option value="pending">Pendientes</option>
+                    <option value="pending">Por revisar</option>
                     <option value="verified">Verificados</option>
-                    <option value="rejected">Rechazados</option>
+                    <option value="rejected">Denegados</option>
                     <option value="all">Todos</option>
                 </select>
                 <div class="svq-search">
@@ -310,7 +389,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
         panel.innerHTML = panelHtml();
         table.insertAdjacentElement('afterend', panel);
         $('svq-kind').addEventListener('change', (e) => {
-            state.kind = KINDS.indexOf(e.target.value) >= 0 ? e.target.value : 'documents';
+            state.kind = KINDS.indexOf(e.target.value) >= 0 ? e.target.value : 'requests';
             syncStatusLabels();
             state.items = []; state.loaded = false; load();
         });
@@ -403,10 +482,13 @@ textarea.svq-input{min-height:88px;resize:vertical}
         renderRows();
         try {
             if (!R) throw new Error('repo');
-            const items = state.kind === 'destinations' ? await R.listDestinations(state.status)
-                : state.kind === 'withdrawals' ? await R.listWithdrawals(state.status)
-                    : await R.listDocuments(state.status);
-            const artists = await R.artistsByUserIds(items.map((i) => i.artist_user_id)).catch(() => []);
+            const items = state.kind === 'requests' ? requestItems(await R.listRequests(state.status))
+                : state.kind === 'destinations' ? await R.listDestinations(state.status)
+                    : state.kind === 'withdrawals' ? await R.listWithdrawals(state.status)
+                        : await R.listDocuments(state.status);
+            // La cola por artista ya trae la ficha (RPC de soporte): no hace falta otra lectura.
+            const artists = state.kind === 'requests' ? items
+                : await R.artistsByUserIds(items.map((i) => i.artist_user_id)).catch(() => []);
             const dests = state.kind === 'withdrawals'
                 ? await R.destinationsByIds(items.map((i) => i.destination_id)).catch(() => []) : [];
             if (seq !== state.seq) return;
@@ -431,7 +513,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
     async function refreshBadge() {
         const R = repo();
         let n = 0;
-        try { const c = await R.countPending(); n = c.destinations + c.documents + (c.withdrawals || 0); } catch (_) { n = 0; }
+        try { const c = await R.countPending(); n = c.destinations + c.documents + (c.withdrawals || 0) + (c.requests || 0); } catch (_) { n = 0; }
         root.document.querySelectorAll('.svq-count').forEach((el) => {
             el.textContent = n ? String(n) : '';
             el.title = n ? n + ' pendientes de revisión' : '';
@@ -464,10 +546,32 @@ textarea.svq-input{min-height:88px;resize:vertical}
         return `<span class="status-badge svq-badge svq-badge--${m.tone}">${esc(m.label)}</span>`;
     }
 
+    function artistBadge(raw) {
+        const m = artistStateMeta(raw);
+        return `<span class="status-badge svq-badge svq-badge--${m.tone}">${esc(m.label)}</span>`;
+    }
+
+    // Estado de un documento obligatorio/opcional en la cola por artista.
+    function docCell(docs, type) {
+        const st = docStatusOf(docs, type);
+        if (st === 'missing') return '<span class="svq-badge svq-badge--muted">Sin cargar</span>';
+        return badge(st);
+    }
+
     function rowHtml(item) {
         const a = artistOf(item);
         const name = a.name || (a.username ? '@' + a.username : 'Artista sin perfil');
         const sub = a.username ? '@' + a.username : (a.email || '');
+        if (state.kind === 'requests') {
+            return `<div class="quote-row data-row svq-row" role="button" tabindex="0" data-svq-id="${esc(item.id)}" aria-label="${esc('Revisar la verificación de ' + name)}">
+                <div class="svq-cell svq-artist"><span class="svq-name">${esc(name)}</span><span class="svq-muted">${esc(sub)}</span></div>
+                <div class="svq-cell" data-label="Estado">${artistBadge(item.verification_state)}</div>
+                <div class="svq-cell" data-label="Identidad">${docCell(item.documents, 'identidad')}</div>
+                <div class="svq-cell" data-label="Domicilio">${docCell(item.documents, 'domicilio')}</div>
+                <div class="svq-cell" data-label="Bioseguridad">${docCell(item.documents, 'bioseguridad')}</div>
+                <div class="svq-cell svq-mono" data-label="Pedido">${esc(fmtDate(item.requested_at || item.last_decision_at))}</div>
+            </div>`;
+        }
         if (state.kind === 'withdrawals') {
             const dest = state.destinations[item.destination_id] || {};
             const amount = formatAmount(item.amount, item.currency);
@@ -509,7 +613,9 @@ textarea.svq-input{min-height:88px;resize:vertical}
         const head = $('svq-head');
         if (head) head.innerHTML = cols.heads.map((h) => `<div class="header-cell"><span>${esc(h)}</span></div>`).join('');
         const intro = $('svq-intro');
-        if (intro) intro.textContent = state.kind === 'destinations'
+        if (intro) intro.textContent = state.kind === 'requests'
+            ? 'Artistas que pidieron la verificación. Revisá sus documentos y decidí: el artista recibe el resultado por email y en su panel.'
+            : state.kind === 'destinations'
             ? 'Verificá que el titular coincida con el artista (y con su documento de identidad) antes de habilitar retiros a ese destino.'
             : state.kind === 'withdrawals'
                 ? 'Cuando la transferencia salga, marcá el retiro como pagado con su referencia. Si falla, el monto vuelve al saldo del artista y le llega tu nota.'
@@ -520,7 +626,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
         const q = String(state.search || '').trim().toLowerCase().replace(/^@/, '');
         const rows = state.items.filter((i) => matches(i, q));
         if (!rows.length) {
-            body.innerHTML = `<div class="svq-empty">${esc(q ? MSG.emptySearch : state.kind === 'destinations' ? MSG.emptyDest : state.kind === 'withdrawals' ? MSG.emptyWd : MSG.emptyDocs)}</div>`;
+            body.innerHTML = `<div class="svq-empty">${esc(q ? MSG.emptySearch : state.kind === 'requests' ? MSG.emptyRequests : state.kind === 'destinations' ? MSG.emptyDest : state.kind === 'withdrawals' ? MSG.emptyWd : MSG.emptyDocs)}</div>`;
             return;
         }
         body.innerHTML = rows.map(rowHtml).join('');
@@ -731,13 +837,124 @@ textarea.svq-input{min-height:88px;resize:vertical}
                 <p class="svq-text">${esc(a.name || 'El artista')}: <strong>${esc(ARTIST_STATE_LABELS[a.verification_state] || a.verification_state || 'Sin solicitar')}</strong></p>
                 <ul class="svq-doclist">${docs}</ul>
                 <p class="svq-help">${req.ok ? 'Identidad y domicilio aprobados.' : 'Faltan aprobar: ' + esc(req.missing.join(' y ')) + '.'}</p>
-                <p id="svq-state-feedback" class="svq-feedback" role="status" aria-live="polite" hidden></p>
                 <div class="svq-actions">
-                    <button type="button" class="action-btn svq-btn" data-svq-state="Yes" data-svq-ok="${req.ok ? '1' : '0'}">MARCAR ARTISTA VERIFICADO</button>
-                    <button type="button" class="action-btn svq-btn" data-svq-state="Denied">DENEGAR VERIFICACIÓN</button>
+                    <button type="button" class="action-btn svq-btn" data-svq-artist="${esc(item.artist_user_id)}">VER SOLICITUD DEL ARTISTA →</button>
                 </div>
             </div>
         </div>`;
+    }
+
+    // ── verif-artista ── ficha de la solicitud: documentos, historial y decisión final.
+    function requestDetail(item, history) {
+        const a = Object.assign({}, item, artistOf(item));
+        const current = a.verification_state || 'No';
+        const docs = item.documents || [];
+        const req = requiredDocsStatus(docs);
+        const name = a.name || (a.username ? '@' + a.username : 'Artista');
+        const docRows = ['identidad', 'domicilio', 'bioseguridad'].map((type) => {
+            const doc = docs.find((d) => d && d.doc_type === type);
+            const required = REQUIRED_DOCS.indexOf(type) >= 0;
+            if (!doc) {
+                return `<li class="svq-docrow"><span class="svq-docname">${esc(DOC_LABELS[type])}<small>${required ? 'Obligatorio' : 'Opcional'} · sin cargar</small></span>
+                    <span class="svq-docside"><span class="svq-badge svq-badge--muted">Sin cargar</span></span></li>`;
+            }
+            const pending = normalizeStatus(doc.status) === 'pending';
+            return `<li class="svq-docrow"><span class="svq-docname">${esc(DOC_LABELS[type])}<small>${required ? 'Obligatorio' : 'Opcional'} · subido ${esc(fmtDate(doc.uploaded_at))}${doc.reviewer_notes ? ' · ' + esc(doc.reviewer_notes) : ''}</small></span>
+                <span class="svq-docside">${badge(doc.status)}
+                    <button type="button" class="svq-link" data-svq-open="${esc(doc.storage_path)}" aria-label="${esc('Abrir ' + DOC_LABELS[type] + ' (enlace de 2 minutos)')}">Abrir</button>
+                    <button type="button" class="svq-link" data-svq-doc="${esc(doc.id)}" aria-label="${esc((pending ? 'Revisar ' : 'Cambiar la revisión de ') + DOC_LABELS[type])}">${pending ? 'Revisar' : 'Cambiar'}</button></span></li>`;
+        }).join('');
+        const hist = (history || []).map((h) => `<li><time datetime="${esc(h.created_at)}">${esc(fmtDateTime(h.created_at))}</time>
+            <strong>${esc(HISTORY_LABELS[h.action] || h.action)}</strong>${h.notes ? ' · ' + esc(h.notes) : ''}</li>`).join('')
+            || '<li>Sin movimientos registrados.</li>';
+        const actions = stateActions(current).map((act) => `<button type="button" class="action-btn svq-btn svq-btn--${act.tone}" data-svq-state="${esc(act.state)}"${act.state === 'Yes' ? ` data-svq-ok="${req.ok ? '1' : '0'}"` : ''}>${esc(act.label)}</button>`).join('');
+        const helpText = current === 'Yes'
+            ? 'Si revocás la verificación, el perfil deja de mostrar la insignia. El motivo es obligatorio y lo ve el artista.'
+            : 'Obligatorio para denegar (lo ve el artista por email y en su cuenta). Opcional al verificar.';
+        return `<div id="svq-detail" class="svq-detail" data-svq-id="${esc(item.id)}" data-svq-kind="requests">
+            <p class="svq-eyebrow">Solicitud de verificación</p>
+            <h2 id="svq-detail-title" class="svq-title" tabindex="-1">${esc(name)}</h2>
+            <p class="svq-sub">${a.username ? `<span>@${esc(String(a.username).replace(/^@+/, ''))}</span><span aria-hidden="true">·</span>` : ''}${artistBadge(current)}</p>
+            <div class="drawer-section svq-section">
+                <p class="svq-section-title">Artista</p>
+                <dl class="svq-facts">
+                    ${fact('Email', a.email || '-')}
+                    ${fact('Ubicación', [a.city, a.country].filter(Boolean).join(', ') || '-')}
+                    ${fact('Instagram validado', a.instagram_verified_at ? (a.instagram_verified_handle ? '@' + String(a.instagram_verified_handle).replace(/^@+/, '') : 'Sí') : 'No')}
+                    ${fact('Pedido', fmtDateTime(a.requested_at))}
+                </dl>
+                ${a.username ? `<p class="svq-text"><a class="svq-link" href="${esc(appPath('/artist/profile?artist=' + encodeURIComponent(String(a.username).replace(/^@+/, ''))))}" target="_blank" rel="noopener">Ver perfil público →</a></p>` : ''}
+            </div>
+            <div class="drawer-section svq-section">
+                <p class="svq-section-title">Documentos</p>
+                <ul class="svq-doclist">${docRows}</ul>
+                <p class="svq-help">${req.ok ? 'Identidad y domicilio aprobados.' : 'Faltan aprobar: ' + esc(req.missing.join(' y ')) + '.'}</p>
+            </div>
+            <form class="drawer-section svq-section" id="svq-state-form" data-svq-form="${esc(item.id)}" novalidate>
+                <p class="svq-section-title">Decisión</p>
+                <div class="svq-field">
+                    <label for="svq-state-note">Motivo para el artista</label>
+                    <textarea id="svq-state-note" class="svq-input" rows="3" maxlength="${NOTE_MAX}" aria-describedby="svq-state-note-help"></textarea>
+                    <p class="svq-help" id="svq-state-note-help">${esc(helpText)}</p>
+                </div>
+                <p id="svq-state-feedback" class="svq-feedback" role="status" aria-live="polite" hidden></p>
+                <div class="svq-actions">${actions}</div>
+            </form>
+            <div class="drawer-section svq-section">
+                <p class="svq-section-title">Historial</p>
+                <ul class="svq-history">${hist}</ul>
+            </div>
+        </div>`;
+    }
+
+    async function renderRequest(item) {
+        const content = $('drawer-content');
+        const toggle = $('drawer-toggle');
+        if (!item || !content || !toggle) return;
+        let history = [];
+        try { history = await repo().listHistory(item.artist_id); } catch (err) { console.warn('[support-verification] historial:', err && err.message); }
+        state.detail = { id: item.id, kind: 'requests', item, docs: item.documents || [], history };
+        content.innerHTML = requestDetail(item, history);
+        toggle.checked = true;
+        const title = $('svq-detail-title');
+        if (title) { try { title.focus({ preventScroll: true }); } catch (_) { title.focus(); } }
+    }
+
+    // Abre la solicitud de un artista desde cualquier lado (cola de documentos,
+    // ficha del artista en support-dashboard.js). Relee la fila de la RPC.
+    async function openArtist(userId) {
+        const R = repo();
+        if (!R || !userId) return;
+        let row = state.kind === 'requests' ? state.items.find((i) => String(i.user_id) === String(userId)) : null;
+        try {
+            const fresh = requestItems([await R.requestForArtist(userId)])[0];
+            if (fresh) row = fresh;
+        } catch (err) {
+            console.warn('[support-verification] solicitud del artista:', err && err.message);
+            if (!row) {
+                const content = $('drawer-content');
+                if (content && $('svq-detail')) feedback('svq-feedback', 'error', errorText(err));
+                return;
+            }
+        }
+        if (!row) return;
+        state.artists[row.user_id] = Object.assign({}, state.artists[row.user_id], row);
+        await renderRequest(row);
+    }
+
+    // Revisar un documento desde la ficha de la solicitud.
+    async function openDocument(docId) {
+        const d = state.detail;
+        const doc = d && (d.docs || []).find((x) => String(x.id) === String(docId));
+        const content = $('drawer-content');
+        if (!doc || !content) return;
+        let docs = d.docs;
+        try { docs = await repo().listDocumentsForArtist(doc.artist_user_id); } catch (_) { /* usa la lista de la cola */ }
+        const fresh = docs.find((x) => String(x.id) === String(docId)) || doc;
+        state.detail = { id: fresh.id, kind: 'documents', item: fresh, docs };
+        content.innerHTML = documentDetail(fresh, docs);
+        const title = $('svq-detail-title');
+        if (title) { try { title.focus({ preventScroll: true }); } catch (_) { title.focus(); } }
     }
 
     async function openDetail(id) {
@@ -745,6 +962,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
         const content = $('drawer-content');
         const toggle = $('drawer-toggle');
         if (!item || !content || !toggle) return;
+        if (state.kind === 'requests') { await renderRequest(item); return; }
         state.detail = { id: item.id, kind: state.kind, item, docs: [] };
         if (state.kind === 'documents') {
             try { state.detail.docs = await repo().listDocumentsForArtist(item.artist_user_id); } catch (_) { state.detail.docs = [item]; }
@@ -809,29 +1027,78 @@ textarea.svq-input{min-height:88px;resize:vertical}
         }
     }
 
+    // ── verif-artista ── aviso al artista por email después de la decisión final.
+    async function notifyVerification(historyId) {
+        if (!historyId) return null;
+        try {
+            const token = await supportToken();
+            if (!token || typeof root.fetch !== 'function') return null;
+            const res = await root.fetch(appPath('/api/support/artist-verification/notify'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: 'Bearer ' + token },
+                body: JSON.stringify({ history_id: historyId }),
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
+            const json = await res.json().catch(() => ({}));
+            return res.ok && json && json.success ? json : null;
+        } catch (err) {
+            console.warn('[support-verification] aviso de verificación:', err && err.message);
+            return null;
+        }
+    }
+
+    function stateSuccessText(target, previous) {
+        if (target === 'Yes') return 'Artista verificado: su perfil público ya muestra la insignia.';
+        if (target === 'Denied') return 'Verificación denegada. El artista ve el motivo en su cuenta.';
+        return previous === 'Yes' ? 'Verificación revocada: el perfil deja de mostrar la insignia.' : 'Solicitud cerrada.';
+    }
+
     async function runArtistState(btn) {
         const d = state.detail;
-        if (!d || state.busy) return;
+        if (!d || state.busy || d.kind !== 'requests') return;
         const target = btn.dataset.svqState;
+        const userId = d.item.artist_user_id;
+        const previous = (state.artists[userId] && state.artists[userId].verification_state) || d.item.verification_state || 'No';
+        const noteEl = $('svq-state-note');
+        const decision = buildStateDecision(target, noteEl ? noteEl.value : '', previous);
+        if (noteEl) noteEl.removeAttribute('aria-invalid');
+        if (decision.error) {
+            if (noteEl && decision.field === 'note') { noteEl.setAttribute('aria-invalid', 'true'); noteEl.focus(); }
+            feedback('svq-state-feedback', 'error', decision.error);
+            return;
+        }
         if (target === 'Yes' && btn.dataset.svqOk !== '1' && btn.dataset.svqConfirm !== '1') {
             btn.dataset.svqConfirm = '1';
-            feedback('svq-state-feedback', 'error', 'Faltan documentos obligatorios aprobados. Tocá de nuevo para verificar igual.');
+            feedback('svq-state-feedback', 'error', MSG.missingDocs);
             return;
         }
         state.busy = true;
-        btn.disabled = true;
+        root.document.querySelectorAll('[data-svq-state]').forEach((b) => { b.disabled = true; });
+        feedback('svq-state-feedback', 'info', 'Guardando…');
         try {
-            await repo().setArtistVerification(d.item.artist_user_id, target);
-            const a = state.artists[d.item.artist_user_id];
-            if (a) a.verification_state = target;
-            feedback('svq-state-feedback', 'success', target === 'Yes' ? 'Artista verificado: su perfil muestra la insignia.' : 'Verificación denegada.');
-            renderRows();
+            const result = await repo().setArtistVerification(userId, decision.state, decision.note);
+            const changed = !result || result.changed !== false;
+            const notified = changed ? await notifyVerification(result && result.history_id) : null;
+            const fresh = Object.assign({}, d.item, { verification_state: decision.state });
+            state.artists[userId] = Object.assign({}, state.artists[userId], { verification_state: decision.state });
+            await renderRequest(fresh);
+            feedback('svq-state-feedback', 'success', changed
+                ? stateSuccessText(decision.state, previous) + notifyText(notified)
+                : 'El artista ya estaba en ese estado: no hubo cambios.');
+            load();
         } catch (err) {
+            console.warn('[support-verification] decisión del artista:', err && err.message);
             feedback('svq-state-feedback', 'error', errorText(err));
         } finally {
             state.busy = false;
-            btn.disabled = false;
+            root.document.querySelectorAll('[data-svq-state]').forEach((b) => { b.disabled = false; });
         }
+    }
+
+    // Feedback del detalle abierto (los formularios usan ids distintos).
+    function detailFeedback(kind, text) {
+        feedback($('svq-feedback') ? 'svq-feedback' : 'svq-state-feedback', kind, text);
     }
 
     // ── cifrado ── ver el número completo (se oculta a los 60 s).
@@ -868,13 +1135,17 @@ textarea.svq-input{min-height:88px;resize:vertical}
         if (settle) { e.preventDefault(); runSettle(settle.dataset.svqSettle); return; }
         const st = e.target.closest('[data-svq-state]');
         if (st) { e.preventDefault(); runArtistState(st); return; }
+        const artist = e.target.closest('[data-svq-artist]');
+        if (artist) { e.preventDefault(); openArtist(artist.dataset.svqArtist); return; }
+        const docBtn = e.target.closest('[data-svq-doc]');
+        if (docBtn) { e.preventDefault(); openDocument(docBtn.dataset.svqDoc); return; }
         const reveal = e.target.closest('[data-svq-reveal]');
         if (reveal) { e.preventDefault(); runReveal(reveal); return; }
         const open = e.target.closest('[data-svq-open]');
         if (open) {
             e.preventDefault();
             try { root.open(await repo().documentUrl(open.dataset.svqOpen), '_blank', 'noopener'); }
-            catch (err) { feedback('svq-feedback', 'error', err.message || MSG.generic); }
+            catch (err) { detailFeedback('error', err.message || MSG.generic); }
         }
     }
 
@@ -895,12 +1166,14 @@ textarea.svq-input{min-height:88px;resize:vertical}
         }
         const schedule = () => root.setTimeout(() => { if (!state.loaded) refreshBadge(); }, 1500);
         if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', schedule); else schedule();
-        root.SupportVerificationQueue = { refresh: load, open: openDetail, isActive: () => active };
+        // openArtist: la ficha del artista (support-dashboard.js) abre su solicitud acá.
+        root.SupportVerificationQueue = { refresh: load, open: openDetail, openArtist, isActive: () => active };
     }
 
     return {
         boot,
         _internal: { MSG, DOC_LABELS, normalizeStatus, statusMeta, maskIdentifier, maskDestination, buildReview, requiredDocsStatus, errorText, esc,
-            buildSettlement, formatAmount, notifyText, KINDS }
+            buildSettlement, formatAmount, notifyText, KINDS,
+            buildStateDecision, stateActions, artistStateMeta, requestItems, docStatusOf, ARTIST_STATE_LABELS, HISTORY_LABELS, IN_REVIEW_STATES }
     };
 }));

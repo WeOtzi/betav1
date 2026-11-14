@@ -32,7 +32,6 @@
 .sr-location{margin-bottom:28px}
 .sr-location+.sr-location{padding-top:24px;border-top:1px solid var(--neutral-200)}
 .sr-location-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px}
-.sr-location-head:has(button[hidden]){display:none}
 .sr-location-head strong{font-size:14px}
 .sr-help{font-size:13px;line-height:1.5;color:var(--neutral-400);margin:8px 0 0}
 .sr-address-manual{margin:16px 0}
@@ -81,3 +80,31 @@
  .sr-notice{margin-bottom:24px}
  .sr-location-head{align-items:flex-start}
 }
+
+/* Beta cerrada (estudio-registro): patrones del registro de artistas rediseñado
+   (register-artist-ds.css): sombra dura con foco o valor, CTA "Continuar →" a la
+   derecha y fijo al pie en mobile, tarjetas PRINCIPAL/ADICIONAL y filas resumen
+   con EDITAR. */
+.studio-registration .wo-input:focus,.studio-registration .wo-input.has-value:not([readonly]){box-shadow:var(--shadow-hard-sm,3px 3px 0 var(--neutral-500))}
+.studio-registration .wo-input:focus{outline:2px solid var(--blue-300);outline-offset:2px}
+.studio-registration .wo-input[readonly]{background:var(--sand-050);color:var(--neutral-400)}
+.sr-field-label{font:12px/1.25 var(--font-mono);color:var(--neutral-400);text-transform:uppercase}
+.sr-wizard-actions{align-items:center}
+.sr-wizard-actions .sr-next{order:9;margin-left:auto}
+.sr-wizard-actions .sr-next::after{content:" \2192";}
+.sr-location{padding:24px;border:1px solid var(--neutral-200);background:var(--neutral-100)}
+.sr-location+.sr-location{padding-top:24px;border-top:1px solid var(--neutral-200);margin-top:20px}
+.sr-location.is-primary{border-color:var(--neutral-500);box-shadow:var(--shadow-hard-sm,3px 3px 0 var(--neutral-500))}
+.sr-location-head strong{margin-right:auto}
+.sr-location-head .sr-badge.is-primary{background:var(--neutral-500);color:var(--neutral-100)}
+.sr-summary-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.sr-summary-row>div{min-width:0}
+.sr-edit-btn{flex:none;min-height:44px;padding:0 4px;border:0;background:none;font:12px/1.25 var(--font-mono);text-transform:uppercase;color:var(--blue-300);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.sr-edit-btn:hover{color:var(--ink)}
+.sr-edit-btn:focus-visible,.studio-registration .wo-btn:focus-visible{outline:2px solid var(--blue-300);outline-offset:2px}
+@media(max-width:767px){
+ .sr-wizard-actions{position:sticky;bottom:0;z-index:20;margin:16px -20px 0;padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));background:var(--neutral-100);border-top:1px solid var(--neutral-200)}
+ .sr-wizard-actions .sr-next{order:-1;margin-left:0}
+ .sr-location{padding:18px 16px}
+}
+@media(prefers-reduced-motion:no-preference){.studio-registration .wo-input{transition:box-shadow .12s ease}}

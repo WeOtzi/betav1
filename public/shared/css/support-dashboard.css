@@ -55,6 +55,8 @@
 /* Tab Navigation */
 .tab-navigation {
     display: flex;
+    overflow-x: auto; /* beta: con Verificación, Bajas y Estudios las pestañas no entran en 1280px */
+    scrollbar-width: thin;
     gap: 0;
     margin-bottom: 0;
     border: var(--border-width) solid var(--fg);
@@ -63,7 +65,8 @@
 }
 
 .tab-btn {
-    flex: 1;
+    flex: 1 0 auto;
+    white-space: nowrap;
     display: flex;
     align-items: center;
     justify-content: center;

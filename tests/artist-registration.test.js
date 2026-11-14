@@ -224,7 +224,7 @@ test('studio registration location payload keeps the complete selected sede addr
     });
 });
 
-test('studio registration membership payload links artist, studio and selected location', () => {
+test('studio registration membership payload is a pending request (not active) with studio and location', () => {
     const payload = registration.buildStudioMembershipPayload({
         artistUserId: '22222222-2222-4222-8222-222222222222',
         studioId: '33333333-3333-4333-8333-333333333333',
@@ -238,7 +238,8 @@ test('studio registration membership payload links artist, studio and selected l
         studio_id: '33333333-3333-4333-8333-333333333333',
         location_id: '44444444-4444-4444-8444-444444444444',
         role: 'resident',
-        status: 'active',
-        started_at: '2026-05-31T00:00:00.000Z'
+        status: 'requested',
+        initiated_by: 'artist',
+        invited_at: '2026-05-31T00:00:00.000Z'
     });
 });

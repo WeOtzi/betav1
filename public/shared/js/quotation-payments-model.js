@@ -160,13 +160,24 @@
         return null;
     }
 
-    // Seña requerida de la cotización manual (801:556): artist_manual_quotes.
-    function depositRequired(manual) {
-        if (!manual) return null;
-        var amount = storedAmount(manual.deposit_amount);
+    // Seña requerida: la de la cotización manual (801:556, artist_manual_quotes)
+    // y, si no hay fila manual, la que pidió el artista al responder o acordar
+    // una solicitud de cliente (quotations_db.artist_deposit_*, COT-A-09).
+    function depositRequired(manual, quote) {
+        if (manual) {
+            var manualAmount = storedAmount(manual.deposit_amount);
+            if (manualAmount) {
+                var manualPct = Number(manual.deposit_pct);
+                return { amount: manualAmount, currency: upper(manual.currency || 'USD'), pct: isFinite(manualPct) ? manualPct : null };
+            }
+        }
+        var q = quote || null;
+        if (!q) return null;
+        var amount = storedAmount(q.artist_deposit_amount);
         if (!amount) return null;
-        var pct = Number(manual.deposit_pct);
-        return { amount: amount, currency: upper(manual.currency || 'USD'), pct: isFinite(pct) ? pct : null };
+        var pct = q.artist_deposit_pct == null || q.artist_deposit_pct === '' ? NaN : Number(q.artist_deposit_pct);
+        var currency = q.final_budget_amount != null && q.final_budget_amount !== '' ? (q.final_budget_currency || q.artist_budget_currency) : q.artist_budget_currency;
+        return { amount: amount, currency: upper(currency || 'USD'), pct: isFinite(pct) ? pct : null };
     }
 
     // Convierte con la función dada (CurrencyUtils.convert); null si no se puede.
@@ -206,7 +217,7 @@
         opts = opts || {};
         var list = sortPayments((payments || []).map(function (p) { return p && p.paidOn !== undefined && p.quotationId !== undefined ? p : normalize(p); }));
         var agreed = agreedTotal(quote, manual);
-        var dep = depositRequired(manual);
+        var dep = depositRequired(manual, quote);
         var currency = agreed ? agreed.currency : (dep ? dep.currency : (list[0] ? list[0].currency : upper(opts.currency || 'USD')));
         var paid = sumIn(list, currency, opts.convert);
         var total = agreed ? agreed.amount : null;

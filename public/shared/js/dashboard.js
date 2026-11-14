@@ -2896,7 +2896,8 @@ async function handleProfileSave(e) {
             session_price_currency: currency || null,
             portafolio: portfolio || null,
             estudios: estudios,
-            studio_id: resolvedStudioId,
+            // ── roster (ROSTER-05): studio_id lo fija la membresía aprobada (el
+            // guard revierte cambios del cliente); un estudio nuevo se pide abajo.
             work_type: normalizedWorkType,
             birth_date: birthDate || null,
             subscribed_newsletter: newsletter,
@@ -2924,6 +2925,26 @@ async function handleProfileSave(e) {
 
         await saveArtistTattooLocations(tattooLocationsPayload);
 
+        // ── roster (ROSTER-05): estudio distinto al actual = solicitud de alta.
+        let studioRequestNote = '';
+        if (resolvedStudioId && resolvedStudioId !== (artistData && artistData.studio_id)
+            && WeotziData.StudioMemberships && typeof WeotziData.StudioMemberships.requestMembership === 'function') {
+            const { data: reqData, error: reqError } = await WeotziData.StudioMemberships.requestMembership({ studioId: resolvedStudioId, role: 'resident' });
+            if (!reqError) {
+                studioRequestNote = ' Enviamos tu solicitud al estudio: queda vinculado cuando la apruebe.';
+                const accessToken = await getDashboardAccessToken();
+                if (accessToken && reqData && reqData.membership_id) {
+                    fetch(dashboardAppPath('/api/artist/studio-notify'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + accessToken },
+                        body: JSON.stringify({ kind: 'membership_request_created', membership_id: reqData.membership_id })
+                    }).catch(() => {});
+                }
+            } else if (!/Ya tenés/i.test(String(reqError.message || ''))) {
+                console.warn('[dashboard] solicitud de alta:', reqError);
+            }
+        }
+
         // Update local data
         artistData = { ...artistData, ...updateData };
 
@@ -2934,7 +2955,7 @@ async function handleProfileSave(e) {
         // Recheck profile completion milestone
         checkProfileCompletion();
 
-        showStatusMessage('Perfil actualizado correctamente.', 'success');
+        showStatusMessage('Perfil actualizado correctamente.' + studioRequestNote, 'success');
 
     } catch (error) {
         console.error('Error saving profile:', error);
@@ -3962,20 +3983,17 @@ function updateVerificationUI(state) {
     renderTopBanner();
 }
 
+// verif-artista (VER-A5): la verificación se pide SOLO desde Cuenta ·
+// Verificación, donde se cargan los documentos y el servidor valida la
+// solicitud. El modal legado ya no escribe verification_state: redirige.
+const VERIFICATION_ACCOUNT_PATH = '/artist/account#verificacion';
+
+function goToVerificationAccount() {
+    window.location.href = dashboardAppPath(VERIFICATION_ACCOUNT_PATH);
+}
+
 function openVerificationModal() {
-    // Check if user can request verification
-    const currentState = artistData?.verification_state || 'No';
-    const stateConfig = VERIFICATION_STATES[currentState];
-    
-    if (!stateConfig.canRequest) {
-        showStatusMessage(`Tu solicitud ya esta ${stateConfig.text.toLowerCase()}.`, 'info');
-        return;
-    }
-    
-    const modal = document.getElementById('verification-modal');
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-    clearVerificationMessage();
+    goToVerificationAccount();
 }
 
 function closeVerificationModal() {
@@ -4003,54 +4021,9 @@ function clearVerificationMessage() {
     messageDiv.className = 'form-message';
 }
 
-async function submitVerificationRequest() {
-    const submitBtn = document.getElementById('submit-verification-btn');
-    
-    if (!currentUser || !artistData) {
-        showVerificationMessage('Error: No se pudo identificar tu cuenta.', 'error');
-        return;
-    }
-    
-    // Disable button and show loading
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = `
-        <span>Enviando solicitud...</span>
-    `;
-    
-    try {
-        // Update verification_state to "Requested"
-        const { error } = await WeotziData.Artists.updateByUserId(currentUser.id, { verification_state: 'Requested' });
-
-        if (error) throw error;
-
-        // Update local data
-        artistData.verification_state = 'Requested';
-        
-        // Update UI
-        updateVerificationUI('Requested');
-        
-        // Show success message
-        showVerificationMessage('Solicitud enviada correctamente. Nuestro equipo se pondra en contacto contigo pronto.', 'success');
-        
-        // Close modal after delay
-        setTimeout(() => {
-            closeVerificationModal();
-            showStatusMessage('Solicitud de verificacion enviada.', 'success');
-        }, 2500);
-        
-    } catch (error) {
-        console.error('Error submitting verification request:', error);
-        showVerificationMessage('Error al enviar la solicitud. Intenta de nuevo.', 'error');
-        
-        // Restore button
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = `
-            Solicitar Verificacion
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square">
-                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-            </svg>
-        `;
-    }
+// Legado (botón del modal en el HTML): ya no hace PATCH; lleva a Cuenta · Verificación.
+function submitVerificationRequest() {
+    goToVerificationAccount();
 }
 
 // ============================================

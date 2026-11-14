@@ -48,13 +48,73 @@
         'country, country_code, state_province, city, locality, street, street_number, ' +
         'unit, postal_code, formatted_address, latitude, longitude, google_place_id';
 
+    // ===================== pii-studios (20261115200100) =====================
+    // studios tiene privilegios POR COLUMNA: anon y authenticated leen todo
+    // MENOS PRIVATE_COLUMNS (email del dueño, teléfono interno, datos internos
+    // de verificación, quién creó la ficha). SESSION_COLUMNS (condiciones de
+    // trabajo del roster) solo las lee alguien con sesión (invitaciones).
+    // `select('*')` directo sobre studios FALLA: '*' se traduce a
+    // PUBLIC_COLUMNS y el dueño lee su fila completa con la RPC get_my_studio().
+    const PRIVATE_COLUMNS = Object.freeze([
+        'email', 'contact_phone', 'verification_reason', 'verification_required',
+        'instagram_verified_handle', 'created_by_artist_user_id'
+    ]);
+    const SESSION_COLUMNS = Object.freeze(['artist_requirements', 'default_revenue_split_pct']);
+    const PUBLIC_COLUMNS = Object.freeze([
+        'id', 'name', 'normalized_name', 'slug', 'tagline', 'bio', 'cover_image', 'logo_image',
+        'photo_feed_items', 'founded_year', 'languages', 'instagram', 'tiktok', 'website',
+        'whatsapp', 'phone', 'ubicacion', 'country', 'country_code', 'state_province', 'city',
+        'locality', 'street', 'street_number', 'unit', 'postal_code', 'formatted_address',
+        'latitude', 'longitude', 'google_place_id', 'google_maps_url', 'geocoded_at',
+        'is_verified', 'is_active', 'profile_complete', 'primary_location_id',
+        'is_seeking_artists', 'verification_status', 'verified_at', 'instagram_verified_at',
+        'specialty_styles', 'station_count', 'equipment', 'accepts_guest_spots',
+        'guest_window_start', 'guest_window_end', 'accepts_artist_inquiries',
+        'location_verified', 'user_id', 'created_at', 'updated_at'
+    ]);
+    const PRIVATE_SET = new Set(PRIVATE_COLUMNS);
+    const SESSION_SET = new Set(SESSION_COLUMNS);
+
+    // Nombres de columna de un select de PostgREST ("a, alias:b, c::text").
+    function studioColumnNames(columns) {
+        return String(columns == null ? '*' : columns).split(',')
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .map((part) => {
+                const noCast = part.split('::')[0];
+                const colon = noCast.indexOf(':');
+                return (colon === -1 ? noCast : noCast.slice(colon + 1)).trim();
+            });
+    }
+    // true si el select pide '*' o alguna columna privada / solo-con-sesión.
+    function studioNeedsPrivate(columns) {
+        return studioColumnNames(columns).some((name) => name === '*' || PRIVATE_SET.has(name) || SESSION_SET.has(name));
+    }
+    // Lecturas públicas: '*' -> lista pública; descarta las privadas para que
+    // la consulta no falle por privilegios (las de sesión se conservan: si no
+    // hay sesión, quien las pide recibe el error de privilegios y lo maneja).
+    function studioPublicOnly(columns) {
+        const parts = String(columns == null ? '*' : columns).split(',').map((p) => p.trim()).filter(Boolean);
+        const names = studioColumnNames(columns);
+        if (!parts.length || names.indexOf('*') !== -1) return PUBLIC_COLUMNS.join(', ');
+        const kept = parts.filter((part, i) => !PRIVATE_SET.has(names[i]));
+        return kept.length ? kept.join(', ') : 'id';
+    }
+    // PGRST202 / 42883 = la RPC todavía no existe en este backend.
+    function isMissingRpc(error) {
+        if (!error) return false;
+        return error.code === 'PGRST202' || error.code === '42883'
+            || /could not find the function|function .* does not exist/i.test(String(error.message || ''));
+    }
+
     // ===================== studios =====================
     const Studios = {
         // --- reads ---
 
         // Estudio por id. columns variable; .maybeSingle().
+        // pii-studios: '*' = columnas públicas (nunca email ni datos internos).
         getById(studioId, columns = '*') {
-            return from('studios').select(columns).eq('id', studioId).maybeSingle();
+            return from('studios').select(studioPublicOnly(columns)).eq('id', studioId).maybeSingle();
         },
 
         // Solo las columnas de direccion del estudio (borrador de direccion del
@@ -66,13 +126,21 @@
         // Estudio por slug. columns variable; .maybeSingle(). Parte del lookup
         // por id-o-slug del perfil publico (studio-profile.js:40).
         getBySlug(slug, columns = '*') {
-            return from('studios').select(columns).eq('slug', slug).maybeSingle();
+            return from('studios').select(studioPublicOnly(columns)).eq('slug', slug).maybeSingle();
         },
 
         // Estudio propiedad del usuario autenticado (panel de estudio). columns
         // variable; .maybeSingle(). Cubre studio-auth.js:42 (select '*'),
         // studio-auth.js:83 (id,user_id,name,slug,profile_complete).
-        getByUserId(userId, columns = '*') {
+        // pii-studios: con '*' o columnas privadas lee la fila completa propia
+        // con la RPC get_my_studio() (solo devuelve el estudio de la sesión);
+        // si la RPC todavía no existe, cae a la lectura directa de siempre.
+        async getByUserId(userId, columns = '*') {
+            if (!studioNeedsPrivate(columns)) {
+                return from('studios').select(columns).eq('user_id', userId).maybeSingle();
+            }
+            const own = await client().rpc('get_my_studio').select(columns).eq('user_id', userId).maybeSingle();
+            if (!isMissingRpc(own && own.error)) return own;
             return from('studios').select(columns).eq('user_id', userId).maybeSingle();
         },
 
@@ -86,6 +154,13 @@
         // Cubre reviews.js:308. .maybeSingle().
         getOwnedByUser(studioId, userId, columns = 'id,user_id') {
             return from('studios').select(columns).eq('id', studioId).eq('user_id', userId).maybeSingle();
+        },
+
+        // ¿El estudio tiene dueño? Solo devuelve el id (nunca el user_id): el
+        // perfil público lo usa para mostrar "Soy artista: quiero sumarme"
+        // (roster ROSTER-14). .maybeSingle(): data null = ficha sin dueño.
+        hasOwner(studioId) {
+            return from('studios').select('id').eq('id', studioId).not('user_id', 'is', null).maybeSingle();
         },
 
         // Estudios que opera la cuenta autenticada: dueño u otro rol con acceso
@@ -213,7 +288,7 @@
         // Cubre explore-map.js:653. Embed FK studios:studio_id(...).
         listPrimaryWithStudioForMap() {
             return from('studio_locations')
-                .select('id, studio_id, label, is_primary, latitude, longitude, formatted_address, city, country, studios:studio_id(id, slug, name, tagline, cover_image, instagram, website)')
+                .select('id, studio_id, label, is_primary, latitude, longitude, formatted_address, city, country, studios:studio_id(id, slug, name, tagline, cover_image, instagram, website, is_verified)')
                 .eq('is_active', true)
                 .eq('is_primary', true)
                 .not('latitude', 'is', null);
@@ -259,20 +334,53 @@
     const StudioMemberships = {
         // Roster del estudio (active/pending/paused) con artista embebido. Cubre
         // studio-dashboard.js:841. Orden por status y role.
+        // ── roster: suma current_contract_id (rol/reparto se bloquean con
+        // contrato vigente), notes, invited_at, initiated_by y pending_invite.
         listRoster(studioId) {
             return from('studio_artist_memberships')
-                .select(`id, role, status, started_at, ended_at, location_id, revenue_split_pct, ${ARTIST_EMBED}`)
+                .select(`id, artist_user_id, role, status, started_at, ended_at, invited_at, initiated_by, location_id, revenue_split_pct, current_contract_id, notes, ${ARTIST_EMBED}`)
                 .eq('studio_id', studioId)
-                .in('status', ['active', 'pending_acceptance', 'paused'])
+                .in('status', ['active', 'pending_acceptance', 'pending_invite', 'paused'])
                 .order('status', { ascending: true })
                 .order('role', { ascending: true });
         },
 
-        // Roster activo con artista embebido para el perfil publico del estudio.
-        // Cubre studio-profile.js:95.
-        listActiveRosterWithArtists(studioId) {
+        // Roster PUBLICO (perfil del estudio, perfil del artista, directorio de
+        // spots). ── roster (ROSTER-04): la RLS de studio_artist_memberships
+        // solo deja leer al artista, al dueño y a soporte; los visitantes leen
+        // la vista studio_public_roster (sin PII) y los perfiles publicos de
+        // artists_db. Si la vista no devuelve filas (p. ej. el modo demo, que
+        // sirve la tabla desde memoria) se cae a la lectura directa.
+        async listActiveRosterWithArtists(studioId) {
+            const publicArtistCols = 'user_id, username, name, profile_picture, styles_array, session_price, city, country';
+            const viewRes = await from('studio_public_roster')
+                .select('membership_id, studio_id, artist_user_id, location_id, role, started_at, ends_on')
+                .eq('studio_id', studioId);
+            const viewRows = !viewRes.error && Array.isArray(viewRes.data) ? viewRes.data : [];
+            if (viewRows.length) {
+                const ids = [...new Set(viewRows.map((row) => row.artist_user_id).filter(Boolean))];
+                const artistsRes = ids.length
+                    ? await from('artists_db').select(publicArtistCols).in('user_id', ids)
+                    : { data: [], error: null };
+                const byId = new Map((artistsRes.data || []).map((artist) => [artist.user_id, artist]));
+                return {
+                    data: viewRows
+                        .map((row) => ({
+                            id: row.membership_id,
+                            role: row.role,
+                            status: 'active',
+                            artist_user_id: row.artist_user_id,
+                            location_id: row.location_id,
+                            started_at: row.started_at,
+                            ends_on: row.ends_on,
+                            artists_db: byId.get(row.artist_user_id) || null
+                        }))
+                        .filter((row) => row.artists_db),
+                    error: null
+                };
+            }
             return from('studio_artist_memberships')
-                .select('role, status, artists_db ( user_id, username, name, profile_picture, styles_array, session_price )')
+                .select('role, status, artist_user_id, location_id, artists_db ( user_id, username, name, profile_picture, styles_array, session_price )')
                 .eq('studio_id', studioId)
                 .eq('status', 'active');
         },
@@ -352,10 +460,15 @@
             return client().rpc('end_studio_membership', { p_membership_id: membershipId });
         },
 
-        // Reactiva una membership finalizada (status 'active', ended_at null).
-        // Cubre studio-dashboard.js:961.
+        // Reactiva una membership PAUSADA (el guard vivo solo permite
+        // paused -> active; una finalizada se vuelve a invitar).
         resumeMembership(membershipId) {
-            return from('studio_artist_memberships').update({ status: 'active', ended_at: null }).eq('id', membershipId);
+            return from('studio_artist_memberships').update({ status: 'active', ended_at: null }).eq('id', membershipId).eq('status', 'paused');
+        },
+
+        // ── roster: pausa un vinculo activo (active -> paused, permitido por el guard).
+        pauseMembership(membershipId) {
+            return from('studio_artist_memberships').update({ status: 'paused' }).eq('id', membershipId).eq('status', 'active');
         },
 
         // Elimina (cancela) una membership/invitacion por id. Cubre
@@ -393,6 +506,96 @@
                 .eq('artist_user_id', artistUserId)
                 .eq('status', 'pending')
                 .order('created_at', { ascending: false });
+        },
+
+        // ===== roster · altas en dos sentidos (ROSTER-02/05/14) =====
+
+        // Solicitudes de alta pendientes del estudio ('requested', las pidio el
+        // artista: registro, enlace o desde su cuenta) con el detalle y el
+        // artista embebidos. La RLS deja leerlas al duenio y a soporte.
+        listRequestsForStudio(studioId) {
+            return from('studio_artist_memberships')
+                .select(`id, studio_id, artist_user_id, role, status, location_id, invited_at, initiated_by, ` +
+                    'request:studio_membership_request_details ( message, portfolio_url, proposed_start_date, styles, created_at ), ' +
+                    ARTIST_EMBED)
+                .eq('studio_id', studioId)
+                .eq('status', 'requested')
+                .order('invited_at', { ascending: false });
+        },
+
+        // El estudio (duenio o soporte) decide una solicitud: 'accept' | 'reject'
+        // (la RPC no acepta 'approve'); rol y sede opcionales al aprobar.
+        decideRequest(membershipId, decision, { role = null, locationId = null } = {}) {
+            return client().rpc('decide_studio_membership_request', {
+                p_membership_id: membershipId,
+                p_decision: decision,
+                p_role: role || null,
+                p_location_id: locationId || null,
+            });
+        },
+
+        // El artista pide sumarse a un estudio. Devuelve
+        // { membership_id, studio_has_owner }.
+        requestMembership({ studioId, role = 'resident', locationId = null, message = null, portfolioUrl = null, proposedStartDate = null } = {}) {
+            return client().rpc('request_studio_membership', {
+                p_studio_id: studioId,
+                p_role: role || 'resident',
+                p_location_id: locationId || null,
+                p_message: message || null,
+                p_portfolio_url: portfolioUrl || null,
+                p_proposed_start_date: proposedStartDate || null,
+            });
+        },
+
+        // El artista retira su solicitud (requested -> ended).
+        withdrawRequest(membershipId) {
+            return client().rpc('withdraw_studio_membership_request', { p_membership_id: membershipId });
+        },
+
+        // Solicitudes enviadas por el artista, pendientes, con estudio y sede.
+        listRequestsForArtist(artistUserId) {
+            return from('studio_artist_memberships')
+                .select('id, studio_id, role, status, location_id, invited_at, initiated_by, ' +
+                    'studios:studio_id ( id, slug, name, logo_image, cover_image, city, country ), ' +
+                    'location:location_id ( id, label, city, country, formatted_address ), ' +
+                    'request:studio_membership_request_details ( message, proposed_start_date )')
+                .eq('artist_user_id', artistUserId)
+                .eq('status', 'requested')
+                .order('invited_at', { ascending: false });
+        },
+
+        // Vinculos abiertos del artista (cualquier estado abierto), para saber
+        // si ya puede o no pedir el alta en un estudio.
+        listOpenForArtist(artistUserId) {
+            return from('studio_artist_memberships')
+                .select('id, studio_id, role, status, initiated_by, studios:studio_id ( id, name )')
+                .eq('artist_user_id', artistUserId)
+                .in('status', ['requested', 'pending_invite', 'pending_acceptance', 'active', 'paused']);
+        },
+
+        // Condiciones de una invitacion (E-TEAM-02/03).
+        getInvitationDetails(membershipId) {
+            return from('studio_membership_invitation_details')
+                .select('membership_id, message, proposed_start_date, proposed_end_date, duration_label, response_due_at, studio_provides, artist_expectations, requirements, benefits, contact_name, contact_email, contact_title')
+                .eq('membership_id', membershipId)
+                .maybeSingle();
+        },
+
+        // Upsert de las condiciones (RLS smid_studio_support_insert/update).
+        saveInvitationDetails(membershipId, details) {
+            return from('studio_membership_invitation_details')
+                .upsert({ ...details, membership_id: membershipId }, { onConflict: 'membership_id' });
+        },
+
+        // Sesiones futuras del artista en el estudio (aviso de E-TEAM-04).
+        listFutureBookingsForArtist(studioId, artistUserId) {
+            return from('studio_bookings')
+                .select('id, starts_at, status, client_name')
+                .eq('studio_id', studioId)
+                .eq('artist_user_id', artistUserId)
+                .gte('starts_at', new Date().toISOString())
+                .order('starts_at', { ascending: true })
+                .limit(20);
         },
     };
 
@@ -890,6 +1093,107 @@
                 .limit(limit);
         },
     };
+
+    Studios.PUBLIC_COLUMNS = PUBLIC_COLUMNS;
+    Studios.PRIVATE_COLUMNS = PRIVATE_COLUMNS;
+    Studios.SESSION_COLUMNS = SESSION_COLUMNS;
+    Studios.publicOnly = studioPublicOnly;
+    Studios.needsPrivate = studioNeedsPrivate;
+    // ===================== registro de estudios y sedes =====================
+    // Frente estudio-registro (beta cerrada, nov 2026). RPC del alta, de las
+    // coincidencias, del reclamo de fichas sin dueño y de las sedes. Mismo
+    // contrato que el resto del repo: devuelven { data, error } sin lanzar.
+    // Las que dependen de una migración opcional degradan con
+    // `unavailable: true` cuando la RPC o la tabla todavía no existen.
+    const REG_MISSING_SCHEMA = ['PGRST200', 'PGRST202', 'PGRST204', 'PGRST205', '42703', '42883', '42P01'];
+    const regRpc = (name, args) => client().rpc(name, args);
+    async function regSoft(run, empty) {
+        try {
+            const result = await run();
+            const code = result && result.error ? String(result.error.code || '') : '';
+            if (code && REG_MISSING_SCHEMA.includes(code)) return { data: empty, error: null, unavailable: true };
+            return result;
+        } catch (error) {
+            return { data: empty, error };
+        }
+    }
+    async function regSessionUserId() {
+        try {
+            const auth = client() && client().auth;
+            if (!auth || typeof auth.getSession !== 'function') return null;
+            const { data } = await auth.getSession();
+            return data && data.session && data.session.user ? data.session.user.id : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    Object.assign(Studios, {
+        // Alta transaccional del estudio y sus sedes (o alta con link ?alta=).
+        // p_profile lleva terms_accepted/terms_version (20261115210000).
+        completeRegistration(profile, locations) {
+            return regRpc('complete_studio_registration', { p_profile: profile, p_locations: locations });
+        },
+
+        // Estudios iguales (exact), parecidos (similar) o con el mismo Instagram.
+        // Cada fila trae owned, verified, artist_created y sedes activas.
+        findMatches(name, instagram) {
+            const text = String(name == null ? '' : name).trim();
+            const handle = String(instagram == null ? '' : instagram).trim();
+            if (text.length < 2 && !handle) return Promise.resolve({ data: [], error: null });
+            return regSoft(async () => {
+                const result = await regRpc('find_studio_matches', { p_name: text.length >= 2 ? text : null, p_instagram: handle || null });
+                return result && !result.error && !Array.isArray(result.data) ? { ...result, data: [] } : result;
+            }, []);
+        },
+
+        // Fichas del catálogo sin dueño (≥ 2 caracteres).
+        listUnownedStudios(query) {
+            const text = String(query == null ? '' : query).trim();
+            if (text.length < 2) return Promise.resolve({ data: [], error: null });
+            return regSoft(() => regRpc('list_unowned_studios', { p_query: text }), []);
+        },
+
+        // Reclamo de una ficha sin dueño con aceptación de Términos. Sin la
+        // migración de términos (sobrecarga de 5 argumentos) reintenta con la
+        // firma anterior para no bloquear el reclamo durante el deploy.
+        async requestClaim(studioId, evidence, contactName, contactPhone, termsVersion) {
+            const base = {
+                p_studio_id: studioId, p_evidence: evidence,
+                p_contact_name: contactName || null, p_contact_phone: contactPhone || null
+            };
+            const result = await regRpc('request_studio_claim', { ...base, p_terms_version: termsVersion || null });
+            const code = result && result.error ? String(result.error.code || '') : '';
+            if (termsVersion && (code === 'PGRST202' || code === '42883')) return regRpc('request_studio_claim', base);
+            return result;
+        },
+
+        // Último reclamo de la cuenta (la RLS deja ver todo a soporte: se filtra por uid).
+        async getMyClaim() {
+            const uid = await regSessionUserId();
+            if (!uid) return { data: null, error: null };
+            return regSoft(() => from('studio_claim_requests')
+                .select('id, studio_id, user_id, status, evidence, contact_name, contact_phone, created_at, decided_at, decision_note, studios:studio_id ( id, name, slug, city, country, logo_image )')
+                .eq('user_id', uid)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle(), null);
+        },
+    });
+
+    Object.assign(StudioLocations, {
+        // Crea o edita una sede (RPC dueño: principal única, principal activa,
+        // geocoded_at solo con coordenadas). locationId null = sede nueva.
+        save(studioId, locationId, payload) {
+            return regRpc('save_studio_location', { p_studio_id: studioId, p_location_id: locationId || null, p_location: payload });
+        },
+
+        // Borra una sede (la RPC impide borrar la última sede activa). Las FK de
+        // membresías, spots y reservas quedan en NULL.
+        remove(studioId, locationId) {
+            return regRpc('remove_studio_location', { p_studio_id: studioId, p_location_id: locationId });
+        },
+    });
 
     D.Studios = Studios;
     D.StudioLocations = StudioLocations;

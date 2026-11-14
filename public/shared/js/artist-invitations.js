@@ -32,6 +32,9 @@
         detailTab: 'roster',
         current: null,
         returnFocus: null,
+        // ── roster: solicitudes de alta enviadas por el artista (ROSTER-02/14).
+        requests: [],
+        client: null,
     };
 
     /* ----------------------------- utilidades ----------------------------- */
@@ -154,6 +157,7 @@
             return;
         }
         state.userId = session.user.id;
+        state.client = client;
         document.getElementById('auth-logout')?.classList.remove('hidden');
         wireLogout(client);
         window.addEventListener('popstate', () => route({ fromHistory: true }));
@@ -210,14 +214,17 @@
         const safe = async (fn) => {
             try { return (await fn()) || { data: [], error: null }; } catch (error) { return { data: [], error }; }
         };
-        const [pending, active, rejected, contacts, changes] = await Promise.all([
+        const [pending, active, rejected, contacts, changes, requests] = await Promise.all([
             safe(() => repo.listPendingForArtist(state.userId)),
             safe(() => repo.listActiveForArtist(state.userId)),
             safe(() => (typeof repo.listRejectedForArtist === 'function' ? repo.listRejectedForArtist(state.userId) : null)),
             safe(() => (D.Invitations ? D.Invitations.listStudioContacts() : null)),
             // ── integracion ── solicitudes de cambio abiertas (801:1101).
             safe(() => (typeof repo.listOpenChangeRequestsForArtist === 'function' ? repo.listOpenChangeRequestsForArtist(state.userId) : null)),
+            // ── roster: solicitudes de alta enviadas (pendientes del estudio).
+            safe(() => (typeof repo.listRequestsForArtist === 'function' ? repo.listRequestsForArtist(state.userId) : null)),
         ]);
+        state.requests = requests.error ? [] : (requests.data || []);
         const openChanges = changes.error || typeof M.openChangeRequests !== 'function' ? {} : M.openChangeRequests(changes.data || []);
         const firstError = pending.error || active.error || rejected.error;
         if (firstError) {
@@ -415,10 +422,58 @@
         return visible;
     }
 
+    // ── roster: bloque "Solicitudes enviadas" (status 'requested'): las ve el
+    // artista con la opción de retirarlas. Se muestra en Todas y Pendientes.
+    function visibleRequests() {
+        if (state.activeTab !== 'all' && state.activeTab !== 'pending') return [];
+        return state.requests.filter((row) => !state.searchTerm
+            || M.normalize(studioName(row)).includes(state.searchTerm)
+            || M.normalize(locationText(row)).includes(state.searchTerm));
+    }
+
+    function requestsBlockHtml() {
+        const rows = visibleRequests();
+        if (!rows.length) return '';
+        return `<section class="inv-requests" aria-labelledby="inv-requests-title">
+            <h2 class="inv-requests-title" id="inv-requests-title">Solicitudes enviadas · ${rows.length}</h2>
+            ${rows.map((row) => {
+                const role = { resident: 'Residente', guest: 'Guest', itinerant: 'Itinerante' }[row.role] || 'Artista';
+                const detail = (Array.isArray(row.request) ? row.request[0] : row.request) || {};
+                const meta = ['Solicitud de alta', role, locationOf(row).label || cityOf(row)].filter((v) => v && v !== PLACEHOLDER).join(' · ');
+                return `<article class="inv-row inv-row--request" data-request="${escapeHtml(row.id)}">
+                    <span class="inv-row-date">${escapeHtml(M.shortDate(row.invited_at).toUpperCase() || PLACEHOLDER)}</span>
+                    <h3 class="inv-row-name${studioName(row).length > 16 ? ' inv-row-name--long' : ''}">${escapeHtml(studioName(row))}</h3>
+                    <span class="inv-row-meta">${escapeHtml(meta)}</span>
+                    <p class="inv-row-quote">${detail.message ? `“${escapeHtml(detail.message)}”` : 'Esperando la respuesta del estudio.'}</p>
+                    <span class="inv-badge inv-badge--pending inv-row-badge">Enviada</span>
+                    <div class="inv-row-actions">
+                        ${studioOf(row).id ? `<a class="inv-btn inv-btn--row" href="${escapeHtml(hrefFor({ estudio: studioOf(row).id }))}" data-inv-nav="studio" data-studio="${escapeHtml(studioOf(row).id)}">Ver estudio</a>` : ''}
+                        <button type="button" class="inv-btn inv-btn--row" data-withdraw="${escapeHtml(row.id)}" aria-label="Retirar la solicitud a ${escapeHtml(studioName(row))}">Retirar</button>
+                    </div>
+                </article>`;
+            }).join('')}
+        </section>`;
+    }
+
+    function wireRequestActions(list) {
+        list.querySelectorAll('[data-withdraw]').forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.stopPropagation();
+                withdraw(button.dataset.withdraw, button);
+            });
+        });
+    }
+
     function renderList() {
         const list = document.getElementById('invitations-list');
         if (!list || !state.loaded) return;
         const visible = visibleItems();
+        const requestsHtml = requestsBlockHtml();
+        if (!visible.length && requestsHtml) {
+            list.innerHTML = requestsHtml;
+            wireRequestActions(list);
+            return;
+        }
         if (!visible.length) {
             const filtered = state.items.length > 0;
             list.innerHTML = `<div class="inv-empty"><strong>${filtered ? 'No hay invitaciones con estos filtros' : 'Todavía no hay invitaciones'}</strong><p>${filtered
@@ -437,9 +492,11 @@
         const renderByState = (item) => (item._state === 'active' ? renderMember(item)
             : item._state === 'rejected' ? renderRejected(item) : renderRow(item));
         list.innerHTML = [
+            requestsHtml,
             layout.feature ? renderFeature(layout.feature) : '',
             ...layout.items.map(renderByState),
         ].join('');
+        wireRequestActions(list);
         list.querySelectorAll('[data-action]').forEach((button) => {
             button.addEventListener('click', (event) => {
                 event.stopPropagation();
@@ -766,11 +823,52 @@
         document.dispatchEvent(new CustomEvent('weotzi:invitation-response', {
             detail: { membershipId, action, studioId: studioOf(membership).id || null },
         }));
+        // ── roster (ROSTER-09/10): aviso al estudio y, si aceptó como residente,
+        // estudio + work_type + ubicación actual alineados (lo hace el servidor).
+        notifyStudio('invitation_response', membershipId);
         await load();
         const updated = findItem(membershipId) || { ...membership, _state: action === 'accept' ? 'active' : 'rejected' };
         navigate({}, { replace: !!params().get('invitacion') });
         if (action === 'accept') showAcceptedDrawer(updated, trigger);
         else showRejectedDrawer(updated, trigger);
+    }
+
+    // ── roster: llamadas al servidor con la sesión del artista. Nunca lanzan:
+    // la acción ya quedó guardada por la RPC.
+    async function serverPost(path, body) {
+        try {
+            const { data } = state.client ? await state.client.auth.getSession() : { data: null };
+            const token = data && data.session && data.session.access_token;
+            if (!token) return null;
+            const response = await fetch(appUrl(path), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                body: JSON.stringify(body || {}),
+            });
+            return response.json().catch(() => null);
+        } catch (error) {
+            console.warn('[invitaciones] ' + path + ':', error);
+            return null;
+        }
+    }
+
+    function notifyStudio(kind, membershipId) {
+        return serverPost('/api/artist/studio-notify', { kind, membership_id: membershipId });
+    }
+
+    async function withdraw(membershipId, trigger) {
+        const row = state.requests.find((r) => String(r.id) === String(membershipId));
+        if (!window.confirm(`¿Retirar tu solicitud a ${studioName(row)}?`)) return;
+        setBusy(trigger, true);
+        let result;
+        try { result = await D.StudioMemberships.withdrawRequest(membershipId); } catch (error) { result = { error }; }
+        setBusy(trigger, false);
+        if (result && result.error) { showInlineError(trigger, result.error.message || 'No pudimos retirar la solicitud.'); return; }
+        await load();
+    }
+
+    function requestForStudio(studioId) {
+        return state.requests.find((row) => String(studioOf(row).id || row.studio_id) === String(studioId)) || null;
     }
 
     async function leave(membershipId, trigger) {
@@ -944,6 +1042,10 @@
         refreshContacts,
         membershipForStudio,
         contactForStudio,
+        // ── roster
+        requestForStudio,
+        notifyStudio,
+        reload: load,
         getItems: () => state.items.slice(),
         getContacts: () => state.contacts.slice(),
         get userId() { return state.userId; },

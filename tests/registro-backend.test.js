@@ -34,7 +34,8 @@ function fakeRest(handler) {
 test('server.js ya no usa on_conflict contra el indice parcial de membresias', () => {
     const src = read('server.js');
     assert.doesNotMatch(src, /studio_artist_memberships\?on_conflict=/);
-    assert.match(src, /registrationFinalize\.upsertOpenStudioMembership\(/);
+    // ── roster: se inyecta en lib/roster-service.js (persistRegistrationMembership).
+    assert.match(src, /upsertOpenStudioMembership: registrationFinalize\.upsertOpenStudioMembership/);
     assert.match(src, /registrationFinalize\.compensateFailedFinalize\(/);
 });
 
@@ -104,6 +105,7 @@ test('compensacion: la fila vuelve a borrador ANTES de borrar el usuario de Auth
     });
     assert.deepEqual(result.failed, []);
     assert.deepEqual(order, [
+        'DELETE studio_invite_link_uses',
         'DELETE studio_artist_memberships',
         'DELETE artist_tattoo_locations',
         'PATCH artists_db',

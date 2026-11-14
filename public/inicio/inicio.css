@@ -50,6 +50,15 @@ body.wo-app *,body.wo-app *::before,body.wo-app *::after { box-sizing:border-box
 .inicio-main:has(.inicio-radio[value="artist"]:checked) .inicio-actions-group[data-for="artist"],
 .inicio-main:has(.inicio-radio[value="client"]:checked) .inicio-actions-group[data-for="client"],
 .inicio-main:has(.inicio-radio[value="studio"]:checked) .inicio-actions-group[data-for="studio"] { display:flex; animation:inicio-actions-in var(--duration-fast) var(--ease-standard) both; }
+/* Respaldo sin :has() (navegadores viejos): inicio.js marca data-selected. */
+.inicio-actions[data-selected="artist"],.inicio-actions[data-selected="client"],.inicio-actions[data-selected="studio"] { display:flex; }
+.inicio-actions[data-selected="artist"] .inicio-actions-group[data-for="artist"],
+.inicio-actions[data-selected="client"] .inicio-actions-group[data-for="client"],
+.inicio-actions[data-selected="studio"] .inicio-actions-group[data-for="studio"] { display:flex; }
+/* acceso (ACC-14): cuenta de cliente (login y registro) como enlaces secundarios. */
+.inicio-account-links { flex:1 0 100%; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:var(--space-2); margin:0; font-size:14px; line-height:1.4; color:var(--text-muted); }
+.inicio-account-links a { display:inline-flex; align-items:center; min-height:44px; padding:0 var(--space-1); color:var(--text-heading); font-weight:var(--weight-bold); text-decoration:underline; text-underline-offset:.2em; }
+.inicio-account-links a:hover { color:var(--red-700); }
 .inicio-action.wo-btn { min-width:200px; height:52px; min-height:52px; gap:var(--space-2); }
 .inicio-action [data-wo-icon],.inicio-action svg { width:18px; height:18px; }
 /* Los enlaces de .wo-app son azules: el botón conserva el color del DS. */
@@ -96,6 +105,9 @@ body.wo-app *,body.wo-app *::before,body.wo-app *::after { box-sizing:border-box
     .inicio-actions { padding:var(--space-3) 0; }
     .inicio-actions-group { width:100%; flex-wrap:nowrap; gap:var(--space-2); }
     .inicio-action.wo-btn { flex:1 1 0; min-width:0; height:auto; padding:var(--space-3); white-space:normal; text-align:center; }
+    /* acceso (ACC-14): el grupo de cliente suma una fila de enlaces (100%): sin
+       wrap desbordaba en horizontal. Los dos botones siguen en una fila. */
+    .inicio-actions-group[data-for="client"] { flex-wrap:wrap; row-gap:0; }
     .inicio-note { padding-bottom:var(--space-6); }
 }
 /* Revisión 12/11 (p. 3): entradas sutiles al cargar (marca, título, tarjetas

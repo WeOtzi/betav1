@@ -13,7 +13,7 @@ const oauth = require('../lib/gcal-oauth');
 const sync = require('../lib/gcal-sync');
 
 const ROOT = path.join(__dirname, '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n'); // CRLF del checkout en Windows
 
 const KEY_B64 = Buffer.alloc(32, 7).toString('base64');
 const ENV = {
@@ -49,11 +49,19 @@ function memoryDb(seed = {}) {
         async listActiveConnections() { return [...state.connections.values()].filter((c) => !c.needs_reauth).map((c) => ({ user_id: c.user_id })); },
         async saveConnection(row) { state.connections.set(row.user_id, { ...(state.connections.get(row.user_id) || {}), ...row }); },
         async updateConnection(uid, patch) { if (state.connections.has(uid)) state.connections.set(uid, { ...state.connections.get(uid), ...patch }); },
+        // 20261115150000: los vínculos ya no caen en cascada con la conexión.
         async deleteConnection(uid) {
             state.connections.delete(uid);
-            [...state.links.keys()].filter((k) => k.startsWith(`${uid}|`)).forEach((k) => state.links.delete(k));
             state.busy.delete(uid);
         },
+        async deleteAllLinks(uid) {
+            [...state.links.keys()].filter((k) => k.startsWith(`${uid}|`)).forEach((k) => state.links.delete(k));
+        },
+        async getManualEventsByIds(uid, ids) { return state.manual.filter((r) => ids.includes(String(r.id))); },
+        async getSessionsByIds(uid, ids) { return state.sessions.filter((r) => ids.includes(String(r.session.id))); },
+        async getTripsByIds(uid, ids) { return state.trips.filter((r) => ids.includes(String(r.id))); },
+        async listDirtyConnections() { return [...state.connections.values()].filter((c) => c.dirty_at && !c.needs_reauth).map((c) => ({ user_id: c.user_id, dirty_at: c.dirty_at })); },
+        async clearDirty(uid, at) { const c = state.connections.get(uid); if (c && c.dirty_at === at) c.dirty_at = null; },
         async listLinks(uid) { return [...state.links.entries()].filter(([k]) => k.startsWith(`${uid}|`)).map(([, v]) => ({ ...v })); },
         async upsertLink(row) { state.links.set(`${row.user_id}|${row.source_key}`, { ...row }); },
         async deleteLink(uid, key) { state.links.delete(`${uid}|${key}`); },
@@ -75,6 +83,7 @@ function fakeGoogle(opts = {}) {
     const g = {
         calls,
         events: new Map(),
+        tomb: new Set(), // borrados: Google los guarda cancelados (id ocupado)
         async exchangeCode(code, verifier) {
             calls.push(['exchange', code, verifier]);
             if (opts.exchangeError) throw new oauth.GcalError('invalid_grant', 'x', 400);
@@ -94,18 +103,25 @@ function fakeGoogle(opts = {}) {
         async revoke(token) { calls.push(['revoke', token]); return true; },
         async insertEvent(token, cal, body) {
             n += 1;
-            const id = `g${n}`;
-            g.events.set(id, body);
+            const id = body.id || `g${n}`;
+            if (body.id && (g.events.has(id) || g.tomb.has(id))) {
+                calls.push(['conflict', id]);
+                throw new oauth.GcalError('duplicate', 'x', 409);
+            }
+            const stored = { ...body };
+            delete stored.id;
+            g.events.set(id, stored);
             calls.push(['insert', id, body.extendedProperties.private.weotzi_source]);
             return { id };
         },
         async updateEvent(token, cal, id, body) {
             calls.push(['update', id]);
+            if (g.tomb.has(id)) { g.tomb.delete(id); g.events.set(id, body); return { id }; }
             if (!g.events.has(id)) throw new oauth.GcalError('notFound', 'x', 404);
             g.events.set(id, body);
             return { id };
         },
-        async deleteEvent(token, cal, id) { calls.push(['delete', id]); g.events.delete(id); },
+        async deleteEvent(token, cal, id) { calls.push(['delete', id]); if (g.events.delete(id)) g.tomb.add(id); },
         async listEvents() {
             calls.push(['list']);
             return {
@@ -432,21 +448,23 @@ test('syncUser: invalid_grant marca needs_reauth y el job lo saltea', async () =
     assert.ok(svc);
 });
 
-test('requestSync: freno de 20 s por artista', async () => {
+test('requestSync: freno de 20 s por artista (el pedido frenado queda agendado)', async () => {
     const { svc } = await connected({});
     const first = await svc.requestSync(USER);
     assert.ok(first.pushed);
-    assert.deepEqual(await svc.requestSync(USER), { throttled: true });
+    assert.deepEqual(await svc.requestSync(USER), { throttled: true, scheduled: true });
+    svc.dispose();
 });
 
-test('disconnect: revoca el token descifrado en Google y borra en cascada', async () => {
+test('disconnect: revoca el token descifrado en Google y conserva los vínculos (CAL-13)', async () => {
     const { db, google, svc } = await connected({ manual: [{ ...MANUAL[1] }] });
     await svc.syncUser(USER);
     const res = await svc.disconnect(USER);
     assert.deepEqual(res, { disconnected: true, revoked: true, hadConnection: true });
     assert.deepEqual(google.calls.filter((c) => c[0] === 'revoke').at(-1), ['revoke', '1//REFRESH-SECRETO']);
     assert.equal(db.state.connections.size, 0);
-    assert.equal(db.state.links.size, 0);
+    assert.equal(db.state.links.size, 1, 'los vínculos sobreviven: reconectar no duplica');
+    assert.equal(google.events.size, 1, 'sin removeEvents los eventos quedan en Google');
     assert.equal(db.state.busy.has(USER), false);
     assert.equal(db.state.integration.at(-1).status, 'disconnected');
     assert.deepEqual(await svc.status(USER), { connected: false });
@@ -500,7 +518,7 @@ test('UI: Cuenta usa el estado real y el calendario no muestra ocupados de Googl
     assert.match(html, /id="av-sync-error" role="alert"/);
     const js = read('public/shared/js/artist-account.js');
     assert.match(js, /D\.GoogleCalendar\.authorizeUrl\(\)/);
-    assert.match(js, /D\.GoogleCalendar\.disconnect\(\)/);
+    assert.match(js, /D\.GoogleCalendar\.disconnect\(\{ removeEvents \}\)/);
     assert.ok(!js.includes('AccountIntegrations.save'), 'ya no graba el pedido pending');
     assert.match(js, /split\('\?'\)\[0\]/, '#disponibilidad?gcal=ok abre Disponibilidad');
     const repo = read('public/shared/js/data/calendar-repo.js');
@@ -584,4 +602,27 @@ test('travel-repo pide sincronizar con Google tras escribir un viaje', () => {
     assert.ok(repo.includes('D.GoogleCalendar?.syncSoon?.()'));
     assert.ok(read('public/artist/travel/index.html').includes('google-calendar-repo.js'));
     assert.ok(read('lib/repos/google-calendar.js').includes('listTrips(userId, sinceDate)'));
+});
+
+test('2.2.15: si no se puede guardar el vínculo, borra el evento recién creado en Google (sin duplicados)', async () => {
+    const trips = [{ id: 'trip-1', trip_type: 'convencion', status: 'planificado', city: 'Caracas', event_name: 'God of Ink', start_date: '2026-11-14', end_date: '2026-11-16' }];
+    const { db, google, svc } = await connected({ trips });
+    const upsert = db.upsertLink;
+    db.upsertLink = async () => { throw Object.assign(new Error('check violation'), { code: '23514' }); };
+    const r1 = await svc.syncUser(USER);
+    assert.equal(r1.pushed.failed, 1);
+    assert.equal(google.events.size, 0, 'el evento huérfano se borró de Google');
+    db.upsertLink = upsert;
+    const r2 = await svc.syncUser(USER);
+    assert.equal(r2.pushed.created, 1);
+    assert.equal(google.events.size, 1);
+    await svc.syncUser(USER);
+    assert.equal(google.events.size, 1, 'no vuelve a crearlo');
+});
+
+test('migración 20261114120000: vínculos aceptan trip:', () => {
+    const sql = read('supabase/migrations/20261114120000_gcal_links_trips.sql');
+    assert.ok(sql.includes("'^(event|session|trip):[A-Za-z0-9-]{1,64}$'"));
+    const down = read('supabase/rollbacks/20261114120000_gcal_links_trips.down.sql');
+    assert.ok(down.includes("delete from public.artist_google_calendar_event_links where source_key like 'trip:%'"));
 });

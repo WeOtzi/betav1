@@ -1,0 +1,67 @@
+/* ==========================================================================
+   We Ötzi · Propuesta del artista en el panel del cliente (cot-cliente)
+   Bloque generado por client-quote-proposal.js dentro del detalle de la
+   cotización (#quote-proposal-slot) + estados nuevos de las cards.
+   Lenguaje del DS Bauhaus (tokens en ds/tokens.css): bordes duros, mono para
+   etiquetas, acento para la acción principal.
+   ========================================================================== */
+
+/* Estados que faltaban (CC-13) */
+.quotation-status.draft,
+.quotation-status.expired{background:var(--neutral-200);color:var(--neutral-500)}
+.quotation-status.cancelled{background:var(--status-error-bg);color:var(--status-error-fg)}
+
+.quotation-detail-status{margin:0 0 var(--space-5)}
+
+/* Línea de propuesta en la card del listado */
+.quotation-proposal-line{margin:0;padding:0 var(--space-6) var(--space-4);font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body);overflow-wrap:anywhere}
+.quotation-proposal-line strong{font-family:var(--font-mono);font-weight:var(--weight-bold)}
+.quotation-proposal-cta{font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-accent)}
+.quotation-footer{flex-wrap:wrap}
+
+/* Aviso de borradores sin enviar */
+.client-drafts-notice{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-4);padding:var(--space-4) var(--space-5);border:var(--border-hairline) dashed var(--border-strong);background:var(--surface-panel)}
+.client-drafts-notice p{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body);flex:1 1 220px}
+
+/* Bloque de propuesta */
+.cqp{border:var(--border-strong-width) solid var(--border-strong);background:var(--surface-card);padding:var(--space-5)}
+.cqp .detail-section-title{margin-bottom:var(--space-3)}
+.cqp-summary{display:grid;grid-template-columns:1fr;gap:0;margin:0}
+.cqp-row{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-4);padding:var(--space-2) 0;border-bottom:var(--border-hairline) solid var(--border-subtle)}
+.cqp-row:last-child{border-bottom:0}
+.cqp-row dt{font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-faint);margin:0}
+.cqp-row dd{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body);text-align:right;overflow-wrap:anywhere;min-width:0}
+.cqp-row--total dd{font-family:var(--font-mono);font-size:var(--body-m-size);font-weight:var(--weight-bold);color:var(--text-heading)}
+.cqp-row--paid dd{color:var(--status-success-fg)}
+.cqp-row--partial dd,.cqp-row--pending dd{color:var(--status-warning-fg)}
+.cqp-comment{margin:var(--space-3) 0 0;padding:var(--space-3) var(--space-4);background:var(--surface-panel);font-size:var(--body-s-size);line-height:var(--body-s-lh);white-space:pre-line;overflow-wrap:anywhere}
+.cqp-subtitle{font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted);margin:var(--space-5) 0 var(--space-2)}
+.cqp-items{list-style:none;margin:0;padding:0}
+.cqp-items li{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-4);padding:var(--space-2) 0;border-bottom:var(--border-hairline) solid var(--border-subtle);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.cqp-item-name{min-width:0;overflow-wrap:anywhere}
+.cqp-item-name small{display:block;color:var(--text-muted);font-size:var(--meta-m-size)}
+.cqp-item-total{font-family:var(--font-mono);white-space:nowrap}
+.cqp-summary--totals{margin-top:var(--space-2)}
+.cqp-note{margin:var(--space-4) 0 0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted)}
+.cqp-terms p{margin:0 0 var(--space-2);font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body)}
+.cqp-pre{white-space:pre-line;overflow-wrap:anywhere}
+
+/* Decisión */
+.cqp-decision{margin-top:var(--space-5);padding-top:var(--space-4);border-top:var(--border-strong-width) solid var(--border-strong)}
+.cqp-decision-copy,.cqp-confirm-copy{margin:0 0 var(--space-3);font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body)}
+.cqp-decision-actions{display:flex;flex-wrap:wrap;gap:var(--space-3);margin-top:var(--space-3)}
+.cqp-decision-actions[hidden],.cqp-confirm[hidden]{display:none}
+.cqp-confirm .wo-textarea{min-height:88px}
+.cqp-decision .wo-btn:focus-visible,.cqp-confirm .wo-textarea:focus-visible{outline:2px solid var(--border-focus);outline-offset:2px}
+.cqp-feedback{margin:var(--space-3) 0 0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted);min-height:0}
+.cqp-feedback:empty{display:none}
+.cqp-feedback.is-error{color:var(--text-danger)}
+.cqp-feedback.is-success{color:var(--status-success-fg);font-weight:var(--weight-semibold)}
+
+@media (max-width:480px){
+  .cqp{padding:var(--space-4)}
+  .cqp-row{flex-direction:column;align-items:flex-start;gap:var(--space-1)}
+  .cqp-row dd{text-align:left}
+  .cqp-decision-actions .wo-btn{flex:1 1 100%;justify-content:center}
+  .client-drafts-notice .wo-btn{width:100%;justify-content:center}
+}

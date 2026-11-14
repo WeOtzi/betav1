@@ -10,7 +10,7 @@
 (function () {
     'use strict';
 
-    var state = { artist: null, panel: null, dest: 'profile', qr: null };
+    var state = { artist: null, panel: null, dest: 'profile', qr: null, cardBlob: null, cardBlobUrl: '' };
     var els = {};
     // Canvas/SVG no leen custom properties: se resuelven los tokens del DS al
     // generar (los literales son solo respaldo si tokens.css no cargó).
@@ -64,16 +64,65 @@
     function base() {
         return window.location.origin + String(window.WEOTZI_BASE_PATH || '').replace(/\/$/, '');
     }
-    // URL pública real (parámetro ?artist= de /artist/profile). La galería es el
-    // bloque #block-gallery del mismo perfil (la ruta de galería aparte se elimina).
+    // URL pública: la corta (beta.weotzi.com/<handle>, artist-public-url.js) o,
+    // si el handle no admite URL corta, /artist/profile?artist=. La galería es
+    // el bloque #block-gallery del mismo perfil (la ruta aparte se eliminó).
     function shareUrl(dest) {
         var u = username();
         if (!u) return '';
+        var hash = dest === 'gallery' ? 'block-gallery' : '';
+        if (window.WoArtistPublicUrl) return window.WoArtistPublicUrl.publicProfileUrl(u, base(), { hash: hash });
+        // Turnos (frente turnos): página pública /turnos con los turnos libres.
+        if (dest === 'turnos') return base() + '/turnos?artist=' + encodeURIComponent(u);
         var url = base() + '/artist/profile?artist=' + encodeURIComponent(u);
-        return dest === 'gallery' ? url + '#block-gallery' : url;
+        return hash ? url + '#' + hash : url;
+    }
+
+    /* ------------------- onboarding: paso "Compartí tu perfil" ------------------- */
+    // Auditoría PP-07: copiar marca 'compartir.enlace'; compartir por una red,
+    // el menú nativo o descargar la tarjeta marca 'compartir'. Una vez por id.
+    var acked = {};
+    function appPath(p) {
+        if (window.WoDemo && typeof window.WoDemo.appPath === 'function') {
+            try { return window.WoDemo.appPath(p); } catch (e) { /* respaldo local */ }
+        }
+        return String(window.WEOTZI_BASE_PATH || '').replace(/\/$/, '') + p;
+    }
+    function accessToken() {
+        var client = (window.ConfigManager && typeof window.ConfigManager.getSupabaseClient === 'function' && window.ConfigManager.getSupabaseClient()) || window._supabase;
+        if (!client || !client.auth || typeof client.auth.getSession !== 'function') return Promise.resolve(null);
+        return Promise.resolve(client.auth.getSession()).then(function (r) {
+            return (r && r.data && r.data.session && r.data.session.access_token) || null;
+        }).catch(function () { return null; });
+    }
+    function ack(id) {
+        if (acked[id]) return;
+        acked[id] = true;
+        var body = { assisted: { acknowledge: id } };
+        var done = function () {
+            try { document.dispatchEvent(new CustomEvent('wo:assist-refresh', { detail: { section: 'compartir' } })); } catch (e) { /* noop */ }
+        };
+        var fail = function () { acked[id] = false; };
+        if (window.WoDemo && typeof window.WoDemo.api === 'function') {
+            Promise.resolve().then(function () { return window.WoDemo.api('/api/artist/onboarding', { method: 'POST', body: body }); })
+                .then(done, fail);
+            return;
+        }
+        accessToken().then(function (token) {
+            if (!token) throw new Error('Sin sesión');
+            return fetch(appPath('/api/artist/onboarding'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                body: JSON.stringify(body)
+            });
+        }).then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); done(); }).catch(fail);
+    }
+    function isTouch() {
+        try { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) { return false; }
     }
     function prettyUrl(url) { return String(url || '').replace(/^https?:\/\//, ''); }
     function shareText(dest) {
+        if (dest === 'turnos') return 'Elegí uno de mis turnos disponibles y pedime tu cotización en We Ötzi';
         return dest === 'gallery'
             ? 'Mirá mi galería de trabajos en We Ötzi'
             : 'Mirá mi perfil de artista en We Ötzi';
@@ -105,6 +154,7 @@
         var url = shareUrl(state.dest);
         return copy(url).then(function () {
             toast('Enlace copiado.');
+            ack('compartir.enlace');
             if (btn && okLabel) {
                 var original = btn.getAttribute('data-label') || btn.textContent;
                 btn.setAttribute('data-label', original);
@@ -123,13 +173,27 @@
             return copy(url).then(function () { toast('Tu navegador no comparte directo: copiamos el enlace.'); })
                 .catch(function () { toast('No pudimos compartir el enlace.', 'error'); });
         }
-        var withFile = withCard ? cardBlob().then(function (blob) {
-            var file = new File([blob], fileName('png'), { type: 'image/png' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) data.files = [file];
-            return data;
-        }).catch(function () { return data; }) : Promise.resolve(data);
-        return withFile.then(function (payload) { return navigator.share(payload); })
+        // Auditoría PP-08: navigator.share se llama en el mismo click (Safari iOS
+        // descarta el gesto si antes se espera una promesa). La tarjeta va solo
+        // si ya está generada (paintQr la prepara al abrir el panel QR).
+        if (withCard && state.cardBlob && state.cardBlobUrl === url) {
+            try {
+                var file = new File([state.cardBlob], fileName('png'), { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) data.files = [file];
+            } catch (e) { /* sin archivo */ }
+        }
+        return navigator.share(data).then(function () { ack('compartir'); })
             .catch(function (e) { if (e && e.name !== 'AbortError') toast('No pudimos compartir.', 'error'); });
+    }
+
+    // Prepara la tarjeta en PNG apenas se pinta el QR, para compartirla sin esperas.
+    function prepareCardBlob() {
+        var url = shareUrl(state.dest);
+        state.cardBlob = null;
+        state.cardBlobUrl = url;
+        cardBlob().then(function (blob) {
+            if (state.cardBlobUrl === url) state.cardBlob = blob;
+        }).catch(function () { /* se comparte sin archivo */ });
     }
 
     /* ------------------------------- QR ------------------------------- */
@@ -159,7 +223,7 @@
         }
     }
     function fileName(ext) {
-        return 'tarjeta-qr-' + (username() || 'perfil').replace(/[^a-z0-9._-]/gi, '') + (state.dest === 'gallery' ? '-galeria' : '') + '.' + ext;
+        return 'tarjeta-qr-' + (username() || 'perfil').replace(/[^a-z0-9._-]/gi, '') + (state.dest === 'gallery' ? '-galeria' : state.dest === 'turnos' ? '-turnos' : '') + '.' + ext;
     }
     // Tarjeta completa (QR + marcas Bauhaus + WE ÖTZI + URL) como en el Figma.
     function cardCanvas() {
@@ -204,7 +268,7 @@
         document.body.appendChild(a); a.click(); a.remove();
     }
     function downloadPng() {
-        try { download(cardCanvas().toDataURL('image/png'), fileName('png')); toast('Descargamos tu tarjeta QR.'); }
+        try { download(cardCanvas().toDataURL('image/png'), fileName('png')); toast('Descargamos tu tarjeta QR.'); ack('compartir'); }
         catch (e) { toast(e.message || 'No pudimos generar la tarjeta.', 'error'); }
     }
     function downloadSvg() {
@@ -231,16 +295,17 @@
         download(href, fileName('svg'));
         setTimeout(function () { URL.revokeObjectURL(href); }, 1500);
         toast('Descargamos tu tarjeta QR en SVG.');
+        ack('compartir');
     }
 
     /* ------------------------------ render ------------------------------ */
     function tabsHtml() {
         return '<p class="wod-label">QUÉ QUERÉS COMPARTIR</p>' +
-            '<div class="wod-seg wod-seg--2 wod-share-tabs" role="tablist">' +
-                ['profile', 'gallery'].map(function (d) {
+            '<div class="wod-seg wod-seg--3 wod-share-tabs" role="tablist">' +
+                ['profile', 'gallery', 'turnos'].map(function (d) {
                     var on = state.dest === d;
                     return '<button type="button" role="tab" aria-selected="' + on + '" class="wod-seg-btn' + (on ? ' is-on' : '') + '" data-dest="' + d + '">' +
-                        (d === 'profile' ? 'PERFIL' : 'GALERÍA') + '</button>';
+                        (d === 'profile' ? 'PERFIL' : d === 'gallery' ? 'GALERÍA' : 'TURNOS') + '</button>';
                 }).join('') +
             '</div>';
     }
@@ -256,7 +321,7 @@
                 '<div class="wod-share-card-body">' +
                     '<span class="wod-share-avatar">' + (pic ? '<img src="' + esc(pic) + '" alt="">' : esc(initials())) + '</span>' +
                     '<span class="wod-share-id"><strong>' + esc(displayName()) + '</strong>' +
-                    '<small>' + esc(prettyUrl(url)) + ' · ' + (state.dest === 'gallery' ? 'Galería' : 'Perfil público') + '</small></span>' +
+                    '<small>' + esc(prettyUrl(url)) + ' · ' + (state.dest === 'gallery' ? 'Galería' : state.dest === 'turnos' ? 'Turnos disponibles' : 'Perfil público') + '</small></span>' +
                 '</div>' +
             '</div>' +
             '<label class="wod-label wod-share-gap" for="wod-share-url">ENLACE PÚBLICO</label>' +
@@ -270,7 +335,32 @@
                 '<button type="button" class="wod-net" data-net="instagram">' + icon('instagram') + '<span>INSTAGRAM</span></button>' +
                 '<a class="wod-net" data-net="mail" href="#">' + icon('mail') + '<span>MAIL</span></a>' +
                 '<button type="button" class="wod-net" data-net="qr">' + icon('grid') + '<span>CÓDIGO QR</span></button>' +
+            '</div>' +
+            // Más redes (auditoría PP-16; el Figma 801:562 dibuja las cuatro de arriba).
+            '<p class="wod-label wod-share-gap2">MÁS REDES</p>' +
+            '<div class="wod-share-nets wod-share-nets--more">' +
+                netLink('facebook', 'facebook', 'FACEBOOK') +
+                netLink('x', 'twitter', 'X') +
+                netLink('telegram', 'send', 'TELEGRAM') +
+                netLink('linkedin', 'linkedin', 'LINKEDIN') +
             '</div>';
+    }
+
+    function netLink(net, ic, label) {
+        return '<a class="wod-net" data-net="' + net + '" href="#" target="_blank" rel="noopener noreferrer">' + icon(ic) + '<span>' + label + '</span></a>';
+    }
+
+    // Enlaces de cada red para compartir el perfil.
+    function networkUrls(url, text) {
+        var u = encodeURIComponent(url);
+        var t = encodeURIComponent(text);
+        return {
+            whatsapp: 'https://wa.me/?text=' + encodeURIComponent(text + ': ' + url),
+            facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + u,
+            x: 'https://twitter.com/intent/tweet?url=' + u + '&text=' + t,
+            telegram: 'https://t.me/share/url?url=' + u + '&text=' + t,
+            linkedin: 'https://www.linkedin.com/sharing/share-offsite/?url=' + u
+        };
     }
 
     function qrBodyHtml() {
@@ -334,6 +424,7 @@
             return;
         }
         drawQr(canvas, qr, 560);
+        prepareCardBlob();
     }
 
     function wire() {
@@ -355,19 +446,28 @@
         });
         var png = p.querySelector('[data-png]'); if (png) png.addEventListener('click', downloadPng);
         var svg = p.querySelector('[data-svg]'); if (svg) svg.addEventListener('click', downloadSvg);
-        var wa = p.querySelector('[data-net="whatsapp"]');
-        if (wa) wa.href = 'https://wa.me/?text=' + encodeURIComponent(shareText(state.dest) + ': ' + url);
+        var nets = networkUrls(url, shareText(state.dest));
+        ['whatsapp', 'facebook', 'x', 'telegram', 'linkedin'].forEach(function (net) {
+            var a = p.querySelector('[data-net="' + net + '"]');
+            if (!a) return;
+            a.href = nets[net];
+            a.addEventListener('click', function () { ack('compartir'); });
+        });
         var mail = p.querySelector('[data-net="mail"]');
         if (mail) mail.href = 'mailto:?subject=' + encodeURIComponent(displayName() + ' · We Ötzi') +
             '&body=' + encodeURIComponent(shareText(state.dest) + ':\n' + url);
         var ig = p.querySelector('[data-net="instagram"]');
         if (ig) ig.addEventListener('click', function () {
-            // Instagram no acepta enlaces por URL: copiamos y abrimos la app/web.
-            copy(url).then(function () {
+            ack('compartir');
+            // Teléfono: el menú nativo ofrece Instagram e Historias.
+            if (isTouch() && navigator.share) { nativeShare(false); return; }
+            // Instagram no acepta enlaces por URL: copiamos y abrimos Instagram
+            // en el mismo click (Safari bloquea window.open después de una promesa).
+            var pending = copy(url);
+            try { window.open('https://www.instagram.com/', '_blank', 'noopener'); } catch (e) { /* bloqueado */ }
+            pending.then(function () {
                 toast('Copiamos tu enlace: pegalo en tu bio o en una historia.');
-            }).catch(function () { /* igual abrimos Instagram */ }).then(function () {
-                window.open('https://www.instagram.com/', '_blank', 'noopener');
-            });
+            }).catch(function () { toast('Copiá el enlace y pegalo en Instagram.', 'error'); });
         });
         var qrBtn = p.querySelector('[data-net="qr"]');
         if (qrBtn) qrBtn.addEventListener('click', function () { open('qr', state.dest); });
@@ -382,7 +482,7 @@
         }
         if (trigger) els.trigger = trigger;
         state.panel = panel === 'qr' ? 'qr' : 'share';
-        state.dest = dest === 'gallery' ? 'gallery' : 'profile';
+        state.dest = dest === 'gallery' || dest === 'turnos' ? dest : 'profile';
         placeDrawer();
         render();
         els.scrim.hidden = false;
@@ -417,7 +517,7 @@
         var params = new URLSearchParams(window.location.search);
         var panel = params.get('panel');
         if (panel !== 'compartir' && panel !== 'qr') return;
-        open(panel === 'qr' ? 'qr' : 'share', params.get('destino') === 'galeria' ? 'gallery' : 'profile');
+        open(panel === 'qr' ? 'qr' : 'share', params.get('destino') === 'galeria' ? 'gallery' : params.get('destino') === 'turnos' ? 'turnos' : 'profile');
     }
 
     var booted = false;

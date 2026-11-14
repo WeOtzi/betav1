@@ -77,14 +77,16 @@ test('summary timeline maps statuses to NUEVA → REVISANDO → ACEPTADA → AGE
     assert.equal(VM.stageBadge({ quote_status: 'cancelled' }).label, 'Rechazada');
 });
 
-test('summary actions mirror the detail page (accept → responded / in_progress, reject → cancelled / client_rejected)', () => {
+test('summary actions mirror the detail page (accept → responded / in_progress, reject → cancelled)', () => {
     assert.deepEqual(VM.summaryActions({ quote_status: 'pending' }).accept.patch, { quote_status: 'responded' });
     assert.deepEqual(VM.summaryActions({ quote_status: 'pending' }).reject.patch, { quote_status: 'cancelled' });
-    assert.deepEqual(VM.summaryActions({ quote_status: 'responded' }).reject.patch, { quote_status: 'client_rejected' });
+    // COT-A-07: retirar una propuesta respondida la cancela (el cliente recibe aviso).
+    assert.deepEqual(VM.summaryActions({ quote_status: 'responded' }).reject.patch, { quote_status: 'cancelled' });
+    assert.equal(VM.summaryActions({ quote_status: 'responded' }).reject.label, 'Retirar propuesta');
     assert.equal(VM.summaryActions({ quote_status: 'responded' }).accept, null);
     assert.equal(VM.summaryActions({ quote_status: 'client_approved' }).accept.label, 'Iniciar trabajo');
     assert.ok(VM.summaryActions({ quote_status: 'completed', is_archived: true }).archived);
-    assert.deepEqual(VM.statusOptions('pending').map((o) => o.value), ['pending', 'responded', 'cancelled', 'expired']);
+    assert.deepEqual(VM.statusOptions('pending').map((o) => o.value), ['pending', 'responded', 'cancelled']);
     assert.deepEqual(VM.statusOptions('completed').map((o) => o.value), ['completed']);
 });
 

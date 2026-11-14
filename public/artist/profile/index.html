@@ -6,15 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
     <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
-    <title>We Ötzi · Perfil del artista</title>
+    <title>Perfil del artista · We Ötzi</title>
 
-    <meta name="description" content="Conocé el trabajo de este artista tatuador en We Ötzi">
-    <meta name="robots" id="profile-robots" content="index,follow">
+    <!-- Meta para compartir: el servidor los reescribe con los datos del artista
+         (lib/routes/perfil.js + lib/profile-meta.js). Por defecto, noindex: el
+         perfil solo se indexa si el artista lo permite en su privacidad. -->
+    <meta name="description" id="profile-description" content="Conocé el trabajo de este artista tatuador en We Ötzi y pedile una cotización.">
+    <meta name="robots" id="profile-robots" content="noindex,nofollow">
 
-    <meta property="og:type" content="profile">
-    <meta property="og:title" id="og-title" content="Artista en We Otzi">
-    <meta property="og:description" id="og-description" content="Conocé el trabajo de este artista tatuador">
-    <meta property="og:image" id="og-image" content="">
+    <meta property="og:type" id="og-type" content="profile">
+    <meta property="og:site_name" id="og-site-name" content="We Ötzi">
+    <meta property="og:locale" id="og-locale" content="es_AR">
+    <meta property="og:title" id="og-title" content="Perfil del artista · We Ötzi">
+    <meta property="og:description" id="og-description" content="Conocé el trabajo de este artista tatuador en We Ötzi y pedile una cotización.">
+    <meta name="twitter:card" id="twitter-card" content="summary_large_image">
+    <meta name="twitter:title" id="twitter-title" content="Perfil del artista · We Ötzi">
+    <meta name="twitter:description" id="twitter-description" content="Conocé el trabajo de este artista tatuador en We Ötzi y pedile una cotización.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,6 +31,8 @@
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/artist-profile.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
+    <link rel="stylesheet" href="/shared/css/wo-share-sheet.css">
+    <link rel="stylesheet" href="/shared/css/booking.css?v=20261115-turnos">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
@@ -47,14 +56,44 @@
 <body class="wo-app public-profile-view">
     <a class="skip-link" href="#profile-content">Saltar al contenido</a>
 
-    <weotzi-product-nav
-        active="quotations"
-        menu-toggle-id="profile-product-menu-toggle"
-        menu-id="profile-product-mobile-menu"
-        profile-label="Centro de la cuenta"
-        logout-handler="handleProfileLogout"
-        dashboard-extras>
-    </weotzi-product-nav>
+    <!-- Barra superior según quién mira (auditoría PP-03): por defecto la
+         pública; artist-profile.js la cambia por la del artista (Figma 801:1108,
+         vista del dueño) o la del cliente si hay sesión. -->
+    <div class="profile-topbar-slot" id="profile-topbar">
+        <header class="wo-topbar profile-public-topbar">
+            <div class="wo-topbar-left">
+                <a href="/inicio" class="wo-topbar-brand">
+                    <span class="wo-o-tile" aria-hidden="true">Ö</span>
+                    WE ÖTZI
+                </a>
+                <nav class="wo-topbar-nav" aria-label="Navegación principal">
+                    <a href="/marketplace" class="wo-topbar-item">Marketplace</a>
+                    <a href="/explore" class="wo-topbar-item">Mapa</a>
+                    <a href="/studio/login" class="wo-topbar-item">Estudios</a>
+                </nav>
+            </div>
+            <div class="wo-topbar-right">
+                <a href="/client/login" class="wo-topbar-item profile-topbar-login">Ingresar</a>
+                <a href="/quotation" class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard profile-topbar-cta" id="profile-topbar-cta">Cotizá &rarr;</a>
+            </div>
+        </header>
+    </div>
+
+    <!-- Franja del dueño (PP-09): solo cuando el artista mira su propio perfil. -->
+    <aside class="profile-owner-bar" id="profile-owner-bar" aria-label="Tu perfil público" hidden>
+        <div class="profile-owner-bar-inner">
+            <p class="profile-owner-bar-text">
+                <span class="profile-owner-bar-dot" aria-hidden="true"></span>
+                Estás viendo tu perfil público, como lo ven tus clientes.
+            </p>
+            <div class="profile-owner-bar-actions">
+                <a class="profile-owner-bar-link" href="/artist/account#perfil">Editar perfil</a>
+                <button type="button" class="wo-btn wo-btn--accent wo-btn--s wo-btn--hard" id="profile-owner-share-btn">
+                    <i data-wo-icon="share-2" class="wo-icon-18" aria-hidden="true"></i>Compartir
+                </button>
+            </div>
+        </div>
+    </aside>
 
     <div class="profile-loading" id="profile-loading">
         <div class="wo-spinner" aria-hidden="true"></div>
@@ -117,7 +156,11 @@
                     <!-- CTA dual del funnel (Figma 344:1323/344:1326): reservar = wizard, cotizar = listado -->
                     <div class="hero-cta-row">
                         <a class="wo-btn wo-btn--hard hero-cta-primary" id="reserve-cta-top-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
-                        <a class="wo-btn wo-btn--ghost wo-btn--hard hero-cta-secondary" id="quote-cta-top-btn" href="/quotations">Solicitar cotización</a>
+                        <a class="wo-btn wo-btn--ghost wo-btn--hard hero-cta-secondary" id="quote-cta-top-btn" href="/quotation">Solicitar cotización</a>
+                        <!-- Compartir (PP-09): para el dueño y para cualquier visitante. -->
+                        <button type="button" class="wo-btn wo-btn--ghost wo-btn--hard hero-cta-share" id="profile-share-btn" aria-haspopup="dialog">
+                            <i data-wo-icon="share-2" class="wo-icon-18" aria-hidden="true"></i>Compartir
+                        </button>
                     </div>
                 </div>
 
@@ -273,7 +316,20 @@
                     <div class="cta-months" id="cta-months" aria-label="Meses con reservas abiertas"></div>
                     <!-- Figma 801:1108: botón accent de la banda roja (el otro accent es la barra de acción) -->
                     <a class="wo-btn wo-btn--accent wo-btn--hard cta-btn" id="reserve-cta-bottom-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+                    <!-- Turnos publicados: aparece solo si la página tiene la sección #turnos. -->
+                    <a class="cta-turnos-link" id="cta-turnos-link" href="#turnos" hidden>Ver turnos disponibles →</a>
                 </div>
+            </div>
+        </section>
+
+        <!-- 08b · Próximos turnos (frente turnos): oculta sin reservas online o sin turnos libres -->
+        <section class="profile-band bk-profile-band" id="turnos" aria-labelledby="turnos-title" hidden>
+            <div class="profile-shell">
+                <div class="bk-profile-head">
+                    <h2 class="section-title" id="turnos-title">Próximos turnos</h2>
+                    <a class="wo-link-arrow" id="turnos-all" href="/turnos">Ver todos los turnos →</a>
+                </div>
+                <ul class="bk-profile-days" id="turnos-days"></ul>
             </div>
         </section>
 
@@ -283,7 +339,9 @@
                 <h2 class="section-title">Portafolio</h2>
                 <div class="gallery-chips" id="gallery-chips" role="group" aria-label="Filtrar el portafolio" hidden></div>
                 <div class="gallery-grid" id="gallery-grid" aria-live="polite"></div>
-                <p class="gallery-empty" id="gallery-empty" style="display: none;">Este artista todavía no publicó trabajos. Los espacios están reservados para su próxima colección.</p>
+                <p class="gallery-empty" id="gallery-empty" style="display: none;">Este artista todavía no publicó trabajos. Pedile una cotización y te muestra ideas para tu tatuaje.</p>
+                <!-- Solo el dueño (PP-05): invita a completar el portafolio. -->
+                <a class="wo-btn wo-btn--hard gallery-owner-cta" id="gallery-owner-cta" href="/artist/account#portafolio" hidden>Subí tus trabajos <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
             </div>
         </section>
 
@@ -331,7 +389,7 @@
                 <span class="actionbar-status" id="actionbar-status" hidden></span>
             </p>
             <div class="actionbar-actions">
-                <a class="actionbar-quiet-link" id="quote-cta-bar-btn" href="/quotations">Cotización</a>
+                <a class="actionbar-quiet-link" id="quote-cta-bar-btn" href="/quotation">Cotización</a>
                 <a class="wo-btn wo-btn--accent wo-btn--s wo-btn--hard actionbar-btn" id="reserve-cta-bar-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" aria-hidden="true"></i></a>
             </div>
         </div>
@@ -359,7 +417,14 @@
     <script src="/shared/js/artist-profile-presentation.js"></script>
     <script src="/shared/js/artist-vacation.js"></script>
     <script src="/shared/js/gallery-visibility.js"></script>
+    <script src="/shared/js/artist-public-url.js"></script>
+    <script src="/shared/js/qrcode-generator.js" defer></script>
+    <script src="/shared/js/wo-share-sheet.js"></script>
     <script src="/shared/js/artist-profile.js"></script>
+    <script src="/shared/js/account-availability-model.js?v=20261115-turnos"></script>
+    <script src="/shared/js/booking-slots-model.js?v=20261115-turnos"></script>
+    <script src="/shared/js/data/booking-repo.js?v=20261115-turnos"></script>
+    <script src="/shared/js/profile-turnos.js?v=20261115-turnos"></script>
 </body>
 
 </html>

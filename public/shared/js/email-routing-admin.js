@@ -1,13 +1,13 @@
 // ============================================
 // WE ÖTZI - BACKOFFICE: Email Routing UI
-// Renders the per-event channel toggle (n8n / billionmail / dual / off) and exposes
+// Renders the per-event channel toggle (n8n / smtp_relay / billionmail / dual / off) and exposes
 // inline test buttons. Backed by /api/email/events endpoints.
 // ============================================
 
 (function () {
     'use strict';
 
-    const VALID_CHANNELS = ['n8n', 'billionmail', 'dual', 'off'];
+    const VALID_CHANNELS = ['n8n', 'smtp_relay', 'billionmail', 'dual', 'off'];
 
     function _toast(msg, kind) {
         if (typeof window.showToast === 'function') {
@@ -20,6 +20,7 @@
     function _channelLabel(channel) {
         switch (channel) {
             case 'n8n':         return '<span style="color:#888">n8n (legacy)</span>';
+            case 'smtp_relay':  return '<span style="color:#2445AD;font-weight:600">relé (render en servidor)</span>';
             case 'billionmail': return '<span style="color:#27ae60;font-weight:600">BillionMail</span>';
             case 'dual':        return '<span style="color:#f39c12">dual (ambos)</span>';
             case 'off':         return '<span style="color:#c0392b">off (no enviar)</span>';

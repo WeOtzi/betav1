@@ -268,6 +268,7 @@
         while (!window.ConfigManager && (Date.now() - start) < timeout) {
             await new Promise(function (r) { return setTimeout(r, 50); });
         }
+        if (window.ConfigManager && typeof window.ConfigManager.ready === 'function') await window.ConfigManager.ready();
     }
 
     async function loadBodyParts() {

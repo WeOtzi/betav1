@@ -107,8 +107,13 @@ test('email-service aplica las preferencias antes de despachar y la prueba del b
     assert.match(svc, /skipped_by_preference/);
     assert.match(svc, /ignorePreferences: true/);
     assert.match(read('server.js'), /ignorePreferences: true \/\/ prueba del backoffice/);
+    // Eventos del mapeo base o de los archivos por frente (services/email-events/*.js,
+    // que el mapeo carga automáticamente).
+    const dir = path.join(root, 'services/email-events');
+    const extra = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.js'))
+        .reduce((all, f) => Object.assign(all, require(path.join(dir, f))), {}) : {};
     for (const eventId of Object.keys(prefs.EMAIL_EVENT_KINDS)) {
-        assert.ok(require('../services/email-event-mapping').getEvent(eventId), `evento inexistente: ${eventId}`);
+        assert.ok(require('../services/email-event-mapping').getEvent(eventId) || extra[eventId], `evento inexistente: ${eventId}`);
     }
 });
 

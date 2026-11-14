@@ -1,0 +1,45 @@
+/* ============================================
+   We Ötzi — Roster del lado del artista (beta cerrada · frente roster)
+   Solicitudes de alta enviadas (/artist/invitations) y página del enlace de
+   invitación (/artist/join-studio). DS Bauhaus: radius 0, borde y espacio.
+   ============================================ */
+
+/* /artist/invitations · bloque "Solicitudes enviadas" */
+.inv-requests{margin:0 0 32px;padding:0 0 8px;border-bottom:3px solid var(--ink)}
+.inv-requests-title{font-family:var(--font-mono);font-size:11px;font-weight:400;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin:0 0 8px}
+.inv-row--request .inv-row-actions a.inv-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.isd-join-note{margin-top:12px}
+
+/* Registro con enlace de invitación (/registerclosedbeta, /register-artist) */
+.wo-studio-invite-banner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin:0 0 16px;padding:12px 16px;border:2px solid var(--ink);border-left-width:6px;background:var(--surface-card);color:var(--text-body);font-size:14px;line-height:1.55}
+.wo-studio-invite-banner p{margin:0;flex:1 1 220px;overflow-wrap:anywhere}
+.wo-studio-invite-banner.is-invalid{border-color:var(--border-subtle);border-left-color:var(--text-muted)}
+.wo-studio-invite-dismiss{background:none;border:0;padding:0;min-height:44px;font:inherit;font-weight:700;color:var(--text-link);text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.wo-studio-invite-dismiss:hover{color:var(--text-link-hover)}
+.ra-studio-membership{margin:16px auto;max-width:520px;text-align:left}
+
+/* /artist/join-studio */
+.wjs-page{min-height:100vh;background:var(--surface-page);color:var(--text-body)}
+.wjs-main{max-width:720px;margin:0 auto;padding:56px 24px 80px}
+.wjs-brand{display:inline-flex;align-items:center;gap:12px;color:var(--ink);text-decoration:none;font-family:var(--font-display);font-size:18px;margin:0 0 40px;min-height:44px}
+.wjs-card{border:2px solid var(--ink);background:var(--surface-card);padding:32px}
+.wjs-eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin:0 0 12px}
+.wjs-title{font-family:var(--font-display);font-size:36px;line-height:1.12;letter-spacing:-.02em;color:var(--ink);margin:0 0 16px;overflow-wrap:anywhere;text-wrap:balance}
+.wjs-lead{font-size:16px;line-height:1.65;margin:0 0 24px;max-width:60ch}
+.wjs-studio{display:flex;align-items:center;gap:16px;padding:16px 0;border-block:1px solid var(--border-subtle);margin:0 0 24px}
+.wjs-logo{width:56px;height:56px;object-fit:cover;flex:none;border:1px solid var(--border-subtle)}
+.wjs-logo--initials{display:grid;place-content:center;font-family:var(--font-display);font-size:20px;color:var(--ink);background:var(--surface-field)}
+.wjs-studio-name{margin:0;font-weight:700;font-size:18px;color:var(--ink);overflow-wrap:anywhere}
+.wjs-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr));gap:12px 24px;margin:0 0 24px}
+.wjs-facts dt{font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted)}
+.wjs-facts dd{margin:4px 0 0;font-size:15px;overflow-wrap:anywhere}
+.wjs-actions{display:flex;flex-wrap:wrap;gap:12px}
+.wjs-note{margin:16px 0 0;font-size:14px;color:var(--text-muted);line-height:1.6}
+.wjs-status{margin:16px 0 0}
+.wjs-where{margin:0}
+@media (max-width:640px){
+  .wjs-main{padding:32px 16px 56px}
+  .wjs-card{padding:24px 16px}
+  .wjs-title{font-size:28px}
+  .wjs-actions .wo-btn{width:100%}
+}

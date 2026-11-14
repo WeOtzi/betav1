@@ -18,6 +18,7 @@
     <script src="/shared/js/data/clients-repo.js"></script>
     <script src="/shared/js/data/account-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
+    <script src="/shared/js/wo-welcome.js" defer></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/logging-loader.js"></script>
@@ -136,6 +137,13 @@
                                 </div>
                                 <span class="wo-help">Mínimo 8 caracteres</span>
                             </div>
+                        </div>
+
+                        <div class="cw-terms-field">
+                            <label class="wo-check cw-terms" for="cw-terms">
+                                <input type="checkbox" id="cw-terms" required>
+                                <span class="cw-terms-text">Acepto los <a href="/legal/terms" target="_blank" rel="noopener">Términos y Condiciones</a> y la <a href="/legal/privacy" target="_blank" rel="noopener">Política de Privacidad</a>. <span class="req" aria-hidden="true">*</span></span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -411,6 +419,7 @@
             firstName: '', lastName: '', email: '', username: '',
             country: '', city: '',
             notifEmail: true, notifWhatsapp: false, notifDiscovery: false,
+            termsAccepted: false,
             styles: [], intent: '', artistChoice: '',
             artistUserId: null, artistLabel: ''
         };
@@ -458,6 +467,7 @@
                     country: state.country, city: state.city,
                     notifEmail: state.notifEmail, notifWhatsapp: state.notifWhatsapp,
                     notifDiscovery: state.notifDiscovery,
+                    termsAccepted: state.termsAccepted,
                     styles: state.styles, intent: state.intent,
                     artistChoice: state.artistChoice,
                     artistUserId: state.artistUserId, artistLabel: state.artistLabel,
@@ -479,7 +489,7 @@
                  'intent', 'artistChoice', 'artistUserId', 'artistLabel'].forEach(function (k) {
                     if (d[k] !== undefined && d[k] !== null) state[k] = d[k];
                 });
-                ['notifEmail', 'notifWhatsapp', 'notifDiscovery'].forEach(function (k) {
+                ['notifEmail', 'notifWhatsapp', 'notifDiscovery', 'termsAccepted'].forEach(function (k) {
                     if (typeof d[k] === 'boolean') state[k] = d[k];
                 });
                 if (Array.isArray(d.styles)) state.styles = d.styles;
@@ -585,6 +595,13 @@
             }
             if (!accountUserId && password.length < 8) {
                 return invalid('cw-password', 'La contraseña tiene que tener al menos 8 caracteres.');
+            }
+            // ACC-08: Términos y Privacidad obligatorios para crear la cuenta.
+            if (!accountUserId && !state.termsAccepted) {
+                $('cw-terms').setAttribute('aria-invalid', 'true');
+                showMsg('Aceptá los Términos y Condiciones y la Política de Privacidad para crear tu cuenta.', 'error');
+                $('cw-terms').focus();
+                return false;
             }
             return true;
         }
@@ -974,7 +991,26 @@
             var sameAccount = session && session.user && (
                 session.user.id === pendingConfirmation.userId ||
                 String(session.user.email || '').toLowerCase() === String(pendingConfirmation.email || '').toLowerCase());
-            if (!sameAccount) { showConfirm(); return; }
+            if (!sameAccount) {
+                showConfirm();
+                // ── acceso (ACC-17): el link venció o ya lo usó (p. ej. el
+                // antivirus del correo). Aviso arriba del "Reenviar email".
+                var linkError = EC && EC.readAuthLinkError ? EC.readAuthLinkError() : null;
+                if (linkError && EC.renderLinkErrorNotice) {
+                    var holder = document.createElement('div');
+                    holder.className = 'cw-link-error';
+                    var main = $('cw-confirm-main');
+                    var card = main.querySelector('.wo-ec');
+                    (card || main).insertBefore(holder, card ? card.firstChild : main.firstChild);
+                    EC.renderLinkErrorNotice(holder, {
+                        linkError: linkError,
+                        what: 'link de confirmación',
+                        hint: 'Si ya confirmaste tu email, ingresá con tu contraseña. Si no, tocá «Reenviar email».',
+                        actions: [{ label: 'Ingresar', href: clientAppPath('/client/login'), kind: 'ghost' }]
+                    });
+                }
+                return;
+            }
             accountUserId = session.user.id;
             if (EC) {
                 var files = await EC.takeFiles(PHOTO_STASH_KEY);
@@ -1005,6 +1041,25 @@
             showSuccess();
         }
 
+        // ── acceso (ACC-17): vuelta del link de confirmación sin el borrador de
+        // este navegador. Con sesión, client-auth.js lleva al panel; sin
+        // sesión se explica qué pasó en vez de mostrar el paso 01 sin más.
+        async function explainConfirmationReturn() {
+            var linkError = EC && EC.readAuthLinkError ? EC.readAuthLinkError() : null;
+            var session = null;
+            try {
+                var res = await window._supabase.auth.getSession();
+                session = res && res.data && res.data.session;
+            } catch (e) { session = null; }
+            if (session) return;
+            var login = clientAppPath('/client/login');
+            if (linkError) {
+                showMsg('El link de confirmación venció o ya se usó. Si ya confirmaste tu email, <a href="' + login + '">ingresá con tu contraseña</a>. Si no, ingresá igual: te ofrecemos reenviar el email.', 'error');
+            } else {
+                showMsg('Tu email está confirmado. <a href="' + login + '">Ingresá con tu contraseña</a> para continuar.', 'success');
+            }
+        }
+
         async function submitFinal() {
             clearMsg();
             if (!accountUserId && password.length < 8) {
@@ -1012,10 +1067,16 @@
                 go(1);
                 return;
             }
+            if (!accountUserId && !state.termsAccepted) {
+                go(1);
+                validateStep1();
+                return;
+            }
             if (!accountUserId) {
                 setBusy('Creando tu cuenta...');
                 try {
                     var user = await handleClientRegistration({
+                        termsAccepted: state.termsAccepted === true,
                         email: state.email,
                         password: password,
                         firstName: state.firstName,
@@ -1087,6 +1148,10 @@
             bindToggle('cw-notif-email', 'notifEmail');
             bindToggle('cw-notif-whatsapp', 'notifWhatsapp');
             bindToggle('cw-notif-discovery', 'notifDiscovery');
+            bindToggle('cw-terms', 'termsAccepted');
+            $('cw-terms').addEventListener('change', function () {
+                $('cw-terms').removeAttribute('aria-invalid');
+            });
 
             bindPhoto();
             bindIntents();
@@ -1109,6 +1174,7 @@
             renderShell();
             if (state.step === 3) renderStyles();
             if (pendingConfirmation) resumeAfterConfirmation();
+            else if (new URLSearchParams(window.location.search).get('confirmado') === '1') explainConfirmationReturn();
         });
     })();
     </script>

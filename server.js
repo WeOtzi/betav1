@@ -29,6 +29,8 @@ const { legacyRedirectFor, legacyLocation } = require('./lib/legacy-routes');
 const { pgrest } = require('./lib/postgrest');
 const termsAcceptance = require('./lib/terms-acceptance'); // ── cotizaciones · P3
 const { resolveBearerUser } = require('./lib/auth/supabase-auth');
+// ── roster: altas de tatuadores en estudios (lib/routes/roster.js).
+const rosterRoutes = require('./lib/routes/roster');
 const privacidadCookies = require('./lib/privacidad-cookies'); // ── privacidad
 const { QuotationsRepo } = require('./lib/repos/quotations');
 const { JobBoardRepo } = require('./lib/repos/jobboard');
@@ -210,8 +212,9 @@ const apiLimiter = rateLimit({
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
-    // El webhook de pagos de la Store tiene su limiter propio (storeWebhookLimiter).
-    skip: (req) => storeOrders.isStoreWebhookRequest(req),
+    // El webhook de pagos de la Store tiene su limiter propio (storeWebhookLimiter);
+    // el cotizador (intake, sugerencias, Job Board) también (lib/routes/cot-form.js).
+    skip: (req) => storeOrders.isStoreWebhookRequest(req) || require('./lib/routes/cot-form').isOwnLimitedPath(req),
     message: { success: false, error: 'Too many requests, please try again later.' }
 });
 
@@ -252,7 +255,8 @@ const storeDownloadLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 app.use('/api/admin/update-user-password', authLimiter);
 app.use('/api/auth/reset-temp-password', authLimiter);
-app.use('/api/email/events', authLimiter);
+// ── emails ── limiter propio del backoffice de emails (no comparte authLimiter).
+app.use('/api/email/events', require('./lib/routes/emails').adminLimiter);
 // /api/register/artist-draft is intentionally NOT under authLimiter — it is a
 // high-frequency form autosave (~30-60 calls per wizard session), not an auth
 // operation. apiLimiter is sufficient. /api/register/artist-finalize stays
@@ -267,7 +271,7 @@ app.post('/api/store/payments/webhook/:provider', storeWebhookLimiter, express.r
 // Middleware for JSON body parsing
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.post('/api/quotations/intake', require('./services/quotation-intake').handleIntake);
+// /api/quotations/intake lo registra lib/routes/cot-form.js (con su rate limit).
 // Store: descarga firmada de archivos de licencia, checkout y mantenimiento por cron.
 app.post('/api/store/licenses/:licenseId/assets/:assetId/url', storeDownloadLimiter, storeOrders.handleDownloadUrl);
 app.post('/api/store/orders/:id/checkout', storeOrders.handleCheckout);
@@ -301,7 +305,7 @@ app.post('/api/calendar/reminders/dispatch', async (req, res) => {
 });
 const CALENDAR_REMINDERS_INTERVAL_MS = calendarReminders.intervalFromEnv(process.env);
 if (CALENDAR_REMINDERS_INTERVAL_MS) {
-    const reminderBase = (process.env.PUBLIC_APP_URL || process.env.APP_URL || 'https://weotzi.com/beta').replace(/\/$/, '');
+    const reminderBase = (process.env.PUBLIC_APP_URL || process.env.APP_URL || 'https://beta.weotzi.com').replace(/\/$/, '');
     let reminderRunActive = false;
     setInterval(async () => {
         if (reminderRunActive) return;
@@ -670,11 +674,9 @@ async function _executeTool(toolName, args, ctx) {
     if (toolName === 'get_verification_status') {
         if (!userId) return { error: 'Usuario no autenticado.' };
         try {
-            const artist = await _supabaseFetch(
-                `artists_db?user_id=eq.${userId}&select=id,name,is_verified,profile_status,verification_notes`
-            );
-            if (!artist || !artist.length) return { error: 'Este usuario no es un artista.' };
-            return { artist: artist[0] };
+            // verif-artista (VER-A4): columnas reales + documentos (lib/verificacion-artista.js).
+            const { ArtistVerificationRepo } = require('./lib/repos/artist-verification');
+            return await require('./lib/verificacion-artista').verificationStatusForUser(userId, ArtistVerificationRepo);
         } catch (err) {
             return { error: err.message };
         }
@@ -1277,132 +1279,76 @@ app.post('/api/google-drive/test', async (req, res) => {
 });
 
 /**
- * Create a quote folder and upload images
+ * Copia las referencias de una cotización a Google Drive (opcional).
+ * Storage (bucket quotation-references) es la fuente de verdad; esto es solo
+ * un espejo para el equipo. Credenciales y carpeta salen SIEMPRE del .env
+ * (GOOGLE_DRIVE_SERVICE_ACCOUNT, GOOGLE_DRIVE_FOLDER_ID), nunca del navegador,
+ * y solo se descargan archivos del folder de la propia cotización en Storage.
+ * Lo llama el servidor después del envío (lib/routes/cot-form.js).
+ * @returns {{skipped:true}|{success:boolean, quoteFolderLink?:string, uploadedFiles?:Array, uploadErrors?:Array}}
+ */
+async function mirrorQuoteFilesToDrive(quoteNumber, files) {
+    const mainFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    let credentials = null;
+    try { credentials = JSON.parse(process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT || 'null'); } catch (_) { credentials = null; }
+    if (!mainFolderId || !credentials) return { skipped: true };
+    const cotFormLib = require('./lib/cot-form');
+    if (!cotFormLib.QUOTE_ID_RE.test(String(quoteNumber || ''))) return { success: false, error: 'Cotización no válida' };
+    const safeFiles = (Array.isArray(files) ? files : [])
+        .filter((file) => file && cotFormLib.isOwnReferenceUrl(file.url, process.env.SUPABASE_URL, quoteNumber))
+        .slice(0, cotFormLib.MAX_REFERENCES);
+    const drive = getGoogleDriveClient(credentials);
+    if (!drive) return { success: false, error: 'No se pudo iniciar Google Drive' };
+
+    const existingFolder = await findExistingQuoteFolder(drive, mainFolderId, quoteNumber);
+    let quoteFolderId;
+    let quoteFolderLink;
+    if (existingFolder) {
+        quoteFolderId = existingFolder.id;
+        quoteFolderLink = existingFolder.webViewLink;
+    } else {
+        const folder = await drive.files.create({
+            resource: { name: quoteNumber, mimeType: 'application/vnd.google-apps.folder', parents: [mainFolderId] },
+            fields: 'id, webViewLink',
+            supportsAllDrives: true
+        });
+        quoteFolderId = folder.data.id;
+        quoteFolderLink = folder.data.webViewLink;
+    }
+
+    const uploadedFiles = [];
+    const uploadErrors = [];
+    for (const file of safeFiles) {
+        try {
+            const uploaded = await uploadFileToFolder(drive, quoteFolderId, file);
+            if (uploaded) uploadedFiles.push(uploaded);
+        } catch (uploadError) {
+            uploadErrors.push({ fileName: file.fileName, error: uploadError.message });
+        }
+    }
+    if (uploadErrors.length) console.warn(`[Google Drive] ${quoteNumber}: ${uploadErrors.length} archivo(s) sin copiar`);
+    return { success: true, quoteFolderId, quoteFolderLink, uploadedCount: uploadedFiles.length, uploadedFiles,
+        uploadErrors: uploadErrors.length ? uploadErrors : undefined };
+}
+
+/**
+ * Re-copia manual de las referencias de una cotización a Drive (solo admin).
  * POST /api/google-drive/create-quote-folder
- * Body: { quoteId, quoteNumber, mainFolderId, credentials, files: [{ url, fileName, mimeType }] }
+ * Body: { quoteNumber, files: [{ url, fileName, mimeType }] }
+ * Ignora credenciales y carpeta del body (antes se aceptaban desde el navegador).
  */
 app.post('/api/google-drive/create-quote-folder', async (req, res) => {
-    const { quoteId, quoteNumber, mainFolderId, credentials, files } = req.body;
-    
-    console.log(`[DEBUG] ====== CREATE QUOTE FOLDER REQUEST ======`);
-    console.log(`[DEBUG] quoteNumber: ${quoteNumber}`);
-    console.log(`[DEBUG] mainFolderId: "${mainFolderId}"`);
-    console.log(`[DEBUG] mainFolderId length: ${mainFolderId?.length}`);
-    console.log(`[DEBUG] files count: ${files?.length}`);
-    console.log(`[DEBUG] ===========================================`);
-    
-    console.log(`[Google Drive] Creating folder for quote: ${quoteNumber}`);
-    console.log(`[Google Drive] Files to upload: ${files ? files.length : 0}`);
-    
-    if (!quoteNumber || !mainFolderId) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Quote number and main folder ID are required' 
-        });
-    }
-    
-    if (!credentials) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Service account credentials are required' 
-        });
-    }
-    
-    const drive = getGoogleDriveClient(credentials);
-    
-    if (!drive) {
-        return res.status(500).json({ 
-            success: false, 
-            error: 'Failed to initialize Google Drive client' 
-        });
-    }
-    
+    const admin = await require('./lib/auth/supabase-auth').verifyAdminCaller(req);
+    if (!admin.ok) return res.status(admin.status || 403).json({ success: false, error: admin.error });
+    const { quoteNumber, quoteId, files } = req.body || {};
     try {
-        // Step 1: Check if folder already exists for this quote
-        const existingFolder = await findExistingQuoteFolder(drive, mainFolderId, quoteNumber);
-        
-        let quoteFolderId;
-        let quoteFolderLink;
-        
-        if (existingFolder) {
-            // Use existing folder
-            quoteFolderId = existingFolder.id;
-            quoteFolderLink = existingFolder.webViewLink;
-            console.log(`[Google Drive] Using existing folder for quote ${quoteNumber}: ${quoteFolderId}`);
-        } else {
-            // Step 2: Create new folder for this quote
-            const folderMetadata = {
-                name: quoteNumber,
-                mimeType: 'application/vnd.google-apps.folder',
-                parents: [mainFolderId]
-            };
-            
-            const folder = await drive.files.create({
-                resource: folderMetadata,
-                fields: 'id, webViewLink',
-                supportsAllDrives: true
-            });
-            
-            quoteFolderId = folder.data.id;
-            quoteFolderLink = folder.data.webViewLink;
-            console.log(`[Google Drive] Created new folder for quote ${quoteNumber}: ${quoteFolderId}`);
-        }
-        
-        // Step 3: Upload files to the quote folder
-        const uploadedFiles = [];
-        const uploadErrors = [];
-        
-        if (files && files.length > 0) {
-            console.log(`[Google Drive] Starting upload of ${files.length} files...`);
-            
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                console.log(`[Google Drive] Uploading file ${i + 1}/${files.length}: ${file.fileName}`);
-                console.log(`[Google Drive] Source URL: ${file.url}`);
-                
-                try {
-                    const uploadResult = await uploadFileToFolder(drive, quoteFolderId, file);
-                    if (uploadResult) {
-                        uploadedFiles.push(uploadResult);
-                        console.log(`[Google Drive] Successfully uploaded: ${file.fileName}`);
-                    }
-                } catch (uploadError) {
-                    const errorDetail = {
-                        fileName: file.fileName,
-                        error: uploadError.message,
-                        url: file.url
-                    };
-                    uploadErrors.push(errorDetail);
-                    console.error(`[Google Drive] Failed to upload ${file.fileName}:`, uploadError.message);
-                }
-            }
-            
-            console.log(`[Google Drive] Upload complete: ${uploadedFiles.length}/${files.length} files successful`);
-        }
-        
-        // Determine overall success - folder created is minimum success
-        // But warn if files failed to upload
-        const hasUploadErrors = uploadErrors.length > 0;
-        const allFilesFailed = files && files.length > 0 && uploadedFiles.length === 0;
-        
-        return res.json({
-            success: true, // Folder was created successfully
-            quoteFolderId,
-            quoteFolderLink,
-            uploadedCount: uploadedFiles.length,
-            uploadedFiles,
-            // Include error details so frontend can handle appropriately
-            uploadErrors: hasUploadErrors ? uploadErrors : undefined,
-            warning: allFilesFailed ? 'All files failed to upload to Google Drive' : undefined,
-            partialSuccess: hasUploadErrors && uploadedFiles.length > 0
-        });
-        
+        const result = await mirrorQuoteFilesToDrive(quoteNumber || quoteId, files);
+        if (result.skipped) return res.status(503).json({ success: false, error: 'Google Drive no está configurado en el servidor.' });
+        if (!result.success) return res.status(400).json(result);
+        return res.json(result);
     } catch (error) {
         console.error('[Google Drive] Error creating quote folder:', error.message);
-        return res.status(500).json({ 
-            success: false, 
-            error: error.message 
-        });
+        return res.status(500).json({ success: false, error: 'No se pudo copiar a Google Drive.' });
     }
 });
 
@@ -2587,11 +2533,14 @@ app.get('/api/admin/artists', async (req, res) => {
 // Columns the studio edit form may write. id / user_id / primary_location_id /
 // timestamps / computed columns are intentionally excluded so the editor can
 // never corrupt ownership or relational pointers.
+// is_verified NO va acá: la verificación se decide en la cola de
+// verificaciones (lib/routes/verif-estudio.js), que sincroniza
+// verification_status, verified_at y la solicitud.
 const STUDIO_EDITABLE_COLUMNS = new Set([
     'name', 'slug', 'email', 'tagline', 'bio', 'cover_image', 'logo_image',
     'photo_feed_items', 'founded_year', 'languages',
     'instagram', 'tiktok', 'whatsapp', 'contact_phone', 'phone', 'website',
-    'google_maps_url', 'is_seeking_artists', 'is_verified', 'is_active',
+    'google_maps_url', 'is_seeking_artists', 'is_active',
     'profile_complete', 'ubicacion'
 ]);
 
@@ -2921,25 +2870,9 @@ app.get('/shared/js/app-config.json', async (req, res) => {
             config.googleMaps.apiKey = process.env.GOOGLE_MAPS_API_KEY;
         }
 
-        // n8n configuration
-        if (process.env.N8N_WEBHOOK_URL) {
-            config.n8n = config.n8n || {};
-            config.n8n.webhookUrl = process.env.N8N_WEBHOOK_URL;
-        }
-        if (process.env.N8N_DRIVE_FOLDER_ID) {
-            config.n8n = config.n8n || {};
-            config.n8n.driveFolderId = process.env.N8N_DRIVE_FOLDER_ID;
-        }
-        
-        // Google Drive configuration
-        if (process.env.GOOGLE_DRIVE_FOLDER_ID) {
-            config.googleDrive = config.googleDrive || {};
-            config.googleDrive.mainFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-        }
-        if (process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT) {
-            config.googleDrive = config.googleDrive || {};
-            config.googleDrive.serviceAccountJson = process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT;
-        }
+        // n8n (webhook de referencias) y Google Drive: solo los usa el servidor
+        // (lib/routes/cot-form.js). Nunca se publican: sanitizePublicConfig
+        // deja únicamente googleDrive.enabled.
         
         // EmailJS configuration
         if (process.env.EMAILJS_SERVICE_ID) {
@@ -2955,12 +2888,8 @@ app.get('/shared/js/app-config.json', async (req, res) => {
             config.emailjs.publicKey = process.env.EMAILJS_PUBLIC_KEY;
         }
         
-        // Gemini AI configuration
-        if (process.env.GEMINI_API_KEY) {
-            config.gemini = config.gemini || {};
-            config.gemini.apiKey = process.env.GEMINI_API_KEY;
-            config.gemini.enabled = true;
-        }
+        // Gemini AI: la key vive solo en el servidor (/api/gemini/*); el
+        // navegador recibe gemini.enabled (sanitizePublicConfig).
         
         // WeOtzi configuration
         if (process.env.WHATSAPP_NUMBER) {
@@ -2968,20 +2897,20 @@ app.get('/shared/js/app-config.json', async (req, res) => {
             config.weOtzi.whatsapp = process.env.WHATSAPP_NUMBER;
         }
         
-        // Registration configuration
-        if (process.env.PRESET_PASSWORD) {
-            config.registration = config.registration || {};
-            config.registration.presetPassword = process.env.PRESET_PASSWORD;
-        }
-        
+        // PRESET_PASSWORD es un secreto de servidor: no se publica.
+
         // Feature flags from environment
         if (process.env.DEMO_MODE !== undefined) {
             config.features = config.features || {};
             config.features.demoMode = process.env.DEMO_MODE === 'true';
         }
         
+        // ── emails ── CC-19: sin URLs de webhooks de n8n en el JSON público.
+        require('./lib/routes/emails').stripPublicWebhooks(config);
+
         // Set last modified timestamp
         config.lastModified = new Date().toISOString();
+        config = require('./lib/cot-form').sanitizePublicConfig(config, process.env);
         
         // Send JSON response with cache headers
         res.set('Content-Type', 'application/json');
@@ -3326,6 +3255,10 @@ app.post('/api/client/quotations/:quoteId/complete', async (req, res) => {
 
         const completedAt = new Date().toISOString();
         await QuotationsRepo.markCompletedByClient(quotation.id, caller.id, completedAt);
+        const cotNotices = require('./lib/cot-artista-notices'); // COT-A-12: resumen a cliente y artista (una copia por rol)
+        cotNotices.inBackground('completed', () => cotNotices.notifyQuotationCompleted(quotation.quote_id, { baseUrl: applicationBase(req) }));
+        // ── emails ── pedido de reseña (el resumen ya sale arriba por rol; no se duplica).
+        void require('./lib/routes/emails').notifyQuotationCompleted(quoteId, { baseUrl: applicationBase(req), events: ['request_rating'] }).catch(() => {});
 
         console.log(`[Client Complete] Client ${caller.id} completed quotation ${quoteId}`);
         return res.json({
@@ -4045,88 +3978,11 @@ app.get('/api/analytics/summary', async (req, res) => {
     }
 });
 
-/**
- * POST /api/artists/geocode
- * Persist geocoding results computed by the client (Explore Map page).
- *
- * Body: {
- *   user_id: string (UUID, required),
- *   latitude: number (required),
- *   longitude: number (required),
- *   geocoded_address: string (optional, formatted address from Google)
- * }
- *
- * Uses SUPABASE_SERVICE_ROLE_KEY to bypass RLS (the public anon role cannot
- * UPDATE arbitrary artists_db rows). Validates that coordinates are finite
- * numbers within Earth bounds before writing.
- *
- * Idempotent: subsequent calls with the same (user_id, lat, lng) just refresh
- * geocoded_at.
- */
-app.post('/api/artists/geocode', async (req, res) => {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
-        return res.status(503).json({
-            success: false,
-            error: 'Server missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
-        });
-    }
-
-    const { user_id, latitude, longitude, geocoded_address } = req.body || {};
-
-    if (!user_id || typeof user_id !== 'string') {
-        return res.status(400).json({ success: false, error: 'user_id is required' });
-    }
-
-    const lat = Number(latitude);
-    const lng = Number(longitude);
-
-    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
-        return res.status(400).json({ success: false, error: 'latitude must be a finite number in [-90, 90]' });
-    }
-    if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
-        return res.status(400).json({ success: false, error: 'longitude must be a finite number in [-180, 180]' });
-    }
-
-    try {
-        let rows;
-        try {
-            rows = await pgrest('artists_db')
-                .eq('user_id', user_id)
-                .patch({
-                    latitude: lat,
-                    longitude: lng,
-                    geocoded_address: geocoded_address ? String(geocoded_address).slice(0, 500) : null,
-                    geocoded_at: new Date().toISOString()
-                });
-        } catch (updateErr) {
-            console.error('[Geocode] Supabase PATCH failed:', updateErr.status, updateErr.message);
-            return res.status(502).json({
-                success: false,
-                error: `Supabase update failed: HTTP ${updateErr.status || ''}`.trim()
-            });
-        }
-
-        if (!Array.isArray(rows) || rows.length === 0) {
-            return res.status(404).json({ success: false, error: 'Artist not found for given user_id' });
-        }
-
-        return res.json({
-            success: true,
-            artist: {
-                user_id: rows[0].user_id,
-                latitude: rows[0].latitude,
-                longitude: rows[0].longitude,
-                geocoded_at: rows[0].geocoded_at
-            }
-        });
-    } catch (err) {
-        console.error('[Geocode] Error:', err);
-        return res.status(500).json({ success: false, error: err.message });
-    }
-});
+// POST /api/artists/geocode se eliminó (marketplace MK-03, beta cerrada): no
+// tenía autenticación y escribía con service role la latitud/longitud de
+// CUALQUIER artista. /explore ahora geocodifica ciudad/país solo como caché del
+// visitante (geocoder.js, localStorage) y nunca persiste en artists_db; las
+// coordenadas reales las guarda el propio artista desde su perfil.
 
 function normalizeProfileVisitArtistUsername(value) {
     const raw = String(value || '').trim().replace(/^@+/, '').toLowerCase();
@@ -4200,7 +4056,8 @@ async function lookupProfileVisitArtist({ artistId, username }) {
     const normalizedUsername = normalizeProfileVisitArtistUsername(username);
     if (!normalizedUsername) return null;
     const rows = await _supabaseFetch(
-        `artists_db?username=ilike.${encodeURIComponent(normalizedUsername)}&select=user_id,username&limit=1`
+        // eq (no ilike: `_` es comodín) y solo perfiles publicados, como el perfil público.
+        `artists_db?username=eq.${encodeURIComponent(normalizedUsername)}&or=(registration_status.is.null,registration_status.neq.incompleto)&select=user_id,username&limit=1`
     );
     return Array.isArray(rows) ? rows[0] : null;
 }
@@ -4468,7 +4325,7 @@ app.get('/api/artist/public-profile-metrics', async (req, res) => {
  *   3. Uses the centralized dispatcher and persistent delivery claim.
  *   4. Reports mail acceptance/failure separately from the saved studio action.
  */
-app.post('/api/studio/notify', authLimiter, async (req, res) => {
+app.post('/api/studio/notify', require('./lib/routes/emails').dispatchLimiter, async (req, res) => {
     const supabaseUrl = process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !serviceRoleKey) {
@@ -4511,7 +4368,11 @@ app.post('/api/studio/notify', authLimiter, async (req, res) => {
                 throw new Error(`Could not load application: ${loadErr.status || loadErr.message}`);
             }
             if (!app) return res.status(404).json({ success: false, error: 'Application not found.' });
-            if (app.status !== decision) return res.status(409).json({ success: false, sent: false, error: 'La decisión no coincide con la postulación guardada.' });
+            // ── roster (ROSTER-13): aceptar deja la postulación 'shortlisted'
+            // (decide_studio_spot_application) y el estudio le envía al artista
+            // una invitación al equipo; para el email cuenta como aceptada.
+            const savedDecision = app.status === 'shortlisted' ? 'accepted' : app.status;
+            if (savedDecision !== decision) return res.status(409).json({ success: false, sent: false, error: 'La decisión no coincide con la postulación guardada.' });
 
             const studio = app.studio_spots?.studios || {};
             const artist = app.artists_db || {};
@@ -4531,7 +4392,7 @@ app.post('/api/studio/notify', authLimiter, async (req, res) => {
                     ? `¡Te aceptaron en ${studio.name}!`
                     : `Actualización de tu postulación a ${studio.name}`,
                 body_text: decision === 'accepted'
-                    ? `Hola${artist.name ? ' ' + artist.name : ''},\n\n${studio.name} aceptó tu postulación al spot "${spot.title}". Ya formás parte del roster como ${roleFromKind(spot.kind)}.\n\nVas a ver el estudio bajo tus memberships activas en /artist/invitations. Mucha suerte y buena tinta.`
+                    ? `Hola${artist.name ? ' ' + artist.name : ''},\n\n${studio.name} aceptó tu postulación al spot "${spot.title}" y te envió una invitación para sumarte como ${roleFromKind(spot.kind)}.\n\nAceptala en ${mailBase}/artist/invitations para quedar en el equipo del estudio. Mucha suerte y buena tinta.`
                     : `Hola${artist.name ? ' ' + artist.name : ''},\n\nGracias por postularte al spot "${spot.title}" en ${studio.name}. En esta oportunidad eligieron a otro artista, pero seguí atento al directorio para nuevas oportunidades: ${mailBase}/studio-spots`,
                 links: {
                     studio_profile:   `${mailBase}/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`,
@@ -5359,12 +5220,21 @@ async function createStudioLocation({ studioId, address, isPrimary, label }) {
     }
 }
 
-async function ensureStudioLocationForRegistration(formData, studioId) {
+async function ensureStudioLocationForRegistration(formData, studioId, { studioHasOwner = false } = {}) {
     if (!studioId || !artistRegistration.isStudioWorkType(formData?.work_type)) {
         return { locationId: null };
     }
 
     const selectedLocation = await getStudioLocationById(studioId, formData?.studio_location_id);
+    // ── roster (ROSTER-01): un estudio con dueño administra sus sedes. El
+    // registro de un tatuador solo usa la sede elegida o la que coincide; no
+    // crea sedes ni cambia la principal.
+    if (studioHasOwner) {
+        if (selectedLocation) return { locationId: selectedLocation.id };
+        const ownedAddress = buildStudioAddressPatch(formData?.address);
+        const ownedMatch = ownedAddress ? await findMatchingStudioLocation(studioId, ownedAddress) : null;
+        return { locationId: ownedMatch ? ownedMatch.id : null };
+    }
     if (selectedLocation) {
         const studio = await getStudioRecord(studioId);
         if (!studio?.primary_location_id) {
@@ -5400,14 +5270,32 @@ async function ensureStudioLocationForRegistration(formData, studioId) {
     return { locationId: createdLocation?.id || null };
 }
 
-async function persistRegistrationStudioAssociations({ formData, artistUserId, studioId, studioName }) {
+// ── roster (ROSTER-01/03): el registro deja una SOLICITUD al estudio
+// ('requested', initiated_by='artist') que aprueba el dueño (o soporte); con
+// un enlace de invitación válido se canjea el enlace (puede quedar 'active'
+// si el estudio no pide aprobación). Mientras la solicitud está pendiente la
+// ubicación actual del artista guarda el nombre del estudio sin studio_id.
+async function persistRegistrationStudioAssociations({ formData, artistUserId, studioId, studioName, studioHasOwner = false, invite = null }) {
     if (!artistUserId || !studioId || !artistRegistration.isStudioWorkType(formData?.work_type)) {
-        return { locationId: null };
+        return { locationId: null, membershipId: null, membershipStatus: null };
     }
 
-    const { locationId } = await ensureStudioLocationForRegistration(formData, studioId);
+    const { locationId } = await ensureStudioLocationForRegistration(formData, studioId, { studioHasOwner });
     const address = formData?.address && typeof formData.address === 'object' ? formData.address : {};
     const normalizedStudioName = studioNameForStorage(studioName || formData?.studio_name);
+
+    // Indice unico PARCIAL en vivo (studio_memberships_one_open_per_role): no
+    // se puede usar on_conflict; se busca la membresia abierta y se actualiza
+    // o se inserta (lib/registration-finalize.js).
+    const membership = await rosterRoutes.service().persistRegistrationMembership({
+        upsertOpenStudioMembership: registrationFinalize.upsertOpenStudioMembership,
+        fetchRest: _supabaseFetch,
+        artistUserId,
+        studioId,
+        locationId,
+        formData,
+        invite
+    });
 
     await _supabaseFetch('artist_tattoo_locations?on_conflict=artist_user_id,period_type,sort_order', {
         method: 'POST',
@@ -5416,27 +5304,21 @@ async function persistRegistrationStudioAssociations({ formData, artistUserId, s
             artist_user_id: artistUserId,
             period_type: 'current',
             sort_order: 0,
-            studio_id: studioId,
+            studio_id: membership.status === 'active' ? studioId : null,
             studio_name: normalizedStudioName,
             city: address.city || address.locality || formData?.location_city || formData?.city || null,
             agenda_status: 'open'
         }
     });
 
-    const membership = artistRegistration.buildStudioMembershipPayload({
-        artistUserId,
-        studioId,
+    return {
         locationId,
-        workType: formData.work_type
-    });
-    // Indice unico PARCIAL en vivo (studio_memberships_one_open_per_role): no
-    // se puede usar on_conflict; se busca la membresia abierta y se actualiza
-    // o se inserta (lib/registration-finalize.js).
-    if (membership) {
-        await registrationFinalize.upsertOpenStudioMembership(_supabaseFetch, membership);
-    }
-
-    return { locationId };
+        membershipId: membership.membershipId,
+        membershipStatus: membership.status,
+        viaInvite: membership.viaInvite === true,
+        inviteFailed: membership.inviteFailed === true,
+        alreadyMember: membership.alreadyMember === true
+    };
 }
 
 // PostgREST responde PGRST204 / 42703 si la migracion de columnas nuevas
@@ -5508,8 +5390,18 @@ async function resolveRegistrationStudio(formData, { artistUserId = null, draftI
         return { studioId: null, estudiosValue: null };
     }
 
+    // ── roster (ROSTER-01): el studio_id del cliente solo vale si el estudio
+    // existe y está activo; si no, se cae al find-or-create por nombre.
     if (formData?.studio_id) {
-        return { studioId: formData.studio_id, estudiosValue: studioNameForStorage(studioName), studioName };
+        const chosen = await rosterRoutes.service().validateRegistrationStudio(formData.studio_id);
+        if (chosen) {
+            return {
+                studioId: chosen.id,
+                estudiosValue: studioNameForStorage(chosen.name || studioName),
+                studioName: chosen.name || studioName,
+                studioHasOwner: Boolean(chosen.user_id)
+            };
+        }
     }
 
     const normalized = studioName.toUpperCase();
@@ -5552,7 +5444,8 @@ async function resolveRegistrationStudio(formData, { artistUserId = null, draftI
         estudiosValue: studioNameForStorage(studioName),
         studioName,
         createdStudioId,
-        claimableStudioId
+        claimableStudioId,
+        studioHasOwner: Boolean(existing && existing.user_id)
     };
 }
 
@@ -5614,7 +5507,10 @@ async function createArtistAuthUser({ email, password, fullName, username, draft
             email,
             password,
             ...emailConfirmation.adminCreateConfirmFields(confirmationRequired),
-            app_metadata: { qa_unverified_email: true, registration_draft_id: draftId },
+            // ── acceso (ACC-07): la marca solo aplica a cuentas autoconfirmadas
+            // sin verificar el email. Con "Confirm email" activo, la cuenta se
+            // confirma por el link y queda verificada como cualquier otra.
+            app_metadata: { registration_draft_id: draftId, ...(confirmationRequired ? {} : { qa_unverified_email: true }) },
             user_metadata: {
                 display_name: fullName || 'Artista',
                 full_name: fullName || null,
@@ -5798,7 +5694,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
 
     const body = req.body || {};
     const requestedDraftId = artistRegistration.normalizeDraftId(body.draft_id);
-    const formData = body.data && typeof body.data === 'object' ? body.data : {};
+    let formData = body.data && typeof body.data === 'object' ? body.data : {};
     const email = artistRegistration.normalizeEmail(body.email || formData.email);
     const password = String(body.password || formData.signup_password || '');
     const source = artistRegistration.sanitizeRegistrationSource(body.source || formData.registration_source);
@@ -5876,6 +5772,17 @@ app.post('/api/register/artist-finalize', async (req, res) => {
         }
 
         // Desde aca todo lo que falle se compensa (catch de abajo).
+        // ── roster (ROSTER-03): un enlace de invitación válido fuerza el
+        // estudio y la sede del enlace (lo que mande el cliente no cuenta).
+        const studioInviteResolution = await rosterRoutes.service()
+            .resolveRegistrationInvite(formData.studio_invite_token)
+            .catch((inviteErr) => {
+                console.warn('[register finalize] enlace de invitación ilegible:', inviteErr.message);
+                return { ok: false, status: 'invalid' };
+            });
+        if (studioInviteResolution.ok) {
+            formData = rosterRoutes.service().applyInviteToFormData(formData, studioInviteResolution);
+        }
         const studio = await resolveRegistrationStudio(formData, { artistUserId: authUser.id, draftId });
         createdStudioId = studio.createdStudioId || null;
         const { studioId, estudiosValue, studioName } = studio;
@@ -5886,7 +5793,9 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             email,
             source,
             step: 12,
-            studioId,
+            // ── roster: artists_db.studio_id lo completa el trigger cuando la
+            // membresía residente queda activa; una solicitud no lo fija.
+            studioId: null,
             estudiosValue,
             status: artistRegistration.REGISTRATION_STATUS_PENDING_VALIDATION,
             submitted: true
@@ -5903,11 +5812,13 @@ app.post('/api/register/artist-finalize', async (req, res) => {
         const artist = Array.isArray(savedRows) && savedRows[0] ? savedRows[0] : null;
         if (!artist) throw new Error('La fila del borrador cambio durante el registro');
 
-        await persistRegistrationStudioAssociations({
+        const studioMembership = await persistRegistrationStudioAssociations({
             formData,
             artistUserId: authUser.id,
             studioId,
-            studioName: studioName || estudiosValue
+            studioName: studioName || estudiosValue,
+            studioHasOwner: studio.studioHasOwner === true,
+            invite: studioInviteResolution.ok ? studioInviteResolution : null
         });
 
         const claim = studio.claimableStudioId
@@ -5919,6 +5830,16 @@ app.post('/api/register/artist-finalize', async (req, res) => {
         const confirmationSend = emailConfirmationRequired
             ? await sendServerSignupConfirmation(req, email, 'artist')
             : null;
+
+        // ── roster: aviso al dueño del estudio con todo ya guardado (no bloquea
+        // la respuesta ni hace fallar el registro).
+        if (studioMembership.membershipId && !studioMembership.alreadyMember) {
+            const rosterBase = applicationBase(req);
+            const rosterNotice = studioMembership.membershipStatus === 'active'
+                ? rosterRoutes.service().afterRedeem({ status: 'active', membership_id: studioMembership.membershipId }, { base: rosterBase, artistUserId: authUser.id })
+                : rosterRoutes.service().notify('studio_membership_request_created', studioMembership.membershipId, { base: rosterBase });
+            Promise.resolve(rosterNotice).catch((noticeErr) => console.warn('[register finalize] aviso al estudio falló:', noticeErr.message));
+        }
 
         return res.json({
             success: true,
@@ -5934,7 +5855,15 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             studio_id: studioId || null,
             studio_location_verified: studio.claimableStudioId ? false : null,
             studio_claim_url: claim ? claim.url : null,
-            studio_claim_expires_at: claim ? claim.expires_at : null
+            studio_claim_expires_at: claim ? claim.expires_at : null,
+            // ── roster: estado del vínculo con el estudio elegido.
+            studio_name: studioId ? (studioName || null) : null,
+            membership_id: studioMembership.membershipId || null,
+            membership_status: studioMembership.membershipStatus || null,
+            membership_pending: studioMembership.membershipStatus === 'requested',
+            studio_invite_status: formData.studio_invite_token
+                ? (studioMembership.viaInvite ? 'joined' : (studioMembership.inviteFailed ? 'failed' : (studioInviteResolution.status || 'invalid')))
+                : null
         });
     } catch (error) {
         console.error('[register finalize] failed:', error.message);
@@ -6443,7 +6372,7 @@ app.put('/api/email/events/:eventId', async (req, res) => {
     if (!emailEventMapping.getEvent(eventId)) {
         return res.status(404).json({ success: false, error: `Unknown eventId: ${eventId}` });
     }
-    const allowed = ['channel', 'billionmail_api_key', 'billionmail_sender', 'billionmail_api_url', 'n8n_webhook_url'];
+    const allowed = ['channel', 'billionmail_api_key', 'billionmail_sender', 'billionmail_api_url', 'n8n_webhook_url', 'relay_url'];
     const updates = {};
     for (const k of allowed) if (k in req.body) updates[k] = req.body[k];
     if (Object.keys(updates).length === 0) {
@@ -6466,7 +6395,7 @@ app.put('/api/email/events/:eventId', async (req, res) => {
  * Body: { eventId, recipient, channel? }
  * - When `recipient` is set, payload is built minimally so the recipient receives the test.
  */
-app.post('/api/email/test', authLimiter, async (req, res) => {
+app.post('/api/email/test', require('./lib/routes/emails').adminLimiter, async (req, res) => {
     const auth = await appSettings.verifyAdminCaller(req);
     if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
 
@@ -6519,35 +6448,10 @@ app.post('/api/email/test', authLimiter, async (req, res) => {
  * Body: { data: {...} }
  * Optional query: ?force=billionmail|n8n|dual|off  (admin-only override)
  */
-app.post('/api/email/:eventId', authLimiter, async (req, res) => {
-    const eventId = req.params.eventId;
-    const payload = (req.body && req.body.data) || req.body || {};
-    const forceChannel = req.query.force ? String(req.query.force) : undefined;
-
-    if (!emailEventMapping.getEvent(eventId)) {
-        return res.status(404).json({ success: false, error: `Unknown eventId: ${eventId}` });
-    }
-    if (forceChannel) {
-        if (!emailService.VALID_CHANNELS.includes(forceChannel)) {
-            return res.status(400).json({ success: false, error: 'Invalid force channel' });
-        }
-        const auth = await appSettings.verifyAdminCaller(req);
-        if (!auth.ok) return res.status(auth.status).json({ success: false, error: auth.error });
-    }
-
-    try {
-        const context = await resolveEmailContext(req, eventId, payload);
-        if (!context.ok) return res.status(context.status || 403).json({ success: false, error: context.error });
-        const result = await emailService.sendEmail(eventId, context.payload, {
-            forceChannel, idempotencyKey: context.idempotencyKey
-        });
-        const status = result.ok ? 200 : 502;
-        return res.status(status).json({ success: !!result.ok, ...result });
-    } catch (err) {
-        console.error(`[email] dispatch failed for ${eventId}:`, err.message);
-        return res.status(503).json({ success: false, error: 'No se pudo enviar el correo. El cambio guardado sigue disponible en tu cuenta.' });
-    }
-});
+// ── emails ── limiter por usuario (30/min) y handler en lib/routes/emails.js:
+// omitido por preferencia o ya leído no es error; chat/inbox diferidos y con
+// ventana de 15 min; rechazos de contexto logueados sin PII.
+app.post('/api/email/:eventId', require('./lib/routes/emails').dispatchLimiter, require('./lib/routes/emails').dispatchHandler);
 
 
 // ── integracion ──
@@ -6629,7 +6533,8 @@ if (require.main === module) {
 // prompt=consent, state cifrado + cookie httpOnly + PKCE). Credenciales SOLO
 // por entorno: GOOGLE_OAUTH_CLIENT_ID / _SECRET / _REDIRECT_URI y
 // GCAL_TOKEN_ENC_KEY. Sin ellas, todo responde 503 y la UI lo muestra.
-// Job cada 15 min (GCAL_SYNC_JOB=off lo apaga). Nunca se loguean tokens.
+// Job cada 15 min (GCAL_SYNC_JOB=off lo apaga) + cambios marcados por la base
+// cada GCAL_DIRTY_POLL_MS (30 s, 20261115150000). Nunca se loguean tokens.
 // Lógica en lib/gcal-oauth.js + lib/gcal-sync.js; datos en lib/repos/google-calendar.js.
 const gcalOauth = require('./lib/gcal-oauth');
 const gcalSync = require('./lib/gcal-sync');
@@ -6642,6 +6547,8 @@ const gcalService = gcalSync.createGcalService({
     baseUrl: applicationBase({ headers: {}, get: () => '' }),
     log: console
 });
+// Otros módulos del servidor piden la sincronización con gcalSync.notifyChange(artistId).
+gcalSync.setSharedService(gcalService);
 
 function gcalNotConfigured(res) {
     return res.status(503).json({ success: false, configured: false, error: gcalOauth.NOT_CONFIGURED_MESSAGE });
@@ -6708,7 +6615,8 @@ app.post('/api/google-calendar/disconnect', async (req, res) => {
     const userId = await gcalCaller(req, res);
     if (!userId) return;
     try {
-        const result = await gcalService.disconnect(userId);
+        // removeEvents: quita de Google los eventos de We Ötzi que todavía no pasaron.
+        const result = await gcalService.disconnect(userId, { removeEvents: req.body?.removeEvents === true });
         return res.json({ success: true, ...result });
     } catch (err) {
         return gcalSendError(res, err, 'No pudimos desconectar Google Calendar.');
@@ -7032,6 +6940,20 @@ app.post('/api/privacy/cookie-consent', async (req, res) => {
     }
 });
 // ── fin privacidad ──
+require('./lib/routes/cot-artista').register(app); // ── cot-artista ── avisos de sesión y acuerdo (límite propio)
+
+// ── emails ── verificación por email, recordatorio de sesión 24 h y avisos de arranque.
+require('./lib/routes/emails').register(app, { pgrest, getActiveSupportAgent: _getActiveSupportAgent, applicationBase, safeTokenEqual: storeOrders.safeTokenEqual, startJobs: require.main === module });
+
+require('./lib/routes/acceso').register(app); // ── acceso: bienvenida idempotente y Términos del cliente
+
+// ── cot-form ── cotizador web: intake, sugerencias de artistas y Job Board.
+require('./lib/routes/cot-form').register(app, { driveMirror: mirrorQuoteFilesToDrive });
+require('./lib/routes/cot-cliente').register(app); // ── cot-cliente: claim + decisión del cliente
+
+require('./lib/routes/verif-artista').register(app, { resolveBearerUser, getActiveSupportAgent: _getActiveSupportAgent, emailService, applicationBase }); // verif-artista
+
+require('./lib/routes/verif-estudio').register(app); // verificación de estudios
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {
@@ -7043,6 +6965,15 @@ app.get('/', (req, res) => {
 app.get('/travel/t/:slug', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'travel', 'share', 'index.html'));
 });
+
+// Perfil público: meta OG del lado servidor y URL corta /<handle> (antes del estático).
+require('./lib/routes/perfil').register(app, { publicDir: path.join(__dirname, 'public') });
+
+require('./lib/routes/turnos').register(app, { gcalService, startJob: require.main === module }); // ── turnos ── reservas online
+
+require('./lib/routes/estudio-registro').register(app, { applicationBase }); // frente estudio-registro: reclamos y bienvenida
+
+rosterRoutes.register(app, { resolveBearerUser, applicationBase });
 
 // Rutas del artista retiradas por el Figma final: redirigen a su reemplazo
 // solo cuando su carpeta ya no existe en public/ (ver lib/legacy-routes.js).
@@ -7178,17 +7109,8 @@ function collectPublicRoutes(dir = path.join(__dirname, 'public'), routePrefix =
 }
 
 function collectRegisteredRoutes() {
-    return app._router.stack
-        .filter(layer => layer.route && layer.route.path)
-        .flatMap(layer => {
-            const methods = Object.keys(layer.route.methods)
-                .map(method => method.toUpperCase())
-                .sort()
-                .join(',');
-            return [{ methods, path: layer.route.path }];
-        })
-        .filter(route => route.path.startsWith('/api/') || route.path.startsWith('/shared/'))
-        .sort((a, b) => `${a.path} ${a.methods}`.localeCompare(`${b.path} ${b.methods}`));
+    // Rutas-array (p. ej. /artist/profile de perfil.js) o RegExp: ver lib/registered-routes.js.
+    return require('./lib/registered-routes').listRegisteredRoutes(app._router.stack);
 }
 
 function logRouteList(title, routes, formatter) {

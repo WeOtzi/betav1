@@ -12,9 +12,12 @@
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/address-picker.css">
     <link rel="stylesheet" href="/shared/css/studio-dashboard-ds.css">
+    <link rel="stylesheet" href="/shared/css/studio-dashboard-sedes.css">
     <link rel="stylesheet" href="/shared/css/studio-dashboard-ops-ds.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
     <link rel="stylesheet" href="/shared/css/studio-inbox-ds.css">
+    <link rel="stylesheet" href="/shared/css/studio-verification.css">
+    <link rel="stylesheet" href="/shared/css/studio-team-ds.css?v=20261115-roster">
     <link rel="stylesheet" href="/shared/css/account-deletion.css?v=20261113-borrado">
     <script src="/shared/js/wo-icons.js" data-icon-base="../assets/feather-studio/" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
@@ -33,6 +36,7 @@
             <a class="studio-dash-tab wo-tab is-active" href="#resumen" data-tab="resumen">Resumen</a>
             <a class="studio-dash-tab wo-tab" href="#mensajes" data-tab="mensajes">Mensajes</a>
             <a class="studio-dash-tab wo-tab" href="#perfil" data-tab="perfil">Perfil</a>
+            <a class="studio-dash-tab wo-tab" href="#verificacion" data-tab="verificacion">Verificación</a>
             <a class="studio-dash-tab wo-tab" href="#sedes" data-tab="sedes">Sedes</a>
             <a class="studio-dash-tab wo-tab" href="#roster" data-tab="roster">Equipo</a>
             <a class="studio-dash-tab wo-tab" href="#spots" data-tab="spots">Spots</a>
@@ -183,10 +187,10 @@
 
                 <!-- ============ Sedes ============ -->
                 <section class="studio-dash-panel" data-panel="sedes">
-                    <h2 class="studio-h1">Tus <span class="accent">ubicaciones</span></h2>
+                    <h2 class="studio-h1">Tus <span class="accent">sedes</span></h2>
                     <div class="studio-panel-grid"><div class="studio-panel-content">
                     <p class="studio-help">
-                        Cada sede aparece como un pin en tu perfil público. Marcá una como "principal".
+                        Cada sede activa aparece como un pin en tu perfil público. La principal define la ciudad del estudio; archivá las que ya no uses.
                     </p>
                     <div class="studio-locations-list" id="sedes-list"></div>
                     <button type="button" class="studio-locations-add wo-btn wo-btn--secondary" id="add-sede-btn">
@@ -194,7 +198,7 @@
                     </button>
                     <span id="sedes-status" class="studio-status studio-status-info" hidden></span>
 
-                    </div><aside class="studio-context"><h3>Cada espacio, en su lugar</h3><p>Cada sede aparece en el mapa de tu perfil. Mantené una sede principal y sus datos de contacto actualizados.</p></aside></div>
+                    </div><aside class="studio-context"><h3>Cada espacio, en su lugar</h3><p>La sede organiza artistas, sesiones y visitas. Comprobá la dirección y el pin, y elegí una sede principal.</p></aside></div>
                 </section>
 
                 <!-- ============ Roster ============ -->
@@ -202,15 +206,31 @@
                     <h2 class="studio-h1">Artistas <span class="accent">del estudio</span></h2>
                     <div class="studio-panel-grid"><div class="studio-panel-content">
                     <p class="studio-help">
-                        Invitá artistas, cambiales el rol, moveles de sede o desvinculalos. Las invitaciones
-                        quedan pendientes hasta que el artista las acepta desde su panel.
+                        Invitá artistas, aprobá las solicitudes de quienes quieren sumarse y compartí tu enlace
+                        de invitación. Las invitaciones quedan pendientes hasta que el artista las acepta.
                     </p>
 
-                    <div class="studio-invite-form">
-                        <div class="studio-field wo-field">
-                            <label class="studio-label wo-label" for="invite-search">Invitar artista (buscar por @username o nombre)</label>
-                            <input id="invite-search" class="studio-input wo-input" placeholder="@yomicoart o Yomico Moreno" autocomplete="off">
-                            <div id="invite-suggestions" class="studio-locations-list" hidden></div>
+                    <!-- E-TEAM-01 · acciones del equipo -->
+                    <div class="steam-toolbar studio-actions">
+                        <button type="button" class="wo-btn wo-btn--primary" id="team-open-invite" aria-expanded="false" aria-controls="team-invite">
+                            <span data-wo-icon="user-plus" aria-hidden="true"></span> Invitar artista
+                        </button>
+                        <button type="button" class="wo-btn wo-btn--secondary" id="team-open-link" aria-controls="team-links">
+                            <span data-wo-icon="link" aria-hidden="true"></span> Enlace de invitación
+                        </button>
+                    </div>
+
+                    <div id="roster-status" class="studio-status studio-status-info" hidden></div>
+
+                    <!-- E-TEAM-02 · invitar con condiciones -->
+                    <form class="studio-invite-form steam-invite" id="team-invite" novalidate hidden aria-labelledby="team-invite-title">
+                        <h3 class="steam-subtitle" id="team-invite-title">Invitar a un artista de We Ötzi</h3>
+                        <div class="studio-field wo-field steam-invite__search">
+                            <label class="studio-label wo-label" for="invite-search">Buscar artista (@usuario o nombre)</label>
+                            <input id="invite-search" class="studio-input wo-input" placeholder="@yomicoart o Yomico Moreno" autocomplete="off"
+                                role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="invite-suggestions">
+                            <div id="invite-suggestions" class="studio-locations-list" role="listbox" aria-label="Artistas encontrados" hidden></div>
+                            <p id="invite-chosen" class="steam-chosen" hidden></p>
                         </div>
                         <div class="studio-field wo-field">
                             <label class="studio-label wo-label" for="invite-role">Rol</label>
@@ -225,16 +245,159 @@
                             <label class="studio-label wo-label" for="invite-location">Sede</label>
                             <select id="invite-location" class="studio-input wo-input"></select>
                         </div>
-                        <button type="button" class="studio-btn studio-btn-primary wo-btn wo-btn--primary" id="invite-send">
-                            <span data-wo-icon="user-plus" aria-hidden="true"></span> Invitar
-                        </button>
-                    </div>
+                        <div class="studio-field wo-field">
+                            <label class="studio-label wo-label" for="invite-split">Reparto para el artista (%)</label>
+                            <input id="invite-split" class="studio-input wo-input" type="number" inputmode="decimal" min="0" max="100" step="1" placeholder="Opcional">
+                        </div>
+                        <div class="studio-field wo-field">
+                            <label class="studio-label wo-label" for="invite-start">Inicio propuesto</label>
+                            <input id="invite-start" class="studio-input wo-input" type="date">
+                        </div>
+                        <div class="studio-field wo-field">
+                            <label class="studio-label wo-label" for="invite-end">Fin propuesto</label>
+                            <input id="invite-end" class="studio-input wo-input" type="date">
+                        </div>
+                        <div class="studio-field wo-field studio-form-full">
+                            <label class="studio-label wo-label" for="invite-message">Mensaje y condiciones</label>
+                            <textarea id="invite-message" class="wo-textarea" rows="3" maxlength="1000" placeholder="Contale por qué querés que se sume y cómo trabajan."></textarea>
+                        </div>
+                        <details class="steam-more studio-form-full">
+                            <summary>Incluye, expectativas, requisitos y contacto</summary>
+                            <div class="studio-form-grid">
+                                <div class="studio-field wo-field">
+                                    <label class="studio-label wo-label" for="invite-provides">Qué incluye el estudio</label>
+                                    <textarea id="invite-provides" class="wo-textarea" rows="3" placeholder="Uno por línea: insumos, camilla, difusión…"></textarea>
+                                </div>
+                                <div class="studio-field wo-field">
+                                    <label class="studio-label wo-label" for="invite-expectations">Expectativas</label>
+                                    <textarea id="invite-expectations" class="wo-textarea" rows="3" placeholder="Uno por línea"></textarea>
+                                </div>
+                                <div class="studio-field wo-field">
+                                    <label class="studio-label wo-label" for="invite-requirements">Requisitos</label>
+                                    <textarea id="invite-requirements" class="wo-textarea" rows="3" placeholder="Uno por línea"></textarea>
+                                </div>
+                                <div class="studio-field wo-field">
+                                    <label class="studio-label wo-label" for="invite-contact-name">Contacto responsable</label>
+                                    <input id="invite-contact-name" class="studio-input wo-input" autocomplete="name" placeholder="Nombre">
+                                </div>
+                                <div class="studio-field wo-field">
+                                    <label class="studio-label wo-label" for="invite-contact-title">Cargo</label>
+                                    <input id="invite-contact-title" class="studio-input wo-input" placeholder="Ej.: encargada de agenda">
+                                </div>
+                                <div class="studio-field wo-field">
+                                    <label class="studio-label wo-label" for="invite-contact-email">Email de contacto</label>
+                                    <input id="invite-contact-email" class="studio-input wo-input" type="email" autocomplete="email">
+                                </div>
+                            </div>
+                        </details>
+                        <div class="studio-actions studio-form-full">
+                            <button type="submit" class="wo-btn wo-btn--primary" id="invite-send">Enviar invitación</button>
+                            <button type="button" class="wo-btn wo-btn--secondary" id="invite-cancel">Atrás</button>
+                        </div>
+                    </form>
 
-                    <div id="roster-status" class="studio-status studio-status-info" hidden></div>
+                    <!-- ROSTER-06 · invitación por email (quien todavía no tiene cuenta) -->
+                    <form class="steam-email" id="team-email-invite" novalidate aria-labelledby="team-email-title" hidden>
+                        <h3 class="steam-subtitle" id="team-email-title">¿No está en We Ötzi? Invitalo por email</h3>
+                        <p class="wo-help">Le llega un enlace personal para crear su perfil y quedar en tu equipo con el rol y la sede de arriba.</p>
+                        <div class="steam-email__row">
+                            <div class="studio-field wo-field">
+                                <label class="studio-label wo-label" for="email-invite-email">Email</label>
+                                <input id="email-invite-email" class="studio-input wo-input" type="email" autocomplete="off" required>
+                            </div>
+                            <div class="studio-field wo-field">
+                                <label class="studio-label wo-label" for="email-invite-name">Nombre (opcional)</label>
+                                <input id="email-invite-name" class="studio-input wo-input" autocomplete="off">
+                            </div>
+                            <button type="submit" class="wo-btn wo-btn--secondary" id="email-invite-send">Invitar por email</button>
+                        </div>
+                    </form>
+
+                    <!-- ROSTER-02 · solicitudes de alta -->
+                    <section class="steam-requests" id="team-requests" aria-labelledby="team-requests-title" hidden>
+                        <h3 class="steam-subtitle" id="team-requests-title">Solicitudes de alta <span class="wo-badge wo-badge--s wo-badge--accent" id="team-requests-count">0</span></h3>
+                        <p class="wo-help">Artistas que pidieron sumarse a tu estudio (desde su registro, tu enlace o su cuenta). Aprobá con el rol y la sede que corresponda.</p>
+                        <div id="team-requests-list"></div>
+                    </section>
+
                     <section class="si-cr" id="roster-change-requests" aria-label="Solicitudes de cambio de invitaciones" hidden></section>
-                    <div id="roster-content"><em>Cargando equipo…</em></div>
 
-                    </div><aside class="studio-context"><h3>Colaboraciones claras</h3><p>Las invitaciones quedan pendientes hasta que el artista las acepta. El rol y la sede ayudan a organizar tu equipo.</p></aside></div>
+                    <!-- E-TEAM-01 · equipo con filtros -->
+                    <section class="steam-roster" aria-labelledby="team-roster-title">
+                        <h3 class="steam-subtitle" id="team-roster-title">Equipo · <span id="team-count">0</span> activos</h3>
+                        <div class="steam-filters" role="search" aria-label="Filtrar el equipo">
+                            <div class="studio-field wo-field">
+                                <label class="studio-label wo-label" for="team-filter-q">Buscar</label>
+                                <input id="team-filter-q" class="studio-input wo-input" type="search" placeholder="Nombre o @usuario" autocomplete="off">
+                            </div>
+                            <div class="studio-field wo-field">
+                                <label class="studio-label wo-label" for="team-filter-role">Rol</label>
+                                <select id="team-filter-role" class="studio-input wo-input">
+                                    <option value="">Todos los roles</option>
+                                    <option value="resident">Residente</option>
+                                    <option value="itinerant">Itinerante</option>
+                                    <option value="guest">Guest</option>
+                                    <option value="manager">Manager</option>
+                                </select>
+                            </div>
+                            <div class="studio-field wo-field">
+                                <label class="studio-label wo-label" for="team-filter-location">Sede</label>
+                                <select id="team-filter-location" class="studio-input wo-input"></select>
+                            </div>
+                            <div class="studio-field wo-field">
+                                <label class="studio-label wo-label" for="team-filter-status">Estado</label>
+                                <select id="team-filter-status" class="studio-input wo-input"></select>
+                            </div>
+                        </div>
+                        <div id="roster-content"><em>Cargando equipo…</em></div>
+                    </section>
+
+                    <!-- ROSTER-03 · enlace de invitación -->
+                    <section class="steam-links" id="team-links" aria-labelledby="team-links-title">
+                        <h3 class="steam-subtitle" id="team-links-title">Enlace de invitación</h3>
+                        <p class="wo-help">Compartilo con los artistas que quieras sumar: si no tienen cuenta, la crean con el enlace; si ya la tienen, se suman con un clic.</p>
+                        <form class="steam-linkform" id="team-link-form" novalidate>
+                            <div class="studio-field wo-field">
+                                <label class="studio-label wo-label" for="link-role">Rol</label>
+                                <select id="link-role" class="studio-input wo-input">
+                                    <option value="resident">Residente</option>
+                                    <option value="itinerant">Itinerante</option>
+                                    <option value="guest">Guest</option>
+                                </select>
+                            </div>
+                            <div class="studio-field wo-field">
+                                <label class="studio-label wo-label" for="link-location">Sede</label>
+                                <select id="link-location" class="studio-input wo-input"></select>
+                            </div>
+                            <div class="studio-field wo-field">
+                                <label class="studio-label wo-label" for="link-ttl">Vence en</label>
+                                <select id="link-ttl" class="studio-input wo-input">
+                                    <option value="7">7 días</option>
+                                    <option value="30" selected>30 días</option>
+                                    <option value="90">90 días</option>
+                                </select>
+                            </div>
+                            <div class="studio-field wo-field">
+                                <label class="studio-label wo-label" for="link-max">Usos máximos</label>
+                                <input id="link-max" class="studio-input wo-input" type="number" inputmode="numeric" min="1" max="500" placeholder="Sin límite">
+                            </div>
+                            <div class="studio-field wo-field">
+                                <label class="studio-label wo-label" for="link-label">Nombre del enlace (opcional)</label>
+                                <input id="link-label" class="studio-input wo-input" maxlength="80" placeholder="Ej.: Guest spots de verano">
+                            </div>
+                            <label class="wo-check steam-check" for="link-approval">
+                                <input type="checkbox" id="link-approval" checked>
+                                <span>Aprobar cada alta antes de sumarla al equipo</span>
+                            </label>
+                            <div class="studio-actions">
+                                <button type="submit" class="wo-btn wo-btn--primary" id="link-generate">Generar enlace</button>
+                            </div>
+                        </form>
+                        <div class="steam-linkresult" id="link-result" hidden></div>
+                        <div id="team-links-list"></div>
+                    </section>
+
+                    </div><aside class="studio-context"><h3>Colaboraciones claras</h3><p>Las invitaciones quedan pendientes hasta que el artista las acepta, y las solicitudes hasta que las aprobás. El rol, la sede y el reparto ordenan tu equipo; el perfil público muestra solo a quienes están activos.</p></aside></div>
                 </section>
 
                 <!-- ============ Spots ============ -->
@@ -242,7 +405,7 @@
                     <h2 class="studio-h1">Spots <span class="accent">disponibles</span></h2>
                     <div class="studio-panel-grid"><div class="studio-panel-content">
                     <p class="studio-help">
-                        Publicá residencias, itinerantes o guest spots. Las postulaciones aparecen aquí mismo — aceptá para sumar al artista al roster automáticamente.
+                        Publicá residencias, itinerantes o guest spots. Las postulaciones aparecen aquí mismo: al aceptar una, le enviamos al artista la invitación para sumarse a tu equipo.
                     </p>
 
                     <button type="button" class="studio-btn studio-btn-primary wo-btn wo-btn--primary" id="spot-new-btn">
@@ -256,7 +419,7 @@
                     <h2 class="studio-h2">Tus spots</h2>
                     <div id="my-spots-list"><em class="studio-help">Cargando…</em></div>
 
-                    </div><aside class="studio-context"><h3>Prepará una buena colaboración</h3><p>Definí la propuesta, la sede y las condiciones. Al aceptar una postulación, el artista se suma al equipo del estudio.</p></aside></div>
+                    </div><aside class="studio-context"><h3>Prepará una buena colaboración</h3><p>Definí la propuesta, la sede y las condiciones. Al aceptar una postulación, el artista recibe la invitación al equipo y queda adentro cuando la acepta.</p></aside></div>
                 </section>
 
                 <!-- ============ Travel · confirmación propiedad del estudio ============ -->
@@ -360,6 +523,12 @@
 
                     </div><aside class="studio-context"><h3>Un periodo, una moneda</h3><p>Los importes se agrupan por moneda. Compará la actividad del estudio y sus artistas sin sumar monedas diferentes.</p></aside></div>
                 </section>
+
+                <!-- ============ Verificación del estudio (Figma 91wY · 05, E-VER-01/02/03) — studio-dashboard-verification.js ============ -->
+                <section class="studio-dash-panel sv-panel" data-panel="verificacion" aria-label="Verificación del estudio">
+                    <div data-sv-status class="studio-status studio-status-info" role="status" hidden></div>
+                    <div data-sv-root aria-live="polite"><p class="studio-help">Cargando la verificación…</p></div>
+                </section>
             </main>
         </div>
     </div>
@@ -386,11 +555,16 @@
     <script src="/shared/js/reviews.js"></script>
     <script src="/shared/js/studio-auth.js"></script>
     <script src="/shared/js/weotzi-uploader.js"></script>
+    <script src="/shared/js/studio-location-map.js"></script>
+    <script src="/shared/js/studio-dashboard-sedes.js"></script>
+    <script src="/shared/js/studio-dashboard-team.js?v=20261115-roster"></script>
     <script src="/shared/js/studio-dashboard.js"></script>
     <script src="/shared/js/studio-dashboard-ops.js"></script>
     <script src="/shared/js/studio-travel-links.js"></script>
     <script src="/shared/js/studio-inbox-model.js"></script>
     <script src="/shared/js/studio-inbox.js"></script>
     <script src="/shared/js/studio-invitation-changes.js"></script>
+    <script src="/shared/js/data/studio-verification-repo.js"></script>
+    <script src="/shared/js/studio-dashboard-verification.js"></script>
 </body>
 </html>

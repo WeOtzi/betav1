@@ -72,7 +72,7 @@ Google Drive, Gemini, Google Maps, n8n, EmailJS, Apify/Instagram, CDNs
 | Supabase Storage | Imagenes de cotizacion, perfil, galeria, media importada, estudios, spots y documentos | Buckets `quotation-references`, `profile-pictures`, `artist-gallery`, `studio-photos`, `studio-documents`, `studio-spot-attachments` |
 | Google Drive | Carpeta por cotizacion y subida de referencias | `/api/google-drive/*` |
 | Gemini | Generacion de imagen/concepto para tatuajes | `/api/gemini/generate-image` |
-| Google Maps/Geocoder | Direcciones, mapas, pins, exploracion | `geocoder.js`, `address-picker.js`, `/api/artists/geocode` |
+| Google Maps/Geocoder | Direcciones, mapas, pins, exploracion | `geocoder.js` (caché del visitante, no persiste), `address-picker.js` |
 | n8n | Webhooks de email/eventos de negocio | `app-config.json`, `/api/studio/notify`, flujos de registro/cotizacion/job board |
 | EmailJS | Notificaciones frontend heredadas | Config publica en `app-config.json` |
 | Apify/Instagram | Importacion de bio, links, fotos y reels | `/api/admin/integrations/apify*`, `/api/instagram/*`, `lib/instagram-import.js` |
@@ -88,7 +88,7 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/quotation` | Cliente | `public/quotation/index.html` | Wizard principal de cotizacion con referencias, seleccion de artista, calendario y handoff a Drive/n8n/Supabase. |
 | `/quotations` | Cliente/legacy | `public/quotations/index.html` | Redirecciona a `/quotation` preservando query/hash. |
 | `/pre-cotizador` | Cliente | `public/pre-cotizador/index.html` | Estimador previo de costo y artistas sugeridos antes de iniciar la cotizacion completa. |
-| `/marketplace` | Cliente/publico | `public/marketplace/index.html` | Busqueda/listado de artistas desde `artists_db`. |
+| `/marketplace` | Cliente/publico | `public/marketplace/index.html` | Busqueda/listado de artistas y estudios (`?modo=estudios`, Figma 801:1127 y 2113:9145). Lee por `WeotziData.Marketplace` (`data/marketplace-repo.js`); filtros puros en `marketplace-core.js` (estilo canónico sin tildes, precio en USD, agenda + `public_artist_trips`, verificados, paginado). |
 | `/explore` | Cliente/publico | `public/explore/index.html` | Mapa 2D de artistas y estudios usando `artists_with_location` y `studio_locations`. |
 | `/explore/globe` | Cliente/publico | `public/explore/globe/index.html` | Globo 3D con artistas, itinerarios, filtros y spotlight. |
 | `/client/register` | Cliente | `public/client/register/index.html` | Registro de cuenta cliente. |
@@ -151,7 +151,10 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | --- | --- | --- | --- |
 | `POST` | `/api/gemini/generate-image` | Genera imagenes/conceptos con Gemini usando `GEMINI_API_KEY`. | Gemini API |
 | `POST` | `/api/google-drive/test` | Valida acceso a una carpeta de Google Drive. | Google Drive service account |
-| `POST` | `/api/google-drive/create-quote-folder` | Crea carpeta de cotizacion y sube referencias descargadas por URL. | Google Drive |
+| `POST` | `/api/google-drive/create-quote-folder` | Re-copia manual (superadmin) de referencias a Drive; credenciales solo del `.env`. | Google Drive |
+| `POST` | `/api/quotations/intake` | Autosave y envio del cotizador web (service role, llave `submission_key`). | `services/quotation-intake.js` |
+| `POST` | `/api/quotations/suggestions` | Artistas sugeridos para cotizar sin artista (sin PII). | `lib/artist-matching.js` |
+| `POST` | `/api/quotations/intake/job-board` | Publica la idea sin artista en el Job Board (sesion de cliente). | `lib/routes/cot-form.js` |
 | `GET` | `/api/client-info` | Devuelve la IP **anonimizada** (IPv4 /24, IPv6 /48) y timestamp. | Request headers |
 | `POST` | `/api/session-log` | Recibe logs finales via `sendBeacon` y estima el país por zona horaria/idioma del navegador (`geo_hint`), sin enviar la IP a terceros. | Supabase |
 | `GET` | `/api/privacy/cookie-config` | Configuración pública del banner de cookies (`app_settings.cookie_consent_config`). | Supabase |
@@ -162,7 +165,7 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `POST` | `/api/tattoo-styles/ensure` | Busca o crea estilo raiz en `tattoo_styles`. | Supabase REST |
 | `POST` | `/api/admin/generate-backup` | Genera ZIP con datos recibidos, config y archivos de app. | `archiver`, filesystem |
 | `GET` | `/api/admin/backup-tables` | Lista tablas conocidas para backup. | `verifyAdminCaller` |
-| `GET` | `/shared/js/app-config.json` | Sirve configuracion publica con overrides de entorno. | `app-config.json`, env vars |
+| `GET` | `/shared/js/app-config.json` | Sirve configuracion publica con overrides de entorno, saneada (`sanitizePublicConfig`: sin service account, Gemini key, PRESET_PASSWORD ni webhook de referencias). | `app-config.json`, env vars |
 | `POST` | `/api/job-board/accept-application` | Cliente acepta postulacion, crea cotizacion, actualiza solicitud y rechaza otras postulaciones. | Supabase REST/Admin |
 | `POST` | `/api/client/quotations/:quoteId/hide` | Oculta cotizacion para el cliente con `client_deleted_at`. | Supabase Auth/REST |
 | `GET` | `/api/health/all` | Healthcheck de todos los servicios configurados. | Supabase, n8n, Gemini, Maps, Drive, EmailJS, Calendar |
@@ -175,7 +178,6 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `GET` | `/api/analytics/locations` | Pais/ciudad/IP de sesiones. | `analytics_user_sessions` |
 | `GET` | `/api/analytics/quotations` | Metricas de cotizaciones, conversion y tiempos de respuesta. | `quotations_db` |
 | `GET` | `/api/analytics/summary` | Resumen de analytics para dashboard. | `analytics_user_sessions`, `analytics_devices` |
-| `POST` | `/api/artists/geocode` | Persiste lat/lng y direccion geocodificada de artistas. | `artists_db` |
 | `POST` | `/api/studio/notify` | Notifica decisiones de spots o invitaciones de roster a artistas; exige Bearer JWT y ownership del estudio. | Supabase REST, n8n |
 | `POST` | `/api/pre-quote/estimate` | Calcula rango de costo y artistas sugeridos. | `artists_db`, `lib/prequote-estimator.js` |
 | `GET` | `/api/admin/integrations/apify` | Devuelve metadata del token Apify sin exponerlo. | `app_settings`, `verifyAdminCaller` |
@@ -355,7 +357,9 @@ RPC principales: `create_store_order`, `report_store_payment`, `confirm_store_or
 
 ### Vistas y funciones SQL importantes
 
-- `artists_with_location`: fuente unificada para mapa/explore; combina ubicacion propia de artista con sede primaria del estudio.
+- `artists_with_location`: fuente unificada para mapa/explore; combina ubicacion propia de artista con sede primaria del estudio. v4 (20261115200000) suma `session_price_amount_usd` y `verification_state`; `studio_phone` es el teléfono público de la sede/estudio.
+- `public_artist_trips`: viajes vigentes de Travel (planificado/confirmado) con solo ciudad, país, fechas y tipo, para el filtro Viajes del marketplace.
+- `studios` tiene privilegios por columna (20261115200100): anon/authenticated no leen `email`, `contact_phone`, `verification_reason`, `verification_required`, `instagram_verified_handle` ni `created_by_artist_user_id`; `artist_requirements` y `default_revenue_split_pct` solo con sesión. El dueño lee su fila con la RPC `get_my_studio()`.
 - `analytics_devices`, `analytics_user_sessions`: vistas de analytics sobre `session_logs`.
 - `studio_dashboard_metrics_view`, `studio_artist_performance_view`, `studio_inventory_health_view`: consumidas por `studio-dashboard-ops.js`.
 - `studio_public_sponsors_view`: superficie publica limitada para sponsors del perfil de estudio.
@@ -391,10 +395,10 @@ RPC principales: `create_store_order`, `report_store_payment`, `confirm_store_or
 
 ### Cotizacion cliente-artista
 
-1. Cliente completa `/quotation`.
-2. Frontend crea/actualiza registros en `quotations_db` y adjuntos.
-3. Backend puede crear carpeta en Drive con `/api/google-drive/create-quote-folder`.
-4. n8n envia emails/eventos segun `app-config.json`.
+1. Cliente completa `/quotation` (o llega del pre-cotizador).
+2. El servidor guarda borrador y envio (`/api/quotations/intake`); las referencias van al bucket `quotation-references` y el servidor las registra.
+3. Sin artista: el cliente elige un artista sugerido o publica su idea en el Job Board.
+4. El servidor manda la confirmacion al cliente y, si esta configurado, copia las referencias a Drive.
 5. Artista gestiona la solicitud desde `/my-quotations`.
 6. Cliente revisa estado/chat desde `/client/dashboard`.
 
