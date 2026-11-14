@@ -195,7 +195,66 @@ test('vacaciones: días completos en la zona del artista', () => {
     assert.deepEqual(body.start, { date: '2026-12-20' });
     assert.deepEqual(body.end, { date: '2027-01-01' });
     assert.equal(sync.normalizeVacation({ user_id: USER, vacation_start: null }, TZ), null);
-    assert.equal(sync.normalizeVacation({ user_id: USER, vacation_start: '2026-12-20', vacation_end: '2026-12-01' }, TZ), null);
+});
+
+test('vacaciones: mismo criterio que artist-vacation.js (una fecha, fechas invertidas) y sin publicar las viejas', () => {
+    const onlyEnd = sync.buildGoogleEvent(sync.normalizeVacation({ user_id: USER, vacation_start: null, vacation_end: '2026-12-24' }, TZ), { tz: TZ });
+    assert.deepEqual([onlyEnd.start, onlyEnd.end], [{ date: '2026-12-24' }, { date: '2026-12-25' }]);
+    const swapped = sync.buildGoogleEvent(sync.normalizeVacation({ user_id: USER, vacation_start: '2026-12-20', vacation_end: '2026-12-01' }, TZ), { tz: TZ });
+    assert.deepEqual([swapped.start, swapped.end], [{ date: '2026-12-01' }, { date: '2026-12-21' }]);
+    const ctx = { since: iso(NOW - 30 * DAY) };
+    assert.equal(sync.normalizeVacation({ user_id: USER, vacation_start: '2026-08-01', vacation_end: '2026-08-15' }, TZ, ctx), null, 'terminó hace meses');
+    assert.ok(sync.normalizeVacation({ user_id: USER, vacation_start: '2026-11-01', vacation_end: '2026-11-05' }, TZ, ctx), 'dentro de la ventana');
+});
+
+test('revisión: vínculos sin fin anotado que siguen en la lista se completan sin escribir en Google', async () => {
+    const manual = [{ id: 'past', event_type: 'personal', title: 'Pasado', starts_at: iso(NOW - 5 * DAY), ends_at: iso(NOW - 5 * DAY + 3600e3), status: 'scheduled', recurrence_rule: 'none' }];
+    const { db, google, svc } = await connected({ manual });
+    await svc.syncUser(USER);
+    const link = db.state.links.get(`${USER}|event:past`);
+    // Como quedó antes de 20261115150000: sin fin ni cuenta.
+    link.source_ends_at = null;
+    link.google_email = null;
+    const before = writes(google);
+    await svc.syncUser(USER);
+    assert.equal(writes(google), before, 'sin escrituras en Google');
+    assert.equal(db.state.links.get(`${USER}|event:past`).source_ends_at, iso(NOW - 5 * DAY + 3600e3));
+    assert.equal(db.state.links.get(`${USER}|event:past`).google_email, 'artista@gmail.com');
+    // Y por eso "quitar los eventos próximos" respeta el pasado.
+    const res = await svc.disconnect(USER, { removeEvents: true });
+    assert.equal(res.removedEvents, 0);
+    assert.equal(google.events.size, 1);
+});
+
+test('revisión: el fin que devuelve PostgREST (+00:00) no fuerza reescrituras del vínculo', async () => {
+    const manual = [{ id: 'e1', event_type: 'personal', title: 'E', starts_at: iso(NOW + DAY), ends_at: iso(NOW + DAY + 3600e3), status: 'scheduled', recurrence_rule: 'none' }];
+    const { db, svc } = await connected({ manual });
+    await svc.syncUser(USER);
+    const link = db.state.links.get(`${USER}|event:e1`);
+    link.source_ends_at = link.source_ends_at.replace('.000Z', '+00:00');
+    let upserts = 0;
+    const original = db.upsertLink;
+    db.upsertLink = async (row) => { upserts += 1; return original(row); };
+    await svc.syncUser(USER);
+    assert.equal(upserts, 0);
+});
+
+test('revisión: desconectar espera la sincronización en curso y borra la conexión antes de quitar eventos', async () => {
+    const manual = [{ id: 'next', event_type: 'personal', title: 'Próximo', starts_at: iso(NOW + DAY), ends_at: iso(NOW + DAY + 3600e3), status: 'scheduled', recurrence_rule: 'none' }];
+    const { db, google, svc } = await connected({ manual });
+    const order = [];
+    const originalDelete = db.deleteConnection;
+    db.deleteConnection = async (uid) => { order.push('deleteConnection'); return originalDelete(uid); };
+    const originalDeleteEvent = google.deleteEvent;
+    google.deleteEvent = async (...args) => { order.push('deleteEvent'); return originalDeleteEvent(...args); };
+    const running = svc.syncUser(USER);
+    const res = await svc.disconnect(USER, { removeEvents: true });
+    await running;
+    assert.equal(res.removedEvents, 1, 'la sync en curso terminó antes y su evento también se quitó');
+    assert.equal(google.events.size, 0);
+    assert.deepEqual(order, ['deleteConnection', 'deleteEvent']);
+    // Ninguna corrida posterior vuelve a publicar: no hay conexión.
+    assert.deepEqual(await svc.syncUser(USER), { skipped: 'not_connected' });
 });
 
 test('sesiones: no_show (COT-A-15) y cotizaciones cerradas (CAL-12) no se publican', () => {

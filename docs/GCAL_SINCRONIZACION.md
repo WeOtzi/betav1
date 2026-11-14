@@ -14,7 +14,7 @@ Código: `lib/gcal-sync.js` (servicio y fuentes), `lib/gcal-oauth.js` (OAuth y c
 | `reminder:<uuid>` | `artist_reminders` | Con hora: 30 min con aviso emergente a la hora. Con solo fecha: todo el día. No ocupa horario (`transparent`). Los completados salen |
 | `booking:<uuid>` | `studio_bookings` confirmadas o completadas | "Cita en Estudio · Cliente", con la dirección de la sede. Sin email ni teléfono del cliente |
 | `hold:<uuid>` | `artist_booking_holds` en `pending` sin vencer (los crea el frente "turnos") | "Solicitud de turno · Cliente", provisorio (`tentative`). Al confirmarse sale y entra la sesión |
-| `vacation:<user_id>` | `artists_db.vacation_start/_end` | "Vacaciones", días completos |
+| `vacation:<user_id>` | `artists_db.vacation_start/_end` | "Vacaciones", días completos (mismo criterio que `artist-vacation.js`: una sola fecha es un día; las que terminaron antes de la ventana no se publican) |
 
 La disponibilidad semanal no se publica: es el horario de atención, no son eventos. Las solicitudes pendientes sin turno apartado tampoco: no tienen hora.
 
@@ -27,8 +27,8 @@ La disponibilidad semanal no se publica: es el horario de atención, no son even
 
 ## Garantías
 
-- **Historial**: la lectura toma lo que terminó hace menos de 30 días. Lo más viejo no se borra de Google, porque el vínculo guarda `source_ends_at`. Solo se borra de Google lo que se borró, canceló, completó o venció en We Ötzi. Antes de borrar, se verifica la fila por id. Si una fuente falla al leerse, no se toca ninguno de sus vínculos.
-- **Sin duplicados al reconectar**: el id del evento en Google es determinístico (`sha256(artista, source_key)`, base32hex). Los vínculos ya no se borran al desconectar: su FK es a `auth.users`. Si el evento ya existe, Google responde 409 y se adopta con un update.
+- **Historial**: la lectura toma lo que terminó hace menos de 30 días. Lo más viejo no se borra de Google, porque el vínculo guarda `source_ends_at`. Solo se borra de Google lo que se borró, canceló, completó o venció en We Ötzi. Antes de borrar, se verifica la fila por id. Si una fuente falla al leerse, no se toca ninguno de sus vínculos. Los vínculos anteriores a la migración (sin fin anotado) se completan en la primera sincronización sin escribir en Google.
+- **Sin duplicados al reconectar**: el id del evento en Google es determinístico (`sha256(artista, source_key)`, base32hex). Los vínculos ya no se borran al desconectar: su FK es a `auth.users`. Si el evento ya existe, Google responde 409 y se adopta con un update. Al desconectar se borra primero la conexión (ninguna sincronización nueva arranca) y se espera la que esté en curso; recién después se quitan de Google los eventos próximos, si el artista lo pidió.
 - **Cambio de cuenta de Google**: los vínculos de la cuenta anterior (`google_email` distinto) se descartan y los eventos se publican en la nueva.
 - **Desconectar**: el diálogo de Cuenta → Disponibilidad permite quitar de Google los eventos que todavía no pasaron (`removeEvents`). Los pasados quedan como historial.
 - **Zona horaria**: se usa `user_preferences.app_settings.timezone`. Si falta, el front guarda la del navegador al abrir Cuenta, el calendario, Travel o las cotizaciones (nunca pisa una elegida). Sin ella, el servidor usa Buenos Aires.
