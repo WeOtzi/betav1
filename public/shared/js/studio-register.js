@@ -23,7 +23,7 @@
     const textFields = ['reg-name', 'reg-email', 'reg-tagline', 'reg-bio', 'reg-founded', 'reg-languages', 'reg-instagram', 'reg-website', 'reg-whatsapp', 'reg-cover', 'reg-logo', 'reg-photos'];
     const base = window.WEOTZI_BASE_PATH || (location.pathname.startsWith('/beta/') ? '/beta' : '');
     const draftKey = 'weotzi:studio-registration:' + base;
-    // Igual que lib/terms-acceptance.js TERMS_VERSION (tests/estudio-registro-front.test.js lo compara).
+    // Igual que lib/terms-acceptance.js TERMS_VERSION (tests/studio-register-revision.test.js lo compara).
     const TERMS_VERSION = '2026-11-13';
     const files = { cover: null, logo: null, gallery: [] };
     const locations = [];

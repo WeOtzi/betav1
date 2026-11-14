@@ -104,7 +104,14 @@
     }
     // Lo que pasa al quitar una sede (E-CODE-DELETE-LOC).
     function removalImpact(loc, list, count) {
-        const activeOthers = (Array.isArray(list) ? list : []).filter(l => l.id !== loc.id && l.is_active !== false);
+        // Orden estable (sort_order y alta): la "siguiente principal" no depende
+        // del orden en que llegó la lista.
+        const order = l => (l.sort_order == null || l.sort_order === '' || !Number.isFinite(Number(l.sort_order)) ? Infinity : Number(l.sort_order));
+        const created = l => { const t = Date.parse(l.created_at || ''); return Number.isFinite(t) ? t : Infinity; };
+        const activeOthers = (Array.isArray(list) ? list : [])
+            .filter(l => l.id !== loc.id && l.is_active !== false)
+            .slice()
+            .sort((a, b) => (order(a) - order(b)) || (created(a) - created(b)));
         return {
             blocked: activeOthers.length === 0,
             blockedReason: activeOthers.length === 0 ? 'Es tu única sede activa. Agregá otra antes de quitar esta.' : null,

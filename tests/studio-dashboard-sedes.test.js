@@ -70,6 +70,13 @@ test('impacto de quitar: la última activa no se quita y la principal pasa a otr
     assert.equal(primary.blocked, false);
     assert.equal(primary.nextPrimary.id, 'c');
     assert.equal(primary.artists, 2);
+    // La siguiente principal sale por sort_order y luego por fecha de alta,
+    // no por el orden en que llegó la lista.
+    const main = { id: 'p', is_primary: true, is_active: true, sort_order: 0 };
+    const pick = (list) => sedes.removalImpact(main, list, 0).nextPrimary.id;
+    assert.equal(pick([main, { id: 'z', sort_order: 5 }, { id: 'y', sort_order: 2 }, { id: 'x', is_active: false, sort_order: 1 }]), 'y');
+    assert.equal(pick([main, { id: 'late', sort_order: 1, created_at: '2026-11-02T00:00:00Z' }, { id: 'early', sort_order: 1, created_at: '2026-11-01T00:00:00Z' }]), 'early');
+    assert.equal(pick([main, { id: 'none' }, { id: 'ordered', sort_order: 3 }]), 'ordered');
 });
 
 test('el módulo escapa los datos de la sede y el panel lo monta en lugar del formulario viejo', () => {

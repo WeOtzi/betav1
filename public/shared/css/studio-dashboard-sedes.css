@@ -11,7 +11,7 @@
 .studio-sedes-row-main strong{font-size:16px;font-weight:700;color:var(--ink);overflow-wrap:anywhere}
 .studio-sedes-meta{font-size:13px;color:var(--text-muted)}
 .studio-sedes-address{font-size:13px;color:var(--text-muted);overflow-wrap:anywhere}
-.studio-sedes-actions{justify-content:flex-end;flex-shrink:0;gap:8px}
+.studio-sedes-actions{justify-content:flex-end;flex:0 1 auto;max-width:60%;min-width:0;gap:8px}
 .studio-sedes-actions .wo-btn{min-height:44px}
 .studio-sedes-remove{color:var(--error-fg)}
 .studio-sedes-empty{padding:20px 0;border-bottom:1px solid var(--border-subtle);margin:0}
@@ -38,7 +38,7 @@
 @media(max-width:640px){
  .studio-sedes-toolbar{grid-template-columns:minmax(0,1fr);gap:16px}
  .studio-sedes-row{flex-direction:column;padding:16px 0}
- .studio-sedes-actions{justify-content:flex-start;width:100%}
+ .studio-sedes-actions{justify-content:flex-start;width:100%;max-width:none}
  .studio-sedes-actions .wo-btn{flex:1 1 calc(50% - 8px)}
  .studio-sede-map{height:240px}
  .studio-sede-dialog .wo-modal-actions .wo-btn{width:100%}
