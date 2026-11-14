@@ -611,13 +611,19 @@ test('CAL-14 y CAL-13 en Cuenta: zona horaria guardada y diálogo de desconexió
 
 test('COT-A-15: no_show no cuenta como sesión activa y queda en el historial', () => {
     const M = require('../public/shared/js/quotation-detail-model.js');
-    const list = M.orderedSessions([
+    const sessions = [
         { id: 1, session_number: 1, status: 'completed', session_date: '2026-11-01T15:00:00Z' },
         { id: 2, session_number: 2, status: 'no_show', session_date: '2026-11-08T15:00:00Z' },
         { id: 3, session_number: 3, status: 'cancelled', session_date: '2026-11-09T15:00:00Z' },
-    ]);
+    ];
+    const list = M.orderedSessions(sessions);
     assert.deepEqual(list.map((s) => s.id), [1]);
-    assert.match(read('public/shared/js/quotation-detail-model.js'), /No se presentó\./);
+    assert.equal(M.isActiveSession(sessions[1]), false);
+    // Integración (cot-artista): una sola entrada de historial por no_show / cancelada.
+    const texts = M.historyEvents({ quote_id: 'Q1', quote_status: 'in_progress', created_at: '2026-10-30T12:00:00Z' }, [], sessions, [], new Date('2026-11-10T12:00:00Z'))
+        .map((e) => e.text);
+    assert.equal(texts.filter((t) => /no se presentó/i.test(t)).length, 1);
+    assert.equal(texts.filter((t) => /cancelada/i.test(t)).length, 1);
 });
 
 test('docs: cómo se suma una fuente', () => {

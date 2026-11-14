@@ -880,7 +880,7 @@ async function viewQuotationDetail(quoteId) {
                 </div>
                 <div class="detail-field">
                     <label>Presupuesto</label>
-                    <span>${quotation.client_budget_amount ? e(`${quotation.client_budget_amount} ${quotation.client_budget_currency || 'USD'}`) : '–'}</span>
+                    <span>${quotation.client_budget_amount ? e(quotation.client_budget_amount + ' ' + (quotation.client_budget_currency || 'USD')) : '–'}</span>
                 </div>
             </div>
         </div>

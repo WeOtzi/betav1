@@ -63,8 +63,12 @@ test('COT-A-01/02: el CHECK de source admite manual y prequote (y los orígenes 
 test('COT-A-02: el intake del pre-cotizador guarda un source aceptado por el CHECK', () => {
     const body = { submission_key: '3f2b8c1e-4d5a-4b6c-9d7e-1a2b3c4d5e6f', mode: 'draft', quotation: { source: 'prequote' } };
     const { q } = normalizeIntake(body, null, null);
-    assert.equal(q.source, 'prequote');
+    // Integración: el pre-cotizador se guarda como web_chat + quotation_medium
+    // 'prequote', válido tanto con el CHECK vivo como con el de la migración.
+    assert.equal(q.source, 'web_chat');
+    assert.equal(q.quotation_medium, 'prequote');
     assert.ok(sourceCheckValues().includes(q.source));
+    assert.ok(['direct', 'job_board', 'recommendation', 'web_chat'].includes(q.source), 'también vale con el CHECK vivo');
     const web = normalizeIntake({ ...body, quotation: { source: 'otro' } }, null, null).q;
     assert.ok(sourceCheckValues().includes(web.source));
 });
@@ -283,7 +287,14 @@ test('COT-A-03: aviso al artista una sola vez, con enlace al detalle del artista
 
 test('COT-A-03: el intake solo avisa en el envío definitivo y sin bloquear la respuesta', () => {
     const intake = read('services/quotation-intake.js');
-    assert.match(intake, /res\.json\(\{success:true,quote_id:result\.quote_id,status:result\.status\}\);\s*\n\s*\/\/ COT-A-03[^\n]*\n\s*if \(req\.body\.mode === 'submit' && result\.status === 'pending' && q\.artist_id\) notifyArtist\(result\.quote_id, req\);/);
+    // Integración (intake de cot-form): el aviso sale solo dentro del envío
+    // definitivo (submit + pending), en la transición real y nunca para las
+    // elegidas entre sugerencias; corre en segundo plano (inBackground).
+    const start = intake.indexOf("if (body.mode === 'submit' && status === 'pending') {");
+    const end = intake.indexOf('res.json({ success: true, quote_id: saved.result.quote_id');
+    assert.ok(start > 0 && end > start, 'bloque del envío definitivo antes de la respuesta');
+    assert.match(intake.slice(start, end), /\/\/ COT-A-03[^\n]*\n[^\n]*\n\s*if \(freshlySubmitted && saved\.q\.artist_id && saved\.q\.source !== 'recommendation'\) notifyArtist\(saved\.q\.quote_id, req\);/);
+    assert.equal((intake.match(/notifyArtist\(/g) || []).length, 2, 'una definición y una sola llamada');
     assert.match(intake, /notices\.inBackground\('artist_new_quotation'/);
     assert.match(read('public/shared/js/wo-artist-menu.js'), /href: '\/my-quotations\/detail\?id=' \+ encodeURIComponent\(q\.quote_id\)/);
 });
@@ -292,7 +303,7 @@ test('COT-A-20: copias por rol con los enlaces de cada panel', () => {
     const copies = notices.rolePayloads({ quote_id: 'QN1', client_email: 'c@x.com', artist_email: 'a@x.com', quotation_url: 'https://evil' }, BASE);
     assert.equal(copies.client.artist_email, '');
     assert.equal(copies.client.client_email, 'c@x.com');
-    assert.equal(copies.client.quotation_url, `${BASE}/client/dashboard`);
+    assert.equal(copies.client.quotation_url, `${BASE}/client/dashboard?quote=QN1`);
     assert.equal(copies.client.login_url, `${BASE}/client/login`);
     assert.equal(copies.artist.client_email, '');
     assert.equal(copies.artist.artist_email, 'a@x.com');
@@ -447,7 +458,7 @@ test('revisión: el email al artista por solicitud nueva tiene CTA al detalle', 
     const { SPECS } = require('../scripts/redesign-email-templates.js');
     assert.equal(SPECS['artist-quotation-notification'].ctaVar, 'quotation_url');
     for (const rel of ['templates/email/artist-quotation-notification.html', 'templates/email/billionmail/artist-quotation-notification.html']) {
-        assert.match(read(rel), /href="\{\{quotation_url\}\}"[^>]*>Ver solicitud/, rel);
+        assert.match(read(rel), new RegExp('href="\\{\\{quotation_url\\}\\}"[^>]*>' + SPECS['artist-quotation-notification'].ctaLabel), rel);
     }
     const p = notices.newQuotationPayload({ quote_id: 'QN9', artist_email: 'a@b.c' }, 'https://x.test/beta');
     assert.equal(p.quotation_url, 'https://x.test/beta/my-quotations/detail?quote=QN9');

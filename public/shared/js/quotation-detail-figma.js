@@ -1138,16 +1138,12 @@
                 let created = null;
                 if (!edit && slotBooking && slotBooking.session_id) {
                     created = { id: slotBooking.session_id, session_number: slotBooking.session_number };
-                    notify('client_approved_quotation', Object.assign(eventBase(), {
-                        final_budget_amount: value, final_budget_currency: patch.final_budget_currency, final_sessions: count,
-                        first_session_date: first, final_comment: patch.final_comment || '',
-                    }));
+                    // COT-A-11: el acuerdo se avisa al cliente por la ruta del frente; la
+                    // sesión del turno la avisa el apartado (booking_slot_*).
+                    noticeAgreement();
                 } else if (!edit && holdSession) {
                     created = holdSession;
-                    notify('client_approved_quotation', Object.assign(eventBase(), {
-                        final_budget_amount: value, final_budget_currency: patch.final_budget_currency, final_sessions: count,
-                        first_session_date: first, final_comment: patch.final_comment || '',
-                    }));
+                    noticeAgreement();
                 } else if (!edit) {
                     created = await D().QuotationDetail.createSession({
                         quotation_id: q.id, session_number: null, session_date: first,

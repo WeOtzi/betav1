@@ -104,9 +104,18 @@ test('detalle de cotización del cliente: los datos (incluidos los del artista) 
     assert.ok(start > 0 && end > start);
     const raw = block.match(/\$\{quotation\.[a-z_]+ \|\|/g) || [];
     assert.deepEqual(raw, [], 'quedan campos sin escapar');
-    assert.match(block, /escapeFeedHtml\(quotation\.artist_name \|\| '–'\)/);
-    assert.ok(block.includes(String.raw`/^https:\/\//i.test(String(quotation.tattoo_references`));
-    assert.match(block, /rel="noopener noreferrer"/);
+    assert.deepEqual(block.match(/\$\{quotation\.[a-z_]+\}/g) || [], [], 'ningún campo interpolado crudo');
+    // Integración (modal de cot-cliente): `const e = escapeFeedHtml` y la URL de
+    // referencias pasa por safeHttpUrl (solo http/https) antes de escaparse.
+    const before = src.slice(0, start);
+    assert.ok(before.lastIndexOf('const e = escapeFeedHtml;') > before.lastIndexOf('\nfunction '), 'e = escapeFeedHtml en la misma función');
+    assert.match(block, /\be\(quotation\.artist_name \|\| '–'\)/);
+    assert.match(src, /const referencesUrl = safeHttpUrl\(quotation\.tattoo_references\);/);
+    assert.match(block, /href="\$\{e\(referencesUrl\)\}"[^>]*rel="noopener noreferrer"/);
+    const safeHttpUrl = new Function(`${src.slice(src.indexOf('function safeHttpUrl('), src.indexOf('\n}\n', src.indexOf('function safeHttpUrl(')) + 2)}; return safeHttpUrl;`)();
+    assert.equal(safeHttpUrl('javascript:alert(1)'), '');
+    assert.equal(safeHttpUrl(' data:text/html,x'), '');
+    assert.equal(safeHttpUrl('https://drive.example/x?a=1'), 'https://drive.example/x?a=1');
 });
 
 test('bucket quotation-references: la cotización manual del artista sigue pudiendo subir referencias (imágenes y PDF)', () => {

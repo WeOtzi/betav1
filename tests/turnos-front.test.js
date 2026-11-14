@@ -36,7 +36,11 @@ test('/quotation carga el turno elegido antes de script.js y script.js usa los h
         'WoQuotationSlot.precheck(formData)', 'WoQuotationSlot.handleSubmitError(error']) {
         assert.ok(js.includes(hook), hook);
     }
-    assert.match(js, /code: result\.code \|\| null, payload: result/);
+    // Integración (script.js de cot-form): el error del intake expone code y payload.
+    const intakeError = js.slice(js.indexOf('function intakeError('), js.indexOf('function intakeError(') + 600);
+    assert.match(intakeError, /if \(data && data\.code\) error\.code = data\.code;/);
+    assert.match(intakeError, /error\.payload = data \|\| \{\};/);
+    assert.ok(js.indexOf('WoQuotationSlot.payload(formData, mode)') !== -1);
 });
 
 function loadQuotationSlot(publicSlots) {
@@ -129,7 +133,9 @@ test('server.js registra las rutas de turnos antes del manejador 404', () => {
     const reg = src.indexOf("require('./lib/routes/turnos').register(app");
     assert.ok(reg > 0);
     assert.ok(reg < src.indexOf("app.get('*'"));
-    assert.match(read('services/quotation-intake.js'), /turnosIntake\.requestedSlot\(req\.body\)/);
+    const intake = read('services/quotation-intake.js');
+    assert.match(intake, /const body = req\.body \|\| \{\};/);
+    assert.match(intake, /const slot = turnosIntake\.requestedSlot\(body\);\s*\n\s*if \(slot\) return await handleSlotSubmit\(/);
 });
 
 test('API pública de turnos: solo inicio/fin/etiqueta, nunca ids ni datos de eventos', async () => {

@@ -3255,10 +3255,10 @@ app.post('/api/client/quotations/:quoteId/complete', async (req, res) => {
 
         const completedAt = new Date().toISOString();
         await QuotationsRepo.markCompletedByClient(quotation.id, caller.id, completedAt);
-        // ── emails ── resumen final a ambos + pedido de reseña (no bloquea la respuesta).
-        void require('./lib/routes/emails').notifyQuotationCompleted(quoteId, { baseUrl: applicationBase(req) }).catch(() => {});
         const cotNotices = require('./lib/cot-artista-notices'); // COT-A-12: resumen a cliente y artista (una copia por rol)
         cotNotices.inBackground('completed', () => cotNotices.notifyQuotationCompleted(quotation.quote_id, { baseUrl: applicationBase(req) }));
+        // ── emails ── pedido de reseña (el resumen ya sale arriba por rol; no se duplica).
+        void require('./lib/routes/emails').notifyQuotationCompleted(quoteId, { baseUrl: applicationBase(req), events: ['request_rating'] }).catch(() => {});
 
         console.log(`[Client Complete] Client ${caller.id} completed quotation ${quoteId}`);
         return res.json({
