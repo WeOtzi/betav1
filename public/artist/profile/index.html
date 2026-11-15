@@ -30,6 +30,8 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/artist-profile.css">
+    <!-- Ronda 2: jerarquía del visitante, insignias, pie de foto y favoritos -->
+    <link rel="stylesheet" href="/shared/css/artist-profile-r2.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
     <link rel="stylesheet" href="/shared/css/wo-share-sheet.css">
     <link rel="stylesheet" href="/shared/css/booking.css?v=20261115-turnos">
@@ -143,6 +145,14 @@
                         <span class="hero-verified" id="artist-verified-icon" hidden title="Perfil verificado">
                             <i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i>Verificado
                         </span>
+                        <!-- Insignias públicas (ronda 2, P21): embajador y Most Wanted.
+                             Las pinta artist-profile.js con get_artist_public_badges. -->
+                        <span class="hero-badge hero-badge--ambassador" id="artist-ambassador-badge" hidden>
+                            <i data-wo-icon="award" aria-hidden="true"></i><span>Embajador We Ötzi</span>
+                        </span>
+                        <span class="hero-badge hero-badge--wanted" id="artist-most-wanted-badge" hidden>
+                            <i data-wo-icon="trending-up" aria-hidden="true"></i><span id="artist-most-wanted-text">Most Wanted</span>
+                        </span>
                     </div>
 
                     <!-- Vacaciones (Cuenta 801:571): diseño propio con los tokens del
@@ -161,6 +171,9 @@
                         <button type="button" class="wo-btn wo-btn--ghost wo-btn--hard hero-cta-share" id="profile-share-btn" aria-haspopup="dialog">
                             <i data-wo-icon="share-2" class="wo-icon-18" aria-hidden="true"></i>Compartir
                         </button>
+                        <!-- Favoritos (contrato data-wo-favorite): lo activa wo-favorites.js.
+                             artist-profile.js completa data-id / data-label / data-image. -->
+                        <button type="button" class="profile-fav hero-cta-fav" id="profile-fav-btn" data-wo-favorite data-kind="artist" data-id="" data-label="" data-image="" aria-label="Guardar este perfil en favoritos" hidden></button>
                     </div>
                 </div>
 
@@ -203,15 +216,68 @@
             </div>
         </section>
 
-        <!-- 03 · Entrada de portafolio / filtros -->
-        <section class="profile-band portfolio-intro-band reveal-block" aria-labelledby="portfolio-intro-title">
-            <div class="profile-shell portfolio-intro-grid">
-                <h2 class="section-title" id="portfolio-intro-title">Portafolio</h2>
-                <div class="gallery-chips portfolio-intro-chips" id="portfolio-intro-chips" role="group" aria-label="Filtrar el portafolio"></div>
+        <!-- Ronda 2 · orden pensado para quien visita el perfil:
+             identidad (hero + cifras) → portafolio → cotizar y turnos → sobre el
+             artista → Store → reseñas → ubicación (estudio, residencias, ciudades).
+             La banda de entrada "Portafolio" con filtros duplicados se quitó (nota N7). -->
+
+        <!-- 03 · Portafolio -->
+        <section class="profile-band gallery-band reveal-block" id="block-gallery" aria-labelledby="gallery-title">
+            <div class="profile-shell">
+                <div class="gallery-head" id="gallery-head">
+                    <h2 class="section-title" id="gallery-title">Portafolio</h2>
+                    <p class="gallery-count" id="gallery-count" hidden></p>
+                </div>
+                <div class="gallery-chips" id="gallery-chips" role="group" aria-label="Filtrar el portafolio" hidden></div>
+                <div class="gallery-grid" id="gallery-grid" aria-live="polite"></div>
+                <p class="gallery-empty" id="gallery-empty" style="display: none;"></p>
+                <!-- Visitante y perfil sin trabajos: un estado vacío con salida, sin huecos. -->
+                <div class="gallery-empty-card" id="gallery-empty-card" hidden>
+                    <span class="gallery-empty-shape" aria-hidden="true"></span>
+                    <div class="gallery-empty-copy">
+                        <p class="gallery-empty-title">Portafolio en preparación</p>
+                        <p class="gallery-empty-text">Este artista todavía no publicó trabajos. Cuéntale tu idea y pide una cotización.</p>
+                    </div>
+                    <a class="wo-btn wo-btn--hard gallery-empty-cta" id="gallery-empty-cta" href="/quotation">Solicitar cotización <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+                </div>
+                <!-- Solo el dueño (PP-05): invita a completar el portafolio. -->
+                <a class="wo-btn wo-btn--hard gallery-owner-cta" id="gallery-owner-cta" href="/artist/account#portafolio" hidden>Subí tus trabajos <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
             </div>
         </section>
 
-        <!-- 04 · Sobre el artista -->
+        <!-- 04 · CTA disponibilidad -->
+        <section class="profile-band profile-band--red cta-band reveal-block">
+            <span class="band-block band-block--cta-yellow" aria-hidden="true"></span>
+            <div class="profile-shell cta-grid">
+                <div class="cta-copy-col">
+                    <p class="band-eyebrow">Disponibilidad</p>
+                    <h2 class="cta-title" id="cta-title">Agenda abierta para nuevos proyectos</h2>
+                    <p class="cta-copy" id="cta-copy">Estoy tomando reservas para los próximos dos meses. Contame tu idea y te respondo con los próximos pasos.</p>
+                </div>
+                <div class="cta-actions">
+                    <div class="cta-months" id="cta-months" aria-label="Meses con reservas abiertas"></div>
+                    <!-- Figma 801:1108: botón accent de la banda roja (el otro accent es la barra de acción) -->
+                    <a class="wo-btn wo-btn--accent wo-btn--hard cta-btn" id="reserve-cta-bottom-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
+                    <!-- Ronda 2: cotizar siempre a mano junto a reservar (con turnos online, "Reservar" abre /turnos). -->
+                    <a class="cta-quote-link" id="quote-cta-band-btn" href="/quotation">Solicitar cotización →</a>
+                    <!-- Turnos publicados: aparece solo si la página tiene la sección #turnos. -->
+                    <a class="cta-turnos-link" id="cta-turnos-link" href="#turnos" hidden>Ver turnos disponibles →</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 04b · Próximos turnos (frente turnos): oculta sin reservas online o sin turnos libres -->
+        <section class="profile-band bk-profile-band" id="turnos" aria-labelledby="turnos-title" hidden>
+            <div class="profile-shell">
+                <div class="bk-profile-head">
+                    <h2 class="section-title" id="turnos-title">Próximos turnos</h2>
+                    <a class="wo-link-arrow" id="turnos-all" href="/turnos">Ver todos los turnos →</a>
+                </div>
+                <ul class="bk-profile-days" id="turnos-days"></ul>
+            </div>
+        </section>
+
+        <!-- 05 · Sobre el artista -->
         <section class="profile-band profile-band--blue sobre-band reveal-block">
             <span class="band-block band-block--sobre-yellow" aria-hidden="true"></span>
             <span class="band-block band-block--sobre-red" aria-hidden="true"></span>
@@ -248,7 +314,7 @@
             </div>
         </section>
 
-        <!-- 05 · Especialidades -->
+        <!-- 06 · Especialidades -->
         <section class="profile-band specialties-band reveal-block" id="specialties-band" hidden>
             <div class="profile-shell">
                 <h2 class="section-title">Especialidades</h2>
@@ -256,7 +322,19 @@
             </div>
         </section>
 
-        <!-- 06 · Reseñas -->
+        <!-- 06b · Store: diseños con licencia y merch (oculta sin features.store o sin productos) -->
+        <section class="profile-band store-band reveal-block" id="store-band" aria-labelledby="store-band-title" hidden>
+            <div class="profile-shell">
+                <div class="store-band-head">
+                    <h2 class="section-title" id="store-band-title">Store</h2>
+                    <a class="store-band-link" id="store-band-link" href="/store/">Ver la Store →</a>
+                </div>
+                <p class="store-band-sub">Diseños con licencia de uso y merch del artista.</p>
+                <ul class="store-band-grid" id="store-band-grid" aria-label="Productos de la Store"></ul>
+            </div>
+        </section>
+
+        <!-- 07 · Reseñas -->
         <section class="profile-band reviews-band reveal-block" id="artist-reviews-panel" hidden>
             <div class="profile-shell">
                 <div class="reviews-box">
@@ -274,7 +352,7 @@
             </div>
         </section>
 
-        <!-- 07 · Estudio -->
+        <!-- 08 · Estudio -->
         <section class="profile-band studio-band reveal-block" id="studio-band" hidden>
             <div class="profile-shell studio-grid">
                 <div class="studio-photo" id="studio-photo">
@@ -303,61 +381,7 @@
             </div>
         </section>
 
-        <!-- 08 · CTA disponibilidad -->
-        <section class="profile-band profile-band--red cta-band reveal-block">
-            <span class="band-block band-block--cta-yellow" aria-hidden="true"></span>
-            <div class="profile-shell cta-grid">
-                <div class="cta-copy-col">
-                    <p class="band-eyebrow">Disponibilidad</p>
-                    <h2 class="cta-title" id="cta-title">Agenda abierta para nuevos proyectos</h2>
-                    <p class="cta-copy" id="cta-copy">Estoy tomando reservas para los próximos dos meses. Contame tu idea y te respondo con los próximos pasos.</p>
-                </div>
-                <div class="cta-actions">
-                    <div class="cta-months" id="cta-months" aria-label="Meses con reservas abiertas"></div>
-                    <!-- Figma 801:1108: botón accent de la banda roja (el otro accent es la barra de acción) -->
-                    <a class="wo-btn wo-btn--accent wo-btn--hard cta-btn" id="reserve-cta-bottom-btn" href="/quotation">Reservar sesión <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
-                    <!-- Turnos publicados: aparece solo si la página tiene la sección #turnos. -->
-                    <a class="cta-turnos-link" id="cta-turnos-link" href="#turnos" hidden>Ver turnos disponibles →</a>
-                </div>
-            </div>
-        </section>
-
-        <!-- 08b · Próximos turnos (frente turnos): oculta sin reservas online o sin turnos libres -->
-        <section class="profile-band bk-profile-band" id="turnos" aria-labelledby="turnos-title" hidden>
-            <div class="profile-shell">
-                <div class="bk-profile-head">
-                    <h2 class="section-title" id="turnos-title">Próximos turnos</h2>
-                    <a class="wo-link-arrow" id="turnos-all" href="/turnos">Ver todos los turnos →</a>
-                </div>
-                <ul class="bk-profile-days" id="turnos-days"></ul>
-            </div>
-        </section>
-
-        <!-- 09 · Portafolio -->
-        <section class="profile-band gallery-band reveal-block" id="block-gallery">
-            <div class="profile-shell">
-                <h2 class="section-title">Portafolio</h2>
-                <div class="gallery-chips" id="gallery-chips" role="group" aria-label="Filtrar el portafolio" hidden></div>
-                <div class="gallery-grid" id="gallery-grid" aria-live="polite"></div>
-                <p class="gallery-empty" id="gallery-empty" style="display: none;">Este artista todavía no publicó trabajos. Pedile una cotización y te muestra ideas para tu tatuaje.</p>
-                <!-- Solo el dueño (PP-05): invita a completar el portafolio. -->
-                <a class="wo-btn wo-btn--hard gallery-owner-cta" id="gallery-owner-cta" href="/artist/account#portafolio" hidden>Subí tus trabajos <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>
-            </div>
-        </section>
-
-        <!-- 09b · Store: diseños con licencia y merch (oculta sin features.store o sin productos) -->
-        <section class="profile-band store-band reveal-block" id="store-band" aria-labelledby="store-band-title" hidden>
-            <div class="profile-shell">
-                <div class="store-band-head">
-                    <h2 class="section-title" id="store-band-title">Store</h2>
-                    <a class="store-band-link" id="store-band-link" href="/store/">Ver la Store →</a>
-                </div>
-                <p class="store-band-sub">Diseños con licencia de uso y merch del artista.</p>
-                <ul class="store-band-grid" id="store-band-grid" aria-label="Productos de la Store"></ul>
-            </div>
-        </section>
-
-        <!-- 10 · Próximas residencias -->
+        <!-- 09 · Próximas residencias -->
         <section class="profile-band presence-band reveal-block" id="presence-band" hidden>
             <div class="profile-shell">
                 <div class="presence-head">
@@ -368,7 +392,7 @@
             </div>
         </section>
 
-        <!-- 11 · Dónde tatué -->
+        <!-- 10 · Dónde tatué -->
         <section class="profile-band cities-band reveal-block" id="cities-band" hidden>
             <div class="profile-shell">
                 <div class="cities-head">
@@ -376,6 +400,15 @@
                     <span class="cities-rule" aria-hidden="true"></span>
                 </div>
                 <p class="cities-list" id="cities-list"></p>
+            </div>
+        </section>
+
+        <!-- 11 · Denunciar perfil (contrato data-wo-report, lo activa wo-report.js):
+             solo para artistas con sesión que no son el dueño de este perfil. -->
+        <section class="profile-band profile-report-band" id="profile-report-band" hidden>
+            <div class="profile-shell profile-report-inner">
+                <p class="profile-report-text">¿Ves algo en este perfil que no corresponde?</p>
+                <button type="button" class="profile-report-btn" id="profile-report-btn" data-wo-report data-kind="artist" data-id="" data-label="">Denunciar perfil</button>
             </div>
         </section>
     </main>
@@ -410,6 +443,8 @@
             <i data-wo-icon="chevron-right" aria-hidden="true"></i>
         </button>
         <div class="lightbox-counter" id="lightbox-counter">1 / 1</div>
+        <!-- Pie de foto del trabajo (ronda 2): solo si el ítem trae "caption". -->
+        <p class="lightbox-caption" id="lightbox-caption" hidden></p>
     </div>
 
     <script src="/shared/js/bio-formatting.js"></script>
@@ -419,6 +454,8 @@
     <script src="/shared/js/gallery-visibility.js"></script>
     <script src="/shared/js/artist-public-url.js"></script>
     <script src="/shared/js/qrcode-generator.js" defer></script>
+    <!-- Ronda 2: historia de Instagram y tarjeta Open Graph (canvas, sin dependencias) -->
+    <script src="/shared/js/wo-share-cards.js"></script>
     <script src="/shared/js/wo-share-sheet.js"></script>
     <script src="/shared/js/artist-profile.js"></script>
     <script src="/shared/js/account-availability-model.js?v=20261115-turnos"></script>

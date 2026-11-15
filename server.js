@@ -6967,7 +6967,7 @@ app.get('/travel/t/:slug', (req, res) => {
 });
 
 // Perfil público: meta OG del lado servidor y URL corta /<handle> (antes del estático).
-require('./lib/routes/perfil').register(app, { publicDir: path.join(__dirname, 'public') });
+require('./lib/routes/perfil').register(app, { publicDir: path.join(__dirname, 'public'), startJob: require.main === module });
 
 require('./lib/routes/turnos').register(app, { gcalService, startJob: require.main === module }); // ── turnos ── reservas online
 

@@ -255,7 +255,8 @@ test('reminder modals and share panels expose QA URL states', () => {
         assert.ok(share.includes(copy), copy);
     }
     assert.match(share, /https:\/\/wa\.me\/\?text=/);
-    assert.match(share, /mailto:\?subject=/);
+    // Ronda 2 (nota N8 del dueño): Mail salió de la hoja de compartir.
+    assert.doesNotMatch(share, /mailto:\?subject=/);
 });
 
 test('artist topbar drops the client-mode switch while clients keep it', () => {
