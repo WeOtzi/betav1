@@ -186,17 +186,6 @@ a.wo-ntf-link:hover .wo-ntf-title { text-decoration: underline; text-underline-o
 }
 .wo-arrival-flash:focus { outline: 3px solid var(--yellow-300, #F2B519); }
 
-/* Fila de actividad del panel del cliente como enlace real. */
-a.client-feed-row,
-.wo-app a.client-feed-row,
-.wo-app a.client-feed-row:hover { color: inherit; text-decoration: none; }
-a.client-feed-row { cursor: pointer; }
-a.client-feed-row:hover .client-feed-text { text-decoration: underline; text-underline-offset: 3px; }
-a.client-feed-row:focus-visible { outline: none; box-shadow: var(--shadow-focus, 0 0 0 3px rgba(0, 85, 255, .35)); }
-.client-feed-go { flex: none; display: inline-flex; align-items: center; color: var(--neutral-300, #B9AE98); }
-.client-feed-go svg { width: 14px; height: 14px; }
-a.client-feed-row:hover .client-feed-go { color: var(--neutral-500, #24211D); }
-
 @keyframes wo-ntf-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 @keyframes wo-ntf-out { to { opacity: 0; transform: translateY(-6px); } }
 @keyframes wo-arrival-pulse {

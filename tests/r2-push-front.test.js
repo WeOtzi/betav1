@@ -654,6 +654,24 @@ test('P26: "Tu actividad" del cliente pinta cada fila como enlace real y escapa 
     assert.match(src, /closest\('a\[data-feed-quote\]'\)/);
     assert.match(src, /window\.WoNotify\.focusArrival\(row\.dataset\.feedVer\)/);
     assert.match(src, /document\.addEventListener\('wo:notify'/);
+    // La piel del enlace vive en el CSS de la página (no depende de que cargue wo-notify.css).
+    const css = read('public', 'shared', 'css', 'client-dashboard-figma.css');
+    assert.match(css, /\.client-dashboard-figma a\.client-feed-row,\s*\.client-dashboard-figma a\.client-feed-row:hover \{ color: inherit; text-decoration: none; \}/);
+    assert.match(css, /a\.client-feed-row:focus-visible \{ outline: none; box-shadow: var\(--shadow-focus\); \}/);
+});
+
+test('wo-notify.css: avisos arriba a la derecha, sin desbordar en el teléfono y sin animación si se pidió', () => {
+    const css = read('public', 'shared', 'css', 'wo-notify.css');
+    assert.match(css, /\.wo-ntf-stack \{[^}]*position: fixed;[^}]*width: min\(380px, calc\(100vw - 32px\)\);/);
+    assert.match(css, /@media \(max-width: 600px\) \{\s*\.wo-ntf-stack \{ left: 12px; right: 12px; width: auto;/);
+    assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.wo-ntf-toast, \.wo-ntf-toast\.is-leaving, \.wo-arrival-flash \{ animation: none; \}/);
+    assert.match(css, /\.wo-ntf-link:focus-visible,[\s\S]*?box-shadow: var\(--shadow-focus/);
+    assert.doesNotMatch(css, /border-radius: [1-9]/, 'DS Bauhaus: radio 0');
+    assert.doesNotMatch(css, /gradient\(/);
+    // wo-notify.js pide la hoja al iniciar (el primer aviso ya sale con su piel).
+    const js = read('public', 'shared', 'js', 'wo-notify.js');
+    assert.match(js, /function init\(\) \{[\s\S]*?ensureStyles\(\);\s*applyArrival\(\);/);
+    assert.match(js, /link\.href = sharedUrl\('css\/wo-notify\.css'\)/);
 });
 
 test('P26: sin el modelo de destinos, la actividad se muestra igual (sin enlaces)', async () => {

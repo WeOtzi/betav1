@@ -1020,6 +1020,8 @@
                 if (data && data.type === 'wo-push') present(data.notification, { shown: data.shown === true });
             });
         }
+        // La hoja de estilos se pide ya: el primer aviso tiene que aparecer con su piel.
+        ensureStyles();
         applyArrival();
         mountAllSettings();
         if (isPreview()) return;
