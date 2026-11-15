@@ -336,7 +336,9 @@ app.post('/api/register/test-client', authLimiter, accountModes.registerTestClie
  * Body: { prompt, model, aspectRatio, imageSize }
  * API key read from process.env (NEVER from frontend)
  */
-app.post('/api/gemini/generate-image', async (req, res) => {
+// Ronda 2 (cot-form · P7): geminiGuard limita por IP y por día y sanea modelo
+// (va en la URL), tamaño, prompt y filtros antes de gastar la API key.
+app.post('/api/gemini/generate-image', require('./lib/routes/cot-form').geminiGuard(), async (req, res) => {
     const {
         prompt,
         model,

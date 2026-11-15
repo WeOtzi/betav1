@@ -51,6 +51,8 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/quotation-ds.css">
+    <!-- Ronda 2 (cot-form): validación visible, fecha de nacimiento, IA, perfil reducido, sede, éxito -->
+    <link rel="stylesheet" href="/shared/css/quotation-r2.css?v=20261116-r2">
     <link rel="stylesheet" href="/shared/css/booking.css?v=20261115-turnos">
     <script src="/shared/js/wo-icons.js" defer></script>
     <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
@@ -286,9 +288,12 @@
     <script src="/shared/js/booking-slots-model.js?v=20261115-turnos"></script>
     <script src="/shared/js/data/booking-repo.js?v=20261115-turnos"></script>
     <script src="/shared/js/quotation-slot.js?v=20261115-turnos"></script>
+    <!-- Ronda 2 (cot-form): modelo puro + interfaz (deben cargar antes de script.js) -->
+    <script src="/shared/js/quotation-r2-model.js?v=20261116-r2"></script>
+    <script src="/shared/js/quotation-r2.js?v=20261116-r2"></script>
 
     <!-- App Logic -->
-    <script src="/shared/js/script.js"></script>
+    <script src="/shared/js/script.js?v=20261116-r2"></script>
 
     <!-- DRAFT RECOVERY MODAL -->
     <div id="draft-recovery-modal" class="draft-recovery-overlay hidden">

@@ -47,7 +47,8 @@ test('envío: borrador → referencias a Storage → submit con paths (Storage c
     const submit = script.slice(script.indexOf('async function submitQuotation()'), script.indexOf('// ============ COTIZACIÓN SIN ARTISTA'));
     const draft = submit.indexOf("saveWebQuotation('draft')");
     const upload = submit.indexOf('uploadReferencesToStorage(formData.quote_id)');
-    const final = submit.indexOf("saveWebQuotation('submit', { references: upload.paths })");
+    // Ronda 2: cada referencia viaja con su nota y la marca de IA ({ path, note, ai_generated }).
+    const final = submit.indexOf("saveWebQuotation('submit', { references: upload.references })");
     assert.ok(draft > -1 && upload > draft && final > upload);
     // Sin artista no se envía: primero el destino.
     assert.match(submit, /if \(!formData\.artist_id\) return showArtistSuggestions\(\);/);

@@ -388,7 +388,7 @@ function renderQuotationCard(quotation) {
     return `
         <div class="quotation-card" data-quote-id="${quoteId}">
             <div class="quotation-header">
-                <span class="quotation-id">${quoteId}</span>
+                <span class="quotation-id" title="${quoteId}">${escapeFeedHtml(quotation.short_code || quotation.quote_id)}</span>
                 <span class="quotation-status ${escapeFeedHtml(status.tone)}">${escapeFeedHtml(status.label)}</span>
             </div>
             <div class="quotation-body">
@@ -422,6 +422,7 @@ function renderQuotationCard(quotation) {
                 <button type="button" class="wo-btn ${waiting ? 'wo-btn--accent' : 'wo-btn--ghost'} wo-btn--s" data-quote-id="${quoteId}" onclick="viewQuotationDetail(this.dataset.quoteId)">
                     ${waiting ? 'Ver propuesta' : 'Ver detalle'}
                 </button>
+                ${window.WoQuoteReuse ? window.WoQuoteReuse.buttonHtml(quotation) : ''}
                 <button type="button" class="wo-btn wo-btn--ghost wo-btn--s btn-borrar" data-quote-id="${quoteId}" onclick="hideQuotation(this.dataset.quoteId)">
                     Borrar
                 </button>
@@ -911,7 +912,7 @@ async function viewQuotationDetail(quoteId) {
     `;
 
     // Update modal title
-    document.getElementById('modal-quote-id').textContent = quoteId;
+    document.getElementById('modal-quote-id').textContent = quotation.short_code || quoteId;
 
     // Load chat messages
     await loadChatMessages(quoteId);

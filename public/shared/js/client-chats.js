@@ -549,7 +549,8 @@
         const host = $('cch-banner-refs');
         if (!host) return;
         host.textContent = '';
-        const refs = (list || []).slice(0, 3);
+        // N11 (ronda 2 · cot-form): el cliente puede mandar hasta 4 referencias; se muestran todas.
+        const refs = (list || []).slice(0, 4);
         host.classList.toggle('wo-hidden', !refs.length);
         refs.forEach((ref, index) => {
             const link = document.createElement('a');
