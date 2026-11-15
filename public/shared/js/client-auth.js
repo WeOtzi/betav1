@@ -780,8 +780,10 @@ async function handleClientMagicLink() {
         else if (input) input.focus();
         return;
     }
-    const btn = document.getElementById('btn-client-magic-link');
-    if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+    // Ronda 2 (N6): el ícono "Email" y el botón de texto visible comparten flujo.
+    const magicButtons = ['btn-client-magic-link', 'btn-client-magic-link-text']
+        .map((id) => document.getElementById(id)).filter(Boolean);
+    magicButtons.forEach((b) => { b.disabled = true; b.setAttribute('aria-busy', 'true'); });
     let error = null;
     try {
         const res = await _supabase.auth.signInWithOtp({
@@ -792,7 +794,7 @@ async function handleClientMagicLink() {
     } catch (err) {
         error = err || new Error('network');
     } finally {
-        if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+        magicButtons.forEach((b) => { b.disabled = false; b.removeAttribute('aria-busy'); });
     }
     const EC = window.WeotziEmailConfirm;
     const outcome = EC && EC.magicLinkOutcome

@@ -95,6 +95,33 @@
     color: var(--text-heading);
 }
 
+/* ── registro (ronda 2 · N4) ── estados posteriores a la confirmación:
+   "Email confirmado" (pestaña que espera) y "Listo, ya puedes cerrar esta
+   pestaña" (la que abrió el link). */
+.wo-ec-done-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-h-md);
+    height: var(--control-h-md);
+    background: var(--yellow-300);
+    color: var(--ink);
+    border: var(--border-strong-width) solid var(--border-strong);
+    box-sizing: border-box;
+}
+.wo-ec-busy {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--body-s-size);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.wo-ec-busy .wo-spinner { width: 18px; height: 18px; border-width: 2px; flex: none; }
+
 @media (max-width: 480px) {
     .wo-ec { margin: var(--space-4) 0; padding: var(--space-6) var(--space-4); }
     .wo-ec-actions .wo-btn { flex: 1 1 100%; }

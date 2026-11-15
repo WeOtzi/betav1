@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/client-auth-ds.css">
     <link rel="stylesheet" href="/shared/css/client-login-figma.css">
+    <link rel="stylesheet" href="/shared/css/registro-r2.css?v=20261116-r2">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
@@ -77,6 +78,8 @@
                         <span class="btn-text">Entrar</span>
                         <img src="/shared/assets/figma/artist-login/arrow-right.svg" alt="">
                     </button>
+                    <!-- Ronda 2 (N6): enlace mágico visible, igual que en /artist/login y /studio/login -->
+                    <button type="button" class="wo-btn wo-btn--ghost wo-btn--block ca-magic" id="btn-client-magic-link-text" onclick="handleClientMagicLink()">Entrar con un enlace por email</button>
                     <button type="button" class="ca-forgot" onclick="handlePasswordRecovery(event)">¿Olvidaste tu contraseña?</button>
                 </form>
 

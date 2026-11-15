@@ -1,0 +1,182 @@
+[
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/realismo.webp",
+    "prompt": "Editorial close-up photograph of a photorealistic black and grey lion portrait tattoo with soft shading, healed, on the outer forearm, rolled-up denim shirt sleeve. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Realismo» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/hiperrealismo.webp",
+    "prompt": "Editorial close-up photograph of a hyperrealistic full-color human eye tattoo with glossy highlights and water droplets, healed, on the upper arm, black t-shirt sleeve. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Hiperrealismo» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/microrealismo.webp",
+    "prompt": "Editorial close-up photograph of a tiny micro-realism tattoo of a hummingbird, about three centimetres wide, extremely fine detail, healed, on the inner wrist, knitted sweater cuff pushed up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Microrealismo» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/fine-line.webp",
+    "prompt": "Editorial close-up photograph of a delicate fine line tattoo of a single wildflower stem drawn with one thin black line, healed, on the inner forearm, white linen shirt sleeve rolled up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Fine Line» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/blackwork.webp",
+    "prompt": "Editorial close-up photograph of a bold blackwork tattoo of a raven with solid black fills and heavy contrast, healed, on the forearm, black work shirt sleeve rolled up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Blackwork» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/black-and-grey.webp",
+    "prompt": "Editorial close-up photograph of a black and grey tattoo of a rose and a pocket watch with smooth grey wash shading, healed, on the outer forearm, grey henley sleeve pushed up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Black and Grey» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/tradicional-americano.webp",
+    "prompt": "Editorial close-up photograph of an American traditional old school tattoo of a swallow and a red rose with bold black outlines and flat red, yellow and green colors, healed, on the upper arm, white t-shirt sleeve. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Tradicional Americano (Old School)» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/neotradicional.webp",
+    "prompt": "Editorial close-up photograph of a neo-traditional tattoo of a fox head framed by leaves, bold outlines with rich jewel-tone gradients, healed, on the outer forearm, olive green shirt sleeve rolled up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Neotradicional» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/tradicional-japones.webp",
+    "prompt": "Editorial close-up photograph of a Japanese irezumi tattoo of a koi fish with wind bars and waves in black, red and orange, healed, on the half sleeve on the upper arm and shoulder, sleeveless dark tank top. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Tradicional Japonés (Irezumi)» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/neojapones.webp",
+    "prompt": "Editorial close-up photograph of a neo-Japanese tattoo of a hannya mask with peonies, vivid saturated colors and modern smooth shading, healed, on the outer forearm, black hoodie sleeve pushed up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Neojaponés» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/tribal.webp",
+    "prompt": "Editorial close-up photograph of a classic tribal tattoo with solid black curved pointed shapes, healed, on the shoulder and upper arm, grey tank top. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Tribal» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/geometrico.webp",
+    "prompt": "Editorial close-up photograph of a geometric tattoo made of precise triangles, concentric circles and fine straight lines in black ink, healed, on the inner forearm, beige shirt sleeve rolled up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Geométrico» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/dotwork.webp",
+    "prompt": "Editorial close-up photograph of a dotwork tattoo of a mandala built entirely from tiny black stippled dots with soft gradients, healed, on the back of the forearm, dark blue shirt sleeve rolled up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Dotwork» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/minimalista.webp",
+    "prompt": "Editorial close-up photograph of a minimalist tattoo of three small parallel black lines and a tiny circle, healed, on the inner wrist, oversized cream sweater cuff. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Minimalista» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/ornamental.webp",
+    "prompt": "Editorial close-up photograph of an ornamental tattoo of symmetrical lace-like filigree and jewel motifs in fine black lines, healed, on the back of the hand and wrist, black long sleeve cuff. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Ornamental» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/lettering.webp",
+    "prompt": "Editorial close-up photograph of a lettering tattoo of abstract unreadable decorative script strokes flowing in one elegant line, no legible words, healed, on the collarbone area, wide-neck knitted top. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Lettering» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/caligrafia.webp",
+    "prompt": "Editorial close-up photograph of a calligraphy tattoo of abstract brush-pen flourishes with thick and thin strokes, no legible words, healed, on the side of the forearm, rolled-up chambray shirt sleeve. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Caligrafía» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/acuarela.webp",
+    "prompt": "Editorial close-up photograph of a watercolor tattoo of a hummingbird with loose splashes of teal, magenta and yellow and no black outline, healed, on the shoulder blade, light sleeveless summer top. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Acuarela (Watercolor)» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/ilustrativo.webp",
+    "prompt": "Editorial close-up photograph of an illustrative tattoo of a hand-drawn mountain landscape inside a circle with crosshatch shading, healed, on the calf, rolled-up trouser leg and sneaker visible. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Ilustrativo» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/surrealismo.webp",
+    "prompt": "Editorial close-up photograph of a surrealist tattoo of a floating staircase leading into a keyhole-shaped cloud, black and grey, healed, on the outer forearm, rust colored shirt sleeve rolled up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Surrealismo» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/abstracto.webp",
+    "prompt": "Editorial close-up photograph of an abstract tattoo of expressive brush strokes, ink splatters and overlapping shapes in black with one red accent, healed, on the upper arm, plain white t-shirt sleeve. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Abstracto» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/new-school.webp",
+    "prompt": "Editorial close-up photograph of a new school tattoo of a cartoon-style octopus with exaggerated proportions, thick outlines and bright saturated colors, healed, on the calf, rolled-up jeans. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «New School» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/trash-polka.webp",
+    "prompt": "Editorial close-up photograph of a trash polka tattoo combining a realistic black crow, chaotic black brush strokes and bold red geometric shapes, healed, on the forearm, black shirt sleeve rolled up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Trash Polka» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/chicano.webp",
+    "prompt": "Editorial close-up photograph of a Chicano style black and grey tattoo of praying hands with a rosary and fine smooth shading, healed, on the outer forearm, white ribbed tank top. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Chicano» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/biomecanico.webp",
+    "prompt": "Editorial close-up photograph of a biomechanical tattoo showing metallic pistons, gears and cables as if under torn skin, black and grey with steel highlights, healed, on the forearm, dark mechanic shirt sleeve rolled up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Biomecánico» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/bioorganico.webp",
+    "prompt": "Editorial close-up photograph of a bio-organic tattoo of flowing alien-like tendons, bone and plant fibres in earthy greens and browns, healed, on the shoulder and upper arm, sleeveless charcoal top. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Bioorgánico» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/anime.webp",
+    "prompt": "Editorial close-up photograph of an anime style tattoo of an original generic character with large expressive eyes and windswept hair, clean line art with flat cel-shaded color, healed, on the outer forearm, pastel hoodie sleeve pushed up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Anime» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/manga.webp",
+    "prompt": "Editorial close-up photograph of a manga style tattoo of an original black and white comic panel with screentone shading and speed lines, no text, healed, on the calf, cuffed black jeans. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Manga» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/dark-art.webp",
+    "prompt": "Editorial close-up photograph of a dark art tattoo of a hooded skeletal figure among dead branches in deep black and grey, healed, on the forearm, black long sleeve pushed up. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Dark Art» (public/client/register/estilos-r2.js)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/registro/estilos/ignorant-style.webp",
+    "prompt": "Editorial close-up photograph of an ignorant style tattoo of a deliberately naive hand-drawn doodle of a smiling cactus with wobbly black lines, healed, on the thigh just above the knee, denim shorts. Clothed person, face not visible, natural soft daylight, neutral warm sand-colored studio backdrop, shallow depth of field, sharp focus on the tattoo, true-to-life skin texture, 50mm lens. No text, no letters, no logos, no watermark, no nudity.",
+    "aspect": "4:3",
+    "uso": "Registro de cliente · paso 03 \"¿Qué tipo de tatuajes te gustan?\" · tarjeta del estilo «Ignorant Style» (public/client/register/estilos-r2.js)."
+  }
+]

@@ -281,7 +281,8 @@
                 this.showInlineError('Confirmá que la cuenta es tuya para seguir.');
                 return;
             }
-            this.renderLoading('Buscando @' + handle + ' en Instagram. Puede tardar entre 5 y 15 segundos.');
+            // Ronda 2 (N2): se revisan hasta 50 publicaciones, tarda un poco más.
+            this.renderLoading('Buscando @' + handle + ' en Instagram. Revisamos hasta ' + this.limit + ' publicaciones: puede tardar hasta un minuto.');
             try {
                 const headers = await getAuthHeaders();
                 const res = await fetch(apiUrl('/api/instagram/preview'), {
