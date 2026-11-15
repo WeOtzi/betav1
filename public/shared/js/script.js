@@ -3661,7 +3661,7 @@ function renderSubmittedSuccess({ warnings = [] } = {}) {
             artistName: formData.artist_name ? toTitleCase(formData.artist_name) : '',
             loggedIn,
             warningsHtml: warningsHtml(warnings),
-            minor: formData._client_is_minor === true,
+            minor: quotationClientIsMinor(),
             location: formData.preferred_location_label || ''
         });
         R2.bindSuccess();
@@ -3670,6 +3670,13 @@ function renderSubmittedSuccess({ warnings = [] } = {}) {
     const heading = document.getElementById('success-title');
     if (heading && typeof heading.focus === 'function') heading.focus();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ¿El cliente declaró una fecha de nacimiento de entre 14 y 17 años?
+function quotationClientIsMinor() {
+    const Model = quotationR2Model();
+    if (!Model || !formData.client_birth_date) return formData._client_is_minor === true;
+    return Model.birthStatus(Model.parseBirthDate(formData.client_birth_date)).minor === true;
 }
 
 // Código corto visible de la solicitud (6 caracteres). Si el servidor todavía

@@ -407,7 +407,9 @@
         const meta = M.stageMeta(v.stage);
         const reference = document.getElementById('qd-reference');
         const status = document.getElementById('qd-status');
-        reference.textContent = quote.quote_id || `COT-${quote.id}`;
+        // Ronda 2 (cot-form · P16): código corto visible; el quote_id sigue en los enlaces.
+        reference.textContent = quote.short_code || quote.quote_id || `COT-${quote.id}`;
+        if (quote.short_code && quote.quote_id) reference.title = quote.quote_id;
         status.textContent = meta.tag;
         status.className = `qd-status qd-status--${meta.tone}`;
         const actions = M.commandActions(v.stage);
@@ -440,12 +442,16 @@
 
     function identityHtml(v) {
         const q = v.quote;
-        const preferred = M.toDate(q.client_preferred_date);
+        // Ronda 2 (cot-form): rango tentativo en ISO (preferred_date_from), menor de
+        // edad (client_is_minor) y sede elegida por el cliente (preferred_location_label).
+        const preferred = M.toDate(q.preferred_date_from || q.client_preferred_date);
         const tags = [
             [q.client_city_residence, q.client_country].filter(Boolean).join(', '),
             M.styleName(q.tattoo_style) !== 'Sin definir' ? M.styleName(q.tattoo_style) : '',
             q.tattoo_body_part,
             preferred ? `Deseada · ${M.dayMonthYear(preferred)}` : (M.isFlexible(q.client_flexible_dates) ? 'Fecha flexible' : ''),
+            q.client_is_minor === true ? 'Menor de edad · requiere autorización' : '',
+            q.preferred_location_label ? `Sede · ${q.preferred_location_label}` : '',
         ].filter(Boolean);
         return `
             <section class="qd-identity" aria-labelledby="qd-title">

@@ -185,6 +185,14 @@
     }
     function preferredDateLabel(quote) {
         var flexible = isFlexible(quote && quote.client_flexible_dates);
+        // Ronda 2 (cot-form · P14): rango tentativo del cliente en ISO
+        // (preferred_date_from / preferred_date_to); el texto queda de respaldo.
+        var from = toDate(quote && quote.preferred_date_from);
+        if (from) {
+            var to = toDate(quote && quote.preferred_date_to);
+            var range = dayMonthYear(from) + (to && to.getTime() !== from.getTime() ? ' – ' + dayMonthYear(to) : '');
+            return range + (flexible ? ' · flexible' : '');
+        }
         var date = toDate(quote && quote.client_preferred_date);
         if (!date) return flexible ? 'Flexible' : 'Sin fecha';
         return dayMonthYear(date) + (flexible ? ' · flexible' : '');

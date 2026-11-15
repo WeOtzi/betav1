@@ -471,6 +471,27 @@ test('N11: el detalle del artista dibuja las 4 referencias (antes 3 tarjetas fij
     assert.equal((one.match(/has-image/g) || []).length, 1);
 });
 
+test('detalle del artista: ve el rango tentativo, que el cliente es menor de edad y la sede elegida', () => {
+    const DetailModel = require('../public/shared/js/quotation-detail-model.js');
+    assert.equal(DetailModel.preferredDateLabel({ client_preferred_date: '10 Ene 2027 – 15 Ene 2027', preferred_date_from: '2027-01-10', preferred_date_to: '2027-01-15', client_flexible_dates: 'true' }),
+        '10 ENE 2027 – 15 ENE 2027 · flexible');
+    assert.equal(DetailModel.preferredDateLabel({ preferred_date_from: '2027-01-10', preferred_date_to: '2027-01-10', client_flexible_dates: 'false' }), '10 ENE 2027');
+    // Cotizaciones anteriores (sin columnas ISO) siguen igual.
+    assert.equal(DetailModel.preferredDateLabel({ client_preferred_date: '2026-07-08', client_flexible_dates: 'Sí' }), '08 JUL 2026 · flexible');
+    assert.equal(DetailModel.preferredDateLabel({ client_preferred_date: 'Lo antes posible' }), 'Sin fecha');
+    const src = read('public', 'shared', 'js', 'quotation-detail-figma.js');
+    assert.match(src, /const preferred = M\.toDate\(q\.preferred_date_from \|\| q\.client_preferred_date\);/);
+    assert.match(src, /q\.client_is_minor === true \? 'Menor de edad · requiere autorización' : ''/);
+    assert.match(src, /q\.preferred_location_label \? `Sede · \$\{q\.preferred_location_label\}` : ''/);
+    // Las etiquetas del encabezado se escapan al dibujarse.
+    assert.match(src, /tags\.map\(\(tag\) => `<span class="qd-tag">\$\{esc\(tag\)\}<\/span>`\)/);
+    // El calendario del artista ya entiende el rango del texto ("10 Ene 2027 – 15 Ene 2027").
+    const Calendar = require('../public/shared/js/calendar-model.js');
+    if (typeof Calendar.parsePreferredDate === 'function') {
+        assert.deepEqual(Calendar.parsePreferredDate(Model.rangeLabel('2027-01-10', '2027-01-15')), { start: '2027-01-10', end: '2027-01-15' });
+    }
+});
+
 // ---------------------------------------------------------------------------
 // Página, estilos, textos y migraciones
 // ---------------------------------------------------------------------------
