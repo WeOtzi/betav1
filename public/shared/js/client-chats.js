@@ -24,6 +24,9 @@
     const _supabase = window._supabase;
     const D = window.WeotziData || {};
     const M = window.WeotziInboxChat;
+    // Ronda 2 (inbox-extras-model.js): mensajes de voz, mensajes rápidos y la
+    // marca "Mensaje automático" de las respuestas automáticas del artista.
+    const X = window.WeotziInboxExtras || null;
 
     const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
     const DAY_MS = 24 * 60 * 60 * 1000;
@@ -76,6 +79,8 @@
     let sending = false;
     let openSeq = 0;
     let refreshTimer = null;
+    let voiceRecorder = null;    // grabador de mensajes de voz (wo-voice.js)
+    let quickReplies = null;     // panel de mensajes rápidos (wo-quick-replies.js)
     const signedUrls = new Map();
 
     const $ = (id) => document.getElementById(id);
@@ -378,6 +383,7 @@
         currentKey = key;
         messages = [];
         clearPendingFiles();
+        resetThreadExtras();
         removeThreadChannel();
         updateUrl(row);
 
@@ -416,6 +422,7 @@
         messages = [];
         list.forEach(addMessage);
         renderMessages();
+        toggleTurnTag(turnPending(row));
         subscribeThread(row);
 
         // Marcar leídos los mensajes del artista y apagar el badge.
@@ -467,11 +474,22 @@
         } else {
             profile.classList.add('wo-hidden');
         }
-        toggleTurnTag(r.lastFromArtist && !r.synthetic);
+        toggleTurnTag(turnPending(r));
     }
 
     function toggleTurnTag(show) {
         $('cch-head-turn').classList.toggle('wo-hidden', !show);
+    }
+
+    // "Esperando tu respuesta": lo último del hilo lo escribió el artista. Un
+    // mensaje automático (saludo o ausencia) no espera respuesta del cliente.
+    function turnPending(r) {
+        if (!r || r.synthetic) return false;
+        if (r.key === currentKey && messages.length) {
+            const last = messages[messages.length - 1];
+            return Boolean(last && !last.mine && !last.system && !last.auto);
+        }
+        return Boolean(r.lastFromArtist);
     }
 
     function paintBanner(r) {
@@ -587,8 +605,10 @@
             mine: m.sender_type === 'client',
             body: m.message || '',
             at: m.created_at,
+            auto: m.auto_kind || null,
             attachment: m.attachment_path ? {
                 source: 'chat', path: m.attachment_path, name: m.attachment_name, mime: m.attachment_mime,
+                durationMs: m.attachment_duration_ms || null,
             } : null,
         };
     }
@@ -601,8 +621,10 @@
             system,
             body: m.body || '',
             at: m.created_at,
+            auto: m.auto_kind || null,
             attachment: m.attachment_path ? {
                 source: 'inbox', path: m.attachment_path, name: m.attachment_name, mime: m.attachment_mime,
+                durationMs: m.attachment_duration_ms || null,
             } : null,
         };
     }
@@ -658,7 +680,9 @@
     function messageEl(m) {
         if (m.system) return el('div', 'cch-system', m.body);
         const wrap = el('div', 'cch-msg-wrap ' + (m.mine ? 'cch-msg-wrap--out' : 'cch-msg-wrap--in'));
-        if (m.attachment) wrap.appendChild(attachmentEl(m.attachment));
+        // Ronda 2: saludo o ausencia que el artista dejó configurados.
+        if (m.auto) wrap.appendChild(el('span', 'wo-auto-tag cch-auto-tag', X ? X.AUTO_LABEL : 'Mensaje automático'));
+        if (m.attachment) wrap.appendChild(attachmentEl(m.attachment, m.mine));
         if (m.body) wrap.appendChild(el('div', 'cch-msg ' + (m.mine ? 'cch-msg--out' : 'cch-msg--in'), m.body));
         const time = el('time', 'cch-msg-time', m.at ? TIME_FMT.format(new Date(m.at)) : '');
         if (m.at) time.dateTime = m.at;
@@ -666,7 +690,15 @@
         return wrap;
     }
 
-    function attachmentEl(a) {
+    function attachmentEl(a, mine) {
+        // Ronda 2: un adjunto de audio es un mensaje de voz (reproductor inline).
+        if (X && window.WoVoice && X.isAudioAttachment(a.mime)) {
+            return window.WoVoice.player(a.source + ':' + a.path, {
+                durationMs: a.durationMs,
+                className: 'cch-voice ' + (mine ? 'cch-voice--out' : 'cch-voice--in'),
+                getUrl: () => signedUrl(a.source, a.path),
+            });
+        }
         const isImage = String(a.mime || '').startsWith('image/');
         const button = document.createElement('button');
         button.type = 'button';
@@ -798,8 +830,113 @@
         $('cch-input').disabled = !enabled;
         $('cch-attach').disabled = !enabled;
         $('cch-reference').disabled = !enabled;
+        if ($('cch-voice')) $('cch-voice').disabled = !enabled;
+        if ($('cch-quick')) $('cch-quick').disabled = !enabled;
         $('cch-input').placeholder = enabled ? 'Escribí un mensaje…' : 'Esta conversación está cerrada.';
         syncSend();
+    }
+
+    // Al cambiar de hilo: se descarta una grabación en curso, se frena el
+    // audio que estuviera sonando y se cierra el panel de mensajes rápidos.
+    function resetThreadExtras() {
+        if (voiceRecorder) voiceRecorder.reset();
+        if (quickReplies) quickReplies.close();
+        if (window.WoVoice) window.WoVoice.resetPlayers();
+    }
+
+    // Aviso breve (confirmaciones). Los errores van al composer (role="alert").
+    function notify(message, tone) {
+        if (tone === 'error') {
+            showComposerError(message);
+            return;
+        }
+        let toast = document.querySelector('.cch-toast');
+        if (!toast) {
+            toast = el('div', 'cch-toast');
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.hidden = false;
+        clearTimeout(toast._hideTimer);
+        toast._hideTimer = setTimeout(() => { toast.hidden = true; }, 3600);
+    }
+
+    // Ronda 2 · P8/P9: micrófono y mensajes rápidos del composer.
+    function wireExtras() {
+        const form = $('cch-composer');
+        const usable = () => {
+            const row = findRow(currentKey);
+            return Boolean(row && !row.closed && !sending);
+        };
+        if (window.WoVoice && $('cch-voice')) {
+            voiceRecorder = window.WoVoice.attachRecorder({
+                form,
+                button: $('cch-voice'),
+                canRecord: usable,
+                onSend: sendVoiceMessage,
+                onError: (message) => showComposerError(message),
+            });
+        } else if ($('cch-voice')) {
+            $('cch-voice').hidden = true;
+        }
+        if (window.WoQuickReplies && $('cch-quick')) {
+            quickReplies = window.WoQuickReplies.attach({
+                role: 'client',
+                getUserId: () => uid,
+                button: $('cch-quick'),
+                form,
+                input: $('cch-input'),
+                canUse: usable,
+                notify,
+            });
+        } else if ($('cch-quick')) {
+            $('cch-quick').hidden = true;
+        }
+    }
+
+    // Mensaje de voz: sube el audio al bucket del hilo y guarda el mensaje. Si
+    // la base lo rechaza, el archivo subido se borra. Los errores vuelven al
+    // grabador (wo-voice.js), que conserva la grabación para reintentar.
+    async function sendVoiceMessage(voice) {
+        const row = findRow(currentKey);
+        if (!row || row.closed || sending) throw new Error('conversación no disponible');
+        const fromQuote = row.source === 'quote';
+        const repo = fromQuote ? D.Chat : D.Inbox;
+        let uploaded = null;
+        sending = true;
+        syncSend();
+        $('cch-composer-error').classList.add('wo-hidden');
+        try {
+            uploaded = await repo.uploadAttachment(row.id, uid, voice.file);
+            const saved = fromQuote
+                ? await D.Chat.sendMessage({
+                    quoteId: row.id, senderType: 'client', senderId: uid, message: '',
+                    attachment: Object.assign({}, uploaded, { durationMs: voice.durationMs }),
+                })
+                : await D.Inbox.sendVoiceMessage({ threadId: row.id, attachment: uploaded, durationMs: voice.durationMs });
+            const message = firstRow(saved);
+            if (message && currentKey === row.key) {
+                addMessage(fromQuote ? adaptQuoteMessage(message) : adaptInboxMessage(message));
+                renderMessages();
+                toggleTurnTag(false);
+            }
+            touchRow(row, X ? X.VOICE_LABEL : 'Mensaje de voz');
+            if (row.synthetic) {
+                row.synthetic = false;
+                if (row.quote) row.quote.synthetic = false;
+                scheduleRefresh();
+            }
+        } catch (err) {
+            // Solo se limpia si la base respondió con un rechazo (con un corte
+            // de red el mensaje pudo haberse guardado).
+            if (uploaded && uploaded.path && err && err.code && repo.removeAttachment) repo.removeAttachment(uploaded.path);
+            throw err;
+        } finally {
+            sending = false;
+            syncSend();
+        }
     }
 
     function syncSend() {
@@ -892,6 +1029,11 @@
         return M ? M.firstRow(saved) : (Array.isArray(saved) ? saved[0] : saved);
     }
 
+    // Texto de la lista para un mensaje que es solo un adjunto.
+    function attachmentPreview(mime) {
+        return X && X.isAudioAttachment(mime) ? X.VOICE_LABEL : 'Archivo adjunto';
+    }
+
     function touchRow(row, preview) {
         row.preview = preview;
         row.lastAt = new Date().toISOString();
@@ -935,11 +1077,11 @@
         if (!addMessage(message)) return;
         renderMessages();
         if (fromArtist) {
-            toggleTurnTag(true);
+            toggleTurnTag(!message.auto);
             markRead(row);
             row.lastFromArtist = true;
         }
-        row.preview = preview || (message.attachment ? 'Archivo adjunto' : row.preview);
+        row.preview = preview || (message.attachment ? attachmentPreview(message.attachment.mime) : row.preview);
         row.lastAt = message.at;
         renderList();
     }
@@ -965,7 +1107,7 @@
             scheduleRefresh(); // conversación nueva: refrescar la lista completa
             return;
         }
-        r.preview = m.message || 'Archivo adjunto';
+        r.preview = m.message || attachmentPreview(m.attachment_mime);
         r.lastAt = m.created_at;
         r.lastFromArtist = true;
         r.unread += 1;
@@ -1052,6 +1194,7 @@
             const button = e.target.closest('.cch-attachment');
             if (button) openAttachment(button);
         });
+        wireExtras();
 
         $('cch-back').addEventListener('click', () => {
             $('cch-shell').classList.remove('is-thread-open');

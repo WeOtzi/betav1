@@ -1402,6 +1402,8 @@ function buildChatMessageEl(msg) {
     time.className = 'time';
     time.textContent = formatTime(msg.created_at);
     messageEl.appendChild(time);
+    // Ronda 2 (inbox): saludo o ausencia automática del artista.
+    if (msg.auto_kind) time.appendChild(document.createTextNode(' · Mensaje automático'));
     return messageEl;
 }
 

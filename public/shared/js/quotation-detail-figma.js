@@ -797,7 +797,8 @@
         }
         return state.messages.slice(-6).map((message) => {
             const artist = message.sender_type === 'artist';
-            const author = artist ? 'Vos' : (q.client_full_name || 'Cliente');
+            // Ronda 2 (inbox): auto_kind = saludo o ausencia que envió la base por el artista.
+            const author = artist ? (message.auto_kind ? 'Mensaje automático' : 'Vos') : (q.client_full_name || 'Cliente');
             return `
                 <article class="qd-message${artist ? ' qd-message--artist' : ''}">
                     <span class="qd-message-meta">${esc(author)} · ${esc(M.chatStamp(message.created_at))}</span>

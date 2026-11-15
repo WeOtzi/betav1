@@ -348,6 +348,8 @@
                 row.attachment_name = attachment.name || null;
                 row.attachment_mime = attachment.type || null;
                 row.attachment_size = attachment.size ?? null;
+                // Mensaje de voz (ronda 2 · 20261116160000): la base exige la duración.
+                if (attachment.durationMs != null) row.attachment_duration_ms = Math.round(Number(attachment.durationMs) || 0);
             }
             const { data } = await run('chat.sendMessage', (c) =>
                 c.from('chat_messages').insert(row).select('*')
@@ -367,7 +369,11 @@
         // migración 20261115170000). Ruta <quote_id>/<user_id>/<ts>-<nombre>.
         async uploadAttachment(quoteId, userId, file) {
             const model = window.WeotziInboxChat;
-            const check = model ? model.validateAttachment(file) : { ok: !!file, error: 'Elegí un archivo.' };
+            // Los mensajes de voz (audio grabado en el chat) tienen su propio
+            // formato y tope: los valida wo-voice.js antes de subir.
+            const extras = window.WeotziInboxExtras;
+            const isVoice = !!(file && extras && extras.isVoiceMime(file.type) && file.size <= extras.VOICE_MAX_BYTES);
+            const check = isVoice ? { ok: true } : (model ? model.validateAttachment(file) : { ok: !!file, error: 'Elegí un archivo.' });
             if (!check.ok) throw new Error(check.error);
             const path = model
                 ? model.chatAttachmentPath(quoteId, userId, file.name, Date.now())
@@ -386,6 +392,26 @@
             const { data, error } = await client.storage.from('chat-attachments').createSignedUrl(path, expiresIn);
             if (error) throw error;
             return data?.signedUrl || null;
+        },
+        // Limpieza de un adjunto que no llegó a enviarse (best effort).
+        async removeAttachment(path) {
+            const client = D.getClient();
+            if (!client || !path) return;
+            try { await client.storage.from('chat-attachments').remove([path]); } catch (_) { /* queda huérfano */ }
+        },
+        // Mensajes automáticos recientes (ronda 2 · 20261116160200) de los chats
+        // del usuario (RLS). El inbox los usa para saber si lo último de un hilo
+        // fue un automático del artista. Sin la columna devuelve [].
+        async listRecentAuto(limit = 200) {
+            try {
+                const { data } = await run('chat.listRecentAuto', (c) =>
+                    c.from('chat_messages').select('quotation_id,created_at,auto_kind').not('auto_kind', 'is', null)
+                        .order('created_at', { ascending: false }).limit(limit)
+                );
+                return data || [];
+            } catch (_) {
+                return [];
+            }
         },
         // Marca como leidos los mensajes NO leidos enviados por `fromSenderType`.
         async markRead(quoteId, fromSenderType) {
