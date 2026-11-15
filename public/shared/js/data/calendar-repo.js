@@ -490,6 +490,11 @@
                 SESSION_LOCATION_META.forEach((column) => { delete copy[column]; });
                 return writeSession(label, copy, execute);
             }
+            // …y con el límite anterior de 120 caracteres para la dirección.
+            const text = `${error.message || ''} ${error.cause?.message || ''}`;
+            if (patch.location && patch.location.length > 120 && /quotation_sessions_location_length/.test(text)) {
+                return writeSession(label, { ...patch, location: patch.location.slice(0, 120).trim() }, execute);
+            }
             if (!('location' in patch) || !isMissingColumn(error, 'location')) throw error;
             console.warn(`[calendar] ${label}: falta quotation_sessions.location; se guarda sin ubicación.`);
             const copy = { ...patch };
