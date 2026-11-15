@@ -18,6 +18,19 @@
         if (!ctx.rpcs) ctx.rpcs = {};
         function clone(row) { return JSON.parse(JSON.stringify(row)); }
 
+        // ── registro (ronda 2 · T1-2): el demo del artista REAL no simula
+        // artists_db (el perfil se lee del backend). Estas RPC solo se emulan
+        // cuando el store tiene la fila propia (preview local con el artista
+        // ficticio); si no, wo-demo.js deja pasar la lectura al backend real.
+        // Sin esto, la primera entrada al panel de una cuenta nueva (demo
+        // automático) respondía "sin perfil" y volvía al inicio del registro.
+        // OJO: store.rows() crea la tabla si no existe; por eso se mira has().
+        function ownRowInStore(store, rpcCtx) {
+            var uid = rpcCtx && rpcCtx.userId;
+            if (!uid || !store || typeof store.has !== 'function' || !store.has('artists_db')) return false;
+            return store.rows('artists_db').some(function (a) { return a && a.user_id === uid; });
+        }
+
         ctx.rpcs.get_my_artist_profile = function (args, store, rpcCtx) {
             var uid = rpcCtx && rpcCtx.userId;
             if (!uid) return [];
@@ -25,6 +38,7 @@
                 .filter(function (a) { return a && a.user_id === uid; })
                 .map(clone);
         };
+        ctx.rpcs.get_my_artist_profile.demoApplies = ownRowInStore;
 
         // upsert_my_artist_profile(p_profile): fila propia (user_id = sesión),
         // solo columnas editables (misma lista que la migración).
@@ -49,6 +63,10 @@
             return { id: row.id || null, user_id: row.user_id, username: row.username || null,
                 name: row.name || null, registration_status: row.registration_status || null };
         };
+        // Sin la fila propia en el store, guardar el perfil se ignora (como toda
+        // escritura a datos reales en el demo) en vez de inventar una fila que
+        // después taparía el perfil real.
+        ctx.rpcs.upsert_my_artist_profile.demoApplies = ownRowInStore;
 
         ctx.rpcs.support_list_artists = function (args, store) {
             var ids = args && args.p_user_ids;

@@ -6251,7 +6251,9 @@ app.post('/api/instagram/preview', igSignupLimiter, async (req, res) => {
         // el parametro `limit` del cliente se ignora.
         const out = await igImport.preview({
             handle: body.handle,
-            limit: igImport.IG_PREVIEW_LIMIT
+            limit: igImport.IG_PREVIEW_LIMIT,
+            // ── registro (ronda 2): el alta reutiliza el perfil recién traído.
+            reuse: body.reuse === true
         });
         return res.json({ success: true, ...out });
     } catch (err) {
@@ -6290,7 +6292,9 @@ app.post('/api/instagram/commit', igSignupLimiter, async (req, res) => {
             mode: isSignup ? 'signup' : 'dashboard',
             allowed_permalinks: Array.isArray(body.allowed_permalinks) ? body.allowed_permalinks : null,
             // ── dashboard ── P17: consentimiento del paso 01 (hora del servidor).
-            consent: igConsent.normalizeImportConsent(body.consent)
+            consent: igConsent.normalizeImportConsent(body.consent),
+            // ── registro (ronda 2 · N3): pies de foto editados en el alta.
+            captions: body.captions && typeof body.captions === 'object' ? body.captions : null
         });
         return res.json({ success: true, ...out });
     } catch (err) {
@@ -6946,6 +6950,7 @@ require('./lib/routes/cot-artista').register(app); // ── cot-artista ── 
 require('./lib/routes/emails').register(app, { pgrest, getActiveSupportAgent: _getActiveSupportAgent, applicationBase, safeTokenEqual: storeOrders.safeTokenEqual, startJobs: require.main === module });
 
 require('./lib/routes/acceso').register(app); // ── acceso: bienvenida idempotente y Términos del cliente
+require('./lib/routes/registro').register(app); // ── registro (ronda 2): estado de la confirmación de email
 
 // ── cot-form ── cotizador web: intake, sugerencias de artistas y Job Board.
 require('./lib/routes/cot-form').register(app, { driveMirror: mirrorQuoteFilesToDrive });

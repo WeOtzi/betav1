@@ -464,9 +464,20 @@
             var isRead = method === 'GET' || method === 'HEAD';
             if (path.indexOf('rpc/') === 0) {
                 var fn = path.slice(4);
-                if (!st.rpcs[fn]) {
+                // ── registro (ronda 2 · T1-2): un handler puede declarar con
+                // `demoApplies(store, ctx)` que NO aplica. El perfil del
+                // artista no se simula (se lee el real): si el demo respondía
+                // get_my_artist_profile con su tabla vacía, el panel creía que
+                // la cuenta no tenía perfil y volvía al registro.
+                var rpc = st.rpcs[fn];
+                var rpcApplies = Boolean(rpc) && (typeof rpc.demoApplies !== 'function'
+                    || rpc.demoApplies(st, { userId: identity.userId, identity: identity }) !== false);
+                if (!rpcApplies) {
                     if (isRead || READ_ONLY_RPC.test(fn)) return passThrough(input, init, null);
                     warn('RPC ignorada en modo demo:', fn);
+                    // Escritura sobre datos que el demo no simula: se ignora
+                    // sin inventar filas en el store.
+                    if (rpc) return jsonResponse(200, null);
                 }
             } else if (!st.has(path)) {
                 if (isRead) return passThrough(input, init, path);
