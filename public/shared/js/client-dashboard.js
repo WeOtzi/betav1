@@ -190,6 +190,7 @@ async function loadQuotations() {
         renderQuotations();
         loadNextAppointment();
         openQuotationFromQuery();
+        loadClientPanelExtras();
         
         // Load unread message counts
         await loadUnreadCounts();
@@ -300,21 +301,79 @@ function renderQuotations() {
     // CC-13: los borradores del cotizador (in_progress sin respuesta del
     // artista) no son cotizaciones "En proceso": se muestran aparte.
     const drafts = currentQuotations.filter(isClientWizardDraft);
-    const filtered = currentQuotations.filter(q => quotationMatchesFilter(q, currentFilter));
-    const draftsHtml = drafts.length && (currentFilter === 'all' || currentFilter === 'active') ? renderDraftsNotice(drafts) : '';
+    // cliente-panel (ronda 2): buscador por código corto, artista, estilo o zona.
+    const searchTerm = clientPanelSearchTerm();
+    const panel = panelModel();
+    const filtered = currentQuotations
+        .filter(q => quotationMatchesFilter(q, currentFilter))
+        .filter(q => !searchTerm || !panel || panel.matchesSearch(q, searchTerm, clientPanelExtras(q)));
+    const draftsHtml = drafts.length && !searchTerm && (currentFilter === 'all' || currentFilter === 'active') ? renderDraftsNotice(drafts) : '';
+    const ui = panelUi();
+    if (ui && typeof ui.afterRender === 'function') ui.afterRender({ shown: filtered });
 
     if (filtered.length === 0) {
-        listContainer.innerHTML = draftsHtml + `
+        const emptyKind = searchTerm ? 'quotations-search' : (currentFilter !== 'all' ? 'quotations-filter' : 'quotations');
+        listContainer.innerHTML = draftsHtml + (panel
+            ? panel.emptyHtml(panel.emptyState(emptyKind, { term: searchTerm }), { variant: 'dashboard' })
+            : `
             <div class="empty-state">
                 <i data-wo-icon="file-text"></i>
                 <h3>Sin cotizaciones</h3>
                 <p>Todavía no tenés cotizaciones${currentFilter !== 'all' ? ' en este estado' : ''}</p>
             </div>
-        `;
+        `);
         return;
     }
 
     listContainer.innerHTML = draftsHtml + filtered.map(q => renderQuotationCard(q)).join('');
+}
+
+// ---- Panel del cliente · ronda 2 (frente cliente-panel) ----
+// El modelo puro (client-panel-model.js · WoClientPanel) centraliza etiquetas de
+// estado, código corto y buscador; client-panel-ui.js (WoClientPanelUi) guarda
+// el término buscado y los datos extra. Todo es opcional: sin esos scripts el
+// listado sigue funcionando con el modelo anterior.
+function panelModel() {
+    return (typeof window !== 'undefined' && window.WoClientPanel) || null;
+}
+
+function panelUi() {
+    return (typeof window !== 'undefined' && window.WoClientPanelUi) || null;
+}
+
+function clientPanelSearchTerm() {
+    const ui = panelUi();
+    return ui && typeof ui.getSearch === 'function' ? String(ui.getSearch() || '') : '';
+}
+
+function clientPanelExtras(q) {
+    const ui = panelUi();
+    return ui && typeof ui.extrasFor === 'function' ? ui.extrasFor(q) : {};
+}
+
+// Código visible de la cotización: el corto si existe, si no el quote_id.
+function clientQuoteCode(q) {
+    const panel = panelModel();
+    if (panel) return panel.quoteCode(q);
+    return String((q && (q.short_code || q.quote_id)) || '');
+}
+
+// Etiqueta de estado (+ aclaración de a quién le toca) del detalle abierto.
+function clientStatusPillHtml(quotation) {
+    const status = clientQuotationStatus(quotation);
+    return `<span class="quotation-status ${escapeFeedHtml(status.tone)}">${escapeFeedHtml(status.label)}</span>`
+        + (status.hint ? `<span class="cpn-status-hint">${escapeFeedHtml(status.hint)}</span>` : '');
+}
+
+// Sesiones del cliente para la etiqueta "Sesión por confirmar" (no bloquea).
+function loadClientPanelExtras() {
+    const ui = panelUi();
+    if (!ui || typeof ui.loadExtras !== 'function') return;
+    Promise.resolve(ui.loadExtras(currentQuotations)).then(changed => {
+        if (!changed) return;
+        renderQuotations();
+        if (currentQuotationId) refreshOpenDetail(currentQuotationId);
+    }).catch(() => { /* la etiqueta base ya está pintada */ });
 }
 
 // ---- Estados del cliente (cot-cliente · CC-13) ----
@@ -338,6 +397,10 @@ function isClientWizardDraft(q) {
 }
 
 function clientQuotationStatus(q) {
+    // cliente-panel (ronda 2): mismo estado que /client/requests y /client/chats
+    // (key = estado base; label/tone suman los estados nuevos si hay datos).
+    const panel = panelModel();
+    if (panel) return panel.statusOf(q, clientPanelExtras(q));
     const ui = proposalUi();
     if (ui) return ui.statusOf(q);
     let key = isClientWizardDraft(q) ? 'draft' : (q && q.quote_status === 'en_progreso' ? 'in_progress' : (q && q.quote_status));
@@ -383,12 +446,17 @@ function renderQuotationCard(quotation) {
     const styleInfo = escapeFeedHtml(formatClientQuotationStyle(quotation.tattoo_style));
     const ui = proposalUi();
     const proposal = ui && ['responded', 'client_approved'].includes(status.key) ? ui.proposalOf(quotation) : null;
-    const waiting = !!(ui && ui.canDecide(quotation));
+    // Si el cliente propuso cambios, le toca al artista: no se le pide respuesta.
+    const waiting = !!(ui && ui.canDecide(quotation)) && status.waitingOn !== 'artist';
+    // cliente-panel (ronda 2): código corto visible (el quote_id real sigue en
+    // data-quote-id) y aviso cuando los cambios o la sesión esperan al cliente.
+    const quoteCode = escapeFeedHtml(clientQuoteCode(quotation));
+    const needsReview = !waiting && status.waitingOn === 'client';
 
     return `
         <div class="quotation-card" data-quote-id="${quoteId}">
             <div class="quotation-header">
-                <span class="quotation-id">${quoteId}</span>
+                <span class="quotation-id">${quoteCode}</span>
                 <span class="quotation-status ${escapeFeedHtml(status.tone)}">${escapeFeedHtml(status.label)}</span>
             </div>
             <div class="quotation-body">
@@ -415,12 +483,13 @@ function renderQuotationCard(quotation) {
                 </div>
                 ${proposal && proposal.amountText ? `<p class="quotation-proposal-line">${proposal.isFinal ? 'Total acordado' : 'Propuesta'}: <strong>${escapeFeedHtml(proposal.amountText)}</strong>${waiting ? ' · <span class="quotation-proposal-cta">Esperando tu respuesta</span>' : ''}</p>` : ''}
             </div>
+            ${status.hint ? `<p class="cpn-status-hint">${escapeFeedHtml(status.hint)}</p>` : ''}
             <div class="quotation-footer">
                 <button type="button" class="wo-btn wo-btn--s" data-quote-id="${quoteId}" onclick="openChat(this.dataset.quoteId)">
                     Chat <span class="unread-badge" id="unread-${quoteId}" style="display: none;">0</span>
                 </button>
-                <button type="button" class="wo-btn ${waiting ? 'wo-btn--accent' : 'wo-btn--ghost'} wo-btn--s" data-quote-id="${quoteId}" onclick="viewQuotationDetail(this.dataset.quoteId)">
-                    ${waiting ? 'Ver propuesta' : 'Ver detalle'}
+                <button type="button" class="wo-btn ${waiting || needsReview ? 'wo-btn--accent' : 'wo-btn--ghost'} wo-btn--s" data-quote-id="${quoteId}" onclick="viewQuotationDetail(this.dataset.quoteId)">
+                    ${waiting ? 'Ver propuesta' : (needsReview ? 'Revisar' : 'Ver detalle')}
                 </button>
                 <button type="button" class="wo-btn wo-btn--ghost wo-btn--s btn-borrar" data-quote-id="${quoteId}" onclick="hideQuotation(this.dataset.quoteId)">
                     Borrar
@@ -746,7 +815,14 @@ async function loadSuggestedArtists() {
             const href = dashboardReference ? '/marketplace/' : `/artist/profile?artist=${encodeURIComponent(artist.username || '')}`;
             const name = escapeFeedHtml(artist.name || artist.username || 'Artista');
 
+            // cliente-panel (ronda 2): hueco del corazón de favoritos (lo activa
+            // wo-favorites.js; vacío no se ve). Va fuera del <a> de la tarjeta.
+            const favorite = !dashboardReference && artist.user_id
+                ? `<button type="button" class="cpn-fav cpn-fav--media" data-wo-favorite data-kind="artist" data-id="${escapeFeedHtml(artist.user_id)}" data-label="${name}" data-image="${escapeFeedHtml(artist.profile_picture || '')}"></button>`
+                : '';
+
             return `
+                <article class="cpn-suggested-item">
                 <a class="client-suggested-card" href="${href}">
                     <div class="client-suggested-media">
                         <span class="client-photo-placeholder" aria-hidden="true"><img src="/shared/assets/client-dashboard/image-placeholder.svg" width="28" height="29.1" alt=""><strong>Foto</strong><span>or <u>browse files</u></span></span>
@@ -760,10 +836,14 @@ async function loadSuggestedArtists() {
                     ${place ? `<p class="client-suggested-place"><i data-wo-icon="map-pin"></i>${escapeFeedHtml(place)}</p>` : ''}
                     ${styles ? `<div class="client-suggested-styles">${styles}</div>` : ''}
                 </a>
+                ${favorite}
+                </article>
             `;
         }).join('');
 
         section.hidden = false;
+        const suggestedUi = panelUi();
+        if (suggestedUi && typeof suggestedUi.ensureModules === 'function') suggestedUi.ensureModules(grid);
     } catch (error) {
         console.error('Error loading suggested artists:', error);
     }
@@ -808,12 +888,11 @@ async function viewQuotationDetail(quoteId) {
     const e = escapeFeedHtml;
     const styleInfo = e(formatClientQuotationStyle(quotation.tattoo_style, true));
     const referencesUrl = safeHttpUrl(quotation.tattoo_references);
-    const status = clientQuotationStatus(quotation);
     const sessionCost = quotation.artist_session_cost_amount
         ? `${quotation.artist_session_cost_amount} ${quotation.artist_session_cost_currency || ''}`.trim() : '–';
 
     detailContent.innerHTML = `
-        <p class="quotation-detail-status"><span class="quotation-status ${e(status.tone)}">${e(status.label)}</span></p>
+        <p class="quotation-detail-status"><span class="cpn-status-slot" data-cpn-status>${clientStatusPillHtml(quotation)}</span><button type="button" class="cpn-report" data-wo-report data-kind="quotation" data-id="${e(quotation.quote_id)}" data-label="${e('Cotización ' + clientQuoteCode(quotation))}"><i data-wo-icon="flag" aria-hidden="true"></i>Denunciar</button></p>
 
         <div id="quote-proposal-slot">${renderProposalBlock(quotation)}</div>
 
@@ -911,7 +990,9 @@ async function viewQuotationDetail(quoteId) {
     `;
 
     // Update modal title
-    document.getElementById('modal-quote-id').textContent = quoteId;
+    document.getElementById('modal-quote-id').textContent = clientQuoteCode(quotation) || quoteId;
+    const panelUiRef = panelUi();
+    if (panelUiRef && typeof panelUiRef.ensureModules === 'function') panelUiRef.ensureModules(detailContent);
 
     // Load chat messages
     await loadChatMessages(quoteId);
@@ -972,11 +1053,8 @@ function refreshOpenDetail(quoteId) {
     if (currentQuotationId !== quoteId) return;
     const quotation = currentQuotations.find(q => q.quote_id === quoteId);
     const detail = document.getElementById('quotation-detail-content');
-    const pill = detail && detail.querySelector ? detail.querySelector('.quotation-detail-status') : null;
-    if (quotation && pill) {
-        const status = clientQuotationStatus(quotation);
-        pill.innerHTML = `<span class="quotation-status ${escapeFeedHtml(status.tone)}">${escapeFeedHtml(status.label)}</span>`;
-    }
+    const pill = detail && detail.querySelector ? (detail.querySelector('[data-cpn-status]') || detail.querySelector('.quotation-detail-status')) : null;
+    if (quotation && pill) pill.innerHTML = clientStatusPillHtml(quotation);
     rerenderProposal(quoteId);
 }
 
@@ -1769,6 +1847,9 @@ document.addEventListener('keydown', (e) => {
 
 let jbRequests = [];
 let jbCurrentRequest = null;
+// cliente-panel (ronda 2): contraofertas pendientes de mis postulaciones, para
+// que la etiqueta de la solicitud diga lo mismo que en /client/requests.
+let jbPendingOffers = [];
 
 // El Figma del dashboard no embebe la lista de cotizaciones: se llega desde el
 // nav (COTIZACIONES / JOB BOARD) y desde los contadores. Este helper revela el
@@ -1853,17 +1934,43 @@ async function loadJobBoardRequests() {
 
         updateStats();
         renderJobBoardRequests();
+        loadJbPendingOffers();
     } catch (err) {
         console.error('Error loading JB requests:', err);
         container.innerHTML = '<div class="empty-state"><i data-wo-icon="alert-triangle"></i><p>Error al cargar solicitudes</p></div>';
     }
 }
 
+// No bloquea el listado: si hay contraofertas pendientes, repinta las etiquetas.
+async function loadJbPendingOffers() {
+    const repo = WeotziData.JobBoard && WeotziData.JobBoard.CounterOffers;
+    if (!repo || typeof repo.listPendingByApplications !== 'function') return;
+    const ids = [];
+    jbRequests.forEach(r => {
+        if (r.status === 'closed' || r.status === 'expired') return;
+        (r.job_board_applications || []).forEach(a => {
+            if (a.id && a.status !== 'withdrawn' && a.status !== 'rejected') ids.push(a.id);
+        });
+    });
+    try {
+        const before = jbPendingOffers.length;
+        jbPendingOffers = ids.length ? await repo.listPendingByApplications(ids) : [];
+        if (jbPendingOffers.length || before) renderJobBoardRequests();
+    } catch (err) {
+        console.warn('No pudimos leer las contraofertas pendientes:', err && err.message);
+    }
+}
+
 function renderJobBoardRequests() {
     const container = document.getElementById('jb-requests-list');
+    // cliente-panel (ronda 2): mismas etiquetas que /client/requests, datos
+    // escapados y un solo lugar para ver y elegir postulaciones (/client/requests).
+    const panel = panelModel();
 
     if (jbRequests.length === 0) {
-        container.innerHTML = `
+        container.innerHTML = panel
+            ? panel.emptyHtml(panel.emptyState('requests'), { variant: 'dashboard' })
+            : `
             <div class="empty-state">
                 <i data-wo-icon="radio"></i>
                 <h3>Sin solicitudes</h3>
@@ -1873,53 +1980,57 @@ function renderJobBoardRequests() {
         return;
     }
 
+    const legacyLabels = { draft: 'Borrador', open: 'Abierta', in_review: 'En revisión', accepted: 'Aceptada', closed: 'Cerrada', expired: 'Expirada' };
+    const e = escapeFeedHtml;
+
     container.innerHTML = jbRequests.map(req => {
-        const statusLabels = {
-            'draft': 'Borrador',
-            'open': 'Abierta',
-            'in_review': 'En revisión',
-            'accepted': 'Aceptada',
-            'closed': 'Cerrada',
-            'expired': 'Expirada'
-        };
-        const pendingApps = (req.job_board_applications || []).filter(a => a.status === 'pending' || a.status === 'viewed').length;
-        const totalApps = (req.job_board_applications || []).length;
-        const thumbnail = req.job_board_attachments?.[0]?.file_url;
-        const styles = escapeFeedHtml(formatClientQuotationStyle(req.tattoo_style));
+        const status = panel
+            ? panel.requestStatusOf(req, { pendingOffers: jbPendingOffers })
+            : { label: legacyLabels[req.status] || 'En revisión', tone: 'jb-' + String(req.status || '').replace(/[^a-z_]/g, '') };
+        const apps = (req.job_board_applications || []).filter(a => a.status !== 'withdrawn');
+        const unseen = apps.filter(a => a.status === 'pending').length;
+        const thumbnail = safeHttpUrl(req.job_board_attachments?.[0]?.file_url);
+        const styles = e(formatClientQuotationStyle(req.tattoo_style));
+        const idea = String(req.tattoo_idea_description || '').trim();
+        const title = idea ? idea.substring(0, 60) + (idea.length > 60 ? '…' : '') : 'Sin descripción';
+        const code = panel ? panel.requestCode(req) : (req.request_code || '');
+        const budget = req.client_budget_min && req.client_budget_max
+            ? '$' + req.client_budget_min + ' – $' + req.client_budget_max + ' ' + (req.client_budget_currency || 'USD')
+            : 'Sin definir';
 
         return `
-        <div class="quotation-card" data-request-id="${req.id}" onclick="viewJBRequestDetail('${req.id}')">
+        <div class="quotation-card" data-request-id="${e(req.id)}">
             <div class="quotation-header">
-                <span class="quotation-id">${req.request_code}</span>
-                <span class="quotation-status jb-${req.status}">${statusLabels[req.status] || req.status}</span>
+                <span class="quotation-id">${e(code)}</span>
+                <span class="quotation-status ${e(status.tone)}">${e(status.label)}</span>
             </div>
             <div class="quotation-body">
                 <div class="quotation-artist">
-                    ${thumbnail ? `<img src="${thumbnail}" alt="">` : '<div class="artist-avatar">JB</div>'}
+                    ${thumbnail ? `<img src="${e(thumbnail)}" alt="">` : '<div class="artist-avatar">JB</div>'}
                     <div class="artist-info">
-                        <h4>${req.tattoo_idea_description ? req.tattoo_idea_description.substring(0, 60) + (req.tattoo_idea_description.length > 60 ? '…' : '') : 'Sin descripción'}</h4>
-                        <p>${req.tattoo_body_part || ''} ${styles ? '· ' + styles : ''}</p>
+                        <h4>${e(title)}</h4>
+                        <p>${e(req.tattoo_body_part || '')} ${styles ? '· ' + styles : ''}</p>
                     </div>
                 </div>
                 <div class="quotation-details">
                     <div class="detail-item">
                         <div class="detail-label">Zona</div>
-                        <div class="detail-value">${req.tattoo_body_part || '–'}</div>
+                        <div class="detail-value">${e(req.tattoo_body_part || '–')}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Presupuesto</div>
-                        <div class="detail-value">${req.client_budget_min && req.client_budget_max ? '$' + req.client_budget_min + ' – $' + req.client_budget_max + ' ' + (req.client_budget_currency || 'USD') : 'Sin definir'}</div>
+                        <div class="detail-value">${e(budget)}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Postulaciones</div>
-                        <div class="detail-value">${totalApps} (${pendingApps} nuevas)</div>
+                        <div class="detail-value">${apps.length}${unseen ? ` (${unseen} sin ver)` : ''}</div>
                     </div>
                 </div>
             </div>
             <div class="quotation-footer">
-                <button class="wo-btn wo-btn--ghost wo-btn--s" onclick="event.stopPropagation(); viewJBRequestDetail('${req.id}')">
-                    Ver postulaciones
-                </button>
+                <a class="wo-btn wo-btn--ghost wo-btn--s" href="/client/requests?id=${encodeURIComponent(req.id)}">
+                    ${apps.length ? 'Ver postulaciones' : 'Ver solicitud'}
+                </a>
             </div>
         </div>`;
     }).join('');

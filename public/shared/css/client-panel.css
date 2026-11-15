@@ -1,0 +1,152 @@
+/* ============================================================================
+   We Ötzi · Panel del cliente — ronda 2 (frente cliente-panel)
+   Capa compartida por /client/dashboard, /client/requests y /client/profile:
+   accesos rápidos, buscador, estados nuevos de las cotizaciones, estados
+   vacíos con acción y los huecos para favoritos / denuncias.
+   Requiere ds/tokens.css + ds/components.css antes. Prefijo: cpn-.
+   Regla del DS: solo var(--token), radius 0, sombra dura solo en hover.
+   ========================================================================== */
+
+/* ---------- Accesos rápidos (debajo del hero del dashboard) ---------- */
+.cpn-quick{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3) var(--space-4);margin-top:var(--space-6)}
+.cpn-quick-links{display:flex;flex-wrap:wrap;gap:var(--space-2);list-style:none;margin:0;padding:0;flex:1 1 auto;min-width:0}
+.cpn-quick-links li{display:flex;min-width:0}
+.cpn-quick .wo-btn{min-height:var(--control-h-md)}
+.cpn-quick-link{gap:var(--space-2);min-width:0}
+.cpn-quick-link [data-wo-icon]{display:inline-flex;width:16px;height:16px;flex:none}
+.cpn-quick-search{display:flex;gap:var(--space-2);flex:0 1 320px;min-width:220px;--field-padding-y:var(--space-2)}
+.cpn-quick-search .wo-input{min-width:0;font-size:var(--body-s-size)}
+
+/* ---------- Buscador del listado ---------- */
+.cpn-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3) var(--space-5);margin-bottom:var(--space-5)}
+.cpn-search{position:relative;flex:1 1 320px;max-width:480px;min-width:0;--field-padding-y:var(--space-2)}
+.cpn-search > [data-wo-icon]{position:absolute;left:var(--space-4);top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--text-muted);pointer-events:none}
+.cpn-search .wo-input{padding-left:var(--space-12);padding-right:var(--space-12);font-size:var(--body-s-size)}
+.cpn-search .wo-input:focus{padding-left:calc(var(--space-12) - 1px);padding-right:calc(var(--space-12) - 1px)}
+.cpn-search .wo-input::-webkit-search-cancel-button{display:none}
+.cpn-search-clear{position:absolute;right:0;top:0;bottom:0;width:var(--control-h-md);display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;border:0;padding:0;color:var(--neutral-500);cursor:pointer}
+.cpn-search-clear:hover{color:var(--black)}
+.cpn-search-clear [data-wo-icon]{display:inline-flex;width:16px;height:16px}
+.cpn-search-count{margin:0;color:var(--text-muted);min-height:1em}
+/* El placeholder es la única pista visible de estos campos: contraste AA. */
+.wo-app .cpn-search .wo-input::placeholder,.wo-app .cpn-quick-search .wo-input::placeholder{color:var(--neutral-400)}
+
+/* ---------- Estados nuevos de la ronda 2 ---------- */
+.quotation-status.cpn-info{background:var(--status-info-bg);color:var(--status-info-fg)}
+.quotation-status.cpn-warning{background:var(--status-warning-bg);color:var(--status-warning-fg)}
+.quotation-status.cpn-success{background:var(--status-success-bg);color:var(--status-success-fg)}
+.quotation-status.cpn-neutral{background:var(--neutral-200);color:var(--neutral-500)}
+.cpn-status-hint{display:block;margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body)}
+.quotation-card .cpn-status-hint{padding:0 var(--space-6) var(--space-4)}
+.quotation-detail-status .cpn-status-hint{margin-top:var(--space-2)}
+.quotation-detail-status{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) var(--space-4)}
+.quotation-detail-status .cpn-status-hint{flex:1 1 100%}
+
+/* Tarjetas del listado: nada se sale a 375px (etiquetas largas, nombres largos). */
+.client-page .quotation-header{flex-wrap:wrap;row-gap:var(--space-2)}
+.client-page .quotation-status{white-space:normal;max-width:100%}
+.client-page .quotation-id{overflow-wrap:anywhere;min-width:0}
+.client-page .artist-info{min-width:0}
+.client-page .artist-info h4,.client-page .artist-info p{overflow-wrap:anywhere}
+.client-page .detail-value{overflow-wrap:anywhere}
+
+/* ---------- Estados vacíos con acción ---------- */
+.cpn-empty{padding:var(--space-10) var(--space-6)}
+.cpn-empty p{max-width:52ch;margin:0}
+.cpn-empty-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-3);margin-top:var(--space-2)}
+
+/* ---------- Huecos para favoritos y denuncias ----------
+   Los llenan wo-favorites.js / wo-report.js (otros frentes). Mientras el
+   módulo no esté cargado, el botón no ocupa lugar ni queda como control muerto. */
+.cpn-fav:empty{display:none}
+.cpn-fav{flex:none}
+.cpn-suggested-item{position:relative;min-width:0}
+.cpn-fav--media{position:absolute;top:var(--space-3);right:var(--space-3);z-index:3}
+.cpn-report{display:none;align-items:center;gap:var(--space-2);background:transparent;border:0;padding:var(--space-2) 0;min-height:var(--control-h-sm);
+  font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted);cursor:pointer}
+.cpn-report:hover{color:var(--text-danger)}
+.cpn-report [data-wo-icon]{display:inline-flex;width:14px;height:14px}
+html[data-cpn-report="on"] .cpn-report{display:inline-flex}
+.cpn-status-slot{display:contents}
+.quotation-detail-status .cpn-report{order:1;margin-left:auto}
+.quotation-detail-status .cpn-status-hint{order:2}
+
+/* ============================================================================
+   /client/requests
+   ========================================================================== */
+/* Los <a> con clase de botón heredaban el azul de enlace de `.wo-app a`
+   (texto azul sobre el botón azul/amarillo/oscuro). */
+.crq-page a.wo-btn,.crq-page a.wo-btn:hover{color:var(--action-primary-fg)}
+.crq-page a.wo-btn--accent,.crq-page a.wo-btn--accent:hover{color:var(--action-accent-fg)}
+.crq-page a.wo-btn--direct,.crq-page a.wo-btn--direct:hover{color:var(--action-direct-fg)}
+.crq-page a.wo-btn--secondary,.crq-page a.wo-btn--secondary:hover{color:var(--action-secondary-fg)}
+.crq-page a.wo-btn--ghost,.crq-page a.wo-btn--ghost:hover{color:var(--action-ghost-fg)}
+
+.crq-page .crq-util{flex-wrap:wrap}
+.crq-page .wo-tag{max-width:100%}
+.crq-page .cpn-toolbar{margin-bottom:var(--space-6)}
+.crq-app-namerow .cpn-fav{margin-left:auto}
+.crq-artist-head .cpn-fav{margin-left:auto;align-self:flex-start}
+.crq-actions-row .cpn-report{margin-right:auto}
+
+/* ============================================================================
+   /client/profile
+   ========================================================================== */
+.cpa-matrix-note{margin:var(--space-5) 0 0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted);max-width:60ch}
+.cpa-field-error{margin:0;font-size:var(--body-s-size);color:var(--status-error-fg)}
+.cpa-field-error:empty{display:none}
+/* El input del toggle es invisible: el foco de teclado se dibuja en la perilla. */
+#cpa-notif-rows .wo-toggle input:focus-visible + .knob{box-shadow:var(--shadow-focus)}
+#cpa-notif-rows .wo-toggle input:disabled{cursor:progress}
+#cpa-notif-rows[aria-busy="true"] .knob{opacity:var(--opacity-disabled)}
+
+/* ============================================================================
+   Responsive
+   ========================================================================== */
+/* /client/requests y /client/profile: con la nav de escritorio oculta (o sin
+   lugar para sus siete destinos) el cliente se quedaba sin forma de moverse por
+   su panel. Hasta 1151px la nav pasa a una fila propia, deslizable, igual que
+   en el dashboard. */
+@media (max-width:1151px){
+  .crq-page .wo-topbar,.cpa-topbar{flex-wrap:wrap;overflow-x:visible;gap:0}
+  .crq-page .wo-topbar-left,.cpa-topbar .wo-topbar-left{display:contents}
+  .crq-page .wo-topbar-brand,.cpa-topbar .wo-topbar-brand{min-height:56px}
+  .crq-page .wo-topbar-right,.cpa-topbar .wo-topbar-right{margin-left:auto}
+  .crq-page .wo-topbar-nav,.cpa-topbar .wo-topbar-nav{display:flex;order:3;width:100%;overflow-x:auto;
+    border-top:var(--border-hairline) solid var(--border-subtle)}
+  .crq-page .wo-topbar-item,.cpa-topbar .wo-topbar-item{padding:var(--space-4) var(--space-3)}
+  /* La barra ahora mide dos filas: el alto mínimo del centro de cuenta la descuenta. */
+  .cpa-shell{min-height:calc(100vh - 112px)}
+}
+
+@media (max-width:1024px){
+  .cpn-quick-search{flex:1 1 100%;max-width:480px}
+}
+
+/* Centro de cuenta en pantallas bajas (1280×720): "Guardar cambios" a la vista. */
+@media (min-width:901px) and (max-height:800px){
+  .cpa-content{padding-top:var(--space-8)}
+  .cpa-section-head{margin-bottom:var(--space-6)}
+  .cpa-avatar-row{margin-bottom:var(--space-6)}
+  .cpa-actions{margin-top:var(--space-6)}
+}
+
+@media (max-width:768px){
+  .cpa-topbar{position:static}
+
+  .cpn-quick{margin-top:var(--space-5)}
+  .cpn-quick-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .cpn-quick-links li:first-child{grid-column:1 / -1}
+  .cpn-quick-link{width:100%;padding-inline:var(--space-2);white-space:normal;text-align:center;line-height:1.2}
+  .cpn-quick-search{max-width:none;min-width:0}
+  .cpn-search{max-width:none}
+  .cpn-empty{padding:var(--space-8) var(--space-4)}
+  .cpn-empty-actions{flex-direction:column;align-self:stretch}
+  .cpn-empty-actions .wo-btn{width:100%;white-space:normal}
+}
+
+@media (max-width:480px){
+  .cpn-quick-link [data-wo-icon]{display:none}
+  .quotation-card .cpn-status-hint{padding-inline:var(--space-4)}
+}

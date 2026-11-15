@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/client-requests-ds.css">
+    <link rel="stylesheet" href="/shared/css/client-panel.css">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/store-entry.js" defer></script>
 
@@ -26,13 +27,15 @@
             <nav class="wo-topbar-nav" aria-label="Navegación principal de cliente">
                 <a class="wo-topbar-item" href="/client/dashboard">Cotizaciones</a>
                 <a class="wo-topbar-item is-active" href="/client/requests" aria-current="page">Solicitudes</a>
+                <a class="wo-topbar-item" href="/client/chats/">Mensajes</a>
+                <a class="wo-topbar-item" href="/client/favorites">Favoritos</a>
                 <a class="wo-topbar-item" href="/marketplace">Explorar artistas</a>
                 <a class="wo-topbar-item" href="/explore">Tattoo globe</a>
                 <a class="wo-topbar-item" href="/store/purchases/" data-store-entry hidden>Compras</a>
             </nav>
         </div>
         <div class="wo-topbar-right">
-            <a class="wo-o-tile" href="/client/dashboard" title="Tu cuenta" aria-label="Ir a tu cuenta">Ö</a>
+            <a class="wo-o-tile" href="/client/profile" title="Tu cuenta" aria-label="Ir a tu cuenta">Ö</a>
             <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono" type="button" id="crq-logout">Log out</button>
         </div>
     </header>
@@ -140,6 +143,9 @@
     <script src="/shared/js/data/jobboard-repo.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
+    <!-- cliente-panel (ronda 2): modelo compartido del panel (estados, códigos, buscador) -->
+    <script src="/shared/js/client-panel-model.js"></script>
+    <script src="/shared/js/client-panel-ui.js"></script>
     <script src="/shared/js/client-requests.js"></script>
 </body>
 </html>

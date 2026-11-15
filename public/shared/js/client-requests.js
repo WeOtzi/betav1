@@ -33,6 +33,13 @@
 
     const STEPS = ['Borrador', 'Publicada', 'Postulaciones', 'Selección', 'Reserva confirmada'];
 
+    // cliente-panel (ronda 2): etiquetas de estado, códigos, buscador y estados
+    // vacíos compartidos con /client/dashboard y /client/chats
+    // (client-panel-model.js). Si el script no cargó, la página sigue igual que antes.
+    const Panel = window.WoClientPanel || null;
+    let pendingOffers = [];       // contraofertas pendientes de las postulaciones del cliente
+    let indexSearch = '';         // término del buscador del índice
+
     // ===================== Helpers =====================
     function esc(v) {
         return String(v == null ? '' : v)
@@ -149,7 +156,18 @@
         return req.status === 'open' || req.status === 'in_review';
     }
 
-    function stateTag(req) {
+    function offersFor(req) {
+        const ids = (req.job_board_applications || []).map((a) => a.id);
+        return pendingOffers.filter((o) => ids.indexOf(o.application_id) !== -1);
+    }
+
+    // Estado de la solicitud: mismo modelo que el dashboard. Suma "Cambios
+    // propuestos por ti / por el artista" cuando hay una contraoferta pendiente.
+    function stateTag(req, offers) {
+        if (Panel) {
+            const status = Panel.requestStatusOf(req, { pendingOffers: offers || offersFor(req) });
+            return { label: status.label, cls: status.cls };
+        }
         if (req.status === 'closed') return { label: 'Cerrada', cls: 'wo-tag--archived' };
         if (req.status === 'accepted') return { label: 'Artista seleccionado', cls: 'wo-tag--active' };
         if (visibleApps(req).length > 0) return { label: 'Propuestas recibidas', cls: 'wo-tag--highlight' };
@@ -318,7 +336,27 @@
             requests = [];
             notice('error', 'No pudimos cargar tus solicitudes. Probá recargar la página.');
         }
-        await enrichArtists();
+        await Promise.all([enrichArtists(), loadPendingOffers()]);
+    }
+
+    // Contraofertas pendientes de las postulaciones en juego (una sola consulta):
+    // alimentan la etiqueta de estado del índice y de cada vista.
+    async function loadPendingOffers() {
+        const CO = WeotziData.JobBoard && WeotziData.JobBoard.CounterOffers;
+        if (!CO || typeof CO.listPendingByApplications !== 'function') { pendingOffers = []; return; }
+        const ids = [];
+        (requests || []).forEach((r) => {
+            if (r.status === 'closed' || r.status === 'expired') return;
+            (r.job_board_applications || []).forEach((a) => {
+                if (a.id && a.status !== 'withdrawn' && a.status !== 'rejected') ids.push(a.id);
+            });
+        });
+        try {
+            pendingOffers = ids.length ? await CO.listPendingByApplications(ids) : [];
+        } catch (err) {
+            console.warn('[client-requests] contraofertas pendientes:', err && err.message);
+            pendingOffers = [];
+        }
     }
 
     async function enrichArtists() {
@@ -347,7 +385,7 @@
                 const i = (requests || []).findIndex((r) => r.id === id);
                 if (i >= 0) requests[i] = fresh; else (requests = requests || []).unshift(fresh);
             }
-            await enrichArtists();
+            await Promise.all([enrichArtists(), loadPendingOffers()]);
             return fresh;
         } catch (err) {
             console.error('[client-requests] reloadRequest:', err);
@@ -404,6 +442,7 @@
             renderIndex();
             updateCompareBar(null);
             window.scrollTo(0, 0);
+            syncPanelModules();
             return;
         }
 
@@ -433,6 +472,26 @@
         else renderPublished(req);
         if (v !== 'postulaciones') updateCompareBar(req);
         window.scrollTo(0, 0);
+        syncPanelModules();
+    }
+
+    // Botones que el panel deja preparados para otros frentes (favoritos y
+    // denuncias): se pide su módulo solo si la vista pintó alguno.
+    function syncPanelModules() {
+        const ui = window.WoClientPanelUi;
+        if (ui && typeof ui.ensureModules === 'function') ui.ensureModules(root);
+    }
+
+    function favoriteSlot(app) {
+        if (!app || !app.artist_id) return '';
+        return '<button type="button" class="cpn-fav" data-wo-favorite data-kind="artist" data-id="' + esc(app.artist_id)
+            + '" data-label="' + esc(artistName(app)) + '" data-image="' + esc(artistOf(app).profile_picture || '') + '"></button>';
+    }
+
+    function reportSlot(app) {
+        if (!app || !app.artist_id) return '';
+        return '<button type="button" class="cpn-report" data-wo-report data-kind="artist" data-id="' + esc(app.artist_id)
+            + '" data-label="' + esc(artistName(app)) + '"><i data-wo-icon="flag" aria-hidden="true"></i>Denunciar</button>';
     }
 
     // ===================== Piezas compartidas =====================
@@ -505,43 +564,115 @@
             + '</header>';
 
         if (!list.length) {
-            html += emptyBlock(
-                'radio',
-                'Todavía no publicaste ninguna idea',
-                'Contá qué tatuaje querés hacerte y recibí propuestas de tatuadores interesados.',
-                '<a class="wo-btn wo-btn--accent wo-btn--hard" href="/job-board/request">Publicar una idea <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>'
-            );
+            // Estado vacío con acciones (publicar idea, explorar artistas, cotizar).
+            html += Panel
+                ? Panel.emptyHtml(Panel.emptyState('requests'), { variant: 'ds' })
+                : emptyBlock(
+                    'radio',
+                    'Todavía no publicaste ninguna idea',
+                    'Contá qué tatuaje querés hacerte y recibí propuestas de tatuadores interesados.',
+                    '<a class="wo-btn wo-btn--accent wo-btn--hard" href="/job-board/request">Publicar una idea <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>'
+                );
             root.innerHTML = html;
             return;
         }
 
         html += '<p class="crq-index-sub">' + list.length + (list.length === 1 ? ' publicación' : ' publicaciones') + ' · seguí las postulaciones y elegí a tu artista.</p>';
-        html += '<div class="crq-cards">';
-        list.forEach((req) => {
-            const tag = stateTag(req);
-            const apps = visibleApps(req).length;
-            const qs = '?id=' + encodeURIComponent(req.id);
-            const counters = [
-                apps + (apps === 1 ? ' postulación' : ' postulaciones'),
-                viewCount(req) + ' visualizaciones',
-            ].join(' · ');
-            html += '<article class="wo-card crq-reqcard">'
-                + '<div class="crq-reqcard-top">'
-                + '<span class="wo-eyebrow">' + esc(req.request_code || '') + (req.request_code ? ' · ' : '') + 'publicada el ' + esc(fmtShort(req.created_at)) + '</span>'
-                + '<span class="wo-tag ' + tag.cls + '">' + esc(tag.label) + '</span>'
+        // Buscador por código, idea, estilo o zona (útil desde la segunda solicitud).
+        if (Panel && list.length > 1) {
+            html += '<div class="cpn-toolbar">'
+                + '<div class="cpn-search">'
+                + '<label class="wo-sr-only" for="crq-search">Busca en tus solicitudes</label>'
+                + '<i data-wo-icon="search" aria-hidden="true"></i>'
+                + '<input class="wo-input" type="search" id="crq-search" placeholder="Busca por código, idea o estilo" maxlength="80" autocomplete="off" enterkeyhint="search" value="' + esc(indexSearch) + '">'
+                + '<button class="cpn-search-clear" type="button" id="crq-search-clear" aria-label="Limpiar búsqueda"' + (indexSearch ? '' : ' hidden') + '><i data-wo-icon="x" aria-hidden="true"></i></button>'
                 + '</div>'
-                + '<h3 class="wo-h3">' + esc(deriveTitle(req)) + '</h3>'
-                + '<p class="crq-reqcard-desc">' + truncate(req.tattoo_idea_description, 160) + '</p>'
-                + '<p class="wo-meta crq-reqcard-meta">' + [styleLabel(req), req.tattoo_body_part, budgetRange(req)].filter(Boolean).map(esc).join(' · ') + '</p>'
-                + '<div class="crq-reqcard-foot">'
-                + '<span class="wo-meta-s wo-muted">' + esc(counters) + '</span>'
-                + goLink(qs, 'wo-btn wo-btn--secondary wo-btn--s', 'Ver solicitud <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>')
-                + '</div>'
-                + '</article>';
-        });
-        html += '</div>';
+                + '<p class="cpn-search-count wo-meta-s" id="crq-search-count" role="status" aria-live="polite"></p>'
+                + '</div>';
+        } else {
+            indexSearch = '';
+        }
+        html += '<div class="crq-cards" id="crq-cards"></div>';
         root.innerHTML = html;
+        renderIndexCards();
+        wireIndexSearch();
     }
+
+    function requestCardHtml(req) {
+        const tag = stateTag(req);
+        const apps = visibleApps(req).length;
+        const qs = '?id=' + encodeURIComponent(req.id);
+        const code = Panel ? Panel.requestCode(req) : (req.request_code || '');
+        const counters = [
+            apps + (apps === 1 ? ' postulación' : ' postulaciones'),
+            viewCount(req) + ' visualizaciones',
+        ].join(' · ');
+        return '<article class="wo-card crq-reqcard">'
+            + '<div class="crq-reqcard-top">'
+            + '<span class="wo-eyebrow">' + esc(code) + (code ? ' · ' : '') + 'publicada el ' + esc(fmtShort(req.created_at)) + '</span>'
+            + '<span class="wo-tag ' + tag.cls + '">' + esc(tag.label) + '</span>'
+            + '</div>'
+            + '<h3 class="wo-h3">' + esc(deriveTitle(req)) + '</h3>'
+            + '<p class="crq-reqcard-desc">' + truncate(req.tattoo_idea_description, 160) + '</p>'
+            + '<p class="wo-meta crq-reqcard-meta">' + [styleLabel(req), req.tattoo_body_part, budgetRange(req)].filter(Boolean).map(esc).join(' · ') + '</p>'
+            + '<div class="crq-reqcard-foot">'
+            + '<span class="wo-meta-s wo-muted">' + esc(counters) + '</span>'
+            + goLink(qs, 'wo-btn wo-btn--secondary wo-btn--s', 'Ver solicitud <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>')
+            + '</div>'
+            + '</article>';
+    }
+
+    // Solo repinta las tarjetas: el campo de búsqueda conserva el foco.
+    function renderIndexCards() {
+        const box = document.getElementById('crq-cards');
+        if (!box) return;
+        const all = requests || [];
+        const list = Panel && indexSearch
+            ? Panel.searchRequests(all, indexSearch, (req) => ({ pendingOffers: offersFor(req) }))
+            : all;
+        const count = document.getElementById('crq-search-count');
+        if (count) count.textContent = indexSearch ? (list.length === 1 ? '1 resultado' : list.length + ' resultados') : '';
+        if (!list.length && Panel) {
+            box.innerHTML = Panel.emptyHtml(Panel.emptyState('requests-search', { term: indexSearch }), { variant: 'ds' });
+            return;
+        }
+        box.innerHTML = list.map(requestCardHtml).join('');
+    }
+
+    function setIndexSearch(value) {
+        indexSearch = String(value == null ? '' : value).trim().slice(0, 80);
+        const clear = document.getElementById('crq-search-clear');
+        if (clear) clear.hidden = !indexSearch;
+        renderIndexCards();
+    }
+
+    function wireIndexSearch() {
+        const input = document.getElementById('crq-search');
+        if (!input) return;
+        let timer = null;
+        input.addEventListener('input', () => {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => setIndexSearch(input.value), 150);
+        });
+        const clear = document.getElementById('crq-search-clear');
+        if (clear) {
+            clear.addEventListener('click', () => {
+                input.value = '';
+                setIndexSearch('');
+                input.focus();
+            });
+        }
+    }
+
+    // "Limpiar búsqueda" del estado vacío del buscador.
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-cpn-action="clear-search"]');
+        if (!btn || !root || !root.contains(btn)) return;
+        const input = document.getElementById('crq-search');
+        if (input) input.value = '';
+        setIndexSearch('');
+        if (input) input.focus();
+    });
 
     // ===================== Vista · Publicada (paso 2) =====================
     function renderPublished(req) {
@@ -696,6 +827,7 @@
                 + '<div class="crq-app-namerow"><h3 class="wo-h3">' + esc(artistName(app)) + '</h3>'
                 + (isChosen ? '<span class="wo-tag wo-tag--active">Elegido</span>' : '')
                 + (isDecided ? '<span class="wo-tag wo-tag--archived">Rechazada</span>' : '')
+                + favoriteSlot(app)
                 + '</div>'
                 + '<p class="wo-meta crq-app-meta">' + artistMetaLine(app) + '</p>'
                 + '<p class="crq-app-pitch">' + truncate(app.message, 220) + '</p>'
@@ -758,6 +890,7 @@
             + '<h1 class="wo-h2">' + esc(artistName(app)) + '</h1>'
             + '<p class="wo-meta crq-app-meta">' + [a.city || a.ubicacion, Array.isArray(a.styles_array) ? a.styles_array.slice(0, 2).join(' · ') : '', a.estudios].filter(Boolean).map(esc).join(' · ') + '</p>'
             + '</div>'
+            + favoriteSlot(app)
             + '</header>';
 
         // Trabajos relacionados (portfolio_links de la postulacion o galeria del artista)
@@ -801,7 +934,7 @@
         }
 
         // Acciones
-        html += '<div class="crq-actions-row">';
+        html += '<div class="crq-actions-row">' + reportSlot(app);
         if (canDecide) {
             html += '<button class="wo-btn wo-btn--ghost" type="button" data-action="reject-app" data-app="' + esc(app.id) + '">'
                 + '<i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i> Rechazar</button>';
@@ -860,7 +993,11 @@
                 + '</article>';
         }
 
-        html += '<a class="wo-btn wo-btn--block crq-chosen-cta" href="/client/dashboard">Continuar con la reserva <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>'
+        // La cotización creada al elegir al artista se abre directo en el panel.
+        const quoteHref = req.resulting_quote_id
+            ? '/client/dashboard?quote=' + encodeURIComponent(req.resulting_quote_id)
+            : '/client/dashboard';
+        html += '<a class="wo-btn wo-btn--block crq-chosen-cta" href="' + esc(quoteHref) + '">Continuar con la reserva <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>'
             + '<p class="wo-meta-s crq-fineprint">Vas a poder chatear, confirmar la cotización final y dejar una seña para reservar tu turno.</p>'
             + '<p class="wo-body-s">' + goLink(qsBase + '&view=seguimiento', 'wo-meta', 'Ver el seguimiento de esta solicitud →') + '</p>'
             + '</div>';
@@ -1001,7 +1138,10 @@
         html += '</div>'; // /crq-follow-main
 
         // ---- Sidebar de seguimiento ----
-        const stateRow = req.status === 'closed'
+        const followTag = Panel ? stateTag(req, (offers || []).filter((o) => o.status === 'pendiente')) : null;
+        const stateRow = followTag
+            ? '<span class="wo-tag ' + followTag.cls + '">' + esc(followTag.label) + '</span>'
+            : req.status === 'closed'
             ? '<span class="wo-tag wo-tag--archived">Cerrada</span>'
             : negotiating
                 ? '<span class="wo-tag wo-tag--info">En negociación</span>'
@@ -1042,7 +1182,7 @@
             + '<div class="crq-aside-actions">';
 
         if (req.resulting_quote_id) {
-            html += '<a class="wo-btn wo-btn--secondary wo-btn--block" href="/client/dashboard">'
+            html += '<a class="wo-btn wo-btn--secondary wo-btn--block" href="' + esc('/client/chats/?quote=' + encodeURIComponent(req.resulting_quote_id)) + '">'
                 + '<i data-wo-icon="message-circle" class="wo-icon-18" aria-hidden="true"></i> Ver conversación</a>';
         }
         const canDecide = isOpen(req) && (app.status === 'pending' || app.status === 'viewed');
@@ -1175,6 +1315,7 @@
     async function rejectCounterOffer(req, coId) {
         try {
             await WeotziData.JobBoard.CounterOffers.decide(coId, 'rechazada');
+            await loadPendingOffers();
             notice('success', 'Rechazaste los cambios propuestos.');
             route();
         } catch (err) {
@@ -1219,6 +1360,7 @@
                     note: note || null,
                 });
                 closeModal('crq-modal-co');
+                await loadPendingOffers();
                 notice('success', 'Le enviaste tu propuesta de cambios al artista.');
                 route();
             } catch (err) {

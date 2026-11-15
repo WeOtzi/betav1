@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/client-profile-ds.css">
+    <link rel="stylesheet" href="/shared/css/client-panel.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/store-entry.js" defer></script>
@@ -28,7 +29,9 @@
                 <a class="wo-topbar-brand" href="/client/dashboard">WE ÖTZI</a>
                 <nav class="wo-topbar-nav" aria-label="Navegación principal de cliente">
                     <a class="wo-topbar-item" href="/client/dashboard#mis-cotizaciones">Cotizaciones</a>
-                    <a class="wo-topbar-item" href="/client/dashboard">Job board</a>
+                    <a class="wo-topbar-item" href="/client/requests">Solicitudes</a>
+                    <a class="wo-topbar-item" href="/client/chats/">Mensajes</a>
+                    <a class="wo-topbar-item" href="/client/favorites">Favoritos</a>
                     <a class="wo-topbar-item" href="/marketplace">Explorar artistas</a>
                     <a class="wo-topbar-item" href="/explore">Tattoo globe</a>
                     <a class="wo-topbar-item" href="/store/purchases/" data-store-entry hidden>Compras</a>
@@ -76,8 +79,9 @@
                                 <label class="wo-label" for="cpa-username">Alias público</label>
                                 <div class="cpa-input-wrap">
                                     <i data-wo-icon="user" aria-hidden="true"></i>
-                                    <input class="wo-input" type="text" id="cpa-username" name="public_username" autocomplete="off" placeholder="tu_alias">
+                                    <input class="wo-input" type="text" id="cpa-username" name="public_username" autocomplete="off" placeholder="tu_alias" maxlength="40" aria-describedby="cpa-username-error">
                                 </div>
+                                <p class="cpa-field-error" id="cpa-username-error" role="alert"></p>
                                 <p class="wo-help">Con tu alias podés dejar reseñas verificadas y tener perfil público.</p>
                             </div>
                             <div class="wo-field">
@@ -158,56 +162,64 @@
                         <p class="cpa-sub">Elegí cómo y cuándo querés que te avisemos.</p>
                     </header>
 
+                    <!-- cliente-panel (ronda 2): la matriz se pinta con los mismos eventos y
+                         valores por defecto que usa el envío (lib/notification-prefs.js vía
+                         GET /api/client/panel/notification-matrix). Email y push escriben
+                         user_preferences.notification_prefs; el envío push es del frente push. -->
                     <div class="cpa-matrix-head" aria-hidden="true">
                         <span></span>
                         <span class="wo-meta wo-muted cpa-matrix-col">Email</span>
-                        <span class="wo-meta wo-faint cpa-matrix-col">Push<span class="cpa-soon-note">Próximamente</span></span>
+                        <span class="wo-meta wo-muted cpa-matrix-col">Push</span>
                     </div>
 
-                    <div class="cpa-matrix-row">
-                        <div>
-                            <p class="cpa-row-title">Postulaciones</p>
-                            <p class="cpa-row-help">Cuando un artista se postula a una idea que publicaste en el job board.</p>
+                    <div id="cpa-notif-rows" aria-busy="true">
+                        <div class="cpa-matrix-row">
+                            <div>
+                                <p class="cpa-row-title">Postulaciones</p>
+                                <p class="cpa-row-help">Cuando un artista se postula a una idea que publicaste en el job board.</p>
+                            </div>
+                            <label class="wo-toggle cpa-matrix-col">
+                                <input type="checkbox" data-notif="postulaciones" data-channel="email" checked disabled aria-label="Postulaciones por email">
+                                <span class="knob"></span>
+                            </label>
+                            <label class="wo-toggle cpa-matrix-col">
+                                <input type="checkbox" data-notif="postulaciones" data-channel="push" disabled aria-label="Postulaciones por push">
+                                <span class="knob"></span>
+                            </label>
                         </div>
-                        <label class="wo-toggle cpa-matrix-col">
-                            <input type="checkbox" data-notif="postulaciones" data-channel="email" checked aria-label="Postulaciones por email">
-                            <span class="knob"></span>
-                        </label>
-                        <label class="wo-toggle cpa-matrix-col cpa-soon">
-                            <input type="checkbox" disabled aria-label="Postulaciones por push · próximamente">
-                            <span class="knob"></span>
-                        </label>
+
+                        <div class="cpa-matrix-row">
+                            <div>
+                                <p class="cpa-row-title">Mensajes</p>
+                                <p class="cpa-row-help">Cuando un artista te escribe por una cotización.</p>
+                            </div>
+                            <label class="wo-toggle cpa-matrix-col">
+                                <input type="checkbox" data-notif="mensajes" data-channel="email" checked disabled aria-label="Mensajes por email">
+                                <span class="knob"></span>
+                            </label>
+                            <label class="wo-toggle cpa-matrix-col">
+                                <input type="checkbox" data-notif="mensajes" data-channel="push" disabled aria-label="Mensajes por push">
+                                <span class="knob"></span>
+                            </label>
+                        </div>
+
+                        <div class="cpa-matrix-row">
+                            <div>
+                                <p class="cpa-row-title">Cotizaciones</p>
+                                <p class="cpa-row-help">Cuando una cotización tuya cambia de estado.</p>
+                            </div>
+                            <label class="wo-toggle cpa-matrix-col">
+                                <input type="checkbox" data-notif="cotizaciones" data-channel="email" checked disabled aria-label="Cotizaciones por email">
+                                <span class="knob"></span>
+                            </label>
+                            <label class="wo-toggle cpa-matrix-col">
+                                <input type="checkbox" data-notif="cotizaciones" data-channel="push" disabled aria-label="Cotizaciones por push">
+                                <span class="knob"></span>
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="cpa-matrix-row">
-                        <div>
-                            <p class="cpa-row-title">Mensajes</p>
-                            <p class="cpa-row-help">Cuando un artista te escribe por una cotización.</p>
-                        </div>
-                        <label class="wo-toggle cpa-matrix-col">
-                            <input type="checkbox" data-notif="mensajes" data-channel="email" checked aria-label="Mensajes por email">
-                            <span class="knob"></span>
-                        </label>
-                        <label class="wo-toggle cpa-matrix-col cpa-soon">
-                            <input type="checkbox" disabled aria-label="Mensajes por push · próximamente">
-                            <span class="knob"></span>
-                        </label>
-                    </div>
-
-                    <div class="cpa-matrix-row">
-                        <div>
-                            <p class="cpa-row-title">Cotizaciones</p>
-                            <p class="cpa-row-help">Cuando una cotización tuya cambia de estado.</p>
-                        </div>
-                        <label class="wo-toggle cpa-matrix-col">
-                            <input type="checkbox" data-notif="cotizaciones" data-channel="email" checked aria-label="Cotizaciones por email">
-                            <span class="knob"></span>
-                        </label>
-                        <label class="wo-toggle cpa-matrix-col cpa-soon">
-                            <input type="checkbox" disabled aria-label="Cotizaciones por push · próximamente">
-                            <span class="knob"></span>
-                        </label>
-                    </div>
+                    <p class="cpa-matrix-note">Los avisos push llegan a los dispositivos en los que actives las notificaciones de We Ötzi. Los correos de tu cuenta y las confirmaciones de tus solicitudes se envían siempre.</p>
 
                     <div class="cpa-actions">
                         <span class="cpa-status" id="cpa-notif-status" role="status" aria-live="polite"></span>
@@ -306,6 +318,8 @@
     <script src="/shared/js/data/account-deletion-repo.js?v=20261113-borrado"></script>
     <script src="/shared/js/account-deletion.js?v=20261113-borrado"></script>
     <script src="/shared/js/reviews.js"></script>
+    <!-- cliente-panel (ronda 2): matriz de notificaciones del cliente -->
+    <script src="/shared/js/client-notif-model.js"></script>
     <script src="/shared/js/client-profile.js"></script>
 </body>
 </html>

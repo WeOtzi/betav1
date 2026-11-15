@@ -13,6 +13,7 @@
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/data/jobboard-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/wo-welcome.js" defer></script>
     <script src="/shared/js/currency-utils.js"></script>
@@ -26,6 +27,7 @@
     <link rel="stylesheet" href="/shared/css/reviews.css">
     <link rel="stylesheet" href="/shared/css/client-dashboard-figma.css">
     <link rel="stylesheet" href="/shared/css/client-quote-proposal.css">
+    <link rel="stylesheet" href="/shared/css/client-panel.css">
     <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
     <script src="/shared/js/wo-consent.js" defer></script>
 </head>
@@ -59,6 +61,24 @@
                 <h1 class="client-hero-title" id="hero-greeting">Buen día</h1>
                 <p class="client-hero-sub">¿Qué querés tatuarte hoy?</p>
             </section>
+
+            <!-- Accesos rápidos (ronda 2 · cliente-panel): las acciones principales
+                 del cliente a la vista, sin scroll. Mismos destinos que
+                 WoClientPanel.shortcuts() (client-panel-model.js). -->
+            <nav class="cpn-quick" aria-label="Accesos rápidos">
+                <ul class="cpn-quick-links">
+                    <li><a class="wo-btn wo-btn--s wo-btn--hard cpn-quick-link" href="/quotation"><i data-wo-icon="edit-3" aria-hidden="true"></i>Solicitar cotización</a></li>
+                    <li><a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard cpn-quick-link" href="/job-board/request"><i data-wo-icon="radio" aria-hidden="true"></i>Publicar una idea</a></li>
+                    <li><a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard cpn-quick-link" href="/marketplace"><i data-wo-icon="compass" aria-hidden="true"></i>Explorar artistas</a></li>
+                    <li><a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard cpn-quick-link" href="/client/favorites"><i data-wo-icon="heart" aria-hidden="true"></i>Mis favoritos</a></li>
+                    <li><a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard cpn-quick-link" href="/client/chats/"><i data-wo-icon="message-circle" aria-hidden="true"></i>Mensajes</a></li>
+                </ul>
+                <form class="cpn-quick-search" id="cpn-quick-search" role="search" autocomplete="off">
+                    <label class="wo-sr-only" for="cpn-quick-search-input">Busca una cotización por su código</label>
+                    <input class="wo-input" type="search" id="cpn-quick-search-input" placeholder="Código de cotización" maxlength="80" enterkeyhint="search">
+                    <button class="wo-btn wo-btn--s" type="submit">Buscar</button>
+                </form>
+            </nav>
 
             <!-- Tu actividad -->
             <section class="client-activity">
@@ -106,6 +126,17 @@
                 <header class="client-section-head">
                     <h2 class="wo-h2">Mis cotizaciones</h2>
                 </header>
+                <!-- Buscador del panel (ronda 2 · cliente-panel): por código corto,
+                     artista, estilo o zona. -->
+                <div class="cpn-toolbar">
+                    <div class="cpn-search">
+                        <label class="wo-sr-only" for="cpn-quote-search">Busca en tus cotizaciones</label>
+                        <i data-wo-icon="search" aria-hidden="true"></i>
+                        <input class="wo-input" type="search" id="cpn-quote-search" placeholder="Busca por código, artista o estilo" maxlength="80" autocomplete="off" enterkeyhint="search">
+                        <button class="cpn-search-clear" type="button" id="cpn-quote-search-clear" aria-label="Limpiar búsqueda" hidden><i data-wo-icon="x" aria-hidden="true"></i></button>
+                    </div>
+                    <p class="cpn-search-count wo-meta-s" id="cpn-search-count" role="status" aria-live="polite"></p>
+                </div>
                 <div class="client-tabs" role="tablist">
                     <button class="tab-btn active" data-filter="all" onclick="filterQuotations('all')">Todas</button>
                     <button class="tab-btn" data-filter="active" onclick="filterQuotations('active')">Activas</button>
@@ -321,6 +352,8 @@
     <script src="/shared/js/client-dashboard-reference.js"></script>
     <script src="/shared/js/quotation-payments-model.js"></script>
     <script src="/shared/js/client-quote-proposal.js"></script>
+    <script src="/shared/js/client-panel-model.js"></script>
+    <script src="/shared/js/client-panel-ui.js"></script>
     <script src="/shared/js/client-dashboard.js"></script>
 </body>
 </html>

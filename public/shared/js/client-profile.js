@@ -17,12 +17,18 @@
     const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
 
     const SECTIONS = ['perfil', 'seguridad', 'notificaciones', 'configuracion'];
-    const NOTIF_EVENTS = ['postulaciones', 'mensajes', 'cotizaciones'];
+    // cliente-panel (ronda 2): la matriz de avisos sale del modelo compartido
+    // (client-notif-model.js · WoClientNotif) y de los valores por defecto del
+    // servidor, que son los de lib/notification-prefs.js (los que usa el envío).
+    const Notif = window.WoClientNotif || null;
+    const NOTIF_MATRIX_PATH = '/api/client/panel/notification-matrix';
 
     let supa = null;
     let sessionUser = null;
     let currentClient = null;
     let savedPrefs = null;
+    let notifDefaults = null;   // valores por defecto del servidor (o los del modelo)
+    let localNotif = {};        // notification_prefs con los cambios todavía en vuelo
     let pendingAvatarFile = null;
     const statusTimers = new WeakMap();
 
@@ -55,6 +61,13 @@
             || (window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null);
         if (supa && !window._supabase) window._supabase = supa;
         return supa;
+    }
+
+    function appPath(path) {
+        const base = window.WEOTZI_BASE_PATH
+            ? String(window.WEOTZI_BASE_PATH).replace(/\/$/, '')
+            : (/^\/beta(?:\/|$)/.test(String(window.location.pathname || '')) ? '/beta' : '');
+        return base && String(path).indexOf(base + '/') !== 0 ? base + path : path;
     }
 
     function setStatus(el, text, isError) {
@@ -260,6 +273,7 @@
         btn.disabled = true;
         btn.textContent = 'Guardando…';
         setStatus(statusEl, '');
+        setAliasError('');
 
         try {
             const fullName = $('cpa-full-name').value.trim();
@@ -293,20 +307,51 @@
                 updateData.profile_picture = profilePictureUrl;
             }
 
-            const { error: updateError } = await window.WeotziData.Clients.updateByUserId(sessionUser.id, updateData);
+            // .select() confirma que la fila se actualizó: con la sesión vencida la
+            // RLS no devuelve error, solo cero filas, y antes se mostraba "guardado".
+            const { data: updatedRows, error: updateError } = await window.WeotziData.Clients
+                .updateByUserId(sessionUser.id, updateData).select('user_id');
             if (updateError) throw updateError;
+            if (!updatedRows || !updatedRows.length) throw new Error('profile_not_saved');
 
             currentClient = { ...currentClient, ...updateData };
+            $('cpa-username').value = currentClient.public_username || '';
             pendingAvatarFile = null;
             renderAvatarPreview(currentClient.profile_picture || null);
             renderTopbarTile();
             setStatus(statusEl, 'Cambios guardados');
         } catch (error) {
             console.error('[client-profile] error guardando el perfil:', error);
-            setStatus(statusEl, 'No se pudieron guardar los cambios · probá de nuevo', true);
+            if (isAliasTaken(error)) {
+                // Índice único sobre lower(public_username) en clients_db.
+                setAliasError('Ese alias ya está en uso. Elige otro.');
+                setStatus(statusEl, 'Revisa el alias', true);
+                $('cpa-username').focus();
+            } else {
+                setStatus(statusEl, 'No se pudieron guardar los cambios · probá de nuevo', true);
+            }
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
+        }
+    }
+
+    function isAliasTaken(error) {
+        if (!error) return false;
+        return error.code === '23505' || /idx_clients_public_username_unique|duplicate key/i.test(String(error.message || ''));
+    }
+
+    function setAliasError(text) {
+        const el = $('cpa-username-error');
+        const input = $('cpa-username');
+        if (el) el.textContent = text || '';
+        if (!input) return;
+        if (text) {
+            input.setAttribute('aria-invalid', 'true');
+            input.classList.add('wo-input--error');
+        } else {
+            input.removeAttribute('aria-invalid');
+            input.classList.remove('wo-input--error');
         }
     }
 
@@ -355,21 +400,17 @@
 
     async function loadPrefs() {
         if (!window.WeotziData?.Prefs) return;
-        try {
-            savedPrefs = await window.WeotziData.Prefs.get(sessionUser.id);
-        } catch (error) {
-            console.error('[client-profile] error cargando preferencias:', error);
-            savedPrefs = null;
-        }
-
-        const notif = savedPrefs?.notification_prefs || {};
-        NOTIF_EVENTS.forEach((eventKey) => {
-            const input = document.querySelector(`input[data-notif="${eventKey}"]`);
-            if (!input) return;
-            const saved = notif[eventKey];
-            // Default sin preferencia guardada: email activado.
-            input.checked = saved ? saved.email !== false : true;
-        });
+        const [prefsResult, defaults] = await Promise.all([
+            window.WeotziData.Prefs.get(sessionUser.id).catch((error) => {
+                console.error('[client-profile] error cargando preferencias:', error);
+                return null;
+            }),
+            fetchNotifDefaults()
+        ]);
+        savedPrefs = prefsResult;
+        notifDefaults = defaults;
+        localNotif = Object.assign({}, savedPrefs?.notification_prefs || {});
+        renderNotifMatrix();
 
         const app = savedPrefs?.app_settings || {};
         const tzSelect = $('cpa-timezone');
@@ -393,23 +434,71 @@
         }
     }
 
-    async function saveNotifPrefs() {
-        const statusEl = $('cpa-notif-status');
-        const value = {};
-        const prev = savedPrefs?.notification_prefs || {};
-        NOTIF_EVENTS.forEach((eventKey) => {
-            const input = document.querySelector(`input[data-notif="${eventKey}"]`);
-            value[eventKey] = {
-                email: input ? !!input.checked : true,
-                push: prev[eventKey]?.push === true
-            };
-        });
+    // Eventos y valores por defecto que usa el servidor al enviar. Si el pedido
+    // falla se usan los del modelo (mismos valores a la fecha de esta ronda).
+    async function fetchNotifDefaults() {
+        if (!Notif) return null;
         try {
-            savedPrefs = await window.WeotziData.Prefs.saveSection(sessionUser.id, 'notification_prefs', value) || savedPrefs;
+            const res = await fetch(appPath(NOTIF_MATRIX_PATH), { headers: { Accept: 'application/json' } });
+            const json = res.ok ? await res.json() : null;
+            return Notif.normalizeDefaults(json && json.success ? json : null);
+        } catch (error) {
+            console.warn('[client-profile] matriz de notificaciones por defecto:', error && error.message);
+            return Notif.normalizeDefaults(null);
+        }
+    }
+
+    // Una fila por evento, con un toggle por canal (email y push).
+    function renderNotifMatrix() {
+        const box = $('cpa-notif-rows');
+        if (!box || !Notif) return;
+        box.innerHTML = Notif.matrix(localNotif, notifDefaults).map((row) => `
+            <div class="cpa-matrix-row">
+                <div>
+                    <p class="cpa-row-title">${escapeHtml(row.label)}</p>
+                    ${row.help ? `<p class="cpa-row-help">${escapeHtml(row.help)}</p>` : ''}
+                </div>
+                ${Notif.CHANNELS.map((channel) => `
+                <label class="wo-toggle cpa-matrix-col">
+                    <input type="checkbox" data-notif="${escapeHtml(row.key)}" data-channel="${escapeHtml(channel)}"${row[channel] ? ' checked' : ''} aria-label="${escapeHtml(row.label + ' por ' + String(Notif.CHANNEL_LABELS[channel] || channel).toLowerCase())}">
+                    <span class="knob"></span>
+                </label>`).join('')}
+            </div>`).join('');
+        box.removeAttribute('aria-busy');
+    }
+
+    // Guarda SOLO el evento tocado (email y push). Lo que el cliente nunca
+    // eligió sigue el valor por defecto del servidor.
+    async function handleNotifChange(event) {
+        const input = event.target && event.target.matches && event.target.matches('input[data-notif]') ? event.target : null;
+        if (!input || input.disabled || !Notif) return;
+        const statusEl = $('cpa-notif-status');
+        const kind = input.getAttribute('data-notif');
+        const channel = input.getAttribute('data-channel');
+        const value = !!input.checked;
+        const patch = Notif.patchFor(localNotif, kind, channel, value);
+        if (!patch) return;
+        // Copia local al instante: dos toggles seguidos del mismo evento no se pisan.
+        localNotif = Object.assign({}, localNotif, patch);
+        try {
+            const saved = await window.WeotziData.Prefs.saveSection(sessionUser.id, 'notification_prefs', patch);
+            if (saved) savedPrefs = saved;
             setStatus(statusEl, 'Guardado');
+            // Aviso para el frente push (p. ej. pedir permiso del navegador).
+            document.dispatchEvent(new CustomEvent('wo:notif-pref-changed', {
+                detail: { role: 'client', kind, channel, value }
+            }));
         } catch (error) {
             console.error('[client-profile] error guardando notificaciones:', error);
-            setStatus(statusEl, 'No se pudo guardar · probá de nuevo', true);
+            setStatus(statusEl, 'No se pudo guardar. Inténtalo de nuevo.', true);
+            // Se vuelve a lo que realmente quedó guardado.
+            try {
+                savedPrefs = await window.WeotziData.Prefs.get(sessionUser.id);
+                localNotif = Object.assign({}, savedPrefs?.notification_prefs || {});
+            } catch (reloadError) {
+                localNotif = Object.assign({}, savedPrefs?.notification_prefs || {});
+            }
+            renderNotifMatrix();
         }
     }
 
@@ -437,9 +526,9 @@
 
         $('cpa-password-form').addEventListener('submit', handlePasswordSave);
 
-        document.querySelectorAll('input[data-notif]').forEach((input) => {
-            input.addEventListener('change', saveNotifPrefs);
-        });
+        // Delegado: las filas de la matriz se vuelven a pintar al cargar las preferencias.
+        $('cpa-notif-rows').addEventListener('change', handleNotifChange);
+        $('cpa-username').addEventListener('input', () => setAliasError(''));
 
         $('cpa-timezone').addEventListener('change', saveAppSettings);
         $('cpa-dateformat').addEventListener('change', saveAppSettings);
