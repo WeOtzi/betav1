@@ -232,8 +232,6 @@
         var n = Math.max(0, Math.min(5, Math.round(Number(rating) || 0)));
         return '<span class="qdi-stars" role="img" aria-label="' + n + ' de 5 estrellas"><span aria-hidden="true">' + '★★★★★'.slice(0, n) + '<i>' + '★★★★★'.slice(n) + '</i></span></span>';
     }
-    function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
-
     function profileBodyHtml(profile) {
         var p = profile || {};
         var w = p.with_artist || {};
@@ -265,7 +263,7 @@
                     + (r.comment ? '<p>' + esc(r.comment) + '</p>' : '')
                     + '<small>' + esc([(r.about_type === 'studio' ? 'Sobre el estudio ' : 'Sobre ') + r.about, r.created_at ? (SM ? SM.dateLong(r.created_at) : M.dayMonthYear(r.created_at)) : ''].filter(Boolean).join(' · ')) + '</small></li>';
             }).join('') + '</ul>'
-                + (p.reviews_count > reviews.length ? '<p class="qdi-note">Mostramos las ' + plural(reviews.length, 'más reciente', 'más recientes') + '.</p>' : '')
+                + (p.reviews_count > reviews.length ? '<p class="qdi-note">' + (reviews.length === 1 ? 'Mostramos la más reciente.' : 'Mostramos las ' + reviews.length + ' más recientes.') + '</p>' : '')
                 : '<p class="qdi-muted">Todavía no dejó reseñas públicas.</p>')
             + '</div>'
             + '<p class="qdi-note">El contacto del cliente se muestra en la cotización, según la verificación de tu perfil.</p>';
@@ -415,5 +413,5 @@
         if (pending && typeof pending.then === 'function') pending.then(render);
     });
 
-    window.WoQuotationDetailInfo = { render: render, reload: function () { return loadInfo(true).then(render); } };
+    window.WoQuotationDetailInfo = { render: render, reload: function () { return loadInfo(true).then(render); }, profileHtml: profileBodyHtml };
 })();

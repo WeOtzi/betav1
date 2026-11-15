@@ -496,6 +496,36 @@ test('detalle: error del servidor ofrece reintentar; la vista de demostración n
     assert.match(demoHtml, /data-qdi="copy" disabled/);
 });
 
+test('perfil del cliente: el modal muestra historial y hasta 3 reseñas, todo escapado', () => {
+    const mod = loadInfoModule({ info: {} });
+    const html = mod.window.WoQuotationDetailInfo.profileHtml(logic.clientProfile({
+        client: { full_name: 'Lucía <b>F</b>', profile_picture: 'https://cdn.example/l.jpg', city_residence: 'Medellín', country: 'Colombia', created_at: '2026-03-02T12:00:00', public_username: 'luciaf' },
+        quotes: [{ id: 1, quote_status: 'completed', created_at: '2026-04-01T12:00:00' }, { id: 2, quote_status: 'responded', created_at: '2026-10-01T12:00:00', artist_responded_at: '2026-10-02T12:00:00' }],
+        sessions: [{ quotation_id: 1, status: 'completed' }, { quotation_id: 2, status: 'scheduled' }],
+        reviews: [1, 2, 3, 4].map((n) => ({ rating: 6 - n, comment: `Reseña ${n} <script>x</script>`, reviewee_type: n === 2 ? 'studio' : 'artist', reviewee_display_name: `Artista ${n}`, created_at: '2026-05-01T12:00:00' })),
+        reviewsCount: 4
+    }));
+    assert.match(html, /<img class="qdi-profile-photo" src="https:\/\/cdn\.example\/l\.jpg" alt=""/);
+    assert.match(html, /Lucía &lt;b&gt;F&lt;\/b&gt;/);
+    assert.match(html, /@luciaf · Medellín, Colombia · Miembro desde marzo de 2026/);
+    for (const [label, value] of [['Cotizaciones contigo', 2], ['Completadas', 1], ['Sesiones realizadas', 1], ['Sesiones agendadas', 1]]) {
+        assert.ok(html.includes(`<dt class="qd-label">${label}</dt><dd>${value}</dd>`), label);
+    }
+    assert.match(html, /Primera cotización contigo: 1 de abril de 2026\./);
+    assert.match(html, /Reseñas que dejó · 4/);
+    assert.equal((html.match(/<li>/g) || []).length, 3, 'hasta 3 reseñas en el modal');
+    assert.match(html, /Mostramos las 3 más recientes\./);
+    assert.match(html, /aria-label="5 de 5 estrellas"/);
+    assert.match(html, /Sobre el estudio Artista 2/);
+    assert.doesNotMatch(html, /<script>|<b>F/);
+    assert.doesNotMatch(html, /@example\.com|wa\.me|mailto:/, 'el perfil no trae contacto');
+
+    const empty = mod.window.WoQuotationDetailInfo.profileHtml(logic.clientProfile({ quote: { client_full_name: 'Ana' } }));
+    assert.match(empty, /qdi-profile-photo--initials/);
+    assert.match(empty, /Todavía no dejó reseñas públicas\./);
+    assert.match(empty, /Cliente de We Ötzi/);
+});
+
 // ------------------------------------------------------------ diálogo de compartir (vm)
 
 function loadShareActions({ clipboard = true } = {}) {
