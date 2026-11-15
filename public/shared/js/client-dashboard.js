@@ -536,12 +536,37 @@ const FEED_STATUS_EVENTS = {
     expired: { icon: 'clock', text: (artist) => `La propuesta de ${artist} venció` }
 };
 
+// Ronda 2 · P26: cada fila de actividad es un enlace al destino exacto
+// (cotización, conversación o postulación). Los destinos salen del modelo
+// compartido notification-feed-model.js, que se carga bajo demanda: si no
+// llega, las filas se muestran igual, sin enlace.
+let feedModelPromise = null;
+function loadFeedModel() {
+    if (window.WoNotificationFeedModel) return Promise.resolve(window.WoNotificationFeedModel);
+    if (!feedModelPromise) {
+        feedModelPromise = new Promise((resolve) => {
+            try {
+                const script = document.createElement('script');
+                script.src = '/shared/js/notification-feed-model.js';
+                script.onload = () => resolve(window.WoNotificationFeedModel || null);
+                script.onerror = () => resolve(null);
+                document.head.appendChild(script);
+            } catch (_) {
+                resolve(null);
+            }
+        });
+    }
+    return feedModelPromise;
+}
+
 async function loadActivityFeed() {
     const container = document.getElementById('activity-feed');
     if (!container) return;
     if (dashboardReference) { renderActivityFeed(dashboardReference.events); return; }
 
     try {
+        const feedModel = await loadFeedModel();
+        const link = (source, data) => (feedModel ? feedModel.clientActivityLink(source, data) : {});
         const events = [];
         const quoteIds = currentQuotations.map(q => q.quote_id).filter(Boolean);
         const artistByQuote = {};
@@ -562,7 +587,8 @@ async function loadActivityFeed() {
                 events.push({
                     at: row.changed_at,
                     icon: spec.icon,
-                    text: spec.text(artistByQuote[row.quote_id] || 'El artista')
+                    text: spec.text(artistByQuote[row.quote_id] || 'El artista'),
+                    ...link('status', { quoteId: row.quote_id, status: row.new_status, at: row.changed_at })
                 });
             });
 
@@ -579,7 +605,8 @@ async function loadActivityFeed() {
                     events.push({
                         at: row.artist_responded_at,
                         icon: 'message-square',
-                        text: `${artistByQuote[row.quote_id] || 'El artista'} respondió tu disputa`
+                        text: `${artistByQuote[row.quote_id] || 'El artista'} respondió tu disputa`,
+                        ...link('dispute', { quoteId: row.quote_id, at: row.artist_responded_at })
                     });
                 });
             } catch (_) { /* sin disputas visibles */ }
@@ -601,7 +628,8 @@ async function loadActivityFeed() {
                 events.push({
                     at: row.created_at,
                     icon: 'mail',
-                    text: `Nuevo mensaje de ${artistByQuote[row.quotation_id] || 'un artista'}`
+                    text: `Nuevo mensaje de ${artistByQuote[row.quotation_id] || 'un artista'}`,
+                    ...link('message', { quoteId: row.quotation_id, at: row.created_at })
                 });
             });
         }
@@ -612,7 +640,8 @@ async function loadActivityFeed() {
                 events.push({
                     at: app.created_at,
                     icon: 'briefcase',
-                    text: 'Recibiste una propuesta en tu publicación'
+                    text: 'Recibiste una propuesta en tu publicación',
+                    ...link('proposal', { requestId: req.id, applicationId: app.id, at: app.created_at })
                 });
             });
         });
@@ -638,13 +667,69 @@ function renderActivityFeed(events) {
         return;
     }
 
-    container.innerHTML = rows.map(row => `
-        <div class="client-feed-row">
-            <span class="client-feed-icon"><i data-wo-icon="${row.icon}"></i></span>
+    // P26: con destino, la fila es un enlace real (se puede abrir en otra
+    // pestaña); sin destino queda como texto.
+    container.innerHTML = rows.map(row => {
+        const href = typeof row.href === 'string' && /^\/([^/\\]|$)/.test(row.href) ? row.href : '';
+        const inner = `
+            <span class="client-feed-icon"><i data-wo-icon="${escapeFeedHtml(row.icon)}"></i></span>
             <span class="client-feed-text">${escapeFeedHtml(row.text)}</span>
-            <span class="client-feed-time">${escapeFeedHtml(formatRelative(row.at))}</span>
-        </div>
-    `).join('');
+            <span class="client-feed-time">${escapeFeedHtml(formatRelative(row.at))}</span>`;
+        if (!href) return `<div class="client-feed-row">${inner}</div>`;
+        return `<a class="client-feed-row" href="${escapeFeedHtml(href)}"${row.quoteId ? ` data-feed-quote="${escapeFeedHtml(row.quoteId)}" data-feed-ver="${escapeFeedHtml(row.ver || '')}"` : ''}>${inner}
+            <span class="client-feed-go" aria-hidden="true"><i data-wo-icon="arrow-right"></i></span></a>`;
+    }).join('');
+    if (window.WoIcons && typeof window.WoIcons.hydrate === 'function') window.WoIcons.hydrate(container);
+
+    // La cotización se abre en esta misma página (sin recargar) y se resalta
+    // la parte que anuncia la fila; el enlace real queda para "abrir en otra pestaña".
+    if (container.dataset && !container.dataset.feedLinksBound && typeof container.addEventListener === 'function') {
+        container.dataset.feedLinksBound = '1';
+        container.addEventListener('click', (event) => {
+            const row = event.target && event.target.closest ? event.target.closest('a[data-feed-quote]') : null;
+            if (!row || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            const quoteId = row.dataset.feedQuote;
+            if (!currentQuotations.some(q => q.quote_id === quoteId)) return;
+            event.preventDefault();
+            Promise.resolve(viewQuotationDetail(quoteId)).then(() => {
+                if (row.dataset.feedVer && window.WoNotify && typeof window.WoNotify.focusArrival === 'function') {
+                    window.WoNotify.focusArrival(row.dataset.feedVer);
+                }
+            });
+        });
+    }
+}
+
+// Un aviso nuevo (wo-notify.js: mensaje, respuesta del artista, propuesta…)
+// refresca el feed y los contadores sin recargar la página.
+let feedRefreshTimer = null;
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('wo:notify', () => {
+        if (dashboardReference || !currentClient) return;
+        clearTimeout(feedRefreshTimer);
+        feedRefreshTimer = setTimeout(async () => {
+            try {
+                const { data: { session } } = await _supabase.auth.getSession();
+                if (!session) return;
+                const openBefore = currentQuotations.find(q => q.quote_id === currentQuotationId) || null;
+                const fresh = await WeotziData.Quotations.listForClient(session.user.id, currentClient.email);
+                currentQuotations = fresh || currentQuotations;
+                updateStats();
+                renderQuotations();
+                // El detalle abierto solo se repinta si esa cotización cambió (no se
+                // pisa lo que el cliente esté escribiendo por un aviso de otra cosa).
+                const openAfter = currentQuotations.find(q => q.quote_id === currentQuotationId) || null;
+                if (openBefore && openAfter && (openBefore.quote_status !== openAfter.quote_status
+                    || openBefore.updated_at !== openAfter.updated_at)) refreshOpenDetail(currentQuotationId);
+                await loadUnreadCounts();
+                await loadJobBoardRequests();
+                updateStats();
+                loadActivityFeed();
+            } catch (error) {
+                console.warn('No pudimos refrescar la actividad:', error && error.message);
+            }
+        }, 1200);
+    });
 }
 
 // ============================================

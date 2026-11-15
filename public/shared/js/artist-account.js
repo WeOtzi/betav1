@@ -2367,8 +2367,9 @@
             notifMatrix.promociones.email = extras.subscribed_newsletter;
         }
 
-        // EM-13: push y SMS todavía no existen → deshabilitados ("Próximamente").
-        const soon = (channel) => channel === 'push' || channel === 'sms';
+        // EM-13: SMS todavía no existe → deshabilitado ("Próximamente"). Push ya
+        // funciona: gobierna los avisos en la app y en el dispositivo (wo-notify.js).
+        const soon = (channel) => channel === 'sms';
         const cell = (key, label, channel, name) => `
             <span class="aac-matrix-cell"${soon(channel) ? ' title="Próximamente"' : ''}>
                 <label class="aac-switch">

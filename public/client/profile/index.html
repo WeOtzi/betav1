@@ -158,10 +158,13 @@
                         <p class="cpa-sub">Elegí cómo y cuándo querés que te avisemos.</p>
                     </header>
 
+                    <!-- push: "Avisos en este dispositivo" (Activar avisos, probar, sonido). Lo pinta wo-notify.js. -->
+                    <div data-wo-notify-settings></div>
+
                     <div class="cpa-matrix-head" aria-hidden="true">
                         <span></span>
                         <span class="wo-meta wo-muted cpa-matrix-col">Email</span>
-                        <span class="wo-meta wo-faint cpa-matrix-col">Push<span class="cpa-soon-note">Próximamente</span></span>
+                        <span class="wo-meta wo-muted cpa-matrix-col">Push</span>
                     </div>
 
                     <div class="cpa-matrix-row">
@@ -173,8 +176,8 @@
                             <input type="checkbox" data-notif="postulaciones" data-channel="email" checked aria-label="Postulaciones por email">
                             <span class="knob"></span>
                         </label>
-                        <label class="wo-toggle cpa-matrix-col cpa-soon">
-                            <input type="checkbox" disabled aria-label="Postulaciones por push · próximamente">
+                        <label class="wo-toggle cpa-matrix-col">
+                            <input type="checkbox" data-notif-push="postulaciones" checked aria-label="Postulaciones por push">
                             <span class="knob"></span>
                         </label>
                     </div>
@@ -188,8 +191,8 @@
                             <input type="checkbox" data-notif="mensajes" data-channel="email" checked aria-label="Mensajes por email">
                             <span class="knob"></span>
                         </label>
-                        <label class="wo-toggle cpa-matrix-col cpa-soon">
-                            <input type="checkbox" disabled aria-label="Mensajes por push · próximamente">
+                        <label class="wo-toggle cpa-matrix-col">
+                            <input type="checkbox" data-notif-push="mensajes" checked aria-label="Mensajes por push">
                             <span class="knob"></span>
                         </label>
                     </div>
@@ -203,11 +206,13 @@
                             <input type="checkbox" data-notif="cotizaciones" data-channel="email" checked aria-label="Cotizaciones por email">
                             <span class="knob"></span>
                         </label>
-                        <label class="wo-toggle cpa-matrix-col cpa-soon">
-                            <input type="checkbox" disabled aria-label="Cotizaciones por push · próximamente">
+                        <label class="wo-toggle cpa-matrix-col">
+                            <input type="checkbox" data-notif-push="cotizaciones" checked aria-label="Cotizaciones por push">
                             <span class="knob"></span>
                         </label>
                     </div>
+
+                    <p class="wo-help">Push son los avisos dentro de We Ötzi y en tus dispositivos con los avisos activados.</p>
 
                     <div class="cpa-actions">
                         <span class="cpa-status" id="cpa-notif-status" role="status" aria-live="polite"></span>

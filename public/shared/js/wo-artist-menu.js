@@ -244,6 +244,8 @@
             '.wo-oam-list{flex:1;overflow-y:auto}',
             '.wo-oam-item{display:flex;gap:14px;width:100%;box-sizing:border-box;text-align:left;background:none;border:0;border-bottom:.8px solid var(--neutral-200);padding:16px 24px 16.8px;cursor:pointer;font:inherit}',
             '.wo-oam-item:hover{background:var(--neutral-100)}',
+            /* P26: los avisos con destino son enlaces reales (<a>), con la misma piel del botón */
+            'a.wo-oam-item,.wo-app a.wo-oam-item,.wo-app a.wo-oam-item:hover{color:inherit;text-decoration:none}',
             '.wo-oam-item.is-unread{background:color-mix(in srgb,var(--blue-100) 30%,var(--white))}',
             '.wo-oam-item.is-unread:hover{background:color-mix(in srgb,var(--blue-100) 55%,var(--white))}',
             '.wo-oam-iic{flex:none;width:34px;height:34px;margin-top:2px;display:flex;align-items:center;justify-content:center;background:var(--figma-sand);color:var(--neutral-500)}',
@@ -265,6 +267,15 @@
 
     /* ------------------------------ datos ------------------------------ */
     function pushFeed(items) { state.feed = state.feed.concat(items); }
+
+    // Ronda 2 · P26: destino exacto de cada aviso (la cotización, el día y el
+    // evento en el calendario, la postulación). Lo arma el modelo compartido
+    // notification-feed-model.js; sin él queda el destino general de siempre.
+    function feedHref(kind, data, fallback) {
+        var FM = window.WoNotificationFeedModel;
+        try { return (FM && typeof FM.destination === 'function' && FM.destination('artist', kind, data)) || fallback; }
+        catch (e) { return fallback; }
+    }
 
     // Ronda 3 · P15 (Figma 801:558): "Contraoferta recibida" a partir de las
     // contraofertas pendientes de las postulaciones abiertas (Job Board y Spots).
@@ -376,7 +387,8 @@
                         key: 'exp:' + q.quote_id, type: 'vencida', icon: 'dollar-sign',
                         title: 'Cotización vencida',
                         desc: 'Tu cotización a ' + (q.client_full_name || 'un cliente') + ' venció sin respuesta.',
-                        ts: q.updated_at || q.created_at, unread: !seen.has('exp:' + q.quote_id), href: '/my-quotations',
+                        ts: q.updated_at || q.created_at, unread: !seen.has('exp:' + q.quote_id),
+                        href: feedHref('quote', { quoteId: q.quote_id, ver: 'historial' }, '/my-quotations'),
                     };
                 }));
             }).catch(function (e) { console.warn('[wo-menu] solicitudes:', e && e.message); }));
@@ -397,7 +409,7 @@
                         title: 'Recordatorio',
                         desc: f.when + ' tenés una sesión con ' + who + (f.time ? ' a las ' + f.time + '.' : '.'),
                         ts: reminderStamp(new Date(s.session_date).getTime() - 48 * 3600000, s.created_at),
-                        unread: !seen.has('ses:' + s.id), href: '/calendar',
+                        unread: !seen.has('ses:' + s.id), href: feedHref('session', { session: s }, '/calendar'),
                     };
                 }));
                 // Reservas confirmadas recién (Figma: "Reserva confirmada").
@@ -410,7 +422,8 @@
                         key: 'conf:' + s.id, type: 'reserva', icon: 'calendar',
                         title: 'Reserva confirmada',
                         desc: who + ' confirmó la sesión del ' + longDate(s.session_date) + '.',
-                        ts: s.updated_at || s.created_at, unread: !seen.has('conf:' + s.id), href: '/calendar',
+                        ts: s.updated_at || s.created_at, unread: !seen.has('conf:' + s.id),
+                        href: feedHref('session', { session: s }, '/calendar'),
                     };
                 }));
             }).catch(function (e) { console.warn('[wo-menu] sesiones:', e && e.message); }));
@@ -470,7 +483,8 @@
                         key: 'spa:' + a.id, type: 'postulacion', icon: 'briefcase',
                         title: ok ? 'Nueva postulación' : 'Postulación rechazada',
                         desc: 'Tu solicitud para ' + spot + (ok ? ' fue aceptada.' : ' no quedó esta vez.'),
-                        ts: a.decided_at, unread: !seen.has('spa:' + a.id), href: '/artist/applications?tab=spots',
+                        ts: a.decided_at, unread: !seen.has('spa:' + a.id),
+                        href: feedHref('application', { type: 'spot', id: a.id }, '/artist/applications?tab=spots'),
                     };
                 }));
                 return offersDone;
@@ -725,13 +739,19 @@
         var total = unreadTotal();
         var items = state.feed.map(function (it, i) {
             var meta = '<span>' + esc(relTime(it.ts)) + '</span><b>' + (it.unread ? 'Sin leer' : 'Leída') + '</b>';
-            return '<button type="button" class="wo-oam-item' + (it.unread ? ' is-unread' : '') + '" data-i="' + i + '">'
+            // P26: con destino, el aviso es un enlace real al lugar exacto; sin
+            // destino (actualizaciones de la plataforma) sigue siendo un botón.
+            var cls = 'wo-oam-item' + (it.unread ? ' is-unread' : '');
+            var open = it.href
+                ? '<a class="' + cls + '" data-i="' + i + '" href="' + esc(appPath(it.href)) + '">'
+                : '<button type="button" class="' + cls + '" data-i="' + i + '">';
+            return open
                 + '<span class="wo-oam-iic">' + iconEl(it.icon) + '</span>'
                 + '<span class="wo-oam-ibody">'
                 + '<span class="wo-oam-ititle">' + esc(it.title) + '<span class="wo-oam-imark" aria-hidden="true"></span></span>'
                 + '<span class="wo-oam-idesc">' + esc(it.desc) + '</span>'
                 + '<span class="wo-oam-imeta">' + meta + '</span>'
-                + '</span></button>';
+                + '</span>' + (it.href ? '</a>' : '</button>');
         }).join('');
 
         els.panel.innerHTML =
@@ -754,7 +774,9 @@
                 var seen = loadSeen(); seen.add(it.key); saveSeen(seen);
                 persistSeen([it.key]);
                 it.unread = false;
-                if (it.href) { window.location.href = appPath(it.href); return; }
+                // El enlace navega solo (también con ctrl/⌘ + click en otra pestaña);
+                // se repinta después para no quitar del DOM el <a> que se está siguiendo.
+                if (it.href) { window.setTimeout(safeRender, 0); return; }
                 renderAll();
             });
         });
@@ -1068,6 +1090,8 @@
         window.setInterval(refresh, 60000);
         document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
         document.addEventListener('weotzi:reminders-changed', function () { refresh(); });
+        // Un aviso nuevo (wo-notify.js) actualiza el contador y la lista al instante.
+        document.addEventListener('wo:notify', function () { refresh(); });
         subscribeMessageCounters(refresh);
     }
 

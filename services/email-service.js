@@ -37,6 +37,8 @@ const { dispatchOnce } = require('./email-delivery-ledger');
 const notificationPrefs = require('../lib/notification-prefs');
 const emailRender = require('../lib/email-render');
 const { escapeHtml, safeUrl } = require('../lib/email-format');
+// ── push ── cada correo a un usuario registrado dispara también su aviso push / in-app.
+const pushDispatch = require('../lib/push-dispatch');
 
 // ===== Config =====
 
@@ -577,6 +579,10 @@ async function sendEmail(eventId, payload, options = {}) {
     if (!eventMapping.resolveRecipients(eventId, payload).length) {
         return { ok: false, channel: 'none', error: 'No hay un destinatario válido guardado para este correo.' };
     }
+
+    // ── push ── aviso push / in-app del mismo evento (preferencia "Push" propia,
+    // sin esperar al correo ni a su canal; nunca rompe ni demora el envío).
+    try { pushDispatch.onEmailEvent(eventId, payload, options); } catch (_) { /* aviso secundario */ }
 
     const routing = options.routing || await getRoutingForEvent(eventId);
     const channel = options.channel || await resolveChannel(eventId, routing, options);

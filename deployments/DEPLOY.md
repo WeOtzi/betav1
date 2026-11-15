@@ -269,6 +269,37 @@ Previews de todos los correos: `node scripts/email-preview.js` → `output/email
 
 ---
 
+## Variables de entorno · Avisos push (Web Push)
+
+Los avisos push salen del propio servidor (`lib/web-push.js`: VAPID RFC 8292 +
+cifrado `aes128gcm` RFC 8291, sin dependencias ni servicios de terceros). Sin
+las claves **el push queda apagado en silencio**: `GET /api/push/config`
+responde `enabled:false`, la tarjeta "Avisos en este dispositivo" lo explica y
+los avisos dentro de la app (toast + sonido por Realtime) siguen funcionando.
+
+| Variable | Valor | Cómo se obtiene |
+|---|---|---|
+| `VAPID_PUBLIC_KEY` | Punto P-256 (65 bytes) en base64url | `node scripts/generate-vapid-keys.js mailto:<contacto>` imprime las tres líneas |
+| `VAPID_PRIVATE_KEY` | Escalar P-256 (32 bytes) en base64url | Ídem. **Secreta**: solo en el `.env` del servidor y en el gestor de secretos |
+| `VAPID_SUBJECT` | `mailto:…` o `https://…` | Contacto que ven los servicios push. Vacío → `mailto:SUPPORT_EMAIL` o `PUBLIC_APP_URL` |
+| `PUSH_ALLOWED_HOSTS` | Opcional, hosts separados por coma | Servicios push extra. Por defecto: FCM (Chrome/Edge/Opera), Mozilla, WNS y Apple |
+
+Alta (una sola vez):
+
+1. Aplicar la migración `supabase/migrations/20261116170000_push_notifications.sql` (tablas `push_subscriptions` y `user_notifications`, esta última en la publicación `supabase_realtime`).
+2. `node scripts/generate-vapid-keys.js mailto:<contacto>` en una máquina de confianza y pegar las tres líneas en el `.env` del servidor.
+3. Reiniciar PM2 con `--update-env`. Si las claves quedaron mal cargadas, el arranque avisa `[push] VAPID mal configurado (<motivo>)` y el push queda apagado (nunca tumba el servidor).
+4. Probar: Centro de cuenta → Notificaciones → **Activar avisos** → **Probar aviso**.
+
+Notas:
+
+- El service worker es `public/wo-sw.js` (raíz pública, alcance `/`); solo se registra cuando el usuario toca "Activar avisos". Necesita HTTPS (o `localhost`).
+- Cambiar las claves no rompe nada: cada navegador se vuelve a suscribir solo la próxima vez que abre la app. Las suscripciones vencidas (404/410 del servicio push) se borran solas.
+- iPhone / iPad: Safari solo entrega push a la web instalada en la pantalla de inicio. En una pestaña común se ven los avisos dentro de la app.
+- Qué se avisa: los mismos eventos que salen por correo a un usuario registrado (cotizaciones, mensajes, calendario, estudios, verificación), con el asunto y el preheader del correo. Nunca códigos, contraseñas ni datos de salud. Cada usuario lo regula con la columna "Push" de su matriz de notificaciones.
+
+---
+
 ## Reglas para el agente
 
 | Situación                                           | Acción                                      |
