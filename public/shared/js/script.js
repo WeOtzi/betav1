@@ -1771,9 +1771,15 @@ function renderInlineCalendar() {
         cells.push(`<span class="q-cal-day is-adjacent" aria-hidden="true">${prevMonthDays - offset + 1 + i}</span>`);
     }
     // Ronda 2 (P14): rango tentativo (inicio–fin). Con turno elegido es un solo día.
+    // (quotation-slot.js cambia la flexibilidad al elegir un turno y redibuja por acá.)
+    syncDateFlexibilityControl();
     const rangeModel = quotationR2Model();
     const rangeStart = formData._preferred_date_iso || null;
     const rangeEnd = formData.requested_slot ? null : (formData._preferred_date_end_iso || null);
+    // Lo elegido, en palabras (y cómo completar el rango).
+    const pickedNote = rangeModel && rangeStart && !formData.requested_slot
+        ? `<p class="q-date-picked" role="status">${rangeEnd ? 'Rango tentativo' : 'Desde'}: <strong>${escapeQuotationHtml(rangeModel.rangeLabel(rangeStart, rangeEnd))}</strong>${rangeEnd ? '' : ' · toca otro día para marcar hasta cuándo'}</p>`
+        : '';
     for (let day = 1; day <= daysInMonth; day++) {
         const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const rangePos = rangeModel ? rangeModel.rangePosition(iso, rangeStart, rangeEnd) : null;
@@ -1805,7 +1811,7 @@ function renderInlineCalendar() {
             </button>
         </div>
         <div class="q-cal-dow">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d) => `<span>${d}</span>`).join('')}</div>
-        <div class="q-cal-grid">${cells.join('')}</div>${vacationNote}${busyNote}${window.WoQuotationSlot ? window.WoQuotationSlot.daySlotsHtml(formData) : ''}`;
+        <div class="q-cal-grid">${cells.join('')}</div>${pickedNote}${vacationNote}${busyNote}${window.WoQuotationSlot ? window.WoQuotationSlot.daySlotsHtml(formData) : ''}`;
 }
 
 // ---------- Lógica post-render por pregunta ----------
@@ -4221,7 +4227,8 @@ function setupKeyboardNavigation() {
         // Enter en textarea = salto de línea; en el resto avanza la pantalla.
         const target = e.target;
         if (target && (target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
-        const overlayOpen = document.querySelector('.q-login-overlay:not(.hidden), .draft-recovery-overlay:not(.hidden)');
+        // (.q-r2-overlay: modales de la ronda 2 — perfil del artista, IA, sede.)
+        const overlayOpen = document.querySelector('.q-login-overlay:not(.hidden), .draft-recovery-overlay:not(.hidden), .q-r2-overlay');
         if (overlayOpen) return;
 
         const btn = document.getElementById('continue-btn');

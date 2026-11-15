@@ -83,6 +83,8 @@
             if (!items.length) return;
             var first = items[0];
             var last = items[items.length - 1];
+            // El foco arranca en el título (no tabulable): desde ahí entra al modal, no sale.
+            if (items.indexOf(document.activeElement) === -1) { event.preventDefault(); (event.shiftKey ? last : first).focus(); return; }
             if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
             else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
         }
