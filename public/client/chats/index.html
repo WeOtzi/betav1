@@ -14,6 +14,8 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/client-chats-ds.css">
+    <!-- Ronda 2: voz, mensajes rápidos y marca de mensaje automático -->
+    <link rel="stylesheet" href="/shared/css/wo-inbox-extras.css">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/store-entry.js" defer></script>
 
@@ -131,6 +133,9 @@
                             <button class="cch-reference" type="button" id="cch-reference">
                                 <i data-wo-icon="image" class="wo-icon-16" aria-hidden="true"></i>Enviar referencia
                             </button>
+                            <button class="cch-quick-btn" type="button" id="cch-quick">
+                                <i data-wo-icon="zap" class="wo-icon-16" aria-hidden="true"></i>Mensajes rápidos
+                            </button>
                             <div class="cch-pending wo-hidden" id="cch-pending" aria-label="Adjuntos seleccionados"></div>
                         </div>
                         <div class="cch-composer-row">
@@ -138,6 +143,9 @@
                                 <i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i>
                             </button>
                             <input class="wo-input" type="text" id="cch-input" placeholder="Escribí un mensaje…" aria-label="Escribí un mensaje" autocomplete="off" maxlength="2000">
+                            <button class="wo-iconbtn cch-voice-btn" type="button" id="cch-voice" aria-label="Grabar mensaje de voz" title="Grabar mensaje de voz">
+                                <i data-wo-icon="mic" class="wo-icon-18" aria-hidden="true"></i>
+                            </button>
                             <button class="wo-btn cch-send" type="submit" id="cch-send" disabled>
                                 <span class="cch-send-label">Enviar</span>
                                 <i data-wo-icon="send" class="wo-icon-18" aria-hidden="true"></i>
@@ -155,6 +163,11 @@
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/inbox-repo.js"></script>
     <script src="/shared/js/inbox-chat-model.js"></script>
+    <!-- Ronda 2: voz y mensajes rápidos -->
+    <script src="/shared/js/inbox-extras-model.js"></script>
+    <script src="/shared/js/data/inbox-extras-repo.js"></script>
+    <script src="/shared/js/wo-voice.js"></script>
+    <script src="/shared/js/wo-quick-replies.js"></script>
     <script src="/shared/js/client-chats.js"></script>
 </body>
 </html>

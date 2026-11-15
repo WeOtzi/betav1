@@ -12,6 +12,9 @@
     // Lógica pura compartida (inbox-chat-model.js): adjuntos, dedupe,
     // tarjeta de cotización, hilos sintéticos y categoría por estado.
     const M = window.WeotziInboxChat || null;
+    // Ronda 2 (inbox-extras-model.js): voz, mensajes rápidos, automáticos y
+    // motivo de la conversación cerrada.
+    const X = window.WeotziInboxExtras || null;
     const CATEGORY_LABELS = {
         all: 'TODAS',
         clients: 'CLIENTES',
@@ -64,6 +67,12 @@
         quoteDetails: {},
         attachmentUrls: new Map(),
         sending: false,
+        // Ronda 2: último automático por hilo (para no contarlo como respuesta
+        // del artista) y controles de voz / mensajes rápidos del composer.
+        autoTails: { inbox: null, chat: null },
+        voice: null,
+        quick: null,
+        quoteChannel: null,
     };
 
     document.addEventListener('DOMContentLoaded', init);
@@ -156,6 +165,7 @@
         attachmentPreview && attachmentPreview.addEventListener('pointerup', onAttachmentDragEnd);
         attachmentPreview && attachmentPreview.addEventListener('pointercancel', onAttachmentDragEnd);
         el('ai-messages') && el('ai-messages').addEventListener('click', onMessageClick);
+        wireExtras();
         window.addEventListener('beforeunload', cleanupChannels);
     }
 
@@ -185,17 +195,32 @@
             D.Inbox && D.Inbox.listThreads ? D.Inbox.listThreads() : Promise.resolve([]),
             D.Chat && D.Chat.listThreadsForArtist ? D.Chat.listThreadsForArtist(state.userId) : Promise.resolve([]),
             D.SupportInbox && D.SupportInbox.getOwnConversation ? D.SupportInbox.getOwnConversation(state.userId) : Promise.resolve(null),
+            // Ronda 2: automáticos recientes (un saludo o una ausencia automática
+            // no cuentan como "Respondido").
+            D.Inbox && D.Inbox.listRecentAuto ? D.Inbox.listRecentAuto() : Promise.resolve([]),
+            D.Chat && D.Chat.listRecentAuto ? D.Chat.listRecentAuto() : Promise.resolve([]),
         ]);
 
         state.unified = resultValue(results[0], []);
         state.legacyQuotes = resultValue(results[1], []);
         state.legacySupport = resultValue(results[2], null);
+        state.autoTails = X ? {
+            inbox: X.autoTailIndex(resultValue(results[3], []), 'thread_id'),
+            chat: X.autoTailIndex(resultValue(results[4], []), 'quotation_id'),
+        } : { inbox: null, chat: null };
         state.rows = buildRows();
         renderSidebarCounts();
         renderList();
 
         if (active && state.rows.some(function (row) { return row.key === active; })) {
             state.activeKey = active;
+            // El hilo abierto pudo cerrarse mientras se miraba (p. ej. el
+            // cliente rechazó la cotización): pasa a solo lectura.
+            const activeRow = findRow(active);
+            if (activeRow && !state.sending && Boolean(activeRow.closed) !== el('ai-composer').hidden) {
+                if (activeRow.closed) resetThreadExtras();
+                applyThreadAccess(activeRow);
+            }
         } else if (active) {
             closeThread();
         }
@@ -261,7 +286,11 @@
     }
 
     function adaptUnified(item) {
-        return {
+        // Ronda 2: si lo último del hilo fue un automático, el artista todavía
+        // no respondió; y un hilo de cotización rechazada queda en solo lectura.
+        const auto = Boolean(X && X.isAutoTail(state.autoTails.inbox, item.id, item.last_message_at));
+        const rejected = String((item.context && item.context.quote_status) || '').toLowerCase() === 'client_rejected';
+        return Object.assign({
             key: 'unified:' + item.id,
             source: 'unified',
             id: item.id,
@@ -277,13 +306,15 @@
             unread: Number(item.unread_count) || 0,
             favorite: Boolean(item.is_favorite),
             archived: Boolean(item.is_archived),
-            closed: item.status === 'closed',
+            closed: item.status === 'closed' || rejected,
             priority: Boolean(item.is_priority),
             context: item.context || {},
             contextType: item.context_type,
             contextId: item.context_id,
             raw: item,
-        };
+            lastAuto: auto,
+            closedReason: rejected && X ? X.closedReason('client_rejected') : '',
+        }, auto ? { lastSenderUserId: null, lastSenderRole: 'auto' } : null);
     }
 
     function adaptLegacyQuote(item) {
@@ -291,7 +322,11 @@
         const name = item.client_full_name || item.client_name || quote.client_full_name || quote.client_name || 'Cliente';
         const status = quote.status || item.quote_status || item.quotation_status;
         const style = styleLabel(quote.tattoo_style || item.tattoo_style);
+        // Ronda 2: un automático como último mensaje no es una respuesta del artista.
+        const auto = Boolean(X && X.isAutoTail(state.autoTails.chat, item.quote_id, item.last_message_at));
         return {
+            lastAuto: auto,
+            closedReason: X && CLOSED_QUOTE_STATUSES.includes(status) ? X.closedReason(status) : '',
             key: 'quote:' + item.quote_id,
             source: 'quote',
             id: item.quote_id,
@@ -303,7 +338,7 @@
             subject: style || 'Cotización',
             preview: item.last_message || (item.synthetic ? 'Todavía no hay mensajes' : 'Cotización en curso'),
             lastAt: item.last_message_at || quote.updated_at,
-            lastSenderUserId: item.last_message_sender === 'artist' ? state.userId : null,
+            lastSenderUserId: item.last_message_sender === 'artist' && !auto ? state.userId : null,
             unread: Number(item.unread_for_artist) || 0,
             favorite: false,
             archived: false,
@@ -438,7 +473,7 @@
                     '<span class="ai-row-top"><span class="ai-row-name">' + esc(row.name) + '</span><time class="ai-row-time">' + esc(fmtListTime(row.lastAt)) + '</time></span>' +
                     '<span class="ai-row-tags"><span class="wo-tag ai-category-tag is-' + esc(meta.tone) + '">' + esc(meta.label) + '</span>' +
                         (row.priority ? '<span class="ai-priority-tag">Prioritario</span>' : '') + '</span>' +
-                    '<span class="ai-row-prev"><span class="ai-row-preview">' + esc(row.preview) + '</span>' +
+                    '<span class="ai-row-prev"><span class="ai-row-preview">' + (row.lastAuto ? '<span class="ai-row-auto">Automático · </span>' : '') + esc(row.preview) + '</span>' +
                         (row.unread ? '<span class="wo-badge ai-row-unread">' + row.unread + '</span>' : '') + '</span>' +
                     '<span class="ai-row-status ' + status.cls + '">' + status.label + '</span>' +
                 '</span>' +
@@ -496,6 +531,7 @@
         state.activeKey = key;
         state.activeMessages = [];
         clearPendingFiles();
+        resetThreadExtras();
         removeThreadChannel();
 
         el('ai-thread-placeholder').hidden = true;
@@ -508,7 +544,7 @@
         renderThreadHead(row);
         renderContext(row);
         renderMessagesLoading();
-        setComposer(row.closed ? 'Esta conversación está cerrada.' : (row.starter ? 'Escribí tu consulta para soporte…' : 'Escribí un mensaje…'), !row.closed);
+        applyThreadAccess(row);
 
         try {
             if (row.source === 'unified') {
@@ -634,6 +670,7 @@
         state.activeMessages = [];
         removeThreadChannel();
         clearPendingFiles();
+        resetThreadExtras();
         el('ai-thread').hidden = true;
         el('ai-thread-placeholder').hidden = false;
         el('ai-context').hidden = true;
@@ -716,6 +753,8 @@
             attachmentPath: message.attachment_path,
             attachmentName: message.attachment_name,
             attachmentMime: message.attachment_mime,
+            durationMs: message.attachment_duration_ms || null,
+            autoKind: message.auto_kind || null,
         };
     }
 
@@ -730,6 +769,8 @@
             attachmentPath: message.attachment_path || null,
             attachmentName: message.attachment_name || null,
             attachmentMime: message.attachment_mime || null,
+            durationMs: message.attachment_duration_ms || null,
+            autoKind: message.auto_kind || null,
         };
     }
 
@@ -782,6 +823,7 @@
         host.scrollTop = host.scrollHeight;
         refreshIcons();
         hydrateAttachmentThumbs(host);
+        if (window.WoVoice) window.WoVoice.hydrate(host, signedUrlFor);
     }
 
     function quoteCardHtml(card) {
@@ -799,7 +841,13 @@
         const direction = message.mine ? ' ai-msg--out' : ' ai-msg--in';
         const isImage = String(message.attachmentMime || '').startsWith('image/');
         const source = message.attachmentSource === 'chat' ? 'chat' : 'inbox';
-        const attachment = message.attachmentPath
+        // Ronda 2: un adjunto de audio es un mensaje de voz (reproductor inline
+        // que monta wo-voice.js) y los automáticos llevan su marca.
+        const isVoice = Boolean(message.attachmentPath && window.WoVoice && X && X.isAudioAttachment(message.attachmentMime));
+        const autoTag = message.autoKind ? '<span class="wo-auto-tag">' + esc(X ? X.AUTO_LABEL : 'Mensaje automático') + '</span>' : '';
+        const attachment = isVoice
+            ? '<div class="wo-voice-slot" data-wo-voice-path="' + esc(message.attachmentPath) + '" data-wo-voice-source="' + source + '" data-wo-voice-ms="' + (Number(message.durationMs) || 0) + '"></div>'
+            : message.attachmentPath
             ? '<button type="button" class="ai-msg-attachment' + (isImage ? ' is-image' : '') + '" data-attachment-path="' + esc(message.attachmentPath) + '" data-attachment-source="' + source + '"' +
                 (isImage ? ' data-attachment-image' : '') + ' aria-label="Abrir ' + esc(message.attachmentName || 'adjunto') + '">' +
                 (isImage ? '<span class="ai-msg-thumb" aria-hidden="true"></span>' : '') +
@@ -807,7 +855,7 @@
                 '<span>' + esc(message.attachmentName || 'Abrir adjunto') + '</span>' +
                 '<i data-wo-icon="external-link" class="wo-icon-16" aria-hidden="true"></i></button>'
             : '';
-        return '<div class="ai-msg' + direction + '"><div class="ai-bubble">' +
+        return '<div class="ai-msg' + direction + '"><div class="ai-bubble">' + autoTag +
             (message.body ? '<p>' + linkify(message.body) + '</p>' : '') + attachment +
             '<time>' + esc(fmtMsgTime(message.at)) + '</time></div></div>';
     }
@@ -993,13 +1041,14 @@
         input.disabled = !enabled;
         const row = findRow(state.activeKey);
         const canAttach = enabled && attachmentsAllowed(row);
-        ['ai-attach', 'ai-image'].forEach(function (id) {
+        ['ai-attach', 'ai-image', 'ai-voice'].forEach(function (id) {
             const button = el(id);
             if (!button) return;
             button.disabled = !canAttach;
-            button.hidden = Boolean(row && row.source === 'support');
+            button.hidden = Boolean(row && row.source === 'support') || (id === 'ai-voice' && !window.WoVoice);
         });
         if (el('ai-emoji')) el('ai-emoji').disabled = !enabled;
+        if (el('ai-quick')) el('ai-quick').disabled = !enabled;
         input.placeholder = placeholder;
         syncSendState();
     }
@@ -1007,10 +1056,123 @@
     function restoreComposerTools(row) {
         const open = Boolean(row && !row.closed);
         if (el('ai-input')) el('ai-input').disabled = !open;
-        ['ai-attach', 'ai-image'].forEach(function (id) {
+        ['ai-attach', 'ai-image', 'ai-voice'].forEach(function (id) {
             if (el(id)) el(id).disabled = !(open && attachmentsAllowed(row));
         });
         if (el('ai-emoji')) el('ai-emoji').disabled = !open;
+        if (el('ai-quick')) el('ai-quick').disabled = !open;
+    }
+
+    // Ronda 2 · [Chat cerrado]: un hilo cerrado se ve en solo lectura, con el
+    // motivo en lugar del campo de mensaje. Si la cotización fue rechazada por
+    // el cliente, el artista no puede volver a escribirle (la base también lo
+    // impide).
+    function applyThreadAccess(row) {
+        const closed = Boolean(row && row.closed);
+        const note = el('ai-closed-note');
+        if (note) {
+            note.textContent = closed ? (row.closedReason || (X ? X.closedReason('') : 'Esta conversación está cerrada.')) : '';
+            note.hidden = !closed;
+        }
+        if (el('ai-composer')) el('ai-composer').hidden = closed;
+        setComposer(closed ? 'Esta conversación está cerrada.' : (row && row.starter ? 'Escribí tu consulta para soporte…' : 'Escribí un mensaje…'), !closed);
+    }
+
+    // Al cambiar de hilo: se corta una grabación en curso, se frena el audio
+    // que estuviera sonando y se cierra el panel de mensajes rápidos.
+    function resetThreadExtras() {
+        if (state.voice) state.voice.reset();
+        if (state.quick) state.quick.close();
+        if (window.WoVoice) window.WoVoice.resetPlayers();
+    }
+
+    // Ronda 2 · P8/P9: micrófono, mensajes rápidos y respuestas automáticas.
+    function wireExtras() {
+        const composer = el('ai-composer');
+        if (window.WoVoice && composer && el('ai-voice')) {
+            state.voice = window.WoVoice.attachRecorder({
+                form: composer,
+                button: el('ai-voice'),
+                canRecord: function () {
+                    return Boolean(attachmentsAllowed(findRow(state.activeKey)) && !state.sending);
+                },
+                onSend: sendVoiceMessage,
+                onError: function (message) { notify(message, 'error'); },
+            });
+        } else if (el('ai-voice')) {
+            el('ai-voice').hidden = true;
+        }
+        if (window.WoQuickReplies && composer && el('ai-quick')) {
+            state.quick = window.WoQuickReplies.attach({
+                role: 'artist',
+                getUserId: function () { return state.userId; },
+                button: el('ai-quick'),
+                form: composer,
+                input: el('ai-input'),
+                canUse: function () {
+                    const row = findRow(state.activeKey);
+                    return Boolean(row && !row.closed && !state.sending);
+                },
+                notify: notify,
+                onOpenAutomations: openAutomations,
+            });
+        } else if (el('ai-quick')) {
+            el('ai-quick').hidden = true;
+        }
+        const autoButton = el('ai-auto-open');
+        if (autoButton && window.WoInboxAutomations) autoButton.addEventListener('click', openAutomations);
+        else if (autoButton) autoButton.hidden = true;
+    }
+
+    function openAutomations() {
+        if (!window.WoInboxAutomations || !state.userId) return;
+        window.WoInboxAutomations.open({
+            getUserId: function () { return state.userId; },
+            notify: notify,
+            accountHref: appHref('/artist/account#disponibilidad'),
+        });
+    }
+
+    // Mensaje de voz: sube el audio al bucket del hilo y guarda el mensaje.
+    // Si la base lo rechaza, el archivo subido se borra. Los errores vuelven
+    // al grabador (wo-voice.js), que conserva la grabación para reintentar.
+    async function sendVoiceMessage(voice) {
+        const row = findRow(state.activeKey);
+        if (!row || state.sending || !attachmentsAllowed(row)) throw new Error('conversación no disponible');
+        const key = row.key;
+        const unified = row.source === 'unified';
+        const repo = unified ? D.Inbox : D.Chat;
+        let uploaded = null;
+        state.sending = true;
+        syncSendState();
+        try {
+            uploaded = await repo.uploadAttachment(row.id, state.userId, voice.file);
+            const saved = unified
+                ? await D.Inbox.sendVoiceMessage({ threadId: row.id, attachment: uploaded, durationMs: voice.durationMs })
+                : await D.Chat.sendMessage({
+                    quoteId: row.id, senderType: 'artist', senderId: state.userId, message: '',
+                    attachment: Object.assign({}, uploaded, { durationMs: voice.durationMs }),
+                });
+            const message = Array.isArray(saved) ? saved[0] : saved;
+            if (message && state.activeKey === key) {
+                addMessage(unified ? adaptUnifiedMessage(message) : adaptQuoteMessage(message));
+                if (row.synthetic) {
+                    row.synthetic = false;
+                    row.raw.synthetic = false;
+                }
+                renderMessages();
+            }
+            scheduleRefresh();
+        } catch (error) {
+            // Solo se limpia si la base respondió con un rechazo (con un corte
+            // de red el mensaje pudo haberse guardado).
+            if (uploaded && uploaded.path && error && error.code && repo.removeAttachment) repo.removeAttachment(uploaded.path);
+            scheduleRefresh();
+            throw error;
+        } finally {
+            state.sending = false;
+            syncSendState();
+        }
     }
 
     function onFileChosen(event) {
@@ -1195,6 +1357,9 @@
             console.error('[artist-inbox] enviar', error);
             renderPendingFiles();
             renderMessages();
+            // Si la base rechazó el envío porque la conversación se cerró (el
+            // cliente rechazó la cotización), el refresco la pasa a solo lectura.
+            scheduleRefresh();
             notify(files.length ? 'No pudimos enviar todos los adjuntos. Los pendientes siguen acá para reintentar.' : 'No pudimos enviar el mensaje. Tu texto sigue acá para reintentar.', 'error');
         } finally {
             state.sending = false;
@@ -1213,6 +1378,15 @@
         // lista, contadores y "Esperando respuesta" en tiempo real.
         if (D.Realtime && D.Realtime.subscribeNewChatFromSender) {
             state.chatChannel = D.Realtime.subscribeNewChatFromSender('artist-inbox-chat-' + state.userId, 'client', scheduleRefresh);
+        }
+        // Ronda 2: cambios de estado de las cotizaciones del artista (RLS). Si
+        // el cliente rechaza la cotización, el hilo abierto pasa a solo lectura.
+        if (D.Realtime && D.Realtime.subscribeQuotationUpdates) {
+            state.quoteChannel = D.Realtime.subscribeQuotationUpdates('artist-inbox-quotes-' + state.userId, function (payload) {
+                const quote = payload && payload.new;
+                if (quote && quote.quote_id) delete state.quoteDetails[quote.quote_id];
+                scheduleRefresh();
+            });
         }
     }
 
@@ -1244,6 +1418,11 @@
             if (D.Realtime && D.Realtime.remove) D.Realtime.remove(state.chatChannel);
             else if (D.removeChannel) D.removeChannel(state.chatChannel);
             state.chatChannel = null;
+        }
+        if (state.quoteChannel) {
+            if (D.Realtime && D.Realtime.remove) D.Realtime.remove(state.quoteChannel);
+            else if (D.removeChannel) D.removeChannel(state.quoteChannel);
+            state.quoteChannel = null;
         }
     }
 

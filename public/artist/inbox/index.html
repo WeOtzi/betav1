@@ -17,6 +17,8 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/artist-inbox-ds.css">
+    <!-- Ronda 2: voz, mensajes rápidos, automáticos y conversación cerrada -->
+    <link rel="stylesheet" href="/shared/css/wo-inbox-extras.css">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
 
@@ -76,6 +78,7 @@
         <section class="ai-listcol" aria-label="Conversaciones">
             <header class="ai-list-head">
                 <span class="wo-meta" id="ai-list-cap">TODAS · 0</span>
+                <button type="button" class="ai-auto-open" id="ai-auto-open" aria-haspopup="dialog"><i data-wo-icon="zap" aria-hidden="true"></i>Respuestas automáticas</button>
             </header>
             <div class="ai-list" id="ai-list" role="list">
                 <div class="ai-list-loading" id="ai-list-loading">
@@ -104,12 +107,15 @@
                         <button type="button" class="wo-btn" id="ai-support-cta" hidden>Abrir chat de soporte</button>
                     </div>
                 </div>
+                <p class="wo-inbox-closed" id="ai-closed-note" role="note" hidden></p>
                 <form class="ai-composer" id="ai-composer" autocomplete="off">
                     <input type="file" id="ai-file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain" multiple hidden>
                     <div class="ai-composer-tools" aria-label="Adjuntos">
                         <button type="button" class="wo-iconbtn ai-attach" id="ai-attach" aria-label="Adjuntar archivo" title="Adjuntar archivo"><i data-wo-icon="paperclip" class="wo-icon-16" aria-hidden="true"></i></button>
                         <button type="button" class="wo-iconbtn ai-attach" id="ai-image" aria-label="Adjuntar imagen" title="Adjuntar imagen"><i data-wo-icon="image" class="wo-icon-16" aria-hidden="true"></i></button>
                         <button type="button" class="wo-iconbtn ai-attach" id="ai-emoji" aria-label="Agregar emoji" title="Agregar emoji"><i data-wo-icon="smile" class="wo-icon-16" aria-hidden="true"></i></button>
+                        <button type="button" class="wo-iconbtn ai-attach" id="ai-quick" aria-label="Mensajes rápidos" title="Mensajes rápidos"><i data-wo-icon="zap" class="wo-icon-16" aria-hidden="true"></i></button>
+                        <button type="button" class="wo-iconbtn ai-attach" id="ai-voice" aria-label="Grabar mensaje de voz" title="Grabar mensaje de voz"><i data-wo-icon="mic" class="wo-icon-16" aria-hidden="true"></i></button>
                     </div>
                     <div class="ai-composer-stack">
                         <div class="ai-attachment-preview" id="ai-attachment-preview" aria-label="Adjuntos seleccionados" hidden></div>
@@ -139,6 +145,12 @@
     <script src="/shared/js/inbox-deeplink.js"></script>
     <script src="/shared/js/inbox-response-state.js"></script>
     <script src="/shared/js/inbox-chat-model.js"></script>
+    <!-- Ronda 2: voz, mensajes rápidos y respuestas automáticas -->
+    <script src="/shared/js/inbox-extras-model.js"></script>
+    <script src="/shared/js/data/inbox-extras-repo.js"></script>
+    <script src="/shared/js/wo-voice.js"></script>
+    <script src="/shared/js/wo-quick-replies.js"></script>
+    <script src="/shared/js/artist-inbox-automations.js"></script>
     <script src="/shared/js/artist-inbox.js"></script>
     <script src="/shared/js/wo-artist-menu.js" defer></script>
 </body>

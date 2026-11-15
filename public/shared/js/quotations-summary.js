@@ -152,7 +152,7 @@
             const mine = m.sender_type === 'artist';
             return `
                 <div class="qs-msg${mine ? ' qs-msg--mine' : ''}">
-                    <span class="qs-msg-meta">${mine ? 'Vos' : 'Cliente'} · ${esc(VM.timeLabel(m.created_at))}</span>
+                    <span class="qs-msg-meta">${mine ? (m.auto_kind ? 'Mensaje automático' : 'Vos') : 'Cliente'} · ${esc(VM.timeLabel(m.created_at))}</span>
                     <p class="qs-msg-bubble">${esc(messageText(m))}</p>
                 </div>`;
         }).join('')}</div>`;
