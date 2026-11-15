@@ -81,7 +81,8 @@ test('URLs públicas de referencias y validación para el espejo a Drive', () =>
     assert.equal(cotForm.isOwnReferenceUrl('http://169.254.169.254/latest', SUPA, QID), false);
     assert.equal(cotForm.isOwnReferenceUrl(url, SUPA, 'QN' + '0'.repeat(32)), false);
     const rows = cotForm.attachmentRows(QID, [{ path: p, file_name: 'ref_1_1731600000000.jpg', mime_type: 'image/jpeg' }], SUPA);
-    assert.deepEqual(rows[0], { quotation_id: QID, google_drive_url: url, file_name: 'ref_1_1731600000000.jpg', mime_type: 'image/jpeg', attachment_type: 'reference', status: 'confirmed', sort_order: 1 });
+    // Ronda 2: cada fila lleva la nota de su imagen y la marca de IA.
+    assert.deepEqual(rows[0], { quotation_id: QID, google_drive_url: url, file_name: 'ref_1_1731600000000.jpg', mime_type: 'image/jpeg', attachment_type: 'reference', status: 'confirmed', sort_order: 1, note: null, ai_generated: false });
 });
 
 test('cotización → job_board_requests: estilos como array, rango del tramo y ciudad/país', () => {

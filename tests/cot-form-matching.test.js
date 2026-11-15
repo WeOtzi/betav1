@@ -104,8 +104,10 @@ test('la salida no expone email, WhatsApp ni coordenadas', () => {
     for (const s of ranked) {
         const json = JSON.stringify(s);
         assert.doesNotMatch(json, /privado@example|0000 0000|latitude|longitude|-34\.6/);
+        // Ronda 2 (P19): etiqueta de recomendado, insignia de embajador y perfil reducido (todo público).
         assert.deepEqual(Object.keys(s).sort(), ['city', 'country', 'match', 'name', 'profile_picture', 'score',
-            'session_price_amount', 'session_price_currency', 'studio', 'styles', 'user_id', 'username', 'verified'].sort());
+            'session_price_amount', 'session_price_currency', 'studio', 'styles', 'user_id', 'username', 'verified',
+            'recommended', 'ambassador', 'years_experience', 'bio', 'portfolio'].sort());
     }
 });
 
