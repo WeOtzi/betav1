@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/shared/css/quotations.css">
     <link rel="stylesheet" href="/shared/css/support-dashboard.css">
     <link rel="stylesheet" href="/shared/css/support-dashboard-store.css">
+    <link rel="stylesheet" href="/shared/css/support-dashboard-reports.css?v=20261116-denuncias">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="/shared/js/config-manager.js"></script>
@@ -91,6 +92,14 @@
                     <line x1="23" y1="8" x2="18" y2="13"/>
                 </svg>
                 BAJAS DE CUENTA <span class="adq-count" hidden></span>
+            </a>
+            <!-- denuncias (ronda 2): tickets de denuncia con expediente (support-dashboard-reports.js) -->
+            <a href="#" class="nav-item nav-menu-item" data-tab="denuncias">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M5 21V4"/>
+                    <path d="M5 4h12l-2.5 4.5L17 13H5"/>
+                </svg>
+                DENUNCIAS <span class="rpq-count" hidden></span>
             </a>
             <div class="nav-divider"></div>
             <button class="nav-item nav-logout" onclick="handleLogout()">LOGOUT</button>
@@ -179,6 +188,13 @@
                         <line x1="23" y1="8" x2="18" y2="13"/>
                     </svg>
                     BAJAS DE CUENTA <span class="adq-count" hidden></span>
+                </button>
+                <button class="tab-btn" data-tab="denuncias" type="button">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M5 21V4"/>
+                        <path d="M5 4h12l-2.5 4.5L17 13H5"/>
+                    </svg>
+                    DENUNCIAS <span class="rpq-count" hidden></span>
                 </button>
             </div>
 
@@ -289,5 +305,8 @@
     <script src="/shared/js/support-dashboard-account-deletion.js?v=20261113-borrado"></script>
     <!-- Pestaña ESTUDIOS (verif-estudio): verificaciones de estudios, la misma cola que el backoffice -->
     <script src="/shared/js/backoffice-studio-verifications.js"></script>
+    <!-- Pestaña DENUNCIAS (ronda 2 · denuncias): tickets de denuncia con el expediente, estado y notas internas -->
+    <script src="/shared/js/data/support-reports-repo.js?v=20261116-denuncias"></script>
+    <script src="/shared/js/support-dashboard-reports.js?v=20261116-denuncias"></script>
 </body>
 </html>

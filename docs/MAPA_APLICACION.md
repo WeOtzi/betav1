@@ -198,6 +198,8 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `GET`/`POST` | `/api/artist/onboarding` | Estado del onboarding del artista (sugerencia del demo, demo automático, modo asistido y sus 8 pasos). | Bearer de artista, `user_preferences`, `artists_db` |
 | `GET`/`POST` | `/api/artist/instagram-verification` | Estado de la validación de Instagram y generación del código por email (POST máx. 5/hora). | Bearer de artista, `artist_instagram_verifications`, email `instagram_verification_code` |
 | `POST` | `/api/instagram-verification/inbound` | Webhook de la automatización de DMs de @weotzi que valida el código. | Header `X-Weotzi-Webhook-Token` (`IG_VERIFY_WEBHOOK_SECRET`) |
+| `GET`/`POST` | `/api/reports/eligibility`, `/api/reports` | Ronda 2 · denuncias: un artista denuncia una cotización que recibió o a otro artista; el dueño o manager de un estudio, a otro estudio. Crea un ticket `kind='denuncia'` con el expediente completo (RPC `create_support_report`), avisa a soporte y manda el acuse. Botones `[data-wo-report]` + `public/shared/js/wo-report.js`. | Bearer; `lib/routes/denuncias.js`, `support_ticket_reports`, bucket `support-attachments`, migración `20261116210000` |
+| `GET`/`POST` | `/api/support/reports` (+ `/:ticketId`, `/:ticketId/status`, `/:ticketId/notes`) | Cola de denuncias para soporte: expediente, evidencia firmada, cambio de estado, resolución y notas internas (pestaña DENUNCIAS de `/support/dashboard`). | Agente activo en `support_users_db` o superadmin |
 | `GET`/`POST` | `/api/support/instagram-verifications` (+ `/:id/confirm`, `/:id/reject`) | Cola de validaciones de Instagram para soporte. | Agente activo en `support_users_db` |
 | `GET` | `/api/push/config` | Clave pública VAPID y si el push está activo en el servidor. | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` |
 | `POST` | `/api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/refresh`, `/api/push/test` | Suscripción Web Push del navegador, baja, rotación (service worker) y aviso de prueba. | Bearer (subscribe/test), `push_subscriptions`, `user_notifications`, `lib/web-push.js` |
@@ -295,6 +297,7 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 | `service_health_logs` | Historial de healthchecks. | Admin/soporte |
 | `app_settings` | Configuracion publica y secretos privados, incluido `apify_token`. | Admin/backend |
 | `support_conversations` | Bandeja de conversaciones de soporte referenciada por el dashboard. | Soporte |
+| `support_ticket_reports` | Expediente de cada denuncia (ticket `support_tickets.kind='denuncia'`): denunciante, denunciado, motivo, evidencia y, si es una cotización, sus referencias y mensajes. Solo lo lee soporte; lo escribe la RPC `create_support_report` (service-role). | Soporte |
 | `support_messages` | Mensajes de conversaciones de soporte. | Soporte |
 | `user_notifications` | Avisos del usuario (push / in-app): título, texto y destino. Inserta el servidor; la app los recibe por Realtime (`wo-notify.js`). | Artista, cliente, estudio |
 | `push_subscriptions` | Suscripciones Web Push por navegador (endpoint + claves). Escribe el servidor. | Artista, cliente, estudio |
