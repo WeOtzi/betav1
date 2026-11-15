@@ -34,9 +34,9 @@
     ];
 
     var FALLBACK_DEFAULTS = {
-        postulaciones: { email: true, push: false },
-        mensajes: { email: true, push: false },
-        cotizaciones: { email: true, push: false }
+        postulaciones: { email: true, push: true },
+        mensajes: { email: true, push: true },
+        cotizaciones: { email: true, push: true }
     };
 
     function isPlainObject(value) {

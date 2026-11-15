@@ -480,8 +480,8 @@ test('N11: el detalle del artista dibuja las 4 referencias (antes 3 tarjetas fij
     assert.doesNotMatch(body, /Array\.from\(\{ length: 3 \}/);
     assert.doesNotMatch(body, /refs\.length - 3/);
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const build = (attachments) => new Function('state', 'esc', 'icon', 'safeUrl', 'driveThumbnail', `${body}; return referencesHtml;`)(
-        { attachments }, esc, () => '<i></i>', (u) => (/^https:/.test(u) ? u : ''), () => '');
+    const build = (attachments) => new Function('state', 'esc', 'icon', 'safeUrl', 'driveThumbnail', 'M', `${body}; return referencesHtml;`)(
+        { attachments, extras: null }, esc, () => '<i></i>', (u) => (/^https:/.test(u) ? u : ''), () => '', require('../public/shared/js/quotation-detail-model.js'));
     const urls = [1, 2, 3, 4].map((i) => `https://demo.supabase.test/storage/v1/object/public/quotation-references/QNx/ref_${i}.jpg`);
     // Como llega una cotización web: 4 adjuntos + las mismas 4 URLs en reference_images.
     const four = build(urls.map((u, i) => ({ google_drive_url: u, file_name: i === 3 ? 'Generada con IA · solo referencial (4)' : `ref_${i + 1}.jpg` })))({ reference_images: urls });

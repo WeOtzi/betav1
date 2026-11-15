@@ -310,7 +310,7 @@ test('textos nuevos de la interfaz en español neutro (tuteo, sin voseo)', () =>
     }
     assert.match(notify, /Actívalos para enterarte al instante/);
     assert.match(read('public', 'artist', 'account', 'index.html'), /Push son los avisos dentro de We Ötzi y en tus dispositivos con los avisos activados\./);
-    assert.match(read('public', 'client', 'profile', 'index.html'), /Push son los avisos dentro de We Ötzi y en tus dispositivos con los avisos activados\./);
+    assert.match(read('public', 'client', 'profile', 'index.html'), /Los avisos push llegan a los dispositivos en los que actives las notificaciones de We Ötzi\./);
 });
 
 // ---------------------------------------------------------------- P24 · cargador y cuenta
@@ -361,15 +361,18 @@ test('los toggles "Push" de la matriz funcionan en la cuenta del artista y del c
     const clientHtml = read('public', 'client', 'profile', 'index.html');
     assert.match(clientHtml, /<div data-wo-notify-settings><\/div>/);
     for (const key of ['postulaciones', 'mensajes', 'cotizaciones']) {
-        const input = new RegExp(`<input type="checkbox" data-notif-push="${key}" checked aria-label="[^"]+ por push">`).exec(clientHtml);
-        assert.ok(input, key);
-        assert.doesNotMatch(input[0], /disabled/);
+        // La matriz del cliente la pinta client-profile.js (frente cliente-panel): el HTML trae el
+        // esqueleto deshabilitado hasta que llegan las preferencias y los defaults del servidor.
+        assert.ok(new RegExp(`<input type="checkbox" data-notif="${key}" data-channel="push"[^>]*aria-label="[^"]+ por push">`).test(clientHtml), key);
     }
     assert.doesNotMatch(clientHtml, /próximamente|Próximamente|cpa-soon"/);
     const client = read('public', 'shared', 'js', 'client-profile.js');
-    assert.match(client, /pushInput\.checked = saved \? saved\.push !== false : true/);
-    assert.match(client, /push: pushInput \? !!pushInput\.checked : prev\[eventKey\]\?\.push !== false/);
-    assert.match(client, /input\[data-notif\], input\[data-notif-push\]/);
+    assert.ok(client.includes('Notif.matrix(localNotif, notifDefaults)'));
+    assert.ok(client.includes('Notif.patchFor(localNotif, kind, channel, value)'));
+    const NotifModel = require('../public/shared/js/client-notif-model.js');
+    // Sin preferencia guardada el push se ve encendido (igual que CLIENT_NOTIF_DEFAULTS del servidor).
+    assert.equal(NotifModel.matrix({}, NotifModel.normalizeDefaults(null)).every((row) => row.push === true), true);
+    assert.deepEqual(NotifModel.patchFor({}, 'mensajes', 'email', false), { mensajes: { email: false } }, 'tocar email no escribe push');
     assert.doesNotMatch(client, /push: prev\[eventKey\]\?\.push === true/, 'ya no se guarda push:false sin que el cliente lo elija');
 });
 
