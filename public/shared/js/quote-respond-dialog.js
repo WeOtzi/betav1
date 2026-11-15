@@ -193,7 +193,7 @@
             + field('Presupuesto', '<input class="wo-input" name="amount" inputmode="decimal" autocomplete="off" value="' + esc(v.amount) + '" placeholder="410.000" aria-describedby="qr-amount-help">', 'qr-col-2', 'qr-amount-help', '')
             + field('Moneda', currencyControl(v.currency))
             + field('Sesiones', '<input class="wo-input" name="sessions" type="number" inputmode="numeric" min="1" max="30" step="1" value="' + esc(v.sessions) + '">')
-            + field('Duración por sesión · horas', '<input class="wo-input" name="hours" type="number" inputmode="numeric" min="0" max="24" step="1" value="' + esc(v.hours) + '">')
+            + field('Horas por sesión', '<input class="wo-input" name="hours" type="number" inputmode="numeric" min="0" max="24" step="1" value="' + esc(v.hours) + '">')
             + field('Minutos', '<select class="wo-select" name="mins">' + selectOptions(mins, v.mins) + '</select>')
             + field('Seña (%)', '<input class="wo-input" name="deposit_pct" type="number" inputmode="decimal" min="0" max="100" step="1" value="' + esc(v.depositPct) + '" placeholder="Sin seña">')
             + field('Complejidad', '<select class="wo-select" name="complexity">' + selectOptions(complexity, v.complexity) + '</select>')
@@ -254,6 +254,7 @@
             + model.QUICK_CONCEPTS.map(function (c) {
                 return '<button type="button" class="qr-chip" data-qr-concept="' + esc(c.label) + '">+ ' + esc(c.label) + '</button>';
             }).join('')
+            + '<button type="button" class="qr-chip" data-qr-concept="">+ Otro concepto</button>'
             + '</div>'
             + '<div class="qr-breakdown-foot">'
             + field('Descuento (%)', '<input class="wo-input" name="discount_pct" type="number" inputmode="decimal" min="0" max="100" step="1" value="' + esc(v.discountPct || '') + '" placeholder="0">')
@@ -1141,6 +1142,8 @@
         if (!active) return;
         var state = active.state;
         if (event.key === 'Escape') {
+            // Solo cierra este diálogo (no el panel de notas que pueda estar debajo).
+            if (event.stopPropagation) event.stopPropagation();
             if (state.busy) return;
             event.preventDefault();
             // Con cambios sin enviar, el primer Esc avisa y el segundo descarta.
@@ -1270,6 +1273,28 @@
         var quoteId = quote.quote_id || quote.id;
         setError('');
         $all('[aria-invalid="true"]').forEach(function (el) { el.removeAttribute('aria-invalid'); });
+
+        // Sin el contexto (falló al abrir) no se sabe si la propuesta ya tenía desglose
+        // y condiciones guardados: se vuelve a pedir antes de enviar nada.
+        if (!session.contextLoaded) {
+            setBusy(true);
+            var loaded = null;
+            try {
+                loaded = await loadContext(session);
+            } catch (error) {
+                if (active !== session) return;
+                setBusy(false);
+                setError('No pudimos cargar los datos guardados de esta propuesta. Revisa tu conexión e intenta de nuevo.');
+                return;
+            }
+            if (active !== session) return;
+            setBusy(false);
+            if (loaded.has_manual) {
+                setTab('condiciones');
+                setError('Cargamos el desglose y las condiciones que ya tenía esta propuesta. Revísalos y vuelve a enviarla.');
+                return;
+            }
+        }
 
         var payload = buildPayload(state);
         var checked = model.validateProposal(payload);
@@ -1416,8 +1441,27 @@
         if (state.tab === 'disponibilidad') renderCalendar();
     }
 
+    // Contexto del servidor: zona horaria y campos de la cotización manual ya
+    // guardados. Hasta que no llega, la propuesta no se envía (un envío sin el
+    // desglose guardado lo pisaría con uno vacío).
+    function loadContext(session) {
+        var quote = session.state.quote;
+        return Repo().context(quote.quote_id || quote.id).then(function (res) {
+            session.contextLoaded = true;
+            applyContext(session, res || {});
+            return res || {};
+        });
+    }
+
+    // Modo demo / preview estático: las cotizaciones de ejemplo no existen en el
+    // servidor, así que el expediente sigue con su diálogo anterior (datos simulados).
+    function isPreview() {
+        return window.WEOTZI_PREVIEW === true || !!(window.WoDemo && window.WoDemo.enabled);
+    }
+
     function open(ctx) {
         if (!M() || !B() || !Repo() || !ctx || !ctx.quote || !ctx.user) return false;
+        if (isPreview()) return false;
         var can = M().canPropose(ctx.quote);
         if (!can.ok) {
             if (typeof ctx.toast === 'function') ctx.toast(can.reason, { error: true });
@@ -1448,8 +1492,7 @@
         renderOffers();
         renderTemplates();
 
-        var quoteId = ctx.quote.quote_id || ctx.quote.id;
-        Repo().context(quoteId).then(function (res) { applyContext(session, res); }).catch(function (error) {
+        loadContext(session).catch(function (error) {
             console.warn('[quote-respond] contexto', error && error.message);
         });
         Repo().listTemplates(ctx.user.id).then(function (res) {

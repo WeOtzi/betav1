@@ -197,6 +197,11 @@ test('sin el modelo o el repositorio el diálogo no se hace cargo (queda el diá
     assert.equal(env.body.children.length, 0);
     const noRepo = makeEnv({ window: { WeotziData: {} } });
     assert.equal(loadDialog(noRepo).open(makeCtx().ctx), false);
+    // Modo demo: las cotizaciones de ejemplo no existen en el servidor.
+    const demo = makeEnv({ window: { WoDemo: { enabled: true } } });
+    assert.equal(loadDialog(demo).open(makeCtx().ctx), false);
+    assert.equal(demo.body.children.length, 0);
+    assert.equal(demo.calls.context, 0);
 });
 
 test('P25: en una cotización aprobada por ambas partes no se abre y explica por qué', () => {
@@ -442,6 +447,44 @@ test('validación antes de enviar: lleva a la pestaña y al campo con el error',
     assert.match(d.q('#qr-error').textContent, /hasta 2000 caracteres/);
     assert.equal(d.q('#qr-panel-mensaje').hidden, false);
     assert.equal(dialog.isOpen(), true);
+});
+
+test('P29: sin el contexto del servidor no se envía (no se pisa un desglose ya guardado)', async () => {
+    const env = makeEnv();
+    let attempts = 0;
+    env.repo.context = async () => {
+        attempts += 1;
+        if (attempts < 3) throw new Error('sin conexión');
+        return {
+            success: true, editable: true, timezone: TZ, has_manual: true, quotation: { offered_slots: [] },
+            extras: { items: [{ name: 'Sesión', qty: 1, price: 410000 }], discountPct: 0, taxPct: 0, policy: 'sin-sena', clientNotes: 'Nota previa', extraTerms: '', complexity: '', location: '' },
+        };
+    };
+    const dialog = loadDialog(env);
+    dialog.open(makeCtx().ctx);
+    const d = driver(env);
+    await flush();
+    assert.equal(attempts, 1, 'falló al abrir');
+    // 1.er intento de envío: el contexto sigue sin llegar → no se envía nada.
+    await d.submit();
+    await flush();
+    assert.equal(env.calls.saves.length, 0);
+    assert.match(d.q('#qr-error').textContent, /No pudimos cargar los datos guardados de esta propuesta/);
+    assert.equal(d.q('#qr-submit').disabled, false);
+    // 2.º intento: llega el desglose guardado → se muestra para revisarlo antes de enviar.
+    await d.submit();
+    await flush();
+    assert.equal(env.calls.saves.length, 0);
+    assert.match(d.q('#qr-error').textContent, /Revísalos y vuelve a enviarla/);
+    assert.equal(d.q('#qr-panel-condiciones').hidden, false);
+    assert.match(d.q('#qr-items').html, /name="item_name"[^>]*value="Sesión"/);
+    // 3.er intento: ahora sí, con el desglose y las condiciones que ya tenía.
+    await d.submit();
+    await flush();
+    assert.equal(env.calls.saves.length, 1);
+    assert.deepEqual(plain(env.calls.saves[0].payload.extras.items), [{ name: 'Sesión', description: '', qty: 1, price: 410000 }]);
+    assert.equal(env.calls.saves[0].payload.extras.policy, 'sin-sena');
+    assert.equal(env.calls.saves[0].payload.extras.client_notes, 'Nota previa');
 });
 
 test('P4: si el servidor rechaza fechas ocupadas, se marcan en la lista y el diálogo sigue abierto', async () => {

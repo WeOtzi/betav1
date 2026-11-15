@@ -163,6 +163,8 @@ html.qr-open { overflow: hidden; }
 .qr-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
 .qr-col-2 { grid-column: span 2; }
 .qr-col-4 { grid-column: 1 / -1; }
+/* Una etiqueta en dos líneas desalinearía los campos de la fila. */
+.qr-grid > .wo-field > .wo-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .qr-expiry { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); min-height: var(--control-h-md); }
 .qr-switch { display: inline-flex; align-items: center; gap: var(--space-3); font-size: var(--body-s-size); font-weight: var(--weight-semibold); cursor: pointer; }
@@ -288,8 +290,8 @@ html.qr-open { overflow: hidden; }
 .qr-chip.is-on { background: var(--neutral-500); color: var(--accent); }
 .qr-chip--var { border-width: var(--border-hairline); background: var(--neutral-100); }
 
-.qr-custom { display: grid; grid-template-columns: repeat(2, minmax(0, 116px)) auto; align-items: end; gap: var(--space-2); }
-.qr-custom-field { min-width: 0; display: grid; gap: var(--space-1); }
+.qr-custom { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); }
+.qr-custom-field { flex: 1 1 104px; max-width: 132px; min-width: 0; display: grid; gap: var(--space-1); }
 .qr-busy { display: grid; gap: var(--space-1); }
 .qr-busy ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; max-height: 60px; overflow-y: auto; color: var(--error-fg); font-size: 13px; }
 
@@ -443,6 +445,12 @@ html.qr-open { overflow: hidden; }
 .qsp-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 /* -------------------------------- responsive -------------------------------- */
+@media (max-width: 900px) {
+    /* Tablet vertical: el desglose necesita el ancho completo para sus cinco columnas. */
+    .qr-cond { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+    .qr-msg { grid-template-columns: minmax(0, 248px) minmax(0, 1fr); gap: var(--space-5); }
+}
+
 @media (max-width: 720px) {
     .qr-overlay { padding: 0; place-items: stretch; }
     .qr-dialog { width: 100%; max-height: none; height: 100vh; height: 100dvh; border: 0; box-shadow: none; }
@@ -474,8 +482,8 @@ html.qr-open { overflow: hidden; }
 @media (max-width: 420px) {
     .qr-grid { grid-template-columns: minmax(0, 1fr); }
     .qr-col-2 { grid-column: auto; }
-    .qr-custom { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .qr-custom .wo-btn { grid-column: 1 / -1; }
+    .qr-custom-field { max-width: none; }
+    .qr-custom .wo-btn { flex: 1 1 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

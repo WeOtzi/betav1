@@ -1219,7 +1219,7 @@
     // (artist_manual_quotes) sigue a la acordada; el panel de pagos prioriza esa fila. Silencioso.
     function syncAgreementExtras() {
         const repo = D().QuoteRespond;
-        if (!repo || state.scenario || !state.quote) return;
+        if (!repo || state.scenario || isPreviewEnv() || !state.quote) return;
         try {
             Promise.resolve(repo.syncAgreement(state.quote.quote_id || state.quote.id)).catch(() => {});
         } catch (_) { /* nunca rompe el acuerdo ya guardado */ }
