@@ -1,0 +1,74 @@
+[
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/zona-brazo.webp",
+    "prompt": "Editorial studio photograph of a person's bare arm from shoulder to fingertips, held slightly away from the body, natural untattooed skin, the person wears a plain black sleeveless t-shirt, torso partly visible, soft diffused daylight from the left, seamless warm sand-colored background, arm centered and filling the frame horizontally, shallow depth of field, calm minimalist mood, no text, no logos, no jewelry, no tattoos",
+    "aspect": "4:3",
+    "uso": "Cotizador · paso Cuerpo: foto de la zona completa BRAZO en la grilla de zonas"
+  },
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/zona-pierna.webp",
+    "prompt": "Editorial studio photograph of a person's legs from mid-thigh to bare feet, standing relaxed on a matte sand-colored floor, natural untattooed skin, the person wears plain black athletic shorts, soft diffused daylight, seamless warm sand-colored background, legs centered, calm minimalist mood, shallow depth of field, no text, no logos, no jewelry, no tattoos",
+    "aspect": "4:3",
+    "uso": "Cotizador · paso Cuerpo: foto de la zona completa PIERNA en la grilla de zonas"
+  },
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/zona-torso.webp",
+    "prompt": "Editorial studio photograph of the front torso of a person from collarbones to hips, arms relaxed at the sides, the person wears a fitted plain black tank top and high-waisted black trousers, collarbones and a little of the midriff visible, natural untattooed skin, soft diffused daylight, seamless warm sand-colored background, torso centered, face out of frame, calm minimalist mood, no text, no logos, no jewelry, no tattoos",
+    "aspect": "4:3",
+    "uso": "Cotizador · paso Cuerpo: foto de la zona completa TORSO en la grilla de zonas"
+  },
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/zona-espalda.webp",
+    "prompt": "Editorial studio photograph of the back of a person from the nape of the neck to the waist, seen from behind, the person wears a plain black racerback tank top that leaves the upper back and shoulder blades visible, hair tied up in a bun, natural untattooed skin, soft diffused daylight, seamless warm sand-colored background, back centered, calm minimalist mood, no text, no logos, no jewelry, no tattoos",
+    "aspect": "4:3",
+    "uso": "Cotizador · paso Cuerpo: foto de la zona completa ESPALDA en la grilla de zonas"
+  },
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/zona-cabeza.webp",
+    "prompt": "Editorial studio side-profile photograph of a person's head and neck, short hair tucked behind the ear so the ear, jawline, neck and nape are clearly visible, eyes looking ahead with a neutral expression, the person wears a plain black crew-neck t-shirt, natural untattooed skin, soft diffused daylight, seamless warm sand-colored background, head and neck centered, calm minimalist mood, no text, no logos, no jewelry, no tattoos",
+    "aspect": "4:3",
+    "uso": "Cotizador · paso Cuerpo: foto de la zona completa CABEZA (cuello, nuca, rostro) en la grilla de zonas"
+  },
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/tamano-micro.webp",
+    "prompt": "Close-up photograph of a real micro tattoo about 2 centimeters wide, a tiny fine-line black star, on the inner wrist of a person, the hand resting on a sand-colored linen surface, rolled-up white shirt cuff visible, the tattoo is very small compared to the wrist, healed matte ink, soft natural window light, sharp focus on the tattoo, wrist centered in a wide composition, no text, no lettering in the tattoo, no logos",
+    "aspect": "16:9",
+    "uso": "Cotizador · paso Tamaño: referencia real de un tatuaje MICRO (hasta 5 cm)"
+  },
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/tamano-pequeno.webp",
+    "prompt": "Close-up photograph of a real small tattoo about 6 centimeters tall, a simple black line-art wildflower, on the inner forearm near the wrist of a person, forearm resting on a sand-colored linen surface, rolled-up white shirt sleeve visible, the tattoo covers a small part of the forearm, healed matte ink, soft natural window light, sharp focus on the tattoo, forearm centered in a wide composition, no text, no lettering in the tattoo, no logos",
+    "aspect": "16:9",
+    "uso": "Cotizador · paso Tamaño: referencia real de un tatuaje PEQUEÑO (5–8 cm)"
+  },
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/tamano-mediano.webp",
+    "prompt": "Photograph of a real medium tattoo about 12 centimeters tall, a detailed blackwork botanical illustration of a fern branch, on the outer forearm of a person, the tattoo covers roughly half the length of the forearm, the person wears a plain black t-shirt with the sleeve rolled up, healed matte ink, soft natural window light, warm sand-colored background, sharp focus on the tattoo, forearm centered in a wide composition, no text, no lettering in the tattoo, no logos",
+    "aspect": "16:9",
+    "uso": "Cotizador · paso Tamaño: referencia real de un tatuaje MEDIANO (8–15 cm)"
+  },
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/tamano-grande.webp",
+    "prompt": "Photograph of a real large tattoo about 20 centimeters tall, a black and grey realistic rose with leaves, covering most of the outer upper arm of a person from below the shoulder to above the elbow, the person wears a plain black sleeveless t-shirt, healed matte ink, soft natural window light, warm sand-colored background, sharp focus on the tattoo, upper arm centered in a wide composition, no text, no lettering in the tattoo, no logos",
+    "aspect": "16:9",
+    "uso": "Cotizador · paso Tamaño: referencia real de un tatuaje GRANDE (15–25 cm)"
+  },
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/tamano-xl.webp",
+    "prompt": "Photograph of a real extra-large tattoo more than 25 centimeters tall, a Japanese-style koi fish with waves in black and grey with soft color accents, covering the whole outer thigh of a person from hip to knee, the person wears plain black athletic shorts and is seated sideways on a wooden stool, healed matte ink, soft natural window light, warm sand-colored background, sharp focus on the tattoo, thigh centered in a wide composition, no text, no lettering in the tattoo, no logos",
+    "aspect": "16:9",
+    "uso": "Cotizador · paso Tamaño: referencia real de un tatuaje XL (25+ cm)"
+  },
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/tamano-media-manga.webp",
+    "prompt": "Photograph of a real half-sleeve tattoo covering the arm of a person from the shoulder down to the elbow, black and grey ornamental and floral composition wrapping around the upper arm, the forearm is untattooed bare skin, the person wears a plain black sleeveless t-shirt and stands in three-quarter view, healed matte ink, soft natural window light, warm sand-colored background, sharp focus on the tattoo, arm centered in a wide composition, no text, no lettering in the tattoo, no logos",
+    "aspect": "16:9",
+    "uso": "Cotizador · paso Tamaño: referencia real de una MEDIA MANGA"
+  },
+  {
+    "path": "public/shared/assets/ronda2/cot-pasos/tamano-manga.webp",
+    "prompt": "Photograph of a real full-sleeve tattoo covering the entire arm of a person from the shoulder to the wrist, cohesive black and grey composition with flowers, waves and shading wrapping around the whole arm, the person wears a plain black sleeveless t-shirt and stands in three-quarter view with the arm relaxed, healed matte ink, soft natural window light, warm sand-colored background, sharp focus on the tattoo, full arm visible and centered in a wide composition, no text, no lettering in the tattoo, no logos",
+    "aspect": "16:9",
+    "uso": "Cotizador · paso Tamaño: referencia real de una MANGA completa"
+  }
+]

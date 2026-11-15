@@ -60,6 +60,7 @@ El archivo `server.js` expone los siguientes endpoints API:
     *   Pre-cotizador: `source = web_chat`, `quotation_medium = prequote` (el CHECK de `source` no acepta `prequote`).
 *   `POST /api/quotations/suggestions`: artistas sugeridos para una cotización sin artista (`lib/artist-matching.js`: estilo, ciudad/cercanía, presupuesto, verificado). Sin PII.
 *   `POST /api/quotations/intake/job-board`: publica la idea sin artista en el Job Board (requiere sesión de cliente; `401/403 { needs_account: true }`). Idempotente por borrador.
+*   `POST /api/quotations/style-suggestions`: `{ idea?, artist_styles?, limit? }` → estilos del catálogo `tattoo_styles` sugeridos por palabras clave (`public/shared/js/quotation-style-model.js`, compartido con el wizard) y los que trabaja el artista. Público, sin PII: la idea va en el cuerpo y no se guarda ni se registra. El paso Estilo de `/quotation` calcula lo mismo en el navegador (`quotation-style-step.js`); los pasos Cuerpo y Tamaño viven en `quotation-body-map.js` (silueta + zonas de `body_parts`) y `quotation-size-step.js`.
 *   Rate limit propio (no el `apiLimiter` global): 120 por borrador y 1500 por IP cada 15 min en el intake.
 
 ### Pre Cotizador

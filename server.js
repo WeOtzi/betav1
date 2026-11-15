@@ -6952,6 +6952,7 @@ require('./lib/routes/acceso').register(app); // ── acceso: bienvenida idemp
 // ── cot-form ── cotizador web: intake, sugerencias de artistas y Job Board.
 require('./lib/routes/cot-form').register(app, { driveMirror: mirrorQuoteFilesToDrive });
 require('./lib/routes/cot-cliente').register(app); // ── cot-cliente: claim + decisión del cliente
+require('./lib/routes/cot-pasos').register(app); // ── cot-pasos: estilos sugeridos según la idea (cotizador, sin PII)
 
 require('./lib/routes/verif-artista').register(app, { resolveBearerUser, getActiveSupportAgent: _getActiveSupportAgent, emailService, applicationBase }); // verif-artista
 

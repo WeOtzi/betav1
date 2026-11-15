@@ -200,11 +200,18 @@ const FIELD_PLACEHOLDERS = {
 const FIGMA_COLOR_OPTIONS = ['Black & Grey', 'Color', 'No estoy seguro'];
 
 // `ind` es la clase del rectángulo punteado que crece con el tamaño (Figma 04).
+// Ronda 2 (cot-pasos · P12): se suman Micro, Media manga y Manga. `img` es la
+// clave de la foto de referencia (/shared/assets/ronda2/cot-pasos/tamano-<img>.webp,
+// la dibuja quotation-size-step.js). Los valores nuevos se guardan como
+// "Micro", "Media Manga" y "Manga Completa" (los entiende lib/prequote-estimator.js).
 const FIGMA_SIZE_OPTIONS = [
-    { label: 'Pequeño', value: 'pequeño', subtitle: '5–8 cm', ind: 's' },
-    { label: 'Mediano', value: 'mediano', subtitle: '8–15 cm', ind: 'm' },
-    { label: 'Grande', value: 'grande', subtitle: '15–25 cm', ind: 'l' },
-    { label: 'XL', value: 'muy_grande', subtitle: '25+ cm', ind: 'xl' }
+    { label: 'Micro', value: 'micro', subtitle: 'Hasta 5 cm', ind: 'xs', img: 'micro' },
+    { label: 'Pequeño', value: 'pequeño', subtitle: '5–8 cm', ind: 's', img: 'pequeno' },
+    { label: 'Mediano', value: 'mediano', subtitle: '8–15 cm', ind: 'm', img: 'mediano' },
+    { label: 'Grande', value: 'grande', subtitle: '15–25 cm', ind: 'l', img: 'grande' },
+    { label: 'XL', value: 'muy_grande', subtitle: '25+ cm', ind: 'xl', img: 'xl' },
+    { label: 'Media manga', value: 'media manga', subtitle: 'Medio brazo o media pierna', ind: 'half', img: 'media-manga' },
+    { label: 'Manga', value: 'manga completa', subtitle: 'Brazo o pierna completos', ind: 'full', img: 'manga' }
 ];
 
 // Figma 01: los dos modos de entrada de la idea (286:9421 / 419:2321). Con
@@ -1377,6 +1384,11 @@ function renderWideOptions(q, options) {
 // Figma 04: 4 tamaños con indicador visual de escala (rectángulo punteado que
 // crece), nombre y rango centrados + enlace "No estoy seguro".
 function renderSizeCards(q) {
+    // Ronda 2 (cot-pasos · P12): tarjetas con foto de referencia y "No estoy
+    // seguro" con casilla de verificación (quotation-size-step.js).
+    if (window.WoQuotationSize) {
+        return window.WoQuotationSize.render({ field: q.field, value: formData[q.field], options: FIGMA_SIZE_OPTIONS });
+    }
     const unsure = formData[q.field] === 'No Estoy Seguro';
     return `
         <div class="q-size-grid">
@@ -2730,190 +2742,56 @@ function setTravel(val) {
 }
 
 
-// ============ SELECTOR DE ZONA (Figma 03) ============
-// El Figma muestra una grilla PLANA de zonas (BRAZO, ANTEBRAZO, MANO, PIERNA,
-// MUSLO, ESPALDA, PECHO, COSTILLAS, CUELLO, CABEZA) y, debajo, un panel con la
-// zona elegida y "¿DE QUÉ LADO?" (IZQUIERDO / DERECHO). No hay drill-down.
-// La grilla se aplana desde body_parts (zonas raíz + subzonas reales).
-
-function flattenBodyZones() {
-    const flat = [];
-    (BODY_PARTS_DATA || []).forEach((zone) => {
-        flat.push({
-            key: zone.id,
-            id: zone.id,
-            zoneId: zone.id,
-            label: zone.label,
-            zoneLabel: zone.label,
-            image: zone.image || '',
-            sides: zone.sides || 'both',
-            pain_level: zone.pain_level
-        });
-        (zone.subparts || []).forEach((part) => {
-            flat.push({
-                key: `${zone.id}::${part.id}`,
-                id: part.id,
-                zoneId: zone.id,
-                label: part.label,
-                zoneLabel: zone.label,
-                image: part.image || zone.image || '',
-                sides: part.sides || zone.sides || 'both',
-                pain_level: part.pain_level
-            });
-        });
-    });
-    return flat;
-}
+// ============ SELECTOR DE ZONA (Figma 03 · ronda 2, cot-pasos P11) ============
+// La pantalla la dibuja quotation-body-map.js (window.WoQuotationBody): silueta
+// humana seleccionable (frente y espalda, una <path> por parte individual),
+// grilla de zonas completas con su ficha (lado, dolor, subpartes, datos) y el
+// resumen debajo de la silueta. Acá queda el estado del wizard:
+//   selectedBodyParts = [{ part: 'antebrazo', side: 'left' | 'right' | null }]
+// y lo que se guarda en la cotización (tattoo_body_part / tattoo_body_side,
+// con el formato de siempre: "Zona: Subzona" + el lado en su columna).
 
 function setupBodySelector() {
-    renderBodyZones();
-    updateBodySidePanel();
-    updateBodySilhouette();
-}
-
-// Aside "Silueta corporal de referencia" (fragmento Figma 318:19919): el SVG
-// del maniquí vive en el template del HTML; cada segmento lleva en data-sil la
-// lista de keys reales de body_parts (zona raíz + subzonas) que representa y,
-// si aplica, data-sil-side. Acá solo se pinta el estado activo en azul.
-function updateBodySilhouette() {
-    const host = document.getElementById('body-silhouette');
+    const host = document.getElementById('body-selector');
     if (!host) return;
-
-    const selection = selectedBodyParts[0] || null;
-    // Zona raíz elegida (id === zone) → se pinta toda la zona; subzona elegida
-    // → solo el segmento de esa subzona (los segmentos llevan la key raíz
-    // ADEMÁS de las de sus subzonas).
-    let tokens = [];
-    if (selection) {
-        const isRoot = String(selection.id) === String(selection.zone);
-        tokens = (isRoot ? [selection.zone] : [selection.id])
-            .filter(Boolean).map((t) => String(t).toLowerCase());
+    if (!window.WoQuotationBody) {
+        host.innerHTML = '<p class="empty-sheet-msg">No pudimos cargar el selector de zonas. Recarga la página.</p>';
+        return;
     }
-    const side = selection && selection.side ? selection.side : null;
 
-    host.querySelectorAll('.q-sil-seg').forEach((seg) => {
-        const segTokens = (seg.dataset.sil || '').toLowerCase().split(/\s+/).filter(Boolean);
-        const matches = tokens.some((t) => segTokens.includes(t));
-        const segSide = seg.dataset.silSide || null;
-        const sideOk = !segSide || !side || segSide === side;
-        seg.classList.toggle('is-active', !!(matches && sideOk));
+    const before = JSON.stringify(selectedBodyParts || []);
+    selectedBodyParts = window.WoQuotationBody.mount(host, {
+        tree: BODY_PARTS_DATA,
+        selection: selectedBodyParts,
+        bodyPart: formData.tattoo_body_part,
+        bodySide: formData.tattoo_body_side,
+        onChange: (items) => {
+            selectedBodyParts = items;
+            commitBodySelection();
+        }
     });
-}
-
-// En mobile el aside se colapsa detrás de un enlace toggle.
-function toggleBodySilhouette() {
-    const aside = document.getElementById('body-silhouette');
-    const btn = document.querySelector('.q-body-aside-toggle');
-    if (!aside) return;
-    const open = aside.classList.toggle('is-open');
-    if (btn) btn.setAttribute('aria-expanded', String(open));
-}
-window.toggleBodySilhouette = toggleBodySilhouette;
-
-function renderBodyZones() {
-    const grid = document.getElementById('body-zones-grid');
-    if (!grid) return;
-
-    const zones = flattenBodyZones();
-    if (!zones.length) {
-        grid.innerHTML = '<p class="empty-sheet-msg">No hay zonas configuradas</p>';
-        return;
-    }
-
-    const selectedKey = selectedBodyParts.length ? selectedBodyParts[0].key : null;
-
-    grid.innerHTML = zones.map((zone) => `
-        <button type="button" class="q-zone-tile ${zone.key === selectedKey ? 'is-selected' : ''}"
-            data-zone-key="${escapeQuotationHtml(zone.key)}" onclick="selectBodyZone('${escapeQuotationHtml(zone.key).replace(/'/g, "\\'")}')">
-            <span class="q-zone-media ${zone.image ? '' : 'is-empty'}">
-                ${zone.image ? `<img src="${escapeQuotationHtml(zone.image)}" alt="" loading="lazy">` : ''}
-            </span>
-            <span class="q-zone-label">${escapeQuotationHtml(zone.label)}</span>
-        </button>`).join('');
-}
-
-function selectBodyZone(key) {
-    const zone = flattenBodyZones().find((z) => z.key === key);
-    if (!zone) return;
-
-    const previous = selectedBodyParts[0];
-    const side = previous && previous.key === key ? previous.side : null;
-
-    selectedBodyParts = [{
-        key: zone.key,
-        id: zone.id,
-        zone: zone.zoneId,
-        label: zone.label,
-        zoneLabel: zone.zoneLabel,
-        sides: zone.sides,
-        side: side || null,
-        sideLabel: side ? (side === 'left' ? 'Izquierdo' : 'Derecho') : null,
-        pain_level: zone.pain_level
-    }];
-
-    currentBodyZone = zone;
-    currentBodySide = side || null;
-
-    renderBodyZones();
-    updateBodySidePanel();
-    updateBodySilhouette();
-    commitBodySelection();
-}
-
-function handleSideChosen(side) {
-    if (!selectedBodyParts.length) return;
-    selectedBodyParts[0].side = side;
-    selectedBodyParts[0].sideLabel = side === 'left' ? 'Izquierdo' : 'Derecho';
-    currentBodySide = side;
-    updateBodySidePanel();
-    updateBodySilhouette();
-    commitBodySelection();
-}
-
-function updateBodySidePanel() {
-    const panel = document.getElementById('body-side-panel');
-    if (!panel) return;
-
-    const selection = selectedBodyParts[0];
-    if (!selection) {
-        panel.classList.add('hidden');
-        return;
-    }
-
-    panel.classList.remove('hidden');
-    const zoneEl = document.getElementById('body-side-zone');
-    if (zoneEl) zoneEl.textContent = selection.label;
-
-    const hasSides = selection.sides === 'both';
-    const label = document.getElementById('body-side-label');
-    const chips = document.getElementById('body-side-chips');
-    if (label) label.classList.toggle('hidden', !hasSides);
-    if (chips) {
-        chips.classList.toggle('hidden', !hasSides);
-        chips.querySelectorAll('[data-side]').forEach((el) => {
-            el.classList.toggle('is-active', el.dataset.side === selection.side);
-        });
-    }
+    // Borrador del wizard anterior (o texto del pre-cotizador) ya convertido
+    // al formato nuevo: se reescribe lo que se guarda.
+    if (selectedBodyParts.length && JSON.stringify(selectedBodyParts) !== before) commitBodySelection();
 }
 
 // Escribe la selección en formData con el mismo formato de texto que ya
 // consumen artista/backoffice ("Zona: Subzona") + el lado en su columna.
+// El texto lo arma WoQuotationBodyModel.describe (máx. 255 caracteres).
 function commitBodySelection() {
-    const selection = selectedBodyParts[0];
-    if (!selection) {
+    const body = window.WoQuotationBody;
+    const described = body && selectedBodyParts.length ? body.describe(selectedBodyParts, BODY_PARTS_DATA) : null;
+    if (!described || !described.count) {
+        const hadValue = !!formData.tattoo_body_part;
         formData.tattoo_body_part = null;
         formData.tattoo_body_side = null;
         formData.tattoo_body_parts_data = [];
+        if (hadValue) persistAnswer();
         return;
     }
 
-    const shared = window.WeotziQuotationShared;
-    const label = shared && typeof shared.formatBodyPartLabel === 'function'
-        ? shared.formatBodyPartLabel(selection.zoneLabel, selection.label)
-        : (selection.zoneLabel === selection.label ? selection.label : `${selection.zoneLabel}: ${selection.label}`);
-
-    formData.tattoo_body_part = toTitleCase(label);
-    formData.tattoo_body_side = selection.sideLabel || null;
+    formData.tattoo_body_part = described.bodyPart;
+    formData.tattoo_body_side = described.bodySide;
     formData.tattoo_body_parts_data = selectedBodyParts;
     persistAnswer();
 }
@@ -2922,9 +2800,7 @@ function removeBodyPart() {
     selectedBodyParts = [];
     currentBodyZone = null;
     currentBodySide = null;
-    renderBodyZones();
-    updateBodySidePanel();
-    updateBodySilhouette();
+    if (window.WoQuotationBody) window.WoQuotationBody.reset();
     commitBodySelection();
 }
 
@@ -2932,6 +2808,13 @@ function confirmBodyParts() {
     commitBodySelection();
     nextStep();
 }
+
+// Nombres del selector anterior que el wizard sigue exportando en window: la
+// zona, el lado y la silueta ahora se manejan dentro de WoQuotationBody.
+function selectBodyZone() {}
+function handleSideChosen() {}
+function toggleBodySilhouette() {}
+window.toggleBodySilhouette = toggleBodySilhouette;
 
 
 // ============ ESTILOS (Figma 02) ============
@@ -3007,6 +2890,21 @@ function renderStylesGrid(styles) {
     const grid = document.getElementById('styles-grid');
     if (!grid) return;
 
+    // Ronda 2 (cot-pasos · P10): primero los estilos del artista elegido, con
+    // la insignia "Artista"; sin artista, los que sugiere el análisis de la
+    // idea, con la etiqueta "Recomendado" (quotation-style-step.js).
+    if (window.WoQuotationStyle) {
+        const hasArtist = !!formData.artist_id && !formData.no_artist;
+        window.WoQuotationStyle.render(grid, styles, {
+            artistName: hasArtist ? toTitleCase(formData.artist_name || '') : '',
+            artistStyles: hasArtist ? (formData.artist_styles || (formData.artist_data && formData.artist_data.styles_array)) : null,
+            idea: formData.tattoo_idea_description || '',
+            isSelected: isStyleSelected,
+            onToggle: toggleStyleSelection
+        });
+        return;
+    }
+
     grid.innerHTML = styles.map((style) => {
         const selected = isStyleSelected(style.id);
         const cover = style.cover_image_url
@@ -3075,10 +2973,17 @@ function checkStyleMismatch() {
     const chosen = getSelectedStyles().map((s) => String(s.style_name || '').toLowerCase().trim()).filter(Boolean);
     if (!chosen.length) return;
 
-    const hasMatch = chosen.some((name) => artistStyles.some((s) => {
-        const clean = String(s).toLowerCase().trim();
-        return clean.includes(name) || name.includes(clean);
-    }));
+    // Mismo criterio que la insignia "Artista" (alias del catálogo incluidos):
+    // "Neotradicional" del artista es "Neo-Tradicional" del cotizador.
+    const styleModel = window.WoQuotationStyleModel;
+    const artistCatalogIds = styleModel
+        ? styleModel.matchArtistStyles(artistStyles, TATTOO_STYLES_DATA || []).map((style) => String(style.id))
+        : [];
+    const hasMatch = getSelectedStyles().some((s) => artistCatalogIds.includes(String(s.style_id))) ||
+        chosen.some((name) => artistStyles.some((s) => {
+            const clean = String(s).toLowerCase().trim();
+            return clean.includes(name) || name.includes(clean);
+        }));
 
     formData.style_mismatch_acknowledged = !hasMatch;
     if (!hasMatch) showToastMessage(`${artist.name} trabaja otros estilos, pero podés seguir con la cotización.`);

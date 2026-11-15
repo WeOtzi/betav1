@@ -155,6 +155,7 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `POST` | `/api/quotations/intake` | Autosave y envio del cotizador web (service role, llave `submission_key`). | `services/quotation-intake.js` |
 | `POST` | `/api/quotations/suggestions` | Artistas sugeridos para cotizar sin artista (sin PII). | `lib/artist-matching.js` |
 | `POST` | `/api/quotations/intake/job-board` | Publica la idea sin artista en el Job Board (sesion de cliente). | `lib/routes/cot-form.js` |
+| `POST` | `/api/quotations/style-suggestions` | Estilos sugeridos segun la idea del cliente y estilos del artista (palabras clave, sin IA ni PII). | `lib/routes/cot-pasos.js` |
 | `GET` | `/api/client-info` | Devuelve la IP **anonimizada** (IPv4 /24, IPv6 /48) y timestamp. | Request headers |
 | `POST` | `/api/session-log` | Recibe logs finales via `sendBeacon` y estima el país por zona horaria/idioma del navegador (`geo_hint`), sin enviar la IP a terceros. | Supabase |
 | `GET` | `/api/privacy/cookie-config` | Configuración pública del banner de cookies (`app_settings.cookie_consent_config`). | Supabase |

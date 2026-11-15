@@ -636,6 +636,7 @@ const ConfigManager = (function () {
                 description: item.description || '',
                 tattoo_info: item.tattoo_info || '',
                 experience_info: item.experience_info || '',
+                fun_fact: item.fun_fact || '',
                 sort_order: item.sort_order,
                 parent_id: item.parent_id,
                 // Expanded media settings
