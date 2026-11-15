@@ -189,6 +189,7 @@ async function loadQuotations() {
         // Render quotations
         renderQuotations();
         loadNextAppointment();
+        if (window.WoClientSessions) window.WoClientSessions.mount({ onOpenQuote: viewQuotationDetail }); // ── sesiones (ronda 2) ── panel "Mis sesiones"
         openQuotationFromQuery();
         
         // Load unread message counts

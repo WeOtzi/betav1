@@ -26,6 +26,7 @@
     <link rel="stylesheet" href="/shared/css/reviews.css">
     <link rel="stylesheet" href="/shared/css/client-dashboard-figma.css">
     <link rel="stylesheet" href="/shared/css/client-quote-proposal.css">
+    <link rel="stylesheet" href="/shared/css/wo-sessions.css?v=20261116-sesiones">
     <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
     <script src="/shared/js/wo-consent.js" defer></script>
 </head>
@@ -99,6 +100,10 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Mis sesiones (ronda 2): confirmar, pedir cambios, calificar y disputar.
+                 Lo pinta client-sessions.js; queda oculto si no hay sesiones. -->
+            <section class="client-sessions" id="mis-sesiones" aria-labelledby="ws-panel-title" hidden></section>
 
             <!-- Mis cotizaciones · panel al que llega el ítem COTIZACIONES del nav
                  (el Figma del dashboard no lo muestra embebido: se abre desde el nav) -->
@@ -321,6 +326,11 @@
     <script src="/shared/js/client-dashboard-reference.js"></script>
     <script src="/shared/js/quotation-payments-model.js"></script>
     <script src="/shared/js/client-quote-proposal.js"></script>
+    <!-- Sesiones (ronda 2): panel "Mis sesiones" del cliente -->
+    <script src="/shared/js/wo-session-model.js?v=20261116-sesiones"></script>
+    <script src="/shared/js/data/sessions-flow-repo.js?v=20261116-sesiones"></script>
+    <script src="/shared/js/wo-session-ui.js?v=20261116-sesiones"></script>
+    <script src="/shared/js/client-sessions.js?v=20261116-sesiones"></script>
     <script src="/shared/js/client-dashboard.js"></script>
 </body>
 </html>

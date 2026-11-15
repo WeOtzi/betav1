@@ -6970,6 +6970,7 @@ app.get('/travel/t/:slug', (req, res) => {
 require('./lib/routes/perfil').register(app, { publicDir: path.join(__dirname, 'public') });
 
 require('./lib/routes/turnos').register(app, { gcalService, startJob: require.main === module }); // ── turnos ── reservas online
+require('./lib/routes/sesiones').register(app, { gcalService }); // ── sesiones ── confirmación del cliente, cambios, ubicación y registro
 
 require('./lib/routes/estudio-registro').register(app, { applicationBase }); // frente estudio-registro: reclamos y bienvenida
 

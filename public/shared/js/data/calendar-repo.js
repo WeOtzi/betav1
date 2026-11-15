@@ -465,13 +465,31 @@
             notes: payload.notes ? String(payload.notes).trim() : null,
         };
         if (payload.location) patch.location = String(payload.location).trim();
+        // ── sesiones (ronda 2 · P27) ── origen de la dirección (sede de estudio,
+        // ubicación propia, la del cliente o Google Places). Solo si el editor
+        // lo informó: una dirección que ya estaba guardada conserva el suyo.
+        const meta = payload.location_meta;
+        if (payload.location && meta && meta.location_kind) {
+            patch.location_kind = meta.location_kind;
+            patch.location_ref = meta.location_ref || null;
+            patch.location_place_id = meta.location_place_id || null;
+        }
         return patch;
     }
+
+    const SESSION_LOCATION_META = ['location_kind', 'location_ref', 'location_place_id'];
 
     async function writeSession(label, patch, execute) {
         try {
             return await execute(patch);
         } catch (error) {
+            // Sin la migración 20261116150000: se guarda la dirección sin su origen.
+            if (SESSION_LOCATION_META.some((column) => column in patch && isMissingColumn(error, column))) {
+                console.warn(`[calendar] ${label}: faltan las columnas de origen de la ubicación; se guarda solo la dirección.`);
+                const copy = { ...patch };
+                SESSION_LOCATION_META.forEach((column) => { delete copy[column]; });
+                return writeSession(label, copy, execute);
+            }
             if (!('location' in patch) || !isMissingColumn(error, 'location')) throw error;
             console.warn(`[calendar] ${label}: falta quotation_sessions.location; se guarda sin ubicación.`);
             const copy = { ...patch };
