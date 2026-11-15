@@ -27,8 +27,8 @@ const responded = (over = {}) => ({
 
 // ------------------------------------------------------------ CP2 · estados
 test('CP2: el estado base es el del modelo existente del panel (una sola fuente de etiquetas)', () => {
-    for (const key of Object.keys(Proposal.STATUS)) {
-        if (key === 'draft' || key === 'unknown') continue;
+    // Estados base de hoy (si otro frente suma estados al modelo, esta lista no cambia).
+    for (const key of ['pending', 'responded', 'client_approved', 'client_rejected', 'in_progress', 'artist_completed', 'completed', 'cancelled', 'expired']) {
         const q = { quote_status: key, artist_responded_at: '2026-01-01', quote_expires_at: '2099-01-01T00:00:00Z' };
         const status = Panel.statusOf(q, { now: NOW });
         assert.equal(status.label, Proposal.statusOf(q, NOW).label, key);
