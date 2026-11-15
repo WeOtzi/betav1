@@ -2217,6 +2217,8 @@ const ADMIN_DATABASE_TABLES = [
     { name: 'inbox_thread_activity', description: 'Actividad auditable del inbox' },
     { name: 'user_notification_reads', description: 'Lecturas de notificaciones por usuario' },
     { name: 'client_profiles', description: 'Perfiles extendidos de clientes' },
+    { name: 'favorite_lists', description: 'Listas de favoritos de clientes' },
+    { name: 'favorite_items', description: 'Favoritos guardados en listas' },
     { name: 'client_favorites', description: 'Favoritos de clientes' },
     // Platform / ops
     { name: 'app_settings', description: 'Configuracion de la app' },
