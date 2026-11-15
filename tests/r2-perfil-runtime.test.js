@@ -107,8 +107,8 @@ test('N9: si Auth no responde, el perfil se muestra como a un visitante', async 
 // wo-share-cards.js en una VM con canvas falso
 // ---------------------------------------------------------------------------
 
-function fakeCanvasWorld({ imageOk = true, tainted = false, session = { user: { id: UID } }, demo = false, storedCard = null } = {}) {
-    const log = { text: [], images: [], rects: 0, canvases: [], uploads: [], scripts: [], storage: {} };
+function fakeCanvasWorld({ imageOk = true, tainted = false, session = { user: { id: UID } }, demo = false, storedCard = null, extra = {} } = {}) {
+    const log = { text: [], images: [], rects: 0, canvases: [], uploads: [], scripts: [], storage: {}, listeners: {} };
     function makeContext(canvas) {
         const ctx = {
             font: '10px sans-serif', fillStyle: '', strokeStyle: '', lineWidth: 1, textAlign: 'left', textBaseline: 'alphabetic', letterSpacing: '0px',
@@ -138,7 +138,7 @@ function fakeCanvasWorld({ imageOk = true, tainted = false, session = { user: { 
             }
             return { set src(v) { this._src = v; }, get src() { return this._src; } };
         },
-        addEventListener() {}
+        addEventListener(name, cb) { log.listeners[name] = cb; }
     };
     class FakeImage {
         set src(value) {
@@ -169,7 +169,8 @@ function fakeCanvasWorld({ imageOk = true, tainted = false, session = { user: { 
         location: { origin: 'https://beta.weotzi.com', pathname: '/artist/dashboard' },
         WeotziData: { ProfilePublic: repo },
         _supabase: { auth: { getSession: async () => ({ data: { session } }) } },
-        WoDemo: demo ? { enabled: true } : null
+        WoDemo: demo ? { enabled: true } : null,
+        ...(typeof extra === 'function' ? extra({ repo }) : extra)
     };
     sandbox.self = sandbox;
     vm.createContext(sandbox);
@@ -291,4 +292,209 @@ test('tarjeta OG: la sube solo el dueño, a su carpeta, y una vez por cambio', a
     const synced = fakeCanvasWorld({ storedCard: { og_path: `${UID}/og-card-1763240000000.jpg`, signature: sig } });
     assert.deepEqual(plain(await synced.Cards.syncOgCard(INPUT)), { uploaded: false, reason: 'al-dia' });
     assert.equal(synced.log.uploads.length, 0);
+});
+
+test('centro de la cuenta: al guardar "Mi perfil" se regenera la tarjeta con la URL corta', async () => {
+    const PublicUrl = require('../public/shared/js/artist-public-url.js');
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const fast = (fn, ms) => setTimeout(fn, Math.min(Number(ms) || 0, 5));
+    const account = (overrides = {}) => fakeCanvasWorld({
+        extra: ({ repo }) => ({
+            setTimeout: fast,
+            location: { origin: 'https://beta.weotzi.com', pathname: '/artist/account' },
+            WoArtistPublicUrl: PublicUrl,
+            WeotziData: {
+                ProfilePublic: repo,
+                Artists: { getPublicByUserId: async (userId) => ({ data: { ...ARTIST, user_id: userId }, error: null }) }
+            },
+            ...overrides
+        })
+    });
+
+    const world = account();
+    const onSave = world.log.listeners['wo:assist-refresh'];
+    assert.equal(typeof onSave, 'function', 'escucha las guardadas del centro de la cuenta');
+    onSave({ detail: { section: 'disponibilidad' } });
+    await wait(40);
+    assert.equal(world.log.uploads.length, 0, 'otras secciones no tocan la tarjeta');
+    // Varias guardadas seguidas (foto + datos) → una sola tarjeta.
+    onSave({ detail: { section: 'perfil' } });
+    onSave({ detail: { section: 'perfil' } });
+    onSave({ detail: { section: 'portafolio' } });
+    await wait(80);
+    assert.equal(world.log.uploads.length, 1);
+    assert.match(world.log.uploads[0].options.path, new RegExp(`^${UID}/og-card-\\d{13}\\.jpg$`));
+    assert.ok(world.log.text.some((t) => t.text === 'beta.weotzi.com/lauumarth'), 'la misma URL corta que usa el perfil');
+
+    // Sin la regla de URL corta (el script no carga) no se genera una tarjeta con otro enlace.
+    const noUrl = account({ WoArtistPublicUrl: undefined });
+    assert.equal(plain(await noUrl.Cards.syncForSession()).reason, 'sin-repo');
+    assert.ok(noUrl.log.scripts.some((src) => /\/shared\/js\/artist-public-url\.js$/.test(src)), 'intenta cargarla a demanda');
+    assert.equal(noUrl.log.uploads.length, 0);
+    // Sin sesión no hace nada.
+    const anon = fakeCanvasWorld({
+        session: null,
+        extra: ({ repo }) => ({ WoArtistPublicUrl: PublicUrl, WeotziData: { ProfilePublic: repo, Artists: { getPublicByUserId: async () => ({ data: ARTIST }) } } })
+    });
+    assert.equal(plain(await anon.Cards.syncForSession()).reason, 'sin-sesion');
+});
+
+// ---------------------------------------------------------------------------
+// wo-share-sheet.js: el toque en Instagram (nota N8)
+// ---------------------------------------------------------------------------
+
+function shareSheetWorld({ touch = false, canShareFiles = true, storyDelay = 0, storyFails = false, withCards = true } = {}) {
+    const log = { copied: [], shared: [], downloads: [], opened: [], tracked: [], order: [] };
+    // Los hijos se buscan sobre el mismo HTML del diálogo (el panel es parte de él).
+    const makeEl = () => ({
+        hidden: false, textContent: '', disabled: false, attrs: {}, width: 270, height: 480,
+        setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+        addEventListener() {}, focus() {}, querySelector(selector) { return dialog.querySelector(selector); },
+        getContext() { return { drawImage() {} }; }
+    });
+    const dialog = {
+        listeners: {}, html: '', els: {}, open: false, className: '',
+        set innerHTML(value) { this.html = value; this.els = {}; },
+        get innerHTML() { return this.html; },
+        querySelector(selector) {
+            const marker = selector.startsWith('.') ? selector.slice(1) : selector.slice(1, -1);
+            if (!this.html.includes(marker)) return null;
+            return this.els[selector] || (this.els[selector] = makeEl());
+        },
+        setAttribute() {}, removeAttribute() {}, contains() { return true; },
+        addEventListener(name, cb) { this.listeners[name] = cb; },
+        showModal() { this.open = true; }, close() { this.open = false; }
+    };
+    const sandbox = {
+        console: { log() {}, warn() {}, error() {} }, setTimeout, clearTimeout, Promise, Object, String, File,
+        URL: { createObjectURL: () => 'blob:historia', revokeObjectURL() {} },
+        document: {
+            documentElement: { classList: { add() {}, remove() {} } },
+            body: { appendChild() {} },
+            contains() { return false; },
+            createElement(tag) {
+                if (tag === 'dialog') return dialog;
+                return { set href(v) { this._href = v; }, get href() { return this._href; }, click() { log.downloads.push({ href: this._href, name: this.download }); log.order.push('download'); }, remove() {} };
+            }
+        },
+        navigator: {
+            clipboard: { writeText: async (text) => { log.copied.push(text); log.order.push('copy'); } },
+            share: touch || canShareFiles ? async (data) => { log.shared.push(data); log.order.push('share'); } : undefined,
+            canShare: (data) => canShareFiles && Array.isArray(data.files) && data.files.length === 1
+        },
+        matchMedia: () => ({ matches: touch }),
+        open: (url) => { log.opened.push(url); },
+        WoShareCards: withCards ? {
+            renderStory: (input) => new Promise((resolve, reject) => setTimeout(() => {
+                log.storyInput = input;
+                storyFails ? reject(new Error('sin canvas')) : resolve({ width: 1080, height: 1920 });
+            }, storyDelay)),
+            toBlob: async (canvas, type) => new Blob(['x'], { type }),
+            storyFileName: (name) => `historia-${name}.jpg`
+        } : undefined
+    };
+    sandbox.self = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(read('public', 'shared', 'js', 'wo-share-sheet.js'), sandbox, { filename: 'wo-share-sheet.js' });
+    const open = () => sandbox.WoShareSheet.open({
+        url: 'https://beta.weotzi.com/lauumarth', title: 'Lau · We Ötzi', text: 'Mira el perfil', name: 'Lau Marth', fileName: 'lauumarth',
+        story: withCards ? { artist: ARTIST, prefs: {} } : null,
+        onShare: (channel) => log.tracked.push(channel)
+    });
+    const click = (attrs) => dialog.listeners.click({
+        target: { closest: () => ({ getAttribute: (k) => (k in attrs ? attrs[k] : null), querySelector: () => null }) },
+        preventDefault() {}
+    });
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    return { log, dialog, open, click, wait };
+}
+
+test('N8: la hoja ofrece cinco destinos y ninguno es Mail, Telegram ni LinkedIn', async () => {
+    const { dialog, open, wait } = shareSheetWorld();
+    open();
+    await wait(10);
+    const nets = [...dialog.html.matchAll(/data-net="([a-z]+)"/g)].map((m) => m[1]);
+    assert.deepEqual(nets, ['whatsapp', 'instagram', 'facebook', 'x', 'qr']);
+    assert.doesNotMatch(dialog.html, /telegram|linkedin|mailto:|t\.me|>Mail</i);
+    assert.match(dialog.html, /aria-controls="wss-story"/);
+    assert.match(dialog.html, /Historia de Instagram/);
+    assert.equal(dialog.open, true);
+});
+
+test('N8 teléfono: Instagram comparte la imagen de la historia en el mismo toque y copia el enlace', async () => {
+    const { log, dialog, open, click, wait } = shareSheetWorld({ touch: true });
+    open();
+    await wait(15); // la imagen se prepara al abrir la hoja
+    assert.equal(log.storyInput.url, 'https://beta.weotzi.com/lauumarth');
+    click({ 'data-net': 'instagram' });
+    // Todo dentro del mismo click (sin esperar promesas): copia y menú del sistema.
+    assert.deepEqual(log.order, ['copy', 'share']);
+    assert.deepEqual(log.copied, ['https://beta.weotzi.com/lauumarth']);
+    assert.equal(log.shared.length, 1);
+    assert.equal(log.shared[0].files.length, 1);
+    assert.equal(log.shared[0].files[0].name, 'historia-lauumarth.jpg');
+    assert.equal(log.shared[0].files[0].type, 'image/jpeg');
+    assert.equal(log.shared[0].url, undefined, 'solo la imagen: así aparece Instagram Historias');
+    assert.deepEqual(log.opened, [], 'ya no abre instagram.com');
+    assert.equal(log.downloads.length, 0);
+    await wait(10);
+    assert.deepEqual(log.tracked, ['instagram', 'story']);
+    assert.equal(dialog.querySelector('[data-share-story]').hidden, false);
+    assert.match(dialog.querySelector('[data-story-note]').textContent, /pega el enlace: ya está copiado/);
+});
+
+test('N8 escritorio: Instagram descarga la imagen, copia el enlace y muestra los pasos', async () => {
+    const { log, dialog, open, click, wait } = shareSheetWorld({ touch: false });
+    open();
+    await wait(15);
+    click({ 'data-net': 'instagram' });
+    assert.deepEqual(log.order, ['copy', 'download']);
+    assert.equal(log.shared.length, 0, 'en escritorio no se abre el menú del sistema');
+    assert.deepEqual(log.downloads, [{ href: 'blob:historia', name: 'historia-lauumarth.jpg' }]);
+    await wait(10);
+    assert.equal(dialog.querySelector('[data-story-note]').textContent, 'Copiamos el enlace. Sube la imagen a tu historia y pega el enlace con el sticker de enlace.');
+    assert.equal(dialog.querySelector('[data-share-act="story-share"]').hidden, true);
+    assert.equal(dialog.querySelector('[data-share-act="story-download"]').disabled, false);
+    // Otro toque no vuelve a descargar sola; el botón "Descargar imagen", sí.
+    click({ 'data-net': 'instagram' });
+    assert.equal(log.downloads.length, 1);
+    click({ 'data-share-act': 'story-download' });
+    assert.equal(log.downloads.length, 2);
+
+    // La imagen todavía se está generando al tocar: se descarga cuando termina.
+    const slow = shareSheetWorld({ touch: false, storyDelay: 30 });
+    slow.open();
+    slow.click({ 'data-net': 'instagram' });
+    assert.equal(slow.log.downloads.length, 0);
+    assert.equal(slow.dialog.querySelector('[data-share-act="story-download"]').disabled, true);
+    await slow.wait(70);
+    assert.equal(slow.log.downloads.length, 1);
+    assert.equal(slow.dialog.querySelector('[data-share-act="story-download"]').disabled, false);
+});
+
+test('N8 respaldos: sin imagen o sin compositor el enlace igual queda copiado', async () => {
+    // El canvas falla: se avisa y no se descarga nada.
+    const failed = shareSheetWorld({ touch: false, storyFails: true });
+    failed.open();
+    await failed.wait(15);
+    failed.click({ 'data-net': 'instagram' });
+    await failed.wait(10);
+    assert.deepEqual(failed.log.copied, ['https://beta.weotzi.com/lauumarth']);
+    assert.equal(failed.log.downloads.length, 0);
+    assert.match(failed.dialog.querySelector('[data-story-wait]').textContent, /No pudimos crear la imagen/);
+    // Teléfono sin poder compartir archivos: queda el panel con "Descargar imagen".
+    const noFiles = shareSheetWorld({ touch: true, canShareFiles: false });
+    noFiles.open();
+    await noFiles.wait(15);
+    noFiles.click({ 'data-net': 'instagram' });
+    assert.equal(noFiles.log.shared.length, 0);
+    assert.equal(noFiles.dialog.querySelector('[data-share-story]').hidden, false);
+    assert.equal(noFiles.dialog.querySelector('[data-share-act="story-share"]').hidden, true);
+    // Sin wo-share-cards.js (otra página): copia y abre Instagram, como antes.
+    const bare = shareSheetWorld({ withCards: false });
+    bare.open();
+    bare.click({ 'data-net': 'instagram' });
+    assert.deepEqual(bare.log.copied, ['https://beta.weotzi.com/lauumarth']);
+    assert.deepEqual(bare.log.opened, ['https://www.instagram.com/']);
+    assert.doesNotMatch(bare.dialog.html, /wss-story/);
 });
