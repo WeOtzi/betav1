@@ -88,10 +88,22 @@
                     ' aria-pressed="' + (selected ? 'true' : 'false') + '">' +
                     '<span class="style-card-cover">' + cover + '</span>' +
                     (badge ? '<span class="qp-style-badge qp-style-badge--' + item.badge + '">' + badge.label + '</span>' : '') +
-                    (selected ? '<span class="style-check">' + CHECK_SVG + '</span>' : '') +
+                    // Siempre presente; el CSS lo muestra solo en la tarjeta elegida.
+                    '<span class="style-check" aria-hidden="true">' + CHECK_SVG + '</span>' +
                 '</button>' +
                 '<p class="style-card-title' + (selected ? ' is-selected' : '') + '">' + esc(style.name) + '</p>' +
             '</div>';
+    }
+
+    function updateSelection(grid, isSelected) {
+        var cards = grid.querySelectorAll('.style-card[data-style-id]');
+        for (var i = 0; i < cards.length; i++) {
+            var selected = !!isSelected(cards[i].getAttribute('data-style-id'));
+            cards[i].classList.toggle('selected', selected);
+            cards[i].setAttribute('aria-pressed', selected ? 'true' : 'false');
+            var title = cards[i].parentNode ? cards[i].parentNode.querySelector('.style-card-title') : null;
+            if (title) title.classList.toggle('is-selected', selected);
+        }
     }
 
     function ensureHint(grid) {
@@ -144,7 +156,6 @@
         grid.setAttribute('role', 'group');
         grid.setAttribute('aria-label', 'Estilos de tatuaje');
         grid.dataset.styleMode = view.mode;
-        grid.innerHTML = view.items.map(function (item) { return cardHtml(item, !!isSelected(item.style.id)); }).join('');
         bind(grid, ctx || {});
 
         var hint = ensureHint(grid);
@@ -153,6 +164,16 @@
             if (hint.textContent !== text) hint.textContent = text;
             hint.hidden = !text;
         }
+
+        // Mismo orden que lo ya dibujado (un clic en una tarjeta): solo se
+        // actualiza el estado, sin reconstruir la grilla ni recargar portadas.
+        var orderKey = view.items.map(function (item) { return item.style.id + ':' + (item.badge || '') + ':' + (item.matches || []).join(','); }).join('|');
+        if (grid._woStyleKey === orderKey && grid.querySelector('.style-card[data-style-id]')) {
+            updateSelection(grid, isSelected);
+            return view;
+        }
+        grid._woStyleKey = orderKey;
+        grid.innerHTML = view.items.map(function (item) { return cardHtml(item, !!isSelected(item.style.id)); }).join('');
 
         if (focusedId) {
             var buttons = grid.querySelectorAll('.style-card[data-style-id]');

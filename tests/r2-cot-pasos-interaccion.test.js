@@ -166,8 +166,11 @@ test('silueta con teclado: flechas para moverse, Espacio o Enter para elegir sin
 test('grilla: elegir una zona abre su ficha; al confirmar vuelve la grilla con la zona resaltada', () => {
     const p = bodyPage();
     assert.equal(p.$$('[data-qp-zone]').length, 3);
+    assert.ok(!p.$('[data-qp-grid]').classList.contains('hidden'));
+    assert.ok(p.$('[data-qp-panel-slot]').classList.contains('hidden'));
     p.$('[data-qp-zone="brazo"]').click();
-    assert.equal(p.$$('[data-qp-zone]').length, 0, 'la ficha reemplaza a la grilla');
+    assert.ok(p.$('[data-qp-grid]').classList.contains('hidden'), 'la ficha ocupa el lugar de la grilla');
+    assert.ok(!p.$('[data-qp-panel-slot]').classList.contains('hidden'));
     assert.ok(p.$('[data-qp-panel]'));
     assert.equal(p.document.activeElement, p.$('#qp-panel-title'));
     assert.equal(p.$('#qp-panel-title').textContent, 'Brazo');
@@ -213,6 +216,7 @@ test('grilla: elegir una zona abre su ficha; al confirmar vuelve la grilla con l
     assert.equal(p.last().info.bodySide, 'Izquierdo');
     // Vuelve la grilla, con la zona resaltada y el foco en su tarjeta.
     assert.equal(p.$('[data-qp-panel]'), null);
+    assert.ok(!p.$('[data-qp-grid]').classList.contains('hidden'));
     const tile = p.$('[data-qp-zone="brazo"]');
     assert.ok(tile.classList.contains('is-selected'));
     assert.equal(tile.getAttribute('aria-pressed'), 'true');
@@ -233,7 +237,8 @@ test('ficha: editar una zona elegida, quitarla y cancelar', () => {
     // Cancelar (o Escape) no cambia nada.
     p.$('[data-qp-action="cancel"]').click();
     assert.equal(p.state.changes.length, 0);
-    assert.equal(p.$$('[data-qp-zone]').length, 3);
+    assert.ok(!p.$('[data-qp-grid]').classList.contains('hidden'));
+    assert.equal(p.$('[data-qp-panel]'), null);
     p.$('[data-qp-zone="brazo"]').click();
     key(p.$('#qp-panel-title'), 'Escape');
     assert.equal(p.$('[data-qp-panel]'), null);
@@ -380,6 +385,19 @@ test('fotos de zona: local → la de body_parts → silueta de respaldo', () => 
     img().dispatchEvent(createEvent('error'));
     assert.equal(img(), null);
     assert.ok(tile.querySelector('.qp-mini-svg'));
+    // Elegir partes no vuelve a dibujar la grilla (ni a pedir la foto que falló).
+    const torsoImg = p.$('[data-qp-zone="torso"]').querySelector('.qp-zone-img');
+    p.shape('front', 'mano', 'left').click();
+    assert.equal(p.$('[data-qp-zone="brazo"]'), tile, 'la tarjeta es el mismo nodo');
+    assert.equal(img(), null);
+    assert.equal(p.$('[data-qp-zone="torso"]').querySelector('.qp-zone-img'), torsoImg);
+    assert.ok(tile.classList.contains('is-selected'));
+    assert.equal(tile.querySelector('.qp-zone-state').textContent, 'lado izquierdo · Mano');
+    assert.equal(tile.getAttribute('aria-label'), 'Brazo. En tu selección: lado izquierdo · Mano. Pulsa para editar.');
+    p.shape('front', 'mano', 'left').click();
+    assert.ok(!tile.classList.contains('is-selected'));
+    assert.equal(tile.querySelector('.qp-zone-state').textContent, '7 subpartes');
+    assert.equal(tile.getAttribute('aria-pressed'), 'false');
     // Zona sin foto en body_parts: un solo intento.
     const torso = p.$('[data-qp-zone="torso"]').querySelector('.qp-zone-img');
     assert.equal(torso.hasAttribute('data-qp-alt-src'), false);
@@ -419,16 +437,22 @@ test('estilos: la grilla se ordena, avisa el motivo, delega el clic y conserva e
     assert.equal(hint.textContent, 'Primero ves los estilos que trabaja Ana Tinta, marcados con «Artista».');
     assert.equal(grid.dataset.styleMode, 'artist');
 
-    cards()[0].focus();
-    cards()[0].click();
+    const firstCard = cards()[0];
+    const cover = grid.querySelector('.style-card-img');
+    firstCard.focus();
+    firstCard.click();
     assert.deepEqual(toggles, ['s2']);
-    assert.equal(cards()[0].getAttribute('aria-pressed'), 'true');
-    assert.ok(cards()[0].querySelector('.style-check'));
-    assert.equal(document.activeElement, cards()[0], 'tras redibujar, el foco sigue en la misma tarjeta');
+    assert.equal(cards()[0], firstCard, 'un clic no reconstruye la grilla (las portadas no parpadean)');
+    assert.equal(grid.querySelector('.style-card-img'), cover);
+    assert.equal(firstCard.getAttribute('aria-pressed'), 'true');
+    assert.ok(firstCard.classList.contains('selected'));
+    assert.ok(firstCard.parentNode.querySelector('.style-card-title').classList.contains('is-selected'));
+    assert.equal(document.activeElement, firstCard, 'el foco sigue en la misma tarjeta');
     assert.equal(block.querySelectorAll('.qp-style-hint').length, 1, 'no duplica el aviso ni los listeners');
     cards()[0].click();
     assert.deepEqual(toggles, ['s2', 's2']);
     assert.equal(cards()[0].getAttribute('aria-pressed'), 'false');
+    assert.ok(!cards()[0].classList.contains('selected'));
 
     // Portada rota → ícono de respaldo.
     const img = grid.querySelector('.style-card-img');
@@ -484,4 +508,116 @@ test('tamaños: elegir marca la tarjeta y la casilla de "No estoy seguro"; la fo
     assert.equal(cards()[0].querySelector('.qp-size-img'), null);
     assert.ok(cards()[0].querySelector('.qp-scale-svg'), 'queda la silueta con la marca a escala');
     assert.doesNotThrow(() => window.WoQuotationSize.imageFailed(null));
+});
+
+// ---------------------------------------------------------------------------
+// Wizard real (script.js) + selector, sobre el mini DOM
+// ---------------------------------------------------------------------------
+function wizardPage() {
+    const document = createDocument();
+    const sandbox = {
+        console, document, URLSearchParams, setTimeout, clearTimeout, Uint8Array, Math, Promise,
+        addEventListener() {}, scrollTo() {}, location: { search: '' },
+        crypto: { getRandomValues: (b) => b },
+        localStorage: { getItem: () => null, setItem() {}, removeItem() {} }
+    };
+    sandbox.window = sandbox;
+    sandbox.self = sandbox;
+    const context = vm.createContext(sandbox);
+    for (const file of ['quotation-body-model.js', 'quotation-body-figure.js', 'quotation-body-map.js', 'script.js']) {
+        vm.runInContext(read('public', 'shared', 'js', file), context);
+    }
+    context.__tree = TREE;
+    vm.runInContext('persisted = 0; persistAnswer = () => { persisted += 1; }; BODY_PARTS_DATA = __tree;', context);
+    const host = document.createElement('div');
+    host.setAttribute('id', 'body-selector');
+    document.body.appendChild(host);
+    const next = document.createElement('button');
+    next.setAttribute('id', 'continue-btn');
+    document.body.appendChild(next);
+    // Lo que hace nextStep() antes de avanzar: validar la pantalla.
+    const results = [];
+    next.addEventListener('click', () => {
+        results.push(plain(vm.runInContext("collectScreenValues({ id: 'body', title: '', questions: [{ id: 4, step: 'body-part', type: 'body-selector', field: 'tattoo_body_part' }] })", context)));
+    });
+    const get = (expr) => plain(vm.runInContext(expr, context));
+    return { document, context, host, next, results, get };
+}
+
+test('wizard: montar, elegir en la silueta y en la grilla, y validar al continuar', () => {
+    const w = wizardPage();
+    vm.runInContext('setupBodySelector();', w.context);
+    assert.ok(w.host.classList.contains('qp-body'));
+    assert.equal(w.host.querySelectorAll('.qp-fig-svg').length, 2);
+    assert.equal(w.get('persisted'), 0, 'montar no guarda nada');
+
+    // Sin nada elegido, el wizard no deja continuar.
+    w.next.click();
+    assert.equal(w.results[0].ok, false);
+
+    // Silueta: antebrazo izquierdo.
+    const forearm = w.host.querySelectorAll('.qp-fig-part[data-part="antebrazo"]').find((n) => n.getAttribute('data-side') === 'left');
+    forearm.click();
+    assert.deepEqual(w.get('selectedBodyParts'), [{ part: 'antebrazo', side: 'left' }]);
+    assert.equal(w.get('formData.tattoo_body_part'), 'Brazo: Antebrazo');
+    assert.equal(w.get('formData.tattoo_body_side'), 'Izquierdo');
+    assert.equal(w.get('persisted'), 1);
+    w.next.click();
+    assert.deepEqual(w.results[1], { ok: true });
+
+    // Grilla: torso sin el abdomen; "Continuar" confirma la ficha que se estaba completando.
+    w.host.querySelector('[data-qp-zone="torso"]').click();
+    const box = w.host.querySelectorAll('[data-qp-part]').find((b) => b.value === 'abdomen');
+    box.checked = false; box.dispatchEvent(createEvent('change', { bubbles: true }));
+    w.next.click();
+    assert.deepEqual(w.results[2], { ok: true });
+    assert.equal(w.get('formData.tattoo_body_part'), 'Brazo (izq.): Antebrazo + Torso (ambos lados): Pecho, Costillas');
+    assert.equal(w.get('formData.tattoo_body_side'), null);
+    assert.ok(w.get('formData.tattoo_body_part').length <= 255);
+    assert.equal(w.get('preparePayload().tattoo_body_part'), w.get('formData.tattoo_body_part'));
+
+    // Volver a la pantalla (contenedor nuevo): la selección se conserva.
+    const again = w.document.createElement('div');
+    again.setAttribute('id', 'body-selector');
+    w.document.body.removeChild(w.host);
+    w.document.body.appendChild(again);
+    const before = w.get('persisted');
+    vm.runInContext('setupBodySelector();', w.context);
+    assert.equal(w.get('persisted'), before, 'remontar con el mismo formato no vuelve a guardar');
+    // Antebrazo izquierdo (frente y espalda) + costillas de ambos lados + pecho
+    // de ambos lados, que en este catálogo sin "clavícula" ocupa dos formas por lado.
+    assert.equal(again.querySelectorAll('.qp-fig-part.is-selected').length, 2 + 2 + 4);
+    assert.ok(again.querySelector('[data-qp-zone="torso"]').classList.contains('is-selected'));
+
+    // Reinicio del wizard.
+    vm.runInContext('removeBodyPart();', w.context);
+    assert.deepEqual(w.get('selectedBodyParts'), []);
+    assert.equal(w.get('formData.tattoo_body_part'), null);
+    assert.equal(again.querySelectorAll('.qp-fig-part.is-selected').length, 0);
+});
+
+test('wizard: borrador del selector anterior y texto del pre-cotizador', () => {
+    const legacy = wizardPage();
+    vm.runInContext(`selectedBodyParts = [{ key: 'brazo::mano', id: 'mano', zone: 'brazo', label: 'Mano', zoneLabel: 'Brazo', sides: 'both', side: 'right', sideLabel: 'Derecho' }];
+        formData.tattoo_body_part = 'Brazo: Mano'; formData.tattoo_body_side = 'Derecho'; setupBodySelector();`, legacy.context);
+    assert.deepEqual(legacy.get('selectedBodyParts'), [{ part: 'mano', side: 'right' }]);
+    assert.equal(legacy.get('formData.tattoo_body_part'), 'Brazo: Mano');
+    assert.equal(legacy.get('formData.tattoo_body_side'), 'Derecho');
+    assert.equal(legacy.get('persisted'), 1, 'el borrador convertido se reescribe una vez');
+
+    const pre = wizardPage();
+    vm.runInContext("formData.tattoo_body_part = 'Brazo: Antebrazo'; formData.tattoo_body_side = null; setupBodySelector();", pre.context);
+    assert.deepEqual(pre.get('selectedBodyParts'), []);
+    assert.equal(pre.get('formData.tattoo_body_part'), 'Brazo: Antebrazo', 'no se pisa lo que venía del pre-cotizador');
+    assert.equal(pre.host.querySelector('#qp-panel-title').textContent, 'Brazo');
+    // Continuar sin lado: la ficha frena el avance (el handler del botón no corre).
+    pre.next.click();
+    assert.equal(pre.results.length, 0);
+    assert.equal(pre.host.querySelector('[data-qp-error]').textContent, 'Elige de qué lado va el tatuaje.');
+    const left = pre.host.querySelectorAll('[data-qp-side]').find((r) => r.value === 'left');
+    left.checked = true; left.dispatchEvent(createEvent('change', { bubbles: true }));
+    pre.next.click();
+    assert.deepEqual(pre.results, [{ ok: true }]);
+    assert.equal(pre.get('formData.tattoo_body_part'), 'Brazo: Antebrazo');
+    assert.equal(pre.get('formData.tattoo_body_side'), 'Izquierdo');
 });

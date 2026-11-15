@@ -42,6 +42,8 @@
 
     var state = null;
     var guardInstalled = false;
+    // Fotos que ya fallaron en esta visita: no se vuelven a pedir.
+    var failedImages = {};
 
     function model() { return window.WoQuotationBodyModel; }
     function figure() { return window.WoQuotationBodyFigure; }
@@ -134,7 +136,12 @@
                     '</div>' +
                     '<div class="qp-body-summary" data-qp-summary></div>' +
                 '</aside>' +
-                '<div class="qp-body-main" data-qp-main></div>' +
+                // La grilla se dibuja una sola vez y se oculta mientras hay una
+                // ficha abierta: así las fotos no se recargan ni parpadean.
+                '<div class="qp-body-main" data-qp-main>' +
+                    '<div data-qp-grid>' + gridHtml() + '</div>' +
+                    '<div data-qp-panel-slot class="hidden"></div>' +
+                '</div>' +
             '</div>';
     }
 
@@ -221,24 +228,48 @@
         return info ? info.summary : '';
     }
 
+    function tileLabel(zone, summary) {
+        return zone.label + (summary ? '. En tu selección: ' + summary + '. Pulsa para editar.' : '. Pulsa para elegir lado y subpartes.');
+    }
+
+    function tileStateText(zone, summary) {
+        return summary || (zone.parts.length > 1 ? zone.parts.length + ' subpartes' : '');
+    }
+
     function zoneTileHtml(zone) {
         var summary = zoneStateText(zone.id);
         var selected = !!summary;
-        var local = ZONE_PHOTOS[zone.id] ? ASSET_BASE + ZONE_PHOTOS[zone.id] : '';
-        var remote = safeImage(zone.image);
-        var src = local || remote;
+        // Foto local del frente → la de body_parts → (sin foto) silueta recortada.
+        var candidates = [ZONE_PHOTOS[zone.id] ? ASSET_BASE + ZONE_PHOTOS[zone.id] : '', safeImage(zone.image)]
+            .filter(function (url) { return url && !failedImages[url]; });
         return '' +
             '<button type="button" class="q-zone-tile qp-zone-tile' + (selected ? ' is-selected' : '') + '"' +
                 ' data-qp-zone="' + esc(zone.id) + '" aria-pressed="' + (selected ? 'true' : 'false') + '"' +
-                ' aria-label="' + esc(zone.label + (selected ? '. En tu selección: ' + summary + '. Pulsa para editar.' : '. Pulsa para elegir lado y subpartes.')) + '">' +
+                ' aria-label="' + esc(tileLabel(zone, summary)) + '">' +
                 '<span class="q-zone-media qp-zone-media">' +
                     '<span class="qp-zone-fallback">' + zoneFallbackSvg(zone) + '</span>' +
-                    (src ? '<img class="qp-zone-img" src="' + esc(src) + '"' + (local && remote ? ' data-qp-alt-src="' + esc(remote) + '"' : '') + ' alt="" loading="lazy" decoding="async">' : '') +
+                    (candidates.length ? '<img class="qp-zone-img" src="' + esc(candidates[0]) + '"' + (candidates[1] ? ' data-qp-alt-src="' + esc(candidates[1]) + '"' : '') + ' alt="" loading="lazy" decoding="async">' : '') +
                     '<span class="qp-zone-check" aria-hidden="true">' + CHECK_SVG + '</span>' +
                 '</span>' +
                 '<span class="q-zone-label">' + esc(zone.label) + '</span>' +
-                '<span class="qp-zone-state">' + esc(selected ? summary : zone.parts.length > 1 ? zone.parts.length + ' subpartes' : '') + '</span>' +
+                '<span class="qp-zone-state">' + esc(tileStateText(zone, summary)) + '</span>' +
             '</button>';
+    }
+
+    // Actualiza las tarjetas ya dibujadas (sin reconstruirlas ni recargar fotos).
+    function updateTiles() {
+        var M = model();
+        var tiles = state.host.querySelectorAll('[data-qp-zone]');
+        for (var i = 0; i < tiles.length; i++) {
+            var zone = M.zoneById(state.catalog, tiles[i].getAttribute('data-qp-zone'));
+            if (!zone) continue;
+            var summary = zoneStateText(zone.id);
+            tiles[i].classList.toggle('is-selected', !!summary);
+            tiles[i].setAttribute('aria-pressed', summary ? 'true' : 'false');
+            tiles[i].setAttribute('aria-label', tileLabel(zone, summary));
+            var label = tiles[i].querySelector('.qp-zone-state');
+            if (label) label.textContent = tileStateText(zone, summary);
+        }
     }
 
     function gridHtml() {
@@ -345,7 +376,7 @@
     function panelHtml() {
         var M = model();
         var zone = M.zoneById(state.catalog, state.openZone);
-        if (!zone) return gridHtml();
+        if (!zone) return '';
         var editing = M.zoneState(state.selection, state.catalog, zone.id).selected;
         var range = M.painRange(state.catalog, state.draft.parts.length ? state.draft.parts : zone.parts.map(function (part) { return part.id; }));
         return '' +
@@ -370,10 +401,16 @@
             '</section>';
     }
 
+    // Muestra la ficha de la zona abierta o la grilla (que solo se actualiza).
     function renderMain() {
-        var main = state.host.querySelector('[data-qp-main]');
-        if (!main) return;
-        main.innerHTML = state.openZone ? panelHtml() : gridHtml();
+        var grid = state.host.querySelector('[data-qp-grid]');
+        var slot = state.host.querySelector('[data-qp-panel-slot]');
+        if (!grid || !slot) return;
+        var open = !!state.openZone;
+        slot.innerHTML = open ? panelHtml() : '';
+        slot.classList.toggle('hidden', !open);
+        grid.classList.toggle('hidden', open);
+        updateTiles();
     }
 
     function setStatus(message) {
@@ -395,9 +432,26 @@
         }
     }
 
-    function focusIn(selector) {
-        var node = state.host.querySelector(selector);
-        if (node && typeof node.focus === 'function') node.focus({ preventScroll: false });
+    function focusNode(node, preventScroll) {
+        if (node && typeof node.focus === 'function') node.focus({ preventScroll: !!preventScroll });
+    }
+
+    function focusIn(selector, preventScroll) {
+        focusNode(state.host.querySelector(selector), preventScroll);
+    }
+
+    // Busca por valor de atributo sin armar un selector con datos del catálogo.
+    function findByAttribute(name, value) {
+        var nodes = state.host.querySelectorAll('[' + name + ']');
+        for (var i = 0; i < nodes.length; i++) {
+            if (nodes[i].getAttribute(name) === String(value)) return nodes[i];
+        }
+        return null;
+    }
+
+    function scrollBehavior() {
+        var reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        return reduce ? 'auto' : 'smooth';
     }
 
     function openZone(zoneId, presetParts) {
@@ -413,9 +467,14 @@
         renderMain();
         refresh();
         setStatus(zone.label + (M.needsSide(state.catalog, zone.id) ? ': elige el lado, revisa las subpartes y confirma.' : ': revisa las subpartes y confirma.'));
+        // En pantallas chicas la ficha queda debajo de la silueta: se trae a la
+        // vista (desde arriba si no entra completa).
         var panel = state.host.querySelector('[data-qp-panel]');
-        if (panel && typeof panel.scrollIntoView === 'function') panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        focusIn('#qp-panel-title');
+        if (panel && typeof panel.scrollIntoView === 'function') {
+            var fits = panel.getBoundingClientRect().height <= (window.innerHeight || 0);
+            panel.scrollIntoView({ block: fits ? 'nearest' : 'start', behavior: scrollBehavior() });
+        }
+        focusIn('#qp-panel-title', true);
     }
 
     function closePanel(focusZoneId) {
@@ -425,7 +484,7 @@
         state.error = '';
         renderMain();
         refresh();
-        if (focusZoneId) focusIn('[data-qp-zone="' + String(focusZoneId).replace(/"/g, '') + '"]');
+        if (focusZoneId) focusNode(findByAttribute('data-qp-zone', focusZoneId));
     }
 
     // Confirma la ficha abierta. Devuelve false (y muestra el motivo) si falta algo.
@@ -595,9 +654,9 @@
         if (key === ' ' || key === 'Spacebar' || key === 'Enter') {
             event.preventDefault();
             event.stopPropagation(); // Enter no debe disparar "Continuar".
-            var selector = '[data-qp-shape="' + shape.getAttribute('data-qp-shape') + '"]';
+            var shapeId = shape.getAttribute('data-qp-shape');
             togglePart(shape.getAttribute('data-part'), shape.getAttribute('data-side'));
-            focusIn(selector);
+            focusNode(findByAttribute('data-qp-shape', shapeId));
         } else if (key === 'ArrowDown' || key === 'ArrowRight') {
             event.preventDefault();
             moveFocus(shape, 1);
@@ -653,6 +712,8 @@
     function onImageError(event) {
         var img = event.target;
         if (!img || img.tagName !== 'IMG' || !img.classList.contains('qp-zone-img')) return;
+        var failed = img.getAttribute('src');
+        if (failed) failedImages[failed] = true;
         var alt = img.getAttribute('data-qp-alt-src');
         if (alt) {
             img.removeAttribute('data-qp-alt-src');

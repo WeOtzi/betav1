@@ -42,6 +42,8 @@
 .qp-style-badge--artist { background: var(--neutral-500); color: var(--accent); }
 .qp-style-badge--recommended { background: var(--yellow-300); color: var(--neutral-500); }
 
+/* El check está siempre en el markup; solo se ve en la tarjeta elegida. */
+.style-card:not(.selected) .style-check { display: none; }
 .style-check svg { width: 14px; height: 14px; display: block; }
 .style-card-placeholder svg { width: 32px; height: 32px; display: block; }
 
@@ -644,6 +646,11 @@
 
 @media (max-width: 1024px) {
   .qp-body-layout { gap: var(--space-6); }
+}
+
+/* Tablet vertical: la grilla pasa a dos columnas (hay alto de sobra). */
+@media (max-width: 900px) {
+  .qp-body { --qp-tile-h: 140px; }
   .q-zone-grid.qp-zone-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

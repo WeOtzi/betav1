@@ -359,7 +359,8 @@ test('front: tarjetas con insignia "Artista" / "Recomendado", check y datos esca
     const artist = step.cardHtml({ style: { id: 'id-1', name: 'Realismo', cover_image_url: 'https://cdn.example.test/r.jpg' }, badge: 'artist', matches: [] }, true);
     assert.match(artist, /<span class="qp-style-badge qp-style-badge--artist">Artista<\/span>/);
     assert.match(artist, /aria-pressed="true"/);
-    assert.match(artist, /class="style-check"/);
+    assert.match(artist, /class="style-card selected"/);
+    assert.match(artist, /class="style-check" aria-hidden="true"/);
     assert.match(artist, /aria-label="Realismo\. Estilo que trabaja el artista\."/);
     assert.match(artist, /data-style-id="id-1"/);
     assert.doesNotMatch(artist, /onclick=/, 'sin JS inline: el clic se delega');
@@ -368,7 +369,8 @@ test('front: tarjetas con insignia "Artista" / "Recomendado", check y datos esca
     assert.match(rec, /qp-style-badge--recommended">Recomendado</);
     assert.match(rec, /Recomendado según tu idea\. Por: dragón, cerezo\./);
     assert.match(rec, /aria-pressed="false"/);
-    assert.doesNotMatch(rec, /class="style-check"/);
+    assert.match(rec, /<button type="button" class="style-card" data-style-id="id-2"/, 'sin elegir no lleva la clase selected');
+    assert.match(read('public', 'shared', 'css', 'quotation-pasos.css'), /\.style-card:not\(\.selected\) \.style-check \{ display: none; \}/);
     assert.match(rec, /style-card-placeholder/);
 
     const hostile = step.cardHtml({ style: { id: '"><img src=x onerror=alert(1)>', name: '<b>Hack</b>', cover_image_url: 'javascript:alert(1)' }, badge: null, matches: [] }, false);
