@@ -60,6 +60,14 @@ test('P25: cualquiera de las dos partes propone cambios, solo con el acuerdo apr
         assert.equal(M.can(agreed({ agreement_approved_at: null }), role, NOW).amend, false);
     }
     assert.equal(M.can(agreed(), null, NOW).amend, false);
+    // Sin cuenta del cliente no hay quién apruebe: el artista edita el acuerdo como siempre.
+    const guest = M.can(agreed({ client_user_id: null }), 'artist', NOW);
+    assert.equal(guest.amend, false);
+    assert.match(guest.reason, /todavía no tiene cuenta/);
+    const html = M.panelHtml({ available: true, role: 'artist', quote_id: 'WO-7', quote_status: 'client_approved', names: {}, agreement: M.agreementOf(agreed()), can: { counter: false, amend: false }, reason: guest.reason, proposals: [], pending: null }, {});
+    assert.match(html, /Acuerdo aprobado por ambas partes/);
+    assert.match(html, /todavía no tiene cuenta en We Ötzi para aprobar cambios/);
+    assert.doesNotMatch(html, /data-wqn-act="open-amend"/);
 });
 
 test('P4-saldo: "aprobada por ambas partes" sale de agreement_approved_at (y no de un borrador)', () => {
@@ -218,6 +226,7 @@ test('resolución: aprueba o rechaza la contraparte, retira quien propuso, y es 
     const amendment = proposal({ kind: 'amendment', proposed_by: 'artist' });
     assert.equal(M.evaluateResolve({ proposal: amendment, quotation: agreed(), role: 'client', action: 'accept' }).ok, true);
     assert.equal(M.evaluateResolve({ proposal: amendment, quotation: agreed({ quote_status: 'completed' }), role: 'client', action: 'accept' }).code, 'status');
+    assert.equal(M.evaluateResolve({ proposal: amendment, quotation: agreed({ artist_id: null }), role: 'client', action: 'accept' }).code, 'status');
     // Rechazar o retirar no depende del estado.
     assert.equal(M.evaluateResolve({ proposal: amendment, quotation: agreed({ quote_status: 'completed' }), role: 'client', action: 'reject' }).ok, true);
 });

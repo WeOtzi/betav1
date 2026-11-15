@@ -306,6 +306,37 @@ test('si el estado cambió del otro lado (409), se muestra el real con el motivo
     assert.equal(b.events.some((e) => e.type === 'wo:negotiation-changed'), false);
 });
 
+test('artista: en una cotización rechazada el redactor del chat queda desactivado y explicado', async () => {
+    const b = browser({ pathname: '/my-quotations/detail', stateFor: () => baseState({ quote_status: 'client_rejected', pending: null, proposals: [] }) });
+    const host = makeEl({}, { children: [], insertBefore(el) { b.attached.add(el); if (el.id) b.byId[el.id] = el; } });
+    const controls = [{ disabled: false }, { disabled: false }];
+    const inserted = [];
+    const compose = makeEl({}, { querySelectorAll() { return controls; }, parentNode: { insertBefore(el, ref) { inserted.push([el, ref]); } } });
+    b.byId['quotation-detail-root'] = host;
+    b.byId['qd-compose'] = compose;
+    b.start();
+    const rejected = { type: 'wo:quotation-detail-rendered', detail: { quote: { quote_id: 'WO-7', quote_status: 'client_rejected' }, stage: 'rejected' } };
+    b.document.dispatchEvent(rejected);
+    assert.deepEqual(controls.map((c) => c.disabled), [true, true]);
+    assert.equal(inserted.length, 1);
+    assert.equal(inserted[0][1], compose);
+    assert.match(inserted[0][0].textContent, /quedó finalizada y ya no puedes enviarle mensajes/);
+    // No se repite si el mismo redactor sigue en pantalla.
+    b.document.dispatchEvent(rejected);
+    assert.equal(inserted.length, 1);
+    await settle();
+
+    // En cualquier otro estado el redactor no se toca.
+    const open = browser({ pathname: '/my-quotations/detail', stateFor: () => baseState() });
+    const other = [{ disabled: false }];
+    open.byId['quotation-detail-root'] = makeEl({}, { children: [], insertBefore(el) { open.attached.add(el); if (el.id) open.byId[el.id] = el; } });
+    open.byId['qd-compose'] = makeEl({}, { querySelectorAll() { return other; }, parentNode: { insertBefore() { throw new Error('no debería'); } } });
+    open.start();
+    open.document.dispatchEvent({ type: 'wo:quotation-detail-rendered', detail: { quote: { quote_id: 'WO-7', quote_status: 'responded' }, stage: 'responded' } });
+    assert.equal(other[0].disabled, false);
+    await settle();
+});
+
 test('sin sesión, en demo o sin migración el panel no aparece ni rompe la página', async () => {
     const demo = browser({ pathname: '/client/dashboard', stateFor: () => baseState() });
     demo.window.WoDemo = { enabled: true };

@@ -220,7 +220,12 @@
             else if (role === 'client') out.counter = true;
             return out;
         }
-        if (isAgreed(q) && AMENDABLE_STATUSES.indexOf(q.quote_status) !== -1) out.amend = true;
+        if (isAgreed(q) && AMENDABLE_STATUSES.indexOf(q.quote_status) !== -1) {
+            // Un cambio necesita a la otra parte para aprobarlo: si el cliente
+            // todavía no tiene cuenta, el artista edita el acuerdo como siempre.
+            if (q.client_user_id && q.artist_id) out.amend = true;
+            else out.reason = 'El cliente todavía no tiene cuenta en We Ötzi para aprobar cambios.';
+        }
         return out;
     }
 
@@ -453,7 +458,7 @@
         if (action === 'accept') {
             if ((q.dispute_status || 'none') === 'open') return { ok: false, status: 409, code: 'dispute', error: 'Esta cotización tiene un reclamo abierto. Soporte lo está revisando.' };
             if (proposal.kind === 'counter' && q.quote_status !== 'responded') return { ok: false, status: 409, code: 'status', error: 'La cotización cambió de estado. Actualiza la página.' };
-            if (proposal.kind === 'amendment' && !(isAgreed(q) && AMENDABLE_STATUSES.indexOf(q.quote_status) !== -1)) {
+            if (proposal.kind === 'amendment' && !(isAgreed(q) && AMENDABLE_STATUSES.indexOf(q.quote_status) !== -1 && q.client_user_id && q.artist_id)) {
                 return { ok: false, status: 409, code: 'status', error: 'El acuerdo ya no se puede modificar en este estado.' };
             }
         }
@@ -717,6 +722,8 @@
                     + '</div>');
                 if (permissions.amend && !pending) {
                     parts.push('<p class="wqn-fine">¿Hay que sumar una sesión o ajustar el precio? Cualquiera de los dos puede proponerlo: el cambio rige cuando la otra parte lo aprueba.</p>');
+                } else if (!permissions.amend && state.reason && AMENDABLE_STATUSES.indexOf(state.quote_status) !== -1) {
+                    parts.push('<p class="wqn-fine">' + esc(state.reason) + '</p>');
                 }
             }
         }
@@ -730,6 +737,7 @@
        3. CONTROLADOR (solo navegador)
        ==================================================================== */
     var CSS_HREF = '/shared/css/quotation-negotiation.css?v=20261116-r2';
+    var CHAT_CLOSED_NOTE = 'El cliente rechazó esta cotización: quedó finalizada y ya no puedes enviarle mensajes.';
     var API_PREFIX = '/api/negociacion/quotations/';
     var env = { root: null, doc: null };
     var instances = [];   // { el, quoteId, role, state, ui }
@@ -903,7 +911,24 @@
     function queueScan() {
         if (scanQueued) return;
         scanQueued = true;
-        (env.root.requestAnimationFrame || env.root.setTimeout)(scan, 16);
+        if (typeof env.root.requestAnimationFrame === 'function') env.root.requestAnimationFrame(scan);
+        else env.root.setTimeout(scan, 16);
+    }
+
+    // Cotización rechazada por el cliente: la base ya no deja que el artista
+    // escriba (policy chat_closed_after_client_rejection). Si el expediente
+    // todavía muestra el redactor, se desactiva y se explica por qué.
+    function closeRejectedChat(quote) {
+        if (!quote || quote.quote_status !== 'client_rejected') return;
+        var form = env.doc.getElementById('qd-compose');
+        if (!form || form.getAttribute('data-wqn-closed') === '1') return;
+        form.setAttribute('data-wqn-closed', '1');
+        var controls = form.querySelectorAll('input, textarea, button');
+        for (var i = 0; i < controls.length; i += 1) controls[i].disabled = true;
+        var note = env.doc.createElement('p');
+        note.className = 'wqn-fine wqn-chat-closed';
+        note.textContent = CHAT_CLOSED_NOTE;
+        if (form.parentNode) form.parentNode.insertBefore(note, form);
     }
 
     // Expediente del artista: el panel va debajo de la identidad del cliente.
@@ -912,6 +937,7 @@
         var quote = detail.quote;
         var host = env.doc.getElementById('quotation-detail-root');
         if (!host || !quote || !quote.quote_id || detail.readOnly) return;
+        closeRejectedChat(quote);
         if (detail.stage === 'draft' || detail.stage === 'pending') return;
         var slot = env.doc.getElementById('qd-negotiation-slot');
         if (!slot) {

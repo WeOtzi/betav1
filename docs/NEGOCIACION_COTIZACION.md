@@ -38,6 +38,11 @@ Reglas:
 - Con el vencimiento opcional activo, contraproponer corre `quote_expires_at`
   para que el artista tenga el plazo completo para contestar.
 - Con un reclamo abierto (`dispute_status = 'open'`) no se negocia.
+- Los cambios al acuerdo necesitan a las dos partes con cuenta. Si el cliente
+  todavía no tiene cuenta (cotización manual o de invitado sin vincular,
+  `client_user_id` vacío), no hay quién apruebe: el artista sigue editando el
+  acuerdo directo, como antes, y el bloqueo empieza cuando el cliente vincula
+  la cotización a su cuenta.
 
 ## "Aprobada por ambas partes" (contrato para otros frentes)
 
@@ -59,8 +64,8 @@ quotations_db.agreement_approved_at IS NOT NULL
   `WoQuoteNegotiation.agreementOf(cotización)`; el estado del servidor trae
   `agreement: { approved, approved_at, version }`.
 
-Con el acuerdo aprobado, el artista ya no puede editar directo
-`final_budget_amount`, `final_budget_currency`, `final_sessions`,
+Con el acuerdo aprobado y el cliente con cuenta (`client_user_id` cargado), el
+artista ya no puede editar directo `final_budget_amount`, `final_budget_currency`, `final_sessions`,
 `final_comment`, `artist_deposit_pct` ni `artist_deposit_amount`: la base
 responde `42501` ("El acuerdo ya está aprobado por ambas partes…"). El enlace
 "editá el acuerdo" del expediente abre el formulario de cambio propuesto.
@@ -74,6 +79,10 @@ declare. Se suma (AND) a `artists_insert_chat` / `clients_insert_chat` de
 `20261115170000`. El cliente no queda bloqueado en la base; `service_role` no
 pasa por RLS. El frente "inbox" muestra el estado cerrado a partir de
 `quote_status` (ya viene en la vista `chat_threads`).
+
+En el expediente del artista, `quotation-negotiation.js` desactiva el redactor
+(`#qd-compose`) de una cotización rechazada y explica el motivo, por si el
+expediente todavía lo muestra.
 
 Además, para el usuario final `client_rejected` es terminal: el trigger
 rechaza cualquier cambio de estado desde ahí (soporte y `service_role` sí

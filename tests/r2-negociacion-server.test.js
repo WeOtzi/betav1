@@ -83,6 +83,10 @@ test('evaluatePropose (enmienda): ambas partes, solo con acuerdo, con los pisos 
     assert.equal(early.status, 409);
     assert.match(early.error, /Todavía no hay un acuerdo aprobado por ambas partes/);
     assert.match(logic.evaluatePropose({ ...base, user: user(ARTIST), quotation: agreed({ quote_status: 'completed' }) }).error, /ya está completado/);
+    // Cotización manual o de invitado: sin cuenta del cliente no hay quién apruebe.
+    const guest = logic.evaluatePropose({ ...base, user: user(ARTIST), quotation: agreed({ client_user_id: null }) });
+    assert.deepEqual([guest.status, guest.code], [409, 'no_counterparty']);
+    assert.match(guest.error, /todavía no tiene cuenta/);
     const paid = logic.evaluatePropose({ kind: 'amendment', changes: { final_budget_amount: '300' }, user: user(ARTIST), quotation: agreed(), extras: { paid: 500 }, now: NOW });
     assert.equal(paid.code, 'below_paid');
     const sessions = logic.evaluatePropose({ kind: 'amendment', changes: { final_sessions: '1' }, user: user(CLIENT), quotation: agreed(), extras: { sessionsUsed: 2 }, now: NOW });
@@ -521,6 +525,8 @@ test('migración: tabla, RLS, funciones solo para service_role, triggers propios
     // Rechazo definitivo y acuerdo bloqueado para el usuario final.
     assert.match(sql, /old\.quote_status = 'client_rejected'/);
     assert.match(sql, /El acuerdo ya está aprobado por ambas partes/);
+    assert.match(sql, /and old\.agreement_approved_at is not null\s+and old\.client_user_id is not null/, 'sin cuenta del cliente no se bloquea la edición del artista');
+    assert.match(sql, /if v_q\.client_user_id is null or v_q\.artist_id is null then\s+raise exception 'NEG_NO_COUNTERPARTY'/);
     // Triggers propios, después de los existentes; no pisa funciones de otros frentes.
     assert.match(sql, /create trigger trg_quotation_zy_negociacion_guard\s+before update on public\.quotations_db/);
     assert.match(sql, /create trigger trg_quotation_zz_negociacion_sync\s+before update on public\.quotations_db/);

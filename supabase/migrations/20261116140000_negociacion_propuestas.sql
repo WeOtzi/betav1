@@ -21,7 +21,9 @@
 --      las escrituras pasan por las funciones de abajo (service_role).
 --   3. Triggers en quotations_db:
 --        trg_quotation_zy_negociacion_guard  sello del acuerdo, rechazo
---            definitivo y bloqueo de edición directa del acuerdo aprobado.
+--            definitivo y bloqueo de edición directa del acuerdo aprobado
+--            (solo si el cliente tiene cuenta: sin contraparte en la
+--            plataforma, el artista sigue editando el acuerdo como antes).
 --        trg_quotation_zz_negociacion_sync   cierra las propuestas pendientes
 --            cuando la cotización cambia de estado y, si el artista manda una
 --            propuesta nueva sobre una contrapropuesta, la reemplaza y deja el
@@ -202,9 +204,12 @@ begin
   end if;
 
   -- Acuerdo aprobado: precio, sesiones, seña y condiciones no se editan
-  -- directo; se proponen (quotation_proposals) y rigen al aprobarlos.
+  -- directo; se proponen (quotation_proposals) y rigen al aprobarlos. Solo
+  -- cuando hay contraparte que pueda aprobar: si el cliente no tiene cuenta
+  -- (cotización manual o de invitado), el artista edita como siempre.
   if v_restricted
      and old.agreement_approved_at is not null
+     and old.client_user_id is not null
      and (
        new.final_budget_amount is distinct from old.final_budget_amount
        or new.final_budget_currency is distinct from old.final_budget_currency
@@ -419,6 +424,10 @@ begin
     if v_q.agreement_approved_at is null
        or v_q.quote_status not in ('client_approved', 'in_progress', 'en_progreso', 'artist_completed') then
       raise exception 'NEG_STATUS' using errcode = '22023', detail = coalesce(v_q.quote_status, '');
+    end if;
+    -- Sin contraparte con cuenta nadie podría aprobar el cambio.
+    if v_q.client_user_id is null or v_q.artist_id is null then
+      raise exception 'NEG_NO_COUNTERPARTY' using errcode = '22023';
     end if;
     v_allowed := array['final_budget_amount', 'final_sessions', 'artist_deposit_pct', 'final_comment'];
     v_currency := upper(btrim(coalesce(
