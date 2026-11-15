@@ -19,6 +19,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/wo-report.js?v=20261116-denuncias" defer></script><!-- denuncias (ronda 2): activa [data-wo-report] -->
     <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
     <script src="/shared/js/wo-consent.js" defer></script>
 </head>
@@ -142,6 +143,11 @@
                     <section class="sp-section" id="resenas" aria-label="Reseñas del estudio">
                         <div id="studio-reviews"></div>
                     </section>
+
+                    <!-- Denuncias (ronda 2): wo-report.js completa el botón y lo muestra solo a dueños o managers de OTRO estudio -->
+                    <div class="wor-row">
+                        <button type="button" id="sp-report" data-wo-report data-kind="studio" data-id="" data-label="" hidden></button>
+                    </div>
                 </div>
 
                 <aside class="sp-aside" id="sp-aside">

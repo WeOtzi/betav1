@@ -6954,6 +6954,7 @@ require('./lib/routes/cot-cliente').register(app); // ── cot-cliente: claim 
 require('./lib/routes/verif-artista').register(app, { resolveBearerUser, getActiveSupportAgent: _getActiveSupportAgent, emailService, applicationBase }); // verif-artista
 
 require('./lib/routes/verif-estudio').register(app); // verificación de estudios
+require('./lib/routes/denuncias').register(app); // ── denuncias (ronda 2): denuncias → tickets de soporte
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {

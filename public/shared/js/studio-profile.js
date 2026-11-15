@@ -403,6 +403,14 @@
         show('sp-loading', false);
         show('sp-profile', true);
 
+        // Denuncias (ronda 2): el botón queda vacío y oculto; /shared/js/wo-report.js
+        // lo muestra solo a dueños o managers de OTRO estudio y abre el modal.
+        const report = $('sp-report');
+        if (report) {
+            report.setAttribute('data-label', name);
+            report.setAttribute('data-id', studio.id);
+        }
+
         let hasBrands = false;
         try { hasBrands = await renderBrands(studio.id); } catch (err) { console.warn('[studio-profile] marcas:', err && err.message); }
         let hasOwner = false;
