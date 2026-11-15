@@ -1747,6 +1747,30 @@ modesScript.src = (window.WEOTZI_BASE_PATH || '') + '/shared/js/account-modes.js
 modesScript.defer = true;
 document.head.appendChild(modesScript);
 
+// ---------------------------------------------------------------------------
+// Avisos push / in-app (frente push): toast + sonido + Web Push. Carga única
+// acá porque config-manager.js está en todas las páginas con sesión; sin
+// sesión wo-notify.js no hace nada. Opt-out: <html data-wo-notify="off">.
+// ---------------------------------------------------------------------------
+(function () {
+  'use strict';
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    if (window.__woNotifyLoader) return;
+    var me = document.currentScript;
+    var match = me && me.src ? /^(.*\/shared\/)js\/[^\/?#]+(?:[?#].*)?$/.exec(me.src) : null;
+    if (!match) return;
+    var root = document.documentElement;
+    if (root && root.getAttribute && root.getAttribute('data-wo-notify') === 'off') return;
+    window.__woNotifyLoader = true;
+    var s = document.createElement('script');
+    s.src = match[1] + 'js/wo-notify.js';
+    s.defer = true;
+    s.setAttribute('data-wo-notify', '');
+    (document.head || document.documentElement).appendChild(s);
+  } catch (err) { /* los avisos son mejora progresiva: nunca bloquean la página */ }
+})();
+
 // Auto-initialize when script loads
 (async function () {
     await ConfigManager.init();

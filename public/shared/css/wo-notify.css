@@ -1,0 +1,217 @@
+/* ==========================================================================
+   WE ÖTZI · Avisos en la app (frente push · P24 / P26)
+   --------------------------------------------------------------------------
+   Lo carga public/shared/js/wo-notify.js en todas las páginas con sesión:
+     · .wo-ntf-stack / .wo-ntf-toast   avisos (toasts) arriba a la derecha
+     · .wo-ntf-card                    "Avisos en este dispositivo" (cuenta)
+     · .wo-arrival-flash               resalta el bloque al que lleva un aviso
+   Tokens del DS Bauhaus con respaldo literal (hay páginas sin tokens.css).
+   Radio 0, filete oscuro y sombra dura; nada de degradés.
+   ========================================================================== */
+
+.wo-ntf-stack {
+  position: fixed;
+  top: calc(var(--wo-ntf-top, 76px) + 14px);
+  right: 16px;
+  z-index: 1396; /* sobre el panel de notificaciones (1386) y la bienvenida (1390); bajo el recorrido (1400) */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.wo-ntf-stack:empty { display: none; }
+
+.wo-ntf-toast {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  box-sizing: border-box;
+  background: var(--figma-white, #fff);
+  border: 1.6px solid var(--neutral-500, #24211D);
+  box-shadow: 5px 5px 0 var(--neutral-500, #24211D);
+  color: var(--ink, #001125);
+  font-family: var(--font-body, Inter, system-ui, sans-serif);
+  animation: wo-ntf-in var(--duration-fade, .24s) var(--ease-standard, ease) both;
+}
+.wo-ntf-toast.is-leaving { animation: wo-ntf-out .18s var(--ease-standard, ease) both; }
+
+.wo-ntf-link,
+.wo-app a.wo-ntf-link,
+.wo-app a.wo-ntf-link:hover {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 12px;
+  padding: 14px 6px 14px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+.wo-ntf-link:focus-visible,
+.wo-ntf-close:focus-visible,
+.wo-ntf-action:focus-visible,
+.wo-ntf-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus, 0 0 0 3px rgba(0, 85, 255, .35));
+}
+a.wo-ntf-link:hover .wo-ntf-title { text-decoration: underline; text-underline-offset: 3px; }
+
+.wo-ntf-icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--yellow-300, #F2B519);
+  color: var(--neutral-500, #24211D);
+}
+.wo-ntf-icon svg { width: 16px; height: 16px; }
+.wo-ntf-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.wo-ntf-title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--ink, #001125);
+  overflow-wrap: anywhere;
+}
+.wo-ntf-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--neutral-500, #24211D);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.wo-ntf-cta {
+  margin-top: 4px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--neutral-500, #24211D);
+}
+.wo-ntf-close {
+  flex: none;
+  align-self: flex-start;
+  width: 36px;
+  height: 36px;
+  margin: 4px 4px 0 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+  color: var(--neutral-500, #24211D);
+  font: 700 18px/1 var(--font-body, system-ui, sans-serif);
+}
+.wo-ntf-close:hover { background: var(--neutral-100, #FAF8F3); }
+
+/* Aviso con acciones (invitación a activar los avisos push). */
+.wo-ntf-toast--prompt { flex-direction: column; }
+.wo-ntf-head { display: flex; align-items: stretch; }
+.wo-ntf-toast--prompt .wo-ntf-link { padding: 14px 14px 10px; }
+.wo-ntf-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 14px 60px; }
+.wo-ntf-action,
+.wo-ntf-btn {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1.6px solid var(--neutral-500, #24211D);
+  border-radius: 0;
+  background: var(--figma-white, #fff);
+  color: var(--neutral-500, #24211D);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.wo-ntf-action:hover,
+.wo-ntf-btn:hover { background: var(--neutral-100, #FAF8F3); }
+.wo-ntf-action--primary,
+.wo-ntf-btn--primary { background: var(--neutral-500, #24211D); color: var(--white, #FCFCFC); }
+.wo-ntf-action--primary:hover,
+.wo-ntf-btn--primary:hover { background: var(--ink, #001125); }
+.wo-ntf-btn--quiet { border-color: transparent; text-decoration: underline; text-underline-offset: 3px; padding-left: 4px; padding-right: 4px; }
+.wo-ntf-btn--quiet:hover { background: none; }
+.wo-ntf-btn[disabled] { opacity: .5; cursor: default; }
+.wo-ntf-btn[hidden], .wo-ntf-action[hidden] { display: none; }
+
+/* --------------------------- cuenta: avisos en este dispositivo --------------------------- */
+.wo-ntf-card {
+  box-sizing: border-box;
+  margin: 0 0 20px;
+  padding: 18px 20px;
+  background: var(--figma-white, #fff);
+  border: 1.6px solid var(--neutral-500, #24211D);
+  color: var(--ink, #001125);
+  font-family: var(--font-body, Inter, system-ui, sans-serif);
+}
+.wo-ntf-card-head { display: flex; gap: 14px; align-items: flex-start; }
+.wo-ntf-card-headtext { min-width: 0; }
+.wo-ntf-card-title { margin: 0; font-family: var(--font-body, Inter, system-ui, sans-serif); font-size: 15px; line-height: 1.3; font-weight: 700; color: var(--ink, #001125); }
+.wo-ntf-card-status { margin: 4px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--neutral-500, #24211D); }
+.wo-ntf-card-status.is-on::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  background: var(--system-success, #1E9F74);
+}
+.wo-ntf-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-top: 14px; }
+.wo-ntf-sound { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; font-size: 13.5px; color: var(--neutral-500, #24211D); cursor: pointer; }
+.wo-ntf-sound input { width: 18px; height: 18px; margin: 0; accent-color: var(--neutral-500, #24211D); }
+.wo-ntf-card-help { margin: 12px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--text-muted, #5A5449); }
+.wo-ntf-card-feedback { margin: 10px 0 0; font-size: 13px; line-height: 1.4; color: var(--neutral-500, #24211D); }
+.wo-ntf-card-feedback.is-error { color: var(--status-error-fg, #B01818); }
+.wo-ntf-card-feedback:empty { display: none; }
+
+/* --------------------------- llegada desde un aviso --------------------------- */
+.wo-arrival-flash {
+  outline: 3px solid var(--yellow-300, #F2B519);
+  outline-offset: 4px;
+  animation: wo-arrival-pulse 1.1s var(--ease-standard, ease) 2;
+}
+.wo-arrival-flash:focus { outline: 3px solid var(--yellow-300, #F2B519); }
+
+/* Fila de actividad del panel del cliente como enlace real. */
+a.client-feed-row,
+.wo-app a.client-feed-row,
+.wo-app a.client-feed-row:hover { color: inherit; text-decoration: none; }
+a.client-feed-row { cursor: pointer; }
+a.client-feed-row:hover .client-feed-text { text-decoration: underline; text-underline-offset: 3px; }
+a.client-feed-row:focus-visible { outline: none; box-shadow: var(--shadow-focus, 0 0 0 3px rgba(0, 85, 255, .35)); }
+.client-feed-go { flex: none; display: inline-flex; align-items: center; color: var(--neutral-300, #B9AE98); }
+.client-feed-go svg { width: 14px; height: 14px; }
+a.client-feed-row:hover .client-feed-go { color: var(--neutral-500, #24211D); }
+
+@keyframes wo-ntf-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes wo-ntf-out { to { opacity: 0; transform: translateY(-6px); } }
+@keyframes wo-arrival-pulse {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: var(--yellow-100, #FFF2CF); }
+}
+
+@media (max-width: 600px) {
+  .wo-ntf-stack { left: 12px; right: 12px; width: auto; top: calc(var(--wo-ntf-top, 64px) + 10px); }
+  .wo-ntf-toast { box-shadow: 4px 4px 0 var(--neutral-500, #24211D); }
+  .wo-ntf-actions { padding-left: 14px; }
+  .wo-ntf-card { padding: 16px; }
+  .wo-ntf-card-actions .wo-ntf-btn--primary { flex: 1 1 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wo-ntf-toast, .wo-ntf-toast.is-leaving, .wo-arrival-flash { animation: none; }
+}

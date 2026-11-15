@@ -369,6 +369,9 @@
             const saved = notif[eventKey];
             // Default sin preferencia guardada: email activado.
             input.checked = saved ? saved.email !== false : true;
+            // Push (avisos en la app y en el dispositivo): activado salvo que lo apague.
+            const pushInput = document.querySelector(`input[data-notif-push="${eventKey}"]`);
+            if (pushInput) pushInput.checked = saved ? saved.push !== false : true;
         });
 
         const app = savedPrefs?.app_settings || {};
@@ -399,9 +402,10 @@
         const prev = savedPrefs?.notification_prefs || {};
         NOTIF_EVENTS.forEach((eventKey) => {
             const input = document.querySelector(`input[data-notif="${eventKey}"]`);
+            const pushInput = document.querySelector(`input[data-notif-push="${eventKey}"]`);
             value[eventKey] = {
                 email: input ? !!input.checked : true,
-                push: prev[eventKey]?.push === true
+                push: pushInput ? !!pushInput.checked : prev[eventKey]?.push !== false
             };
         });
         try {
@@ -437,7 +441,7 @@
 
         $('cpa-password-form').addEventListener('submit', handlePasswordSave);
 
-        document.querySelectorAll('input[data-notif]').forEach((input) => {
+        document.querySelectorAll('input[data-notif], input[data-notif-push]').forEach((input) => {
             input.addEventListener('change', saveNotifPrefs);
         });
 

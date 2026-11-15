@@ -345,6 +345,24 @@
     var username = artist && String(artist.username || '').replace(/^@/, '').trim();
     return username ? '/artist/profile?artist=' + encodeURIComponent(username) + '#artist-reviews-panel' : null;
   }
+  // Ronda 2 · P26: destino exacto de cada fila. El modelo compartido
+  // (notification-feed-model.js) suma al detalle de la cotización la zona que
+  // anuncia la fila; si todavía no cargó, se pide una vez y se repinta.
+  var activityLinksRequested = false;
+  function activityHref(ev) {
+    var FM = window.WoNotificationFeedModel;
+    if (FM && typeof FM.artistActivityHref === 'function') return FM.artistActivityHref(ev);
+    if (!activityLinksRequested) {
+      activityLinksRequested = true;
+      try {
+        var script = document.createElement('script');
+        script.src = '/shared/js/notification-feed-model.js';
+        script.onload = function () { renderActivity(lastQuotes); };
+        document.head.appendChild(script);
+      } catch (e) { /* sin el modelo queda el enlace al detalle */ }
+    }
+    return (ev && ev.href) || null;
+  }
   function renderActivity(quotes) {
     var sec = $('wod-activity-section'), list = $('wod-activity-list');
     if (!sec || !list) return;
@@ -362,8 +380,10 @@
     if (!events.length) { sec.hidden = true; return; }
     sec.hidden = false;
     list.innerHTML = events.map(function (ev) {
-      var tag = ev.href ? 'a' : 'div';
-      return '<' + tag + ' class="wo-dash-activityrow"' + (ev.href ? ' href="' + esc(ev.href) + '"' : '') + '>' +
+      // P26: el enlace lleva al destino exacto y suma la zona a resaltar (?ver=).
+      var href = activityHref(ev);
+      var tag = href ? 'a' : 'div';
+      return '<' + tag + ' class="wo-dash-activityrow"' + (href ? ' href="' + esc(href) + '"' : '') + '>' +
         '<i data-wo-icon="' + esc(ev.icon) + '" class="wo-icon-18"></i>' +
         '<span class="wo-dash-activitytxt">' + esc(ev.txt) + '</span>' +
         '<span class="wo-dash-activitywhen">' + esc(timeAgo(ev.when)) + '</span>' +
@@ -405,6 +425,14 @@
     if (!user || !window.DashboardLiveModel) return;
     loadActivitySources(lastQuotes, window.DashboardLiveModel.activitySince(new Date()))
       .then(function () { renderActivity(lastQuotes); });
+  });
+  // Un aviso nuevo (wo-notify.js: solicitud, respuesta del cliente, turno…)
+  // recarga cotizaciones y actividad sin esperar a que se recargue la página.
+  var notifyRefreshTimer = 0;
+  document.addEventListener('wo:notify', function () {
+    if (!user) return;
+    clearTimeout(notifyRefreshTimer);
+    notifyRefreshTimer = setTimeout(function () { loadCotizaciones(); }, 1200);
   });
   function loadCotizaciones() {
     return withLiveTimeout(WeotziData.Quotations.listForArtist(user.id, { limit: 60 }), 'cotizaciones')

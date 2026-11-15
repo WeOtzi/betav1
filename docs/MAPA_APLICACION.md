@@ -198,6 +198,8 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `GET`/`POST` | `/api/artist/instagram-verification` | Estado de la validación de Instagram y generación del código por email (POST máx. 5/hora). | Bearer de artista, `artist_instagram_verifications`, email `instagram_verification_code` |
 | `POST` | `/api/instagram-verification/inbound` | Webhook de la automatización de DMs de @weotzi que valida el código. | Header `X-Weotzi-Webhook-Token` (`IG_VERIFY_WEBHOOK_SECRET`) |
 | `GET`/`POST` | `/api/support/instagram-verifications` (+ `/:id/confirm`, `/:id/reject`) | Cola de validaciones de Instagram para soporte. | Agente activo en `support_users_db` |
+| `GET` | `/api/push/config` | Clave pública VAPID y si el push está activo en el servidor. | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` |
+| `POST` | `/api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/refresh`, `/api/push/test` | Suscripción Web Push del navegador, baja, rotación (service worker) y aviso de prueba. | Bearer (subscribe/test), `push_subscriptions`, `user_notifications`, `lib/web-push.js` |
 
 ### APIs referenciadas por frontend pero no implementadas en `server.js`
 
@@ -293,6 +295,8 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 | `app_settings` | Configuracion publica y secretos privados, incluido `apify_token`. | Admin/backend |
 | `support_conversations` | Bandeja de conversaciones de soporte referenciada por el dashboard. | Soporte |
 | `support_messages` | Mensajes de conversaciones de soporte. | Soporte |
+| `user_notifications` | Avisos del usuario (push / in-app): título, texto y destino. Inserta el servidor; la app los recibe por Realtime (`wo-notify.js`). | Artista, cliente, estudio |
+| `push_subscriptions` | Suscripciones Web Push por navegador (endpoint + claves). Escribe el servidor. | Artista, cliente, estudio |
 
 ### Job board
 
