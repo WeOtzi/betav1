@@ -108,7 +108,7 @@
         head.appendChild(title);
         head.appendChild(close);
 
-        const intro = h('p', 'wo-ia-intro', 'Se envían solas cuando un cliente te escribe y aparecen marcadas como «' + X.AUTO_LABEL + '». Puedes apagarlas cuando quieras.');
+        const intro = h('p', 'wo-ia-intro', 'Se envían solas cuando un cliente te escribe y se ven marcadas como «' + X.AUTO_LABEL + '». No se envían si le escribiste a mano en la última hora.');
 
         const form = h('form', 'wo-ia-form');
         form.noValidate = true;
@@ -122,7 +122,7 @@
         const greetToggle = toggle('wo-ia-greeting-on', greetTitle.id);
         greetHead.appendChild(greetTitle);
         greetHead.appendChild(greetToggle.label);
-        const greetHelp = h('p', 'wo-ia-help', 'Responde al primer mensaje de un cliente en cada conversación. Se envía una sola vez por conversación.');
+        const greetHelp = h('p', 'wo-ia-help', 'Responde al primer mensaje de un cliente, una sola vez por conversación.');
         const greetText = textField('wo-ia-greeting-body', 'Mensaje de saludo', 4);
         const greetNote = h('p', 'wo-ia-note', 'Si ese primer mensaje llega mientras estás ausente, se envía solo la respuesta de ausencia.');
         greetCard.appendChild(greetHead);
@@ -138,7 +138,7 @@
         const awayToggle = toggle('wo-ia-away-on', awayTitle.id);
         awayHead.appendChild(awayTitle);
         awayHead.appendChild(awayToggle.label);
-        const awayHelp = h('p', 'wo-ia-help', 'Responde cuando te escriben y no estás. Se envía una vez por conversación en cada ausencia, y no se envía si respondiste a mano en la última hora.');
+        const awayHelp = h('p', 'wo-ia-help', 'Responde cuando no estás, una vez por conversación en cada ausencia.');
         const scope = h('div', 'wo-ia-scope');
         scope.setAttribute('role', 'group');
         scope.setAttribute('aria-label', 'Cuándo se envía la respuesta de ausencia');

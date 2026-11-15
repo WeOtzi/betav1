@@ -354,6 +354,9 @@ test('P9 migración de automáticos: en la base, una vez por hilo/ventana, marca
     assert.match(sql, /pg_advisory_xact_lock\(hashtextextended\('weotzi:inbox-auto:inbox:' \|\| new\.thread_id::text, 0\)\)/);
     assert.match(sql, /p_last_away_at is null or p_last_away_at < \(v_state ->> 'window_start'\)::timestamptz/);
     assert.match(sql, /not coalesce\(p_greeting_sent, false\)/);
+    // Si el artista escribió a mano en la última hora (está presente) no hay automáticos.
+    assert.match(sql, /if coalesce\(p_artist_wrote_recently, false\) then\s+return;/);
+    assert.match(sql, /m\.auto_kind is null and m\.created_at > now\(\) - interval '60 minutes'/);
     // Sin automáticos en cotizaciones cerradas (incluye la rechazada por el cliente).
     assert.match(sql, /v_status in \('client_rejected', 'completed', 'expired', 'cancelled', 'canceled', 'rejected'\)/);
     // Un error del automático no rompe el mensaje del cliente.

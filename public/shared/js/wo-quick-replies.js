@@ -173,6 +173,7 @@
                 try { first.focus(); } catch (_) { /* noop */ }
             });
             document.addEventListener('mousedown', onOutside, true);
+            document.addEventListener('focusin', onOutside, true);
             document.addEventListener('keydown', onPanelKey, true);
         }
 
@@ -181,12 +182,14 @@
             panel.hidden = true;
             trigger.setAttribute('aria-expanded', 'false');
             document.removeEventListener('mousedown', onOutside, true);
+            document.removeEventListener('focusin', onOutside, true);
             document.removeEventListener('keydown', onPanelKey, true);
             if (restoreFocus) {
                 try { trigger.focus(); } catch (_) { /* noop */ }
             }
         }
 
+        // Clic o foco fuera del panel (y fuera de su botón): se cierra.
         function onOutside(event) {
             if (panel.contains(event.target) || trigger.contains(event.target)) return;
             closePanel(false);

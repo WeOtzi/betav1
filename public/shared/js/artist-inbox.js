@@ -166,6 +166,11 @@
         attachmentPreview && attachmentPreview.addEventListener('pointercancel', onAttachmentDragEnd);
         el('ai-messages') && el('ai-messages').addEventListener('click', onMessageClick);
         wireExtras();
+        // Ronda 2: al volver a la pestaña se refresca la lista (estados de
+        // cotización y cierres que no llegan por realtime).
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden && state.userId) scheduleRefresh();
+        });
         window.addEventListener('beforeunload', cleanupChannels);
     }
 
@@ -564,11 +569,14 @@
                     scheduleRefresh();
                 });
             } else if (row.source === 'quote') {
+                // Ronda 2: al abrir se relee la cotización (estado fresco).
+                delete state.quoteDetails[row.id];
                 const results = await Promise.all([
                     row.synthetic ? Promise.resolve([]) : D.Chat.listByQuote(row.id),
                     loadQuoteDetails(row.id),
                 ]);
                 if (state.activeKey !== key) return;
+                syncQuoteClosure(row, results[1]);
                 state.activeMessages = results[0].map(adaptQuoteMessage);
                 renderContext(row);
                 const hadUnread = row.unread > 0;
@@ -820,10 +828,11 @@
             lastDay = day;
             return separator + (message.kind === 'quote_card' ? quoteCardHtml(message.card) : messageHtml(message));
         }).join('');
+        // Los reproductores de voz se montan antes de bajar el scroll (ocupan alto).
+        if (window.WoVoice) window.WoVoice.hydrate(host, signedUrlFor);
         host.scrollTop = host.scrollHeight;
         refreshIcons();
         hydrateAttachmentThumbs(host);
-        if (window.WoVoice) window.WoVoice.hydrate(host, signedUrlFor);
     }
 
     function quoteCardHtml(card) {
@@ -1076,6 +1085,19 @@
         }
         if (el('ai-composer')) el('ai-composer').hidden = closed;
         setComposer(closed ? 'Esta conversación está cerrada.' : (row && row.starter ? 'Escribí tu consulta para soporte…' : 'Escribí un mensaje…'), !closed);
+    }
+
+    // El estado de la cotización que se lee al abrir el hilo es el más fresco:
+    // si el cliente la rechazó después de cargar la lista, abre en solo lectura.
+    function syncQuoteClosure(row, quote) {
+        const status = quote && quote.quote_status;
+        if (!status || row.closed || !CLOSED_QUOTE_STATUSES.includes(status)) return;
+        row.closed = true;
+        row.closedReason = X ? X.closedReason(status) : '';
+        if (row.context) row.context.quote_status = status;
+        resetThreadExtras();
+        applyThreadAccess(row);
+        renderList();
     }
 
     // Al cambiar de hilo: se corta una grabación en curso, se frena el audio
@@ -1381,6 +1403,9 @@
         }
         // Ronda 2: cambios de estado de las cotizaciones del artista (RLS). Si
         // el cliente rechaza la cotización, el hilo abierto pasa a solo lectura.
+        // Solo llega si quotations_db está en la publicación de realtime; si
+        // no, el cierre se detecta al abrir el hilo, al volver a la pestaña o
+        // cuando la base rechaza un envío.
         if (D.Realtime && D.Realtime.subscribeQuotationUpdates) {
             state.quoteChannel = D.Realtime.subscribeQuotationUpdates('artist-inbox-quotes-' + state.userId, function (payload) {
                 const quote = payload && payload.new;

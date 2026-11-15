@@ -40,8 +40,9 @@
 .cch-voice-btn.is-unsupported { opacity: .5; }
 .ai-composer-tools .ai-attach[aria-expanded="true"] { background: var(--neutral-200); color: var(--ink); }
 .ai-composer-tools .ai-attach:disabled { opacity: .4; cursor: not-allowed; }
+/* Mantener pulsado para grabar: sin desplazamiento, selección ni menú contextual. */
 #ai-voice,
-.cch-voice-btn { touch-action: manipulation; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.cch-voice-btn { touch-action: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
 
 /* Cliente: micrófono junto al campo y "Mensajes rápidos" junto a "Enviar referencia". */
 .cch-voice-btn { flex: none; width: 46px; min-height: 46px; border: var(--border-hairline) solid var(--neutral-500); }
@@ -145,7 +146,7 @@
 .wo-qr-modal-head .wo-modal-title,
 .wo-ia-head .wo-modal-title { margin: 0; font-size: 22px; line-height: 1.2; }
 .wo-qr-modal-intro,
-.wo-ia-intro { margin: var(--space-2) 0 var(--space-4); color: var(--text-muted); font: 400 14px/1.45 var(--font-body); }
+.wo-ia-intro { margin: var(--space-1) 0 var(--space-3); color: var(--text-muted); font: 400 14px/1.45 var(--font-body); }
 .wo-qr-modal-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
 .wo-qr-manage { min-width: 0; }
 .wo-qr-count { margin: 0 0 var(--space-2); color: var(--text-muted); font: 400 11px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
@@ -169,7 +170,9 @@
 .wo-qr-form-title,
 .wo-ia-card-title { margin: 0; font: 400 16px/1.25 var(--font-display); color: var(--text-heading); }
 .wo-qr-textarea,
-.wo-ia-textarea { min-height: 0; resize: vertical; }
+.wo-ia-textarea { min-height: 0; padding: 10px var(--space-3); font-size: 14px; line-height: 1.45; resize: vertical; }
+.wo-qr-textarea:focus,
+.wo-ia-textarea:focus { padding: 9px calc(var(--space-3) - 1px); }
 .wo-qr-counter,
 .wo-ia-counter { align-self: flex-end; font: 400 11px/1 var(--font-mono); }
 .wo-qr-error,
@@ -182,7 +185,7 @@
 .ai-auto-open:hover { border-color: var(--neutral-500); background: var(--neutral-200); }
 .ai-auto-open [data-wo-icon] { width: 14px; height: 14px; }
 .wo-ia-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
-.wo-ia-card { min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border: var(--border-hairline) solid var(--border-strong); background: var(--surface-card); }
+.wo-ia-card { min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); border: var(--border-hairline) solid var(--border-strong); background: var(--surface-card); }
 .wo-ia-card.is-off { border-color: var(--border-subtle); background: var(--neutral-100); }
 .wo-ia-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .wo-ia-toggle input:focus-visible + .knob { box-shadow: var(--shadow-focus); }
@@ -208,17 +211,23 @@
 .cch-toast[hidden] { display: none; }
 .ai-toast.is-success { border-color: var(--system-success); }
 
-/* ---------- Tablet y escritorio ---------- */
+/* ---------- Tablet y escritorio ----------
+   Los diálogos pasan a dos columnas desde 640px para entrar sin scroll en un
+   alto de 720px (tablet y PC). */
+@media (min-width: 640px) {
+    .wo-qr-overlay,
+    .wo-ia-overlay { padding: var(--space-4); }
+    .wo-qr-modal,
+    .wo-ia-modal { max-height: calc(100dvh - var(--space-8)); padding: var(--space-5) var(--space-6); }
+    .wo-qr-modal-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; }
+    .wo-qr-manage-list { max-height: min(360px, calc(100dvh - 300px)); }
+    .wo-ia-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); align-items: start; }
+}
 @media (min-width: 769px) {
     .wo-qr-panel { left: var(--space-5); right: auto; width: min(440px, calc(100% - var(--space-10))); }
     .cch-composer .wo-qr-panel { left: var(--space-6); }
-    .wo-qr-overlay,
-    .wo-ia-overlay { padding: var(--space-6); }
-    .wo-qr-modal,
-    .wo-ia-modal { padding: var(--space-6) var(--space-8); }
-    .wo-qr-modal-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; }
-    .wo-qr-manage-list { max-height: min(360px, calc(100dvh - 320px)); }
+}
+@media (min-width: 1024px) {
     .wo-qr-manage-row { flex-direction: row; align-items: center; justify-content: space-between; }
     .wo-qr-manage-tools { flex: none; flex-wrap: nowrap; }
-    .wo-ia-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); align-items: start; }
 }

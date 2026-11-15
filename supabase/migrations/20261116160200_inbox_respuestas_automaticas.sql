@@ -26,8 +26,8 @@
 --   · Sin bucles: solo reaccionan a mensajes de CLIENTES que no son
 --     automáticos; los automáticos salen como el artista y nunca disparan otro
 --     (además se corta con pg_trigger_depth).
---   · No molestan: no hay ausencia si el artista escribió a mano en el hilo en
---     la última hora, ni automáticos en cotizaciones cerradas.
+--   · No molestan: no hay automáticos si el artista escribió a mano en el hilo
+--     en la última hora (está presente), ni en cotizaciones cerradas.
 --   · Nunca rompen el mensaje del cliente: cualquier error del automático se
 --     descarta (bloque exception) y el mensaje original se guarda igual.
 --
@@ -435,7 +435,12 @@ begin
     return;
   end if;
 
-  if v_cfg.away_enabled and not coalesce(p_artist_wrote_recently, false) then
+  -- Si el artista escribió a mano hace poco está presente: no hay automáticos.
+  if coalesce(p_artist_wrote_recently, false) then
+    return;
+  end if;
+
+  if v_cfg.away_enabled then
     v_state := private.inbox_artist_away_state(p_artist, now());
     v_reason := v_state ->> 'reason';
     if coalesce((v_state ->> 'away')::boolean, false)

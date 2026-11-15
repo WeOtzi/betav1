@@ -556,13 +556,20 @@
                 return;
             }
             setState('requesting');
+            // El botón del micrófono queda oculto: con teclado el foco pasa a la barra.
+            if (!pressing) {
+                try { cancelBtn.focus(); } catch (_) { /* noop */ }
+            }
             let stream;
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
                 });
             } catch (error) {
-                if (state === 'requesting') setState('idle');
+                if (state === 'requesting') {
+                    setState('idle');
+                    focusButton();
+                }
                 fail(X.recorderErrorMessage(error));
                 return;
             }
