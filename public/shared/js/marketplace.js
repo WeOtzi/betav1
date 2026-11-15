@@ -279,7 +279,8 @@ const CLIENT_NAV = [
     { href: '/marketplace', label: 'Explorar artistas', active: true },
     { href: '/client/dashboard?tab=solicitudes', label: 'Job board' },
     { href: '/explore/globe', label: 'Tattooglobe' },
-    { href: '/client/chats/', label: 'Inbox' }
+    { href: '/client/chats/', label: 'Inbox' },
+    { href: '/client/favorites/', label: 'Favoritos' }
 ];
 
 function navLinksHtml(items, cls) {
@@ -614,6 +615,7 @@ async function loadFavorites() {
         }
         if (pending.length) {
             try { localStorage.removeItem(FAV_STORAGE_KEY); } catch (e) { /* noop */ }
+            if (window.WoFavorites && window.WoFavorites.__real) window.WoFavorites.reload();
         }
         const rows = await WeotziData.Favorites.listByClient(sessionUserId);
         favoriteIds = new Set(rows.map(r => r.artist_user_id));
@@ -654,6 +656,18 @@ function syncHeartButtons(artistUserId) {
         btn.setAttribute('aria-pressed', String(isFav));
     });
 }
+
+// Listas de favoritos (wo-favorites.js, ronda 2 · P22): con el módulo activo,
+// él maneja los corazones de artistas y estudios (guardar, elegir lista,
+// invitar a iniciar sesión) y acá solo se espeja el conjunto de artistas
+// guardados para el filtro "Solo favoritos" y las sugerencias. Sin el módulo,
+// o si la base todavía no tiene las listas, sigue el camino de arriba.
+document.addEventListener('wo:favorites-change', () => {
+    const W = window.WoFavorites;
+    if (!W || !W.__real || !W.available || !W.loaded) return;
+    favoriteIds = new Set(W.ids('artist'));
+    if (favoritesOnly && browseMode === 'artists' && dataReady) applyFilters();
+});
 
 // Atajo corazón del hero (Figma 286:11980): filtra solo favoritos.
 function toggleFavoritesOnly() {
@@ -960,6 +974,8 @@ function artistCardHtml(artist, opts = {}) {
                 </div>
                 ${userId ? `
                 <button type="button" class="mk-card-fav${isFav ? ' is-fav' : ''}" data-fav-artist="${userId}"
+                        data-wo-favorite data-kind="artist" data-id="${userId}" data-label="${name}"
+                        data-image="${escapeHtml(media)}" data-url="${escapeHtml(href)}"
                         aria-pressed="${isFav}" aria-label="${escapeHtml(`Guardar a ${displayName} en favoritos`)}">
                     <i data-wo-icon="heart" aria-hidden="true"></i>
                 </button>` : ''}
@@ -1004,6 +1020,13 @@ function studioCardHtml(studio, opts = {}) {
                     ${opts.sponsored ? `<span class="mk-card-sponsored"><i data-wo-icon="award" aria-hidden="true"></i>Patrocinado</span>` : ''}
                     ${status ? `<span class="mk-card-status mk-card-status--${status.key}">${escapeHtml(status.label)}</span>` : ''}
                 </div>
+                ${studio.id ? `
+                <button type="button" class="mk-card-fav" hidden
+                        data-wo-favorite data-kind="studio" data-id="${escapeHtml(studio.id)}" data-label="${escapeHtml(displayName)}"
+                        data-image="${escapeHtml(media)}" data-url="${escapeHtml(href)}"
+                        aria-pressed="false" aria-label="${escapeHtml(`Guardar el estudio ${displayName} en favoritos`)}">
+                    <i data-wo-icon="heart" aria-hidden="true"></i>
+                </button>` : ''}
                 <div class="mk-card-overlay">
                     <span class="mk-card-avatar" aria-hidden="true">${escapeHtml(getInitials(studio.name))}</span>
                     <div class="mk-card-id">

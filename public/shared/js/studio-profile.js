@@ -139,6 +139,19 @@
         }).join('');
     }
 
+    // ── favoritos (ronda 2 · P22): corazón "Guardar" del estudio. Acá solo se
+    // deja el botón vacío; lo pinta y lo activa public/shared/js/wo-favorites.js
+    // (llega oculto y aparece cuando el módulo carga).
+    function favoriteButtonHtml(studio) {
+        const s = studio || {};
+        if (!s.id) return '';
+        const image = safeUrl(s.cover_image) || safeUrl(s.logo_image);
+        return '<button type="button" class="sp-fav" hidden data-wo-favorite data-kind="studio" data-fav-variant="label"'
+            + ' data-id="' + esc(s.id) + '" data-label="' + esc(s.name || 'Estudio') + '"'
+            + (image ? ' data-image="' + esc(image) + '"' : '')
+            + ' data-url="' + esc('/studio/profile?studio=' + encodeURIComponent(s.slug || s.id)) + '"></button>';
+    }
+
     function joinStudioUrl(studioId) {
         const base = root.WEOTZI_BASE_PATH ? String(root.WEOTZI_BASE_PATH).replace(/\/$/, '') : '';
         return base + '/artist/invitations?estudio=' + encodeURIComponent(studioId);
@@ -345,6 +358,11 @@
         setText('sp-sub', [name, place].filter(Boolean).join(' · '));
         const seal = $('sp-seal');
         if (seal) seal.hidden = studio.is_verified !== true;
+        // ── favoritos (P22): corazón del estudio junto al título.
+        const titleRow = seal && seal.parentNode;
+        if (titleRow && typeof titleRow.querySelector === 'function' && !titleRow.querySelector('[data-wo-favorite]')) {
+            titleRow.insertAdjacentHTML('beforeend', favoriteButtonHtml(studio));
+        }
         const tag = $('sp-tag');
         if (tag) { tag.textContent = preparing ? 'Sin registros' : ''; tag.hidden = !preparing; }
 
@@ -453,6 +471,7 @@
         locationsHtml,
         galleryHtml,
         linksHtml,
+        favoriteButtonHtml,
         joinStudioUrl,
         aboutRows,
         preparingRows,

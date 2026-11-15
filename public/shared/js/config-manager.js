@@ -1747,6 +1747,73 @@ modesScript.src = (window.WEOTZI_BASE_PATH || '') + '/shared/js/account-modes.js
 modesScript.defer = true;
 document.head.appendChild(modesScript);
 
+// ---------------------------------------------------------------------------
+// Favoritos (ronda 2 · P22): carga perezosa de wo-favorites.js. Solo se pide
+// cuando la página tiene, o recibe después, un [data-wo-favorite], o cuando
+// quedó un guardado pendiente de antes de iniciar sesión (wo_fav_intent). Las
+// páginas sin corazones no descargan nada.
+// ---------------------------------------------------------------------------
+(function () {
+  'use strict';
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    if (window.__woFavoritesLoader) return;
+    var me = document.currentScript;
+    var match = me && me.src ? /^(.*\/shared\/)js\/[^\/?#]+(?:[?#].*)?$/.exec(me.src) : null;
+    if (!match) return;
+    window.__woFavoritesLoader = true;
+    var base = match[1];
+    var SELECTOR = '[data-wo-favorite]';
+    var loaded = false;
+    var observer = null;
+    var load = function () {
+      if (loaded) return;
+      loaded = true;
+      if (observer) { observer.disconnect(); observer = null; }
+      if (window.WoFavorites && window.WoFavorites.__real) return;
+      var head = document.head || document.documentElement;
+      if (!document.querySelector('link[href*="wo-favorites.css"]')) {
+        var css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = base + 'css/wo-favorites.css';
+        css.setAttribute('data-wo-favorites', '');
+        head.appendChild(css);
+      }
+      ['js/wo-favorites-model.js', 'js/wo-favorites.js'].forEach(function (path) {
+        if (document.querySelector('script[src*="' + path + '"]')) return;
+        var s = document.createElement('script');
+        s.src = base + path;
+        s.async = false;
+        s.setAttribute('data-wo-favorites', '');
+        head.appendChild(s);
+      });
+    };
+    var hasIntent = function () {
+      try { return !!window.localStorage.getItem('wo_fav_intent'); } catch (e) { return false; }
+    };
+    var holds = function (node) {
+      return !!node && node.nodeType === 1
+        && ((node.matches && node.matches(SELECTOR)) || (node.querySelector && !!node.querySelector(SELECTOR)));
+    };
+    var start = function () {
+      if (hasIntent() || document.querySelector(SELECTOR)) { load(); return; }
+      if (typeof MutationObserver !== 'function') return;
+      observer = new MutationObserver(function (mutations) {
+        for (var i = 0; i < mutations.length; i++) {
+          var added = mutations[i].addedNodes;
+          for (var j = 0; j < added.length; j++) {
+            if (holds(added[j])) { load(); return; }
+          }
+        }
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+    };
+    window.WoFavoritesLoader = { load: load };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+    else start();
+  } catch (err) { /* los favoritos son mejora progresiva: nunca bloquean la página */ }
+})();
+
 // Auto-initialize when script loads
 (async function () {
     await ConfigManager.init();

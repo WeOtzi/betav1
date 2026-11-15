@@ -198,6 +198,7 @@
 .mk-card-fav{position:absolute;top:var(--space-2);right:var(--space-2);z-index:2;display:inline-flex;align-items:center;justify-content:center;
   width:var(--space-8);height:var(--space-8);padding:0;background:transparent;border:0;border-radius:var(--radius-none);
   color:var(--white);cursor:pointer}
+.mk-card-fav[hidden]{display:none}
 .mk-card-fav [data-wo-icon]{width:18px;height:18px}
 .mk-card-fav.is-fav svg{fill:currentColor}
 

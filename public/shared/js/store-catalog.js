@@ -499,21 +499,44 @@
     /* HTML: vitrina                                                       */
     /* ------------------------------------------------------------------ */
 
-    function cardHtml(product) {
+    // ── favoritos (ronda 2 · P22): corazón de un diseño o merch. Acá solo se
+    // deja el botón vacío y oculto; lo pinta y lo activa wo-favorites.js.
+    // variant: 'float' (sobre la imagen de la card) o 'label' (ficha).
+    function favoriteButtonHtml(product, seller, variant) {
+        var p = product || {};
+        var id = text(p.id);
+        if (!id || (p.kind !== 'design' && p.kind !== 'merch')) return '';
+        var img = list(p.images).filter(function (i) { return i && text(i.path); })[0] || null;
+        var image = img ? Shell.previewUrl(img.path) : '';
+        var s = seller || {};
+        var artistId = s.type === 'artist' ? text(s.id) : '';
+        return '<button type="button" class="stc-fav" hidden data-wo-favorite data-kind="' + esc(p.kind) + '"' +
+            ' data-id="' + esc(id) + '" data-label="' + esc(p.title) + '"' +
+            (image ? ' data-image="' + esc(image) + '"' : '') +
+            ' data-url="' + esc('/store/item/?id=' + encodeURIComponent(id)) + '"' +
+            (artistId ? ' data-artist-id="' + esc(artistId) + '"' : '') +
+            ' data-fav-variant="' + (variant === 'label' ? 'label' : 'float') + '"></button>';
+    }
+
+    function cardHtml(product, seller) {
         var p = product || {};
         var img = list(p.images).filter(function (i) { return i && text(i.path); })[0] || null;
         var badges = Model.productBadges(p).map(badgeHtml).join('');
         var kind = kindLine(p);
         var price = priceSummary(p);
         // La imagen es decorativa: el título de la card ya nombra el producto.
-        return '<a class="sts-card stc-card" href="' + esc(Model.itemUrl(p.id)) + '" data-stc-product="' + esc(p.id) + '">' +
+        // El corazón va como hermano del enlace (nunca un botón dentro de un <a>).
+        return '<div class="stc-card-wrap">' +
+            '<a class="sts-card stc-card" href="' + esc(Model.itemUrl(p.id)) + '" data-stc-product="' + esc(p.id) + '">' +
             '<div class="sts-card-media">' + Shell.previewImg(img && img.path, { alt: '' }) +
             (badges ? '<div class="sts-card-badges">' + badges + '</div>' : '') + '</div>' +
             '<div class="sts-card-body">' +
             (kind ? '<p class="sts-card-kind">' + esc(kind) + '</p>' : '') +
             '<h3 class="sts-card-title">' + esc(p.title) + '</h3>' +
             (price.label ? '<p class="sts-card-price">' + esc(price.label) + '</p>' : '') +
-            '</div></a>';
+            '</div></a>' +
+            favoriteButtonHtml(p, seller && typeof seller === 'object' ? seller : null, 'float') +
+            '</div>';
     }
 
     function filtersHtml(products, filter) {
@@ -547,7 +570,7 @@
             '<div class="stc-catalog-head"><h2 class="sts-section-title" id="stc-catalog-title">' + esc(title) + '</h2>' +
             '<p class="stc-count" id="stc-count" aria-live="polite">' + esc(countLabel(shown.length)) + '</p></div>' +
             filtersHtml(products, filter) +
-            '<div class="sts-grid stc-grid" id="stc-grid">' + shown.map(cardHtml).join('') + '</div>' +
+            '<div class="sts-grid stc-grid" id="stc-grid">' + shown.map(function (p) { return cardHtml(p, s); }).join('') + '</div>' +
             '</section>';
     }
 
@@ -829,6 +852,7 @@
             '<h1 class="sts-title stc-item-title">' + esc(p.title) + '</h1>' +
             bylineHtml(seller) +
             (badges ? '<div class="sts-tags">' + badges + '</div>' : '') +
+            favoriteButtonHtml(p, seller, 'label') +
             '</header>' +
             (text(p.description) ? '<p class="stc-desc">' + esc(p.description) + '</p>' : '') +
             (tags.length ? '<ul class="sts-tags stc-tags" aria-label="Etiquetas">' + tags.map(function (t) {
@@ -996,10 +1020,10 @@
         var params = { tipo: filter === 'todo' ? null : filter };
         if (text(seller.handle)) params.artist = text(seller.handle);
         Shell.setParams(params);
-        wireFilters(mount, products);
+        wireFilters(mount, products, seller);
     }
 
-    function wireFilters(mount, products) {
+    function wireFilters(mount, products, seller) {
         mount.addEventListener('click', function (e) {
             var chip = e.target && e.target.closest ? e.target.closest('[data-stc-filter]') : null;
             if (!chip) return;
@@ -1009,7 +1033,7 @@
             });
             var shown = filterProducts(products, key);
             var grid = mount.querySelector('#stc-grid');
-            if (grid) { grid.innerHTML = shown.map(cardHtml).join(''); Shell.hydrateIcons(grid); }
+            if (grid) { grid.innerHTML = shown.map(function (p) { return cardHtml(p, seller); }).join(''); Shell.hydrateIcons(grid); }
             var count = mount.querySelector('#stc-count');
             if (count) count.textContent = countLabel(shown.length);
             Shell.setParams({ tipo: key === 'todo' ? null : key });
@@ -1251,6 +1275,7 @@
         initialItemState: initialItemState,
         buyState: buyState,
         cardHtml: cardHtml,
+        favoriteButtonHtml: favoriteButtonHtml,
         storefrontHtml: storefrontHtml,
         itemHtml: itemHtml,
         buyLiveHtml: buyLiveHtml,
