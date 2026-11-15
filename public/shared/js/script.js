@@ -753,7 +753,7 @@ async function handleUrlArtist(username) {
             formData.quote_id = generateQuoteId();
             // Turnos: valida el turno de la URL y carga si el artista toma reservas online.
             if (window.WoQuotationSlot) window.WoQuotationSlot.onArtist(formData);
-            // Ronda 2 (P27): sedes y ciudades donde tatúa (para elegir en "Contanos los detalles").
+            // Ronda 2 (P27): sedes y ciudades donde tatúa (se eligen en la pantalla 06, debajo de la fecha).
             refreshArtistLocations();
 
             // Con artista en la URL se muestra la confirmación como pantalla
@@ -1943,15 +1943,15 @@ function collectScreenValues(screen, onlyQuestion) {
         const optional = !!q.optional;
 
         if (q.type === 'body-selector') {
-            if (!selectedBodyParts.length) return { ok: false, message: 'Elegí una zona del cuerpo.', el: document.getElementById(`block-${q.step}`) };
+            if (!selectedBodyParts.length) return { ok: false, message: 'Elige una zona del cuerpo.', el: document.getElementById(`block-${q.step}`) };
             const zone = selectedBodyParts[0];
-            if (zone.sides === 'both' && !zone.side) return { ok: false, message: 'Elegí de qué lado va el tatuaje.', el: document.getElementById('body-side-panel') || document.getElementById(`block-${q.step}`) };
+            if (zone.sides === 'both' && !zone.side) return { ok: false, message: 'Elige de qué lado va el tatuaje.', el: document.getElementById('body-side-panel') || document.getElementById(`block-${q.step}`) };
             continue;
         }
 
         if (q.type === 'tattoo-styles') {
             const styles = getSelectedStyles();
-            if (!styles.length) return { ok: false, message: 'Elegí al menos un estilo.', el: document.getElementById(`block-${q.step}`) };
+            if (!styles.length) return { ok: false, message: 'Elige al menos un estilo.', el: document.getElementById(`block-${q.step}`) };
             continue;
         }
 
@@ -1966,7 +1966,7 @@ function collectScreenValues(screen, onlyQuestion) {
 
         if (q.type === 'currency') {
             if (!optional && !formData.client_budget_amount && formData._budget_tier !== 'unsure') {
-                return { ok: false, message: 'Elegí un rango de presupuesto.', el: document.getElementById(`block-${q.step}`) };
+                return { ok: false, message: 'Elige un rango de presupuesto.', el: document.getElementById(`block-${q.step}`) };
             }
             continue;
         }
@@ -3216,7 +3216,7 @@ function buildReferenceCell({ url, ai, label, note, withNotes, onRemove, onNote 
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'q-ref-note';
-        input.placeholder = 'Agregá una nota…';
+        input.placeholder = 'Agrega una nota…';
         input.maxLength = 200;
         input.value = note || '';
         input.setAttribute('aria-label', `Nota para la ${label}`);

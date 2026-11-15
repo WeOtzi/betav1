@@ -245,17 +245,16 @@
             }
             if (!firstTarget) firstTarget = target;
 
+            // El rojo se va cuando la persona corrige: al escribir o elegir en un
+            // campo; en un grupo de opciones (botones, tarjetas), al tocar una.
+            var events = control ? ['input', 'change'] : ['input', 'change', 'click'];
             var release = function () {
                 clearBlock(block);
-                block.removeEventListener('input', release);
-                block.removeEventListener('change', release);
-                block.removeEventListener('click', release);
+                events.forEach(function (name) { block.removeEventListener(name, release); });
             };
             // El click que llega del propio "Continuar" ya pasó: se escucha desde el próximo.
             setTimeout(function () {
-                block.addEventListener('input', release);
-                block.addEventListener('change', release);
-                block.addEventListener('click', release);
+                events.forEach(function (name) { block.addEventListener(name, release); });
             }, 0);
         });
         if (firstTarget) {

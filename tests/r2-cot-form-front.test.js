@@ -191,7 +191,7 @@ test('P18: "Continuar" junta TODOS los datos que faltan y los marca (rojo, mensa
     assert.equal(vm.runInContext(`collectScreenValues({ id: 'x', title: 't', questions: [{ id: 9, step: 'body-part', type: 'body-selector', field: 'tattoo_body_part' }] }).ok`, context), false);
     assert.match(script, /const errors = collectScreenErrors\(screen\);\n\s*if \(errors\.length\) \{\n\s*showScreenErrors\(errors\);/);
     // Todos los tipos de bloque devuelven el elemento a resaltar.
-    for (const fragment of ["message: 'Elegí una zona del cuerpo.', el:", "message: 'Elegí al menos un estilo.', el:", "message: 'Elegí un rango de presupuesto.', el:"]) {
+    for (const fragment of ["message: 'Elige una zona del cuerpo.', el:", "message: 'Elige al menos un estilo.', el:", "message: 'Elige un rango de presupuesto.', el:"]) {
         assert.ok(script.includes(fragment), fragment);
     }
     assert.match(r2, /control\.setAttribute\('aria-invalid', 'true'\)/);
