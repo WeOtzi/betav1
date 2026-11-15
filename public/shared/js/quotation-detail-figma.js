@@ -472,7 +472,9 @@
             seen.add(url);
             refs.push({ url, name: `Referencia ${refs.length + 1}` });
         });
-        return Array.from({ length: 3 }, (_, index) => {
+        // N11 (ronda 2 · cot-form): se dibujan TODAS las referencias (el cliente puede
+        // mandar hasta 4); antes eran 3 tarjetas fijas y la cuarta quedaba oculta tras un "+1".
+        return Array.from({ length: Math.max(3, refs.length) }, (_, index) => {
             const ref = refs[index];
             if (!ref) {
                 return `<div class="qd-reference-card" aria-label="Referencia ${index + 1} sin archivo">
@@ -480,9 +482,8 @@
             }
             const href = safeUrl(ref.url);
             const thumb = driveThumbnail(ref.url) || ref.url;
-            const more = index === 2 && refs.length > 3 ? ` · +${refs.length - 3}` : '';
             return `<a class="qd-reference-card has-image" href="${esc(href || '#')}" target="_blank" rel="noopener noreferrer" aria-label="Abrir ${esc(ref.name)}">
-                    <img src="${esc(thumb)}" alt="${esc(ref.name)}" loading="lazy"><span>${esc(ref.name + more)}</span></a>`;
+                    <img src="${esc(thumb)}" alt="${esc(ref.name)}" loading="lazy"><span>${esc(ref.name)}</span></a>`;
         }).join('');
     }
 
