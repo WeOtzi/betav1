@@ -40,6 +40,18 @@ body.cw-page input[type="radio"]:focus-visible,
 body.registerclosedbeta-page input[type="checkbox"]:focus-visible,
 body.registerclosedbeta-page input[type="radio"]:focus-visible{box-shadow:var(--shadow-focus)}
 
+/* El importador de Instagram (diálogo .igi-*) fija su anillo en azul: dentro
+   del registro usa el mismo foco en tinta. */
+:is(body.register-page,body.registerclosedbeta-page) :is(.ig-import-trigger,.igi-close,.igi-btn,.igi-link,.igi-tile):focus-visible{
+  box-shadow:var(--shadow-focus);
+}
+:is(body.register-page,body.registerclosedbeta-page) :is(.igi-input-wrap,.igi-select-wrap):focus-within{
+  box-shadow:0 0 0 2px var(--ink);
+}
+:is(body.register-page,body.registerclosedbeta-page) .igi-confirm input:focus-visible + .igi-box{
+  box-shadow:var(--shadow-focus);
+}
+
 /* ---------- N3 · pie de foto ---------- */
 .ra-work-caption-btn{
   display:inline-flex;align-items:center;justify-content:center;
