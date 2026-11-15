@@ -2131,6 +2131,9 @@ function isScreenCompleted(screen) {
         if (q.type === 'file-upload' || q.optional) return true;
         if (q.type === 'body-selector') return !!formData.tattoo_body_part;
         if (q.type === 'tattoo-styles') return getSelectedStyles().length > 0;
+        // "No estoy seguro" es una respuesta válida de presupuesto (sin monto):
+        // antes dejaba la pantalla como incompleta y no se podía enviar.
+        if (q.type === 'currency') return !!formData.client_budget_amount || formData._budget_tier === 'unsure';
         const value = formData[q.field];
         return value !== undefined && value !== null && value !== '';
     });

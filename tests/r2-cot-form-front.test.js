@@ -202,6 +202,23 @@ test('P18: "Continuar" junta TODOS los datos que faltan y los marca (rojo, mensa
     assert.match(css, /\.q-field-error \{[^}]*color: var\(--error-fg\)/);
 });
 
+test('presupuesto "No estoy seguro" cuenta como respondido (antes no dejaba enviar)', () => {
+    const { context } = wizard();
+    const done = (data) => vm.runInContext(`formData = ${JSON.stringify(data)};
+        isScreenCompleted({ questions: [{ id: 17, step: 'budget', type: 'currency', field: 'client_budget_amount' }] })`, context);
+    assert.equal(done({ client_budget_amount: null, _budget_tier: 'unsure' }), true);
+    assert.equal(done({ client_budget_amount: '300' }), true);
+    assert.equal(done({ client_budget_amount: null }), false);
+});
+
+test('script.js conserva sus fines de línea (CRLF en el repositorio: el diff es solo lo tocado)', () => {
+    const raw = fs.readFileSync(path.join(root, 'public', 'shared', 'js', 'script.js'), 'utf8');
+    const crlf = (raw.match(/\r\n/g) || []).length;
+    const lf = (raw.match(/\n/g) || []).length;
+    // En un checkout con autocrlf o con el blob original, todas las líneas terminan igual.
+    assert.ok(crlf === lf || crlf === 0, `fines de línea mezclados: ${crlf} CRLF de ${lf}`);
+});
+
 // ---------------------------------------------------------------------------
 // P7 / P13 / N11 · referencias en el wizard
 // ---------------------------------------------------------------------------

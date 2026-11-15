@@ -294,6 +294,9 @@ test('P27: sedes del artista — estudios con todas sus sedes activas, lugares v
     const base = cotForm.buildLocationOptions({ artist: { ubicacion: 'Rosario, Santa Fe, Argentina', estudios: 'Indep' } }, { today: '2026-11-15' });
     assert.deepEqual(base.map((o) => [o.key, o.label]), [['artist_base:base', 'Indep · Rosario · Argentina']]);
     assert.deepEqual(cotForm.buildLocationOptions({}, { today: '2026-11-15' }), []);
+    // Ser manager de un estudio no lo vuelve un lugar donde tatúa.
+    const manager = cotForm.buildLocationOptions({ artist: {}, memberships: [{ studio_id: 's1', role: 'manager' }], studios: SOURCES.studios, studioLocations: SOURCES.studioLocations }, { today: '2026-11-15' });
+    assert.deepEqual(manager, []);
 });
 
 test('P27: el servidor guarda la sede de SU lista (la llave del navegador no trae datos)', () => {
