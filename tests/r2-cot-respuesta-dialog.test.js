@@ -442,6 +442,11 @@ test('validación antes de enviar: lleva a la pestaña y al campo con el error',
     assert.equal(env.document.activeElement, d.q('[name="amount"]'));
     d.input('amount', '500');
     assert.equal(d.q('#qr-error').hidden, true, 'el error se limpia al corregir');
+    d.input('message', 'Hola {{cliente}}, {{variable_rara}}');
+    assert.match(d.q('#qr-preview-note').textContent, /No reconocemos \{\{variable_rara\}\}: corrígelas o quítalas para poder enviar\./);
+    await d.submit();
+    assert.match(d.q('#qr-error').textContent, /variables sin resolver/, 'al cliente no le llega una variable cruda');
+    assert.equal(env.calls.saves.length, 0);
     d.input('message', 'x'.repeat(2001));
     await d.submit();
     assert.match(d.q('#qr-error').textContent, /hasta 2000 caracteres/);

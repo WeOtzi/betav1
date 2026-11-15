@@ -17,6 +17,8 @@ y qué lee el panel del cliente. Pedidos del dueño: P4, P5, P25 (artista) y P29
 
 `quotation-detail-figma.js` solo delega: `openRespondDialog()` abre el diálogo
 nuevo si `window.WoQuoteRespond` está cargado y, si no, usa el diálogo anterior.
+En modo demo / preview (`WoDemo.enabled`, `WEOTZI_PREVIEW`) también se usa el
+anterior: las cotizaciones de ejemplo no existen en el servidor.
 
 ## Cuándo se puede (re)enviar una propuesta (P25)
 
@@ -121,7 +123,9 @@ no se confía.
   `{{duracion}}`, `{{seña}}` (también `{{sena}}`), `{{fechas}}`, `{{estudio}}`,
   `{{artista}}`. El diálogo las inserta con chips y muestra la vista previa.
 - El mensaje se **guarda ya resuelto** (chat de la cotización, correo y
-  `proposal_message`).
+  `proposal_message`). Si queda una variable desconocida (`{{…}}`), ni el
+  diálogo ni el servidor dejan enviar: al cliente nunca le llega una variable
+  cruda.
 - Set por defecto en el código (`DEFAULT_TEMPLATES`). Las propias del artista
   van en `artist_message_templates` (`user_id`, `kind`, `title`, `body`,
   `sort`) con `kind = 'quote'`; el frente "inbox" usa `kind = 'chat'` en la

@@ -917,11 +917,11 @@
         box.classList.remove('is-empty');
         if (note) {
             var bits = [];
-            if (resolved.unknown.length) bits.push('No reconocemos ' + resolved.unknown.join(', ') + ': se envía tal cual.');
+            if (resolved.unknown.length) bits.push('No reconocemos ' + resolved.unknown.join(', ') + ': corrígelas o quítalas para poder enviar.');
             if (resolved.empty.length) bits.push('Sin valor todavía: ' + resolved.empty.map(function (k) { return '{{' + k + '}}'; }).join(', ') + '.');
             bits.push(resolved.text.length + '/' + model.MAX_MESSAGE + ' caracteres');
             note.textContent = bits.join(' ');
-            note.classList.toggle('is-error', resolved.text.length > model.MAX_MESSAGE);
+            note.classList.toggle('is-error', resolved.text.length > model.MAX_MESSAGE || resolved.unknown.length > 0);
         }
     }
 

@@ -325,6 +325,11 @@ test('P4: validación de la propuesta (mensajes en español neutro)', () => {
     for (const text of Object.values(bad.errors)) assert.doesNotMatch(text, VOSEO, text);
     for (const field of Object.keys(bad.errors)) assert.ok(M.FIELD_TAB[field], `pestaña para ${field}`);
 
+    // "El mensaje se guarda ya resuelto": una variable cruda no se envía al cliente.
+    assert.match(M.validateProposal(Object.assign({}, VALID, { message: 'Hola {{cliente}}, {{otra}}' })).errors.message, /variables sin resolver/);
+    const resolved = M.resolveTemplate('Hola {{cliente}}, te ofrezco {{fechas}}.', M.templateVars({ clientName: 'Ana' })).text;
+    assert.equal(M.validateProposal(Object.assign({}, VALID, { message: resolved })).ok, true);
+
     const noDeposit = M.validateProposal(Object.assign({}, VALID, { deposit_pct: '', expiry_enabled: false, complexity: '' }));
     assert.equal(noDeposit.value.depositPct, null);
     assert.equal(noDeposit.value.depositAmount, null);

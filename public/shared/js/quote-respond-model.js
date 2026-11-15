@@ -851,6 +851,8 @@
         if (note.length > MAX_AVAILABILITY_NOTE) errors.availability_note = 'La nota de disponibilidad admite hasta ' + MAX_AVAILABILITY_NOTE + ' caracteres.';
         var message = clean(src.message);
         if (message.length > MAX_MESSAGE) errors.message = 'El mensaje admite hasta ' + MAX_MESSAGE + ' caracteres.';
+        // El mensaje se guarda ya resuelto: al cliente nunca le llega una variable cruda.
+        else if (/\{\{[^{}]*\}\}/.test(message)) errors.message = 'El mensaje tiene variables sin resolver. Corrígelas o quítalas antes de enviar.';
 
         var rawPolicy = clean(rawExtras.policy);
         if (rawPolicy && policyValue(rawPolicy) !== rawPolicy) errors.policy = 'Elige una política de la lista.';
