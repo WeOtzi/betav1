@@ -6953,6 +6953,7 @@ require('./lib/routes/acceso').register(app); // ── acceso: bienvenida idemp
 require('./lib/routes/cot-form').register(app, { driveMirror: mirrorQuoteFilesToDrive });
 require('./lib/routes/cot-cliente').register(app); // ── cot-cliente: claim + decisión del cliente
 require('./lib/routes/cot-pasos').register(app); // ── cot-pasos: estilos sugeridos según la idea (cotizador, sin PII)
+require('./lib/routes/cot-detalle').register(app, { publicDir: path.join(__dirname, 'public') }); // ── cot-detalle: contacto, perfil del cliente, exportación y enlace público /cotizacion/<token>
 
 require('./lib/routes/verif-artista').register(app, { resolveBearerUser, getActiveSupportAgent: _getActiveSupportAgent, emailService, applicationBase }); // verif-artista
 

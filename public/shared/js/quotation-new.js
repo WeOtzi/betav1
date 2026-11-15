@@ -841,6 +841,11 @@
             toast(`Cotización ${quoteId} creada y enviada a ${quotePayload.client_full_name}.` + (uploads.failed ? ` No pudimos subir ${uploads.failed} ${uploads.failed === 1 ? 'archivo' : 'archivos'}.` : '') + (expiryFailed ? ' No pudimos activar el vencimiento: activalo desde el detalle.' : ''), uploads.failed || expiryFailed ? 'info' : 'success');
             const created = page().findQuote(quoteId);
             if (created && window.QuotationSummary) window.QuotationSummary.open(created.id);
+            // cot-detalle (P30): al terminar, ofrecer el enlace público, el PDF y la imagen
+            // para mandarle la cotización al cliente (Instagram, WhatsApp…).
+            if (window.WoQuoteShare && !window.WoQuoteShare.isPreview()) {
+                window.WoQuoteShare.openDialog({ quoteId, clientName: quotePayload.client_full_name || '', created: true });
+            }
         } catch (err) {
             busy = false;
             sheet.querySelectorAll('[data-qn-submit]').forEach((b) => { b.classList.remove('is-busy'); b.textContent = 'Crear y enviar cotización'; });
