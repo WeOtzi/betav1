@@ -83,6 +83,16 @@ html[data-cpn-report="on"] .cpn-report{display:inline-flex}
 .crq-page a.wo-btn--secondary,.crq-page a.wo-btn--secondary:hover{color:var(--action-secondary-fg)}
 .crq-page a.wo-btn--ghost,.crq-page a.wo-btn--ghost:hover{color:var(--action-ghost-fg)}
 
+/* Lo mismo en la barra superior de /client/requests y /client/profile: marca,
+   nav y tile toman el color del DS (mismo ajuste que ya tiene /client/chats). */
+.crq-page a.wo-topbar-brand,.crq-page a.wo-topbar-brand:hover,
+.cpa-topbar a.wo-topbar-brand,.cpa-topbar a.wo-topbar-brand:hover{color:var(--text-heading);text-decoration:none}
+.crq-page a.wo-topbar-item,.cpa-topbar a.wo-topbar-item{color:var(--neutral-400)}
+.crq-page a.wo-topbar-item:hover,.cpa-topbar a.wo-topbar-item:hover,
+.crq-page a.wo-topbar-item.is-active,.crq-page a.wo-topbar-item[aria-current="page"],
+.cpa-topbar a.wo-topbar-item.is-active,.cpa-topbar a.wo-topbar-item[aria-current="page"]{color:var(--neutral-500);text-decoration:none}
+.crq-page a.wo-o-tile,.crq-page a.wo-o-tile:hover,.cpa-topbar a.cpa-tile{color:var(--neutral-500);text-decoration:none}
+
 .crq-page .crq-util{flex-wrap:wrap}
 .crq-card-actions--start{justify-content:flex-start;margin-top:var(--space-5)}
 .crq-page .wo-tag{max-width:100%}
@@ -114,9 +124,10 @@ html[data-cpn-report="on"] .cpn-report{display:inline-flex}
   .crq-page .wo-topbar-left,.cpa-topbar .wo-topbar-left{display:contents}
   .crq-page .wo-topbar-brand,.cpa-topbar .wo-topbar-brand{min-height:56px}
   .crq-page .wo-topbar-right,.cpa-topbar .wo-topbar-right{margin-left:auto}
-  .crq-page .wo-topbar-nav,.cpa-topbar .wo-topbar-nav{display:flex;order:3;width:100%;overflow-x:auto;
+  .crq-page .wo-topbar-nav,.cpa-topbar .wo-topbar-nav{display:flex;order:3;width:100%;overflow-x:auto;scrollbar-width:none;
     border-top:var(--border-hairline) solid var(--border-subtle)}
-  .crq-page .wo-topbar-item,.cpa-topbar .wo-topbar-item{padding:var(--space-4) var(--space-3)}
+  .crq-page .wo-topbar-nav::-webkit-scrollbar,.cpa-topbar .wo-topbar-nav::-webkit-scrollbar{display:none}
+  .crq-page .wo-topbar-item,.cpa-topbar .wo-topbar-item{padding:var(--space-3) var(--space-3);min-height:var(--tap-target-min);box-sizing:border-box}
   /* La barra ahora mide dos filas: el alto mínimo del centro de cuenta la descuenta. */
   .cpa-shell{min-height:calc(100vh - 112px)}
 }

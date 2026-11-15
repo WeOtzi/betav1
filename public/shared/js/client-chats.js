@@ -550,8 +550,11 @@
     function quoteStatusTag(t) {
         const P = window.WoClientPanel;
         if (!P) return STATUS_TAGS[t.quote_status] || { label: 'En revisión', cls: 'wo-tag--soft' };
-        let status = P.statusOf(t);
-        if (status.key === 'draft' && t.last_message_at) status = P.statusOf(Object.assign({}, t, { quote_status: 'en_progreso' }));
+        // La próxima sesión ya cargada para "Reservas" alimenta "Sesión por confirmar".
+        const session = t.quotation_id_int != null ? sessionsByQid[t.quotation_id_int] : null;
+        const ctx = session ? { sessions: [session] } : {};
+        let status = P.statusOf(t, ctx);
+        if (status.key === 'draft' && t.last_message_at) status = P.statusOf(Object.assign({}, t, { quote_status: 'en_progreso' }), ctx);
         return { label: status.label, cls: status.tag };
     }
 

@@ -337,16 +337,6 @@
         return key === filter;
     }
 
-    // ¿Le toca al cliente? (propuesta por responder, cambios por revisar,
-    // sesión por confirmar o cierre por confirmar).
-    function needsClientAction(q, ctx) {
-        var status = statusOf(q, ctx);
-        if (status.waitingOn === 'client') return true;
-        if (status.overlay) return false;
-        if (status.key === 'artist_completed') return true;
-        return status.key === 'responded' && (q.dispute_status || 'none') !== 'open';
-    }
-
     // ------------------------------------------------------------------
     // Buscador
     // ------------------------------------------------------------------
@@ -550,7 +540,6 @@
         flagsOf: flagsOf,
         statusOf: statusOf,
         matchesFilter: matchesFilter,
-        needsClientAction: needsClientAction,
         matchesSearch: matchesSearch,
         searchQuotations: searchQuotations,
         requestCode: requestCode,

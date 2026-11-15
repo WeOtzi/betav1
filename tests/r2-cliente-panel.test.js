@@ -145,10 +145,9 @@ test('CP2: prioridad (primero lo que espera al cliente) y cotizaciones cerradas 
     assert.equal(Panel.statusOf({ quote_status: 'in_progress', pending_counter_by: 'artist' }, { now: NOW }).label, Proposal.STATUS.draft.label);
     // Ninguna cotización de hoy (sin campos nuevos) cambia de etiqueta.
     assert.deepEqual(Panel.flagsOf(responded(), { now: NOW }), { counterBy: null, agreementChange: null, sessionToConfirm: false });
-    assert.equal(Panel.needsClientAction(responded(), { now: NOW }), true);
-    assert.equal(Panel.needsClientAction(responded(), { now: NOW, counterBy: 'client' }), false);
-    assert.equal(Panel.needsClientAction(responded({ quote_status: 'pending' }), { now: NOW }), false);
-    assert.equal(Panel.needsClientAction(responded({ quote_status: 'client_approved' }), { now: NOW, sessionToConfirm: true }), true);
+    assert.equal(Panel.statusOf(responded(), { now: NOW }).waitingOn, null);
+    assert.equal(Panel.statusOf(responded(), { now: NOW, counterBy: 'client' }).waitingOn, 'artist');
+    assert.equal(Panel.statusOf(responded({ quote_status: 'client_approved' }), { now: NOW, sessionToConfirm: true }).waitingOn, 'client');
 });
 
 // ------------------------------------------------------------ CP1 · código corto y buscador
@@ -425,7 +424,8 @@ test('CP2: /client/dashboard, /client/chats y /client/requests cargan el mismo m
     assert.ok(chatOrder.every((i) => i > -1));
     assert.deepEqual([...chatOrder].sort((a, b) => a - b), chatOrder);
     const chatsJs = read('public/shared/js/client-chats.js');
-    assert.match(chatsJs, /P\.statusOf\(t\)/);
+    assert.match(chatsJs, /let status = P\.statusOf\(t, ctx\);/);
+    assert.match(chatsJs, /const ctx = session \? \{ sessions: \[session\] \} : \{\};/);
     assert.match(chatsJs, /const info = quoteStatusTag\(t\);/);
     // El respaldo dice lo mismo que el modelo.
     assert.ok(chatsJs.includes(`pending:          { label: '${Panel.STATUS.pending.label}'`));
@@ -441,6 +441,8 @@ test('CP2: /client/dashboard, /client/chats y /client/requests cargan el mismo m
     assert.match(nav, /href="\/client\/chats\/">Mensajes<\/a>/);
     assert.match(nav, /href="\/client\/favorites">Favoritos<\/a>/);
     assert.match(reqs, /<a class="wo-o-tile" href="\/client\/profile"/);
+    assert.match(nav, /href="\/client\/dashboard#mis-cotizaciones">Cotizaciones<\/a>/);
+    assert.match(read('public/shared/js/client-panel-ui.js'), /hash === '#mis-cotizaciones'\) call\('revealQuotationsPanel'\)/, 'ese enlace abre el listado al llegar');
 
     const reqJs = read('public/shared/js/client-requests.js');
     assert.match(reqJs, /Panel\.requestStatusOf\(req, \{ pendingOffers: offersFor\(req\) \}\)/);
@@ -478,6 +480,7 @@ test('CSS del panel: solo tokens, cortes responsive y nav del cliente visible en
     assert.doesNotMatch(css, /border-radius:\s*[1-9]/);
     for (const cut of ['1151px', '1024px', '768px', '480px']) assert.ok(css.includes(`@media (max-width:${cut})`), cut);
     assert.match(css, /\.crq-page \.wo-topbar-nav,\.cpa-topbar \.wo-topbar-nav\{display:flex;order:3;width:100%;overflow-x:auto/);
+    assert.match(css, /\.wo-topbar-item\{[^}]*min-height:var\(--tap-target-min\)/, 'destinos de la nav con alto táctil');
     assert.match(css, /\.client-page \.quotation-status\{white-space:normal/);
     assert.match(css, /input:focus-visible \+ \.knob\{box-shadow:var\(--shadow-focus\)\}/);
 });
