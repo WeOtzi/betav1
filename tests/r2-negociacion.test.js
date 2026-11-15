@@ -363,6 +363,17 @@ test('P23: rechazar muestra la advertencia textual del dueño', () => {
     assert.match(read('public/shared/css/client-quote-proposal.css'), /\.cqp-warning\{/);
 });
 
+test('P23: el artista no tiene transición para reabrir una cotización rechazada', () => {
+    const VM = require('../public/shared/js/quotations-view-model.js');
+    assert.deepEqual(VM.STATUS_TRANSITIONS.client_rejected, []);
+    assert.equal(VM.canTransition('client_rejected', 'responded'), false);
+    assert.deepEqual(VM.statusOptions('client_rejected').map((o) => o.value), ['client_rejected']);
+    // La copia del trigger vivo no cambia: soporte y el servidor todavía pueden reabrir.
+    assert.deepEqual(VM.DB_STATUS_TRANSITIONS.client_rejected, ['responded']);
+    // Una vencida sí se puede volver a cotizar (COT-A-08).
+    assert.equal(VM.canTransition('expired', 'responded'), true);
+});
+
 test('el punto de montaje aparece donde puede haber negociación o historial', () => {
     const base = { quote_id: 'WO-7', artist_responded_at: 'x', artist_budget_amount: '10', artist_budget_currency: 'USD', final_budget_amount: '10', final_budget_currency: 'USD' };
     for (const status of ['client_approved', 'in_progress', 'artist_completed', 'completed', 'client_rejected', 'cancelled']) {

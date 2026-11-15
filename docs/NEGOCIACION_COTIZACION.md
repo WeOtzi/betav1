@@ -86,7 +86,8 @@ expediente todavía lo muestra.
 
 Además, para el usuario final `client_rejected` es terminal: el trigger
 rechaza cualquier cambio de estado desde ahí (soporte y `service_role` sí
-pueden). La visibilidad de los datos de contacto la aplica el frente
+pueden). El selector de estado del listado del artista ya no ofrece "volver a
+cotizar" una rechazada (`quotations-view-model.js` · `STATUS_TRANSITIONS`). La visibilidad de los datos de contacto la aplica el frente
 "cot-detalle".
 
 ## Base de datos (`20261116140000_negociacion_propuestas.sql`)
