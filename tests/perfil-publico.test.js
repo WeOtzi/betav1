@@ -339,14 +339,13 @@ test('artists-public: anon key, solo filas publicadas y usuario normalizado', as
 // Hoja "Compartir"
 // ---------------------------------------------------------------------------
 
-test('wo-share-sheet: enlaces de todas las redes, codificados', () => {
+test('wo-share-sheet: enlaces de las redes, codificados (ronda 2: sin Mail, Telegram ni LinkedIn)', () => {
     const l = ShareSheet.networkLinks('https://beta.weotzi.com/lau?x=1&y=2', 'Mirá a Lau & cía', 'Lau · We Ötzi');
     assert.equal(l.whatsapp, 'https://wa.me/?text=' + encodeURIComponent('Mirá a Lau & cía: https://beta.weotzi.com/lau?x=1&y=2'));
     assert.equal(l.facebook, 'https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fbeta.weotzi.com%2Flau%3Fx%3D1%26y%3D2');
     assert.match(l.x, /^https:\/\/twitter\.com\/intent\/tweet\?url=https%3A/);
-    assert.match(l.telegram, /^https:\/\/t\.me\/share\/url\?url=/);
-    assert.match(l.linkedin, /^https:\/\/www\.linkedin\.com\/sharing\/share-offsite\/\?url=/);
-    assert.match(l.mail, /^mailto:\?subject=/);
+    assert.deepEqual(Object.keys(l).sort(), ['facebook', 'whatsapp', 'x'], 'nota N8: sin Mail, Telegram ni LinkedIn');
+    assert.deepEqual(ShareSheet.NETWORKS, ['whatsapp', 'instagram', 'facebook', 'x', 'qr']);
 });
 
 // ---------------------------------------------------------------------------
@@ -378,7 +377,6 @@ test('artist-profile.js: alias, sesión, galería del visitante, anclas y sello 
     assert.match(js, /function applySessionTopbar\(\)/);
     assert.match(js, /viewer\.kind === 'owner' \|\| viewer\.kind === 'artist'/);
     assert.match(js, /function gallerySlotCount\(visibleCount, owner\)/);
-    assert.match(js, /return Math\.ceil\(visibleCount \/ 3\) \* 3;/);
     assert.match(js, /function scrollToRequestedSection/);
     assert.match(js, /prefers-reduced-motion: reduce/);
     assert.match(js, /publicProfilePreferences\.verified === true/);
@@ -390,8 +388,10 @@ test('artist-profile.js: alias, sesión, galería del visitante, anclas y sello 
     // Funciones auxiliares del archivo que el nuevo código usa.
     const fnSrc = js.slice(js.indexOf('function gallerySlotCount'), js.indexOf('function renderGalleryGrid'));
     const gallerySlotCount = new Function('MIN_GALLERY_SLOTS', `${fnSrc}; return gallerySlotCount;`)(9);
+    // Ronda 2: el visitante ve solo los trabajos (sin huecos punteados); el
+    // dueño, los 9 espacios del Figma como invitación a completar.
     assert.equal(gallerySlotCount(0, false), 0);
-    assert.equal(gallerySlotCount(4, false), 6);
+    assert.equal(gallerySlotCount(4, false), 4);
     assert.equal(gallerySlotCount(0, true), 9);
     assert.equal(gallerySlotCount(10, true), 12);
 });
@@ -414,17 +414,19 @@ test('artists-repo (front): búsqueda en minúsculas, solo publicados y sin mayb
     assert.match(block, /async getPublicByUserId\(userId, columns = '\*'\)/);
 });
 
-test('dashboard-share: URL corta, acks del onboarding, más redes y gestos sincrónicos', () => {
+test('dashboard-share: URL corta, acks del onboarding, redes de la ronda 2 y gestos sincrónicos', () => {
     const share = read('public', 'shared', 'js', 'dashboard-share.js');
     assert.match(share, /WoArtistPublicUrl\.publicProfileUrl\(u, base\(\), \{ hash: hash \}\)/);
     assert.match(share, /ack\('compartir\.enlace'\)/);
     assert.match(share, /ack\('compartir'\)/);
     assert.match(share, /assisted: \{ acknowledge: id \}/);
     assert.match(share, /'wo:assist-refresh'/);
-    for (const net of ['facebook', 'x', 'telegram', 'linkedin']) assert.match(share, new RegExp(`netLink\\('${net}'`));
-    // Instagram: window.open en el mismo click, no dentro de un .then.
+    for (const net of ['facebook', 'x']) assert.match(share, new RegExp(`netLink\\('${net}'`));
+    // Nota N8: sin Mail, Telegram ni LinkedIn en ninguna hoja de compartir.
+    assert.doesNotMatch(share, /t\.me\/share|linkedin\.com|mailto:|data-net="(mail|telegram|linkedin)"|netLink\('(telegram|linkedin)'/i);
+    // Instagram: la historia se prepara al pintar el panel y se comparte en el mismo click.
     const ig = share.slice(share.indexOf("var ig = p.querySelector('[data-net=\"instagram\"]')"), share.indexOf("var qrBtn"));
-    assert.ok(ig.indexOf("window.open('https://www.instagram.com/'") < ig.indexOf('pending.then'), 'window.open antes de la promesa');
+    assert.ok(ig.indexOf('prepareStory();') > -1 && ig.indexOf('prepareStory();') < ig.indexOf("ig.addEventListener('click', shareStory)"), 'la imagen se prepara antes del click');
     assert.match(share, /function prepareCardBlob\(\)/);
     assert.doesNotMatch(share, /cardBlob\(\)\.then\(function \(blob\) \{\s*var file/);
     const dash = read('public', 'artist', 'dashboard', 'index.html');

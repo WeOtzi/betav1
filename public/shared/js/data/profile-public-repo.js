@@ -97,6 +97,102 @@
                 warn('listJobBoardApplications', error);
                 return [];
             }
+        },
+
+        /* ---------- Ronda 2 · insignias y tarjeta para compartir ----------
+           Migración 20261116180000_perfil_insignias_most_wanted.sql. Sin ella,
+           todo degrada a vacío (el perfil sigue igual que antes). */
+
+        // Insignias públicas del artista (RPC get_artist_public_badges):
+        //   { ambassador, most_wanted, most_wanted_rank, most_wanted_zone,
+        //     most_wanted_zone_level, most_wanted_since }
+        // Nunca trae conteos. null si la RPC no existe o falla.
+        async getBadges(artistUserId) {
+            if (!artistUserId) return null;
+            try {
+                const client = typeof D.getClient === 'function' ? D.getClient() : null;
+                if (!client || typeof client.rpc !== 'function') return null;
+                const { data, error } = await client.rpc('get_artist_public_badges', { p_artist_user_id: artistUserId });
+                if (error) throw error;
+                return data && typeof data === 'object' && !Array.isArray(data) ? data : null;
+            } catch (error) {
+                warn('getBadges', error);
+                return null;
+            }
+        },
+
+        // Artistas con la insignia Most Wanted, para grillas y sugerencias
+        // (marketplace, cotizador): Map(user_id -> puesto en su zona). Una sola
+        // consulta chica (hay pocos ganadores por zona). Vacío si no hay tabla.
+        async mostWantedMap() {
+            const map = new Map();
+            if (typeof D.from !== 'function') return map;
+            try {
+                const { data, error } = await D.from('artist_most_wanted')
+                    .select('artist_user_id, rank')
+                    .limit(1000);
+                if (error) throw error;
+                for (const row of Array.isArray(data) ? data : []) {
+                    if (row && row.artist_user_id) map.set(String(row.artist_user_id), Number(row.rank) || 1);
+                }
+            } catch (error) {
+                warn('mostWantedMap', error);
+            }
+            return map;
+        },
+
+        // Tarjeta Open Graph guardada del artista ({ og_path, signature, updated_at }).
+        async getShareCard(artistUserId) {
+            if (!artistUserId || typeof D.from !== 'function') return null;
+            try {
+                const { data, error } = await D.from('artist_share_cards')
+                    .select('og_path, signature, updated_at')
+                    .eq('artist_user_id', artistUserId)
+                    .limit(1);
+                if (error) throw error;
+                return Array.isArray(data) && data[0] ? data[0] : null;
+            } catch (error) {
+                warn('getShareCard', error);
+                return null;
+            }
+        },
+
+        // Sube la tarjeta OG (Blob JPEG) a la carpeta del artista en el bucket
+        // público y registra su ruta. Solo funciona con la sesión del propio
+        // artista (política de Storage + RLS). Devuelve la fila o null.
+        async saveShareCard(artistUserId, blob, options) {
+            const o = options || {};
+            const path = String(o.path || '');
+            const bucket = o.bucket || 'profile-pictures';
+            if (!artistUserId || !blob || !path || path.split('/')[0] !== String(artistUserId).toLowerCase()) return null;
+            const client = typeof D.getClient === 'function' ? D.getClient() : null;
+            if (!client || !client.storage || typeof D.from !== 'function') return null;
+            try {
+                const upload = await client.storage.from(bucket)
+                    .upload(path, blob, { cacheControl: '31536000', upsert: true, contentType: 'image/jpeg' });
+                if (upload.error) throw upload.error;
+                const row = {
+                    artist_user_id: artistUserId,
+                    og_path: path,
+                    signature: o.signature ? String(o.signature).slice(0, 64) : null,
+                    width: Number(o.width) || 1200,
+                    height: Number(o.height) || 630
+                };
+                const { error } = await D.from('artist_share_cards').upsert(row, { onConflict: 'artist_user_id' });
+                if (error) {
+                    // Sin fila no sirve el archivo: no se dejan huérfanos.
+                    try { await client.storage.from(bucket).remove([path]); } catch (_) { /* limpieza opcional */ }
+                    throw error;
+                }
+                const previous = String(o.previousPath || '');
+                if (previous && previous !== path && previous.split('/')[0] === path.split('/')[0] && /\/og-card[^/]*$/.test(previous)) {
+                    try { await client.storage.from(bucket).remove([previous]); } catch (_) { /* limpieza opcional */ }
+                }
+                return row;
+            } catch (error) {
+                warn('saveShareCard', error);
+                return null;
+            }
         }
     };
 

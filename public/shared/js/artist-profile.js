@@ -26,7 +26,8 @@ const ARTIST_PUBLIC_FIELDS_LEGACY = [
     'portafolio'
 ].join(',');
 
-const ARTIST_PUBLIC_FIELDS = `${ARTIST_PUBLIC_FIELDS_LEGACY},studio_id,gallery_feed_items,vacation_start,vacation_end`;
+// `embajador` (ronda 2, P21): insignia pública de embajador ('si' la marca soporte).
+const ARTIST_PUBLIC_FIELDS = `${ARTIST_PUBLIC_FIELDS_LEGACY},studio_id,gallery_feed_items,vacation_start,vacation_end,embajador`;
 
 // Figma 801:1108: grilla de 3 columnas (4 filas en el frame). Nunca menos de 9
 // celdas; con más obras se muestran todas (la galería aparte /artist/profile/gallery
@@ -118,6 +119,9 @@ let errorSceneMotionShapes = [];
 // 'client' (sesión de cliente) o 'guest'. Decide la barra superior, la franja
 // del dueño y los huecos de la galería.
 let viewer = { kind: 'guest', session: null };
+// Insignias públicas (RPC get_artist_public_badges): embajador y Most Wanted.
+// null = sin la RPC (migración sin aplicar): el embajador sale de la columna.
+let publicBadges = null;
 
 function isUrlVideo(url) {
     const ext = String(url || '').split('?')[0].split('.').pop()?.toLowerCase();
@@ -383,13 +387,14 @@ async function loadArtistData(refOrUsername) {
 
         artistData = artist;
         canonicalizeLocation(ref);
-        [tattooLocations, travelPresences, studioData, publicProfilePreferences, publicProfileMetrics, viewer] = await Promise.all([
+        [tattooLocations, travelPresences, studioData, publicProfilePreferences, publicProfileMetrics, viewer, publicBadges] = await Promise.all([
             loadArtistTattooLocations(artist.user_id),
             loadTravelPresences(artist.user_id),
             loadArtistStudio(artist.studio_id, artist.user_id),
             loadPublicProfilePreferences(artist.user_id),
             loadPublicProfileMetrics(artist.username || searchUsername),
-            resolveViewer(artist.user_id)
+            resolveViewer(artist.user_id),
+            loadPublicBadges(artist.user_id)
         ]);
         // Barra, franja del dueño y botón compartir según quién mira (antes de
         // pintar: la galería y la bio dependen de si es el dueño).
@@ -405,6 +410,9 @@ async function loadArtistData(refOrUsername) {
             scrollToRequestedSection({ afterReviews: true });
         });
         void loadStoreBand();
+        watchViewerChanges();
+        // El dueño deja su tarjeta Open Graph al día al ver su propio perfil.
+        syncOwnShareCard(true);
 
         // Structured funnel telemetry (fire-and-forget, one event/hour).
         trackProfileEvent('profile_view').catch(() => { /* noop */ });
@@ -463,6 +471,18 @@ async function loadPublicProfilePreferences(artistUserId) {
     } catch (error) {
         console.warn('Public profile preferences unavailable:', error);
         return fallback;
+    }
+}
+
+// Insignias públicas del artista (ronda 2, P21). Sin el repo o sin la RPC queda
+// null y el perfil se pinta igual, sin Most Wanted.
+async function loadPublicBadges(artistUserId) {
+    if (!artistUserId || typeof WeotziData?.ProfilePublic?.getBadges !== 'function') return null;
+    try {
+        return await WeotziData.ProfilePublic.getBadges(artistUserId);
+    } catch (error) {
+        console.warn('Public profile badges unavailable:', error);
+        return null;
     }
 }
 
@@ -663,7 +683,10 @@ function populateProfile() {
     setMetaContent(['og-description', 'twitter-description', 'profile-description'], pageDescription);
 
     if (artistData.profile_picture) {
-        if (/^https?:\/\//i.test(artistData.profile_picture)) setMetaContent(['og-image', 'twitter-image'], artistData.profile_picture);
+        // El servidor ya dejó la imagen para compartir (la tarjeta 1200×630 o la
+        // foto): solo se completa si la página se sirvió sin pasar por él.
+        const serverOgImage = document.getElementById('og-image')?.getAttribute('content') || '';
+        if (!serverOgImage && /^https?:\/\//i.test(artistData.profile_picture)) setMetaContent(['og-image', 'twitter-image'], artistData.profile_picture);
         const avatarImg = document.getElementById('avatar-image');
         avatarImg.hidden = false;
         avatarImg.addEventListener('error', () => renderAvatarInitials(artisticName), { once: true });
@@ -697,6 +720,7 @@ function populateProfile() {
     if (verifiedIcon) {
         verifiedIcon.hidden = !(artistData.verification_state === 'Yes' || publicProfilePreferences.verified === true);
     }
+    renderBadges();
 
     renderVacation();
     renderSocials(profileExtras, privacy);
@@ -722,22 +746,67 @@ function setMetaContent(ids, value) {
     }
 }
 
+/**
+ * Insignias de la cabecera (ronda 2, P21): Embajador We Ötzi y Most Wanted.
+ * Salen de la RPC get_artist_public_badges (nunca trae conteos); si la RPC no
+ * está, el embajador cae a la columna pública artists_db.embajador.
+ */
+function renderBadges() {
+    const build = window.ArtistProfilePresentation?.buildProfileBadges;
+    const list = build ? build({ badges: publicBadges, embajador: artistData?.embajador }) : [];
+    const byId = Object.fromEntries(list.map((badge) => [badge.id, badge]));
+
+    const ambassador = document.getElementById('artist-ambassador-badge');
+    if (ambassador) {
+        ambassador.hidden = !byId.ambassador;
+        if (byId.ambassador) ambassador.title = byId.ambassador.title;
+    }
+
+    const wanted = document.getElementById('artist-most-wanted-badge');
+    if (wanted) {
+        wanted.hidden = !byId['most-wanted'];
+        if (byId['most-wanted']) {
+            wanted.title = byId['most-wanted'].title;
+            setText('artist-most-wanted-text', byId['most-wanted'].label);
+        }
+    }
+}
+
 /* ---------- Quién mira: barra, franja del dueño y compartir ---------- */
 
 function isOwnerView() {
     return viewer.kind === 'owner';
 }
 
+/**
+ * Quién mira (nota N9 / bug T2-5). El modo dueño sale SOLO de la sesión real:
+ * el id de la sesión tiene que ser el del artista de ESTE perfil.
+ *
+ * El bug: acá se preguntaba `ConfigManager.isDemoMode()`, que es otro flag
+ * (features.demoMode, artistas de ejemplo del cotizador) y vale `true` por
+ * defecto hasta que termina de cargar app-config.json. Al volver con Atrás la
+ * página se rearma desde la caché, los datos del artista llegan antes que esa
+ * configuración y cualquier visitante quedaba como "dueño": barra del artista
+ * y franja "Estás viendo tu perfil público". El recorrido demo (wo-demo.js)
+ * muestra el perfil del propio artista y llega con su sesión real: no
+ * necesita ningún atajo (resolveViewerKind solo mira la sesión).
+ */
 async function resolveViewer(artistUserId) {
     const guest = { kind: 'guest', session: null };
+    const decide = window.ArtistProfilePresentation?.resolveViewerKind;
     try {
-        // Modo demo: el recorrido guiado muestra el perfil del artista demo.
-        if (window.ConfigManager?.isDemoMode?.()) return { kind: 'owner', session: null, demo: true };
-        if (!_supabase?.auth?.getSession) return guest;
-        const { data } = await _supabase.auth.getSession();
-        const session = data?.session || null;
-        if (!session?.user?.id) return guest;
-        if (artistUserId && session.user.id === artistUserId) return { kind: 'owner', session };
+        let session = null;
+        if (_supabase?.auth?.getSession) {
+            const { data } = await _supabase.auth.getSession();
+            session = data?.session || null;
+        }
+        const sessionUserId = session?.user?.id || '';
+        const ownerKind = decide
+            ? decide({ artistUserId, sessionUserId })
+            : (artistUserId && sessionUserId === artistUserId ? 'owner' : (sessionUserId ? 'client' : 'guest'));
+        // `demo`: el dueño recorre su perfil en el sandbox (no se escribe nada real).
+        if (ownerKind === 'owner') return { kind: 'owner', session, demo: window.WoDemo?.enabled === true };
+        if (!sessionUserId) return guest;
         let isArtist = false;
         try {
             const own = await WeotziData?.Artists?.getOwnProfile?.('user_id');
@@ -751,14 +820,69 @@ async function resolveViewer(artistUserId) {
 }
 
 /**
+ * El estado de quién mira es el mismo al cargar y al volver con Atrás. Si el
+ * navegador restaura la página desde su caché de navegación (bfcache) o la
+ * sesión cambia en otra pestaña (ingreso, cierre), se vuelve a resolver y se
+ * repinta lo que depende de eso: barra, franja del dueño, galería y bio.
+ */
+let viewerRefreshing = false;
+async function refreshViewer() {
+    if (!artistData?.user_id || viewerRefreshing) return;
+    viewerRefreshing = true;
+    try {
+        // Misma sesión que al pintar: no hay nada que cambiar (ni se consulta de más).
+        let sessionUserId = '';
+        try {
+            const { data } = await _supabase.auth.getSession();
+            sessionUserId = data?.session?.user?.id || '';
+        } catch (_) { /* sin sesión legible: se trata como visitante */ }
+        if (sessionUserId === (viewer.session?.user?.id || '')) return;
+
+        const next = await resolveViewer(artistData.user_id);
+        const changed = next.kind !== viewer.kind;
+        viewer = next;
+        applyViewerChrome();
+        if (changed) {
+            renderGallery();
+            renderBio();
+        }
+    } finally {
+        viewerRefreshing = false;
+    }
+}
+
+let viewerWatchBound = false;
+function watchViewerChanges() {
+    if (viewerWatchBound) return;
+    viewerWatchBound = true;
+    window.addEventListener('pageshow', (event) => {
+        if (event.persisted) void refreshViewer();
+    });
+    try {
+        _supabase?.auth?.onAuthStateChange?.((event, session) => {
+            if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+                // Fuera del callback de auth: supabase-js no admite llamadas anidadas ahí.
+                setTimeout(() => { void refreshViewer(); }, 0);
+            } else if (event === 'TOKEN_REFRESHED' && session?.user?.id && session.user.id === viewer.session?.user?.id) {
+                // Misma persona con token nuevo: las llamadas con Bearer usan el vigente.
+                viewer = { ...viewer, session };
+            }
+        });
+    } catch (_) { /* sin eventos de sesión: queda el estado de la carga */ }
+}
+
+/**
  * Barra superior (auditoría PP-03). El Figma 801:1108 dibuja la del artista
  * porque es la vista del dueño: se usa para el dueño y para otros artistas
  * con sesión. Un cliente ve su barra (como en el marketplace) y sin sesión
  * queda la pública del HTML.
  */
+let publicTopbarHtml = null;
 function applySessionTopbar() {
     const slot = document.getElementById('profile-topbar');
     if (!slot) return;
+    // La barra pública del HTML se guarda para volver a ella si la sesión se cierra.
+    if (publicTopbarHtml === null) publicTopbarHtml = slot.innerHTML;
 
     if (viewer.kind === 'owner' || viewer.kind === 'artist') {
         slot.innerHTML = '<weotzi-product-nav active="profile" menu-toggle-id="profile-product-menu-toggle"'
@@ -793,6 +917,8 @@ function applySessionTopbar() {
         return;
     }
 
+    // Sin sesión: la barra pública (se repone si antes hubo otra).
+    if (!document.getElementById('profile-topbar-cta')) slot.innerHTML = publicTopbarHtml;
     const cta = document.getElementById('profile-topbar-cta');
     if (cta) cta.href = getQuotationFormUrl();
 }
@@ -805,6 +931,89 @@ function applyViewerChrome() {
     if (ownerBar) ownerBar.hidden = !owner;
     const shareBtn = document.getElementById('profile-share-btn');
     if (shareBtn) shareBtn.hidden = !artistData?.username;
+    renderViewerActions();
+}
+
+/* ---------- Ronda 2: favoritos y denuncia (contratos entre frentes) ---------- */
+
+/**
+ * Los botones [data-wo-favorite] y [data-wo-report] los activan los módulos de
+ * otros frentes (wo-favorites.js / wo-report.js). Acá solo se dejan con sus
+ * datos y se intenta cargar el módulo: si no existe en este deploy, los
+ * botones quedan ocultos (nunca un botón que no hace nada).
+ */
+const OPTIONAL_MODULES = {
+    favorites: { src: '/shared/js/wo-favorites.js', flag: 'wo-has-favorites', globals: ['WoFavorites', 'WoFavoritesReady'], event: 'wo:favorites-refresh' },
+    report: { src: '/shared/js/wo-report.js', flag: 'wo-has-report', globals: ['WoReport', 'WoReportReady'], event: 'wo:report-refresh' }
+};
+const optionalModuleState = {};
+
+function ensureOptionalModule(name) {
+    const mod = OPTIONAL_MODULES[name];
+    if (!mod) return Promise.resolve(false);
+    if (optionalModuleState[name]) return optionalModuleState[name];
+    const file = mod.src.split('/').pop();
+    const ready = () => {
+        document.documentElement.classList.add(mod.flag);
+        return true;
+    };
+    optionalModuleState[name] = new Promise((resolve) => {
+        // Ya está en la página (lo incluyó su frente) o ya dejó su global.
+        if (mod.globals.some((key) => window[key]) || document.querySelector(`script[src*="${file}"]`)) {
+            resolve(ready());
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = appBaseUrl() + mod.src;
+        script.async = true;
+        script.onload = () => resolve(ready());
+        script.onerror = () => { script.remove(); resolve(false); };
+        document.head.appendChild(script);
+    });
+    return optionalModuleState[name];
+}
+
+// Avisa al módulo que hay botones nuevos (la galería se repinta al filtrar).
+function refreshOptionalModule(name, root) {
+    const mod = OPTIONAL_MODULES[name];
+    if (!mod) return;
+    void ensureOptionalModule(name).then((loaded) => {
+        if (!loaded) return;
+        try {
+            document.dispatchEvent(new CustomEvent(mod.event, { detail: { root: root || document } }));
+            const api = window[mod.globals[0]];
+            const refresh = api && (api.refresh || api.scan || api.hydrate);
+            if (typeof refresh === 'function') refresh.call(api, root || document);
+        } catch (error) {
+            console.warn(`[perfil] ${name}:`, error);
+        }
+    });
+}
+
+function renderViewerActions() {
+    const userId = artistData?.user_id || '';
+    const name = profileDisplayName();
+
+    // Favorito del artista (cabecera): para todos menos el dueño.
+    const favBtn = document.getElementById('profile-fav-btn');
+    if (favBtn) {
+        favBtn.dataset.id = userId;
+        favBtn.dataset.label = name;
+        favBtn.dataset.image = /^https?:\/\//i.test(artistData?.profile_picture || '') ? artistData.profile_picture : '';
+        favBtn.hidden = !userId || isOwnerView();
+        if (!favBtn.hidden) refreshOptionalModule('favorites', favBtn.parentElement);
+    }
+
+    // Denunciar perfil: solo artistas con sesión que no son el dueño.
+    const reportBand = document.getElementById('profile-report-band');
+    const reportBtn = document.getElementById('profile-report-btn');
+    if (reportBand && reportBtn) {
+        const canReport = Boolean(userId) && viewer.kind === 'artist';
+        reportBtn.dataset.id = userId;
+        reportBtn.dataset.label = name;
+        reportBand.hidden = !canReport;
+        if (canReport) refreshOptionalModule('report', reportBand);
+    }
 }
 
 function appBaseUrl() {
@@ -857,10 +1066,54 @@ async function acknowledgeOnboarding(id) {
     }
 }
 
+// Canales de la hoja → canales que guarda el servidor (artist_profile_shares).
+// La historia de Instagram cuenta una sola vez (el toque en Instagram), no
+// también cuando después se comparte o descarga la imagen ('story').
+const SHARE_CHANNELS = {
+    copy: 'copy', native: 'native', whatsapp: 'whatsapp', facebook: 'facebook', x: 'x',
+    instagram: 'story', qr_download: 'qr'
+};
+const trackedShares = new Set();
+
+/**
+ * Cada compartido suma a Most Wanted (ronda 2, P21). Una vez por canal y
+ * página; el servidor además cuenta una sola vez por persona, canal y hora.
+ * Fire-and-forget: nunca frena ni rompe el compartir.
+ */
+function trackProfileShare(channel) {
+    const mapped = SHARE_CHANNELS[channel];
+    const username = artistData?.username;
+    if (!mapped || !username || trackedShares.has(mapped) || viewer.demo || window.WoDemo?.enabled) return;
+    trackedShares.add(mapped);
+    const headers = { 'Content-Type': 'application/json' };
+    const token = viewer.session?.access_token;
+    if (token) headers.Authorization = `Bearer ${token}`;
+    fetch('/api/artist/profile-share', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ artist_username: username, channel: mapped }),
+        keepalive: true
+    }).catch(() => { trackedShares.delete(mapped); });
+}
+
+// Datos de la historia y de la tarjeta Open Graph (wo-share-cards.js).
+function shareCardInput() {
+    return { artist: artistData, prefs: publicProfilePreferences, name: profileDisplayName(), url: getPublicProfileUrl() };
+}
+
+// Solo el dueño (con su sesión) puede subir su tarjeta; se regenera si cambió
+// algo. `auto`: chequeo al abrir el perfil (espaciado); al compartir no espera.
+function syncOwnShareCard(auto = false) {
+    if (!isOwnerView() || viewer.demo || !viewer.session || !window.WoShareCards?.syncOgCard) return;
+    void window.WoShareCards.syncOgCard({ ...shareCardInput(), auto });
+}
+
 function openShareSheet(trigger, opts = {}) {
     if (!artistData?.username || !window.WoShareSheet) return;
     const owner = isOwnerView();
     const name = profileDisplayName();
+    // Al compartir, la vista previa del enlace (og:image) tiene que estar al día.
+    syncOwnShareCard();
     window.WoShareSheet.open({
         url: getPublicProfileUrl(),
         title: `${name} · We Ötzi`,
@@ -871,8 +1124,11 @@ function openShareSheet(trigger, opts = {}) {
         heading: owner ? 'Compartir mi perfil' : 'Compartir perfil',
         trigger,
         qr: opts.qr === true,
+        // Historia de Instagram 1080×1920 (nota N8): la arma wo-share-cards.js.
+        story: window.WoShareCards ? { artist: artistData, prefs: publicProfilePreferences, name } : null,
         extra: owner ? { label: 'Tarjeta QR con tu marca', href: '/artist/dashboard?panel=qr' } : null,
         onShare(channel) {
+            trackProfileShare(channel);
             // Abrir el panel QR no es compartir; descargarlo, sí.
             if (channel === 'copy') void acknowledgeOnboarding('compartir.enlace');
             else if (channel !== 'qr') void acknowledgeOnboarding('compartir');
@@ -1040,7 +1296,7 @@ function setQuoteLinks() {
     // Turnos: con reservas online activas, "Reservar sesión" abre /turnos (profile-turnos.js).
     const reserveUrl = (window.WoProfileTurnos && window.WoProfileTurnos.reserveUrl) || getQuotationFormUrl();
 
-    for (const id of ['quote-cta-top-btn', 'quote-cta-bar-btn']) {
+    for (const id of ['quote-cta-top-btn', 'quote-cta-bar-btn', 'quote-cta-band-btn', 'gallery-empty-cta']) {
         const el = document.getElementById(id);
         if (el) el.href = quotationUrl;
     }
@@ -1274,7 +1530,9 @@ function normalizeGalleryItems() {
         const title = String(raw?.title || raw?.name || `${GALLERY_CATEGORY_LABELS[category]} ${items.length + 1}`);
         const styles = galleryStylesOf(raw);
         const filterValues = styles.map((style) => window.ArtistProfilePresentation?.filterKey?.(style) || String(style).toLowerCase());
-        items.push({ url, key, title, category, styles, filterValues, kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image' });
+        // Pie de foto (ronda 2): texto plano del ítem, si lo trae.
+        const caption = galleryCaptionOf(raw);
+        items.push({ url, key, title, category, styles, filterValues, caption, kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image' });
         seen.add(url);
     }
 
@@ -1289,12 +1547,22 @@ function normalizeGalleryItems() {
             const title = String(raw.title || raw.name || `Trabajo ${items.length + 1}`);
             const styles = galleryStylesOf(raw);
             const filterValues = styles.map((style) => window.ArtistProfilePresentation?.filterKey?.(style) || String(style).toLowerCase());
-            items.push({ url, key, title, category: 'realizados', styles, filterValues, kind: isUrlVideo(url) ? 'video' : 'image' });
+            items.push({ url, key, title, category: 'realizados', styles, filterValues, caption: galleryCaptionOf(raw), kind: isUrlVideo(url) ? 'video' : 'image' });
             seen.add(url);
         }
     }
 
     return items;
+}
+
+// Pie de foto de un trabajo: `caption` del ítem (lo define el editor del
+// portafolio), saneado a texto plano. Largo completo para el visor.
+const GALLERY_CAPTION_MAX = 320;
+function galleryCaptionOf(raw) {
+    const clean = window.ArtistProfilePresentation?.workCaption;
+    const value = raw && typeof raw === 'object' ? raw.caption : '';
+    if (typeof value !== 'string' || !value.trim()) return '';
+    return clean ? clean(value, GALLERY_CAPTION_MAX) : value.replace(/\s+/g, ' ').trim().slice(0, GALLERY_CAPTION_MAX);
 }
 
 function getVisibleGalleryItems() {
@@ -1323,7 +1591,8 @@ function renderGalleryChips() {
 
     containers.forEach((chips) => {
         const isIntro = chips.id === 'portfolio-intro-chips';
-        chips.hidden = !galleryItems.length && !isOwnerView();
+        // Un único chip "Todos" no filtra nada: los filtros aparecen con 2 o más.
+        chips.hidden = options.length < 2 || (!galleryItems.length && !isOwnerView());
         chips.innerHTML = options.map((option) => {
             const active = option.value === galleryFilter;
             const label = isIntro && option.value === GALLERY_ALL_FILTER ? 'Todo' : option.label;
@@ -1334,24 +1603,41 @@ function renderGalleryChips() {
 
 function renderGallery() {
     galleryItems = normalizeGalleryItems();
-    // Sin trabajos, el visitante no ve la banda de entrada al portafolio ni
-    // sus filtros (auditoría PP-05); el dueño la sigue viendo como en el Figma.
+    // La banda de entrada "Portafolio" se quitó (ronda 2, nota N7); si un HTML
+    // viejo en caché todavía la trae, queda oculta.
     const introBand = document.querySelector('.portfolio-intro-band');
-    if (introBand) introBand.hidden = !galleryItems.length && !isOwnerView();
+    if (introBand) introBand.hidden = true;
+    const owner = isOwnerView();
     const ownerCta = document.getElementById('gallery-owner-cta');
-    if (ownerCta) ownerCta.hidden = !isOwnerView() || galleryItems.length >= MIN_GALLERY_SLOTS;
+    if (ownerCta) ownerCta.hidden = !owner || galleryItems.length >= MIN_GALLERY_SLOTS;
+
+    // Visitante + perfil sin trabajos: la banda se achica a un estado vacío con
+    // salida (pedir cotización), sin título ni grilla de huecos.
+    const emptyForVisitor = !owner && !galleryItems.length;
+    const band = document.getElementById('block-gallery');
+    if (band) band.classList.toggle('is-empty', emptyForVisitor);
+    const head = document.getElementById('gallery-head');
+    if (head) head.hidden = emptyForVisitor;
+    const emptyCard = document.getElementById('gallery-empty-card');
+    if (emptyCard) emptyCard.hidden = !emptyForVisitor;
+    const count = document.getElementById('gallery-count');
+    if (count) {
+        count.hidden = !galleryItems.length;
+        count.textContent = galleryItems.length === 1 ? '1 trabajo' : `${galleryItems.length} trabajos`;
+    }
+
     renderGalleryChips();
     renderGalleryGrid();
 }
 
 /**
  * Celdas de la grilla. El dueño ve los 9 huecos del Figma (801:1108) como
- * invitación a completar el portafolio; el visitante, solo los trabajos (la
- * última fila se completa para no dejar la grilla rota) o el texto vacío.
+ * invitación a completar el portafolio; el visitante, solo los trabajos: nunca
+ * huecos punteados (ronda 2: los perfiles con pocos trabajos no muestran vacíos).
  */
 function gallerySlotCount(visibleCount, owner) {
     if (owner) return Math.max(MIN_GALLERY_SLOTS, Math.ceil(visibleCount / 3) * 3);
-    return Math.ceil(visibleCount / 3) * 3;
+    return visibleCount;
 }
 
 function renderGalleryGrid() {
@@ -1362,28 +1648,46 @@ function renderGalleryGrid() {
     const owner = isOwnerView();
     const visible = getVisibleGalleryItems();
     if (galleryEmpty) {
-        galleryEmpty.style.display = visible.length ? 'none' : 'block';
+        // El visitante sin ningún trabajo ve la tarjeta #gallery-empty-card
+        // (renderGallery); este texto queda para el dueño y para un filtro vacío.
+        const emptyForVisitor = !owner && !galleryItems.length;
+        galleryEmpty.style.display = visible.length || emptyForVisitor ? 'none' : 'block';
         galleryEmpty.textContent = owner
             ? 'Todavía no publicaste trabajos. Los espacios están reservados para tu próxima colección.'
-            : (galleryFilter === GALLERY_ALL_FILTER
-                ? 'Este artista todavía no publicó trabajos. Pedile una cotización y te muestra ideas para tu tatuaje.'
-                : 'No hay trabajos con este filtro.');
+            : 'No hay trabajos con este filtro.';
     }
     galleryGrid.hidden = !owner && !visible.length;
 
     const slotCount = gallerySlotCount(visible.length, owner);
+    const artistName = profileDisplayName();
+    const favoriteId = window.ArtistProfilePresentation?.favoriteWorkId;
 
     let html = '';
     for (let index = 0; index < slotCount; index += 1) {
         const item = visible[index];
         if (item) {
+            const number = index + 1;
+            const caption = item.caption || '';
+            const label = caption ? `Abrir trabajo ${number}: ${caption}` : `Abrir trabajo ${number}`;
+            const alt = caption || `Trabajo ${number} de ${artistName}`;
+            // Favorito del trabajo (contrato data-wo-favorite, kind="design"): el
+            // botón va vacío; lo activa wo-favorites.js. El dueño no se guarda a sí mismo.
+            const favId = !owner && favoriteId ? favoriteId(artistData?.user_id, item.key) : '';
+            const favLabel = caption || `${item.title} · ${artistName}`;
+            const favButton = favId
+                ? `<button type="button" class="profile-fav gallery-fav" data-wo-favorite data-kind="design" data-id="${escapeHtml(favId)}" data-label="${escapeHtml(favLabel)}" data-image="${escapeHtml(item.kind === 'video' ? '' : item.url)}" aria-label="${escapeHtml(`Guardar el trabajo ${number} en favoritos`)}"></button>`
+                : '';
             html += `
-                <button type="button" class="gallery-image-item" data-gallery-index="${index}" aria-label="Abrir trabajo ${index + 1}">
-                    ${item.kind === 'video'
-                        ? `<video src="${escapeHtml(item.url)}" preload="metadata" muted playsinline></video><span class="gallery-play-overlay"><i data-wo-icon="play" class="wo-icon-18" aria-hidden="true"></i></span>`
-                        : `<img src="${escapeHtml(item.url)}" alt="Trabajo ${index + 1}" loading="lazy" width="1200" height="800">`}
-                    <span class="gallery-overlay"><span>Ver</span><span>${String(index + 1).padStart(2, '0')}</span></span>
-                </button>
+                <figure class="gallery-cell${caption ? ' has-caption' : ''}">
+                    <button type="button" class="gallery-image-item" data-gallery-index="${index}" aria-label="${escapeHtml(label)}">
+                        ${item.kind === 'video'
+                            ? `<video src="${escapeHtml(item.url)}" preload="metadata" muted playsinline></video><span class="gallery-play-overlay"><i data-wo-icon="play" class="wo-icon-18" aria-hidden="true"></i></span>`
+                            : `<img src="${escapeHtml(item.url)}" alt="${escapeHtml(alt)}" loading="lazy" width="1200" height="800">`}
+                        <span class="gallery-overlay"><span>Ver</span><span>${String(number).padStart(2, '0')}</span></span>
+                    </button>
+                    ${favButton}
+                    ${caption ? `<figcaption class="gallery-caption">${escapeHtml(caption)}</figcaption>` : ''}
+                </figure>
             `;
         } else {
             // Celda vacía con el slot de imagen del Figma (borde punteado + ícono).
@@ -1396,6 +1700,9 @@ function renderGalleryGrid() {
     }
 
     galleryGrid.innerHTML = html;
+    galleryGrid.dataset.count = String(visible.length);
+    // Los botones de favorito se acaban de crear: se avisa a su módulo.
+    if (!owner && visible.length) refreshOptionalModule('favorites', galleryGrid);
 }
 
 /**
@@ -2081,9 +2388,17 @@ function updateLightboxImage() {
         video.load();
         image.style.display = 'block';
         image.src = item.url;
+        image.alt = item.caption || `Trabajo ${currentLightboxIndex + 1} de ${profileDisplayName()}`;
     }
 
     counter.textContent = `${currentLightboxIndex + 1} / ${visible.length}`;
+
+    // Pie de foto completo del trabajo (ronda 2), si el ítem trae "caption".
+    const caption = document.getElementById('lightbox-caption');
+    if (caption) {
+        caption.textContent = item.caption || '';
+        caption.hidden = !item.caption;
+    }
 }
 
 /* ---------- Estados de página ---------- */

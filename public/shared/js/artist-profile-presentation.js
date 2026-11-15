@@ -369,7 +369,101 @@
         return ids;
     }
 
+    /* ---------- Ronda 2 (frente "perfil") ---------- */
+
+    /**
+     * Quién mira el perfil (nota N9 / bug T2-5). El modo dueño sale SOLO de la
+     * sesión real: el id de la sesión tiene que ser el del artista de ESTE
+     * perfil. Ningún flag (configuración, modo demo, estado guardado en el
+     * navegador) convierte a un visitante en dueño: en el recorrido demo el
+     * artista también llega con su sesión.
+     *   'owner'  el propio artista · 'artist' otro artista con sesión
+     *   'client' sesión sin perfil de artista · 'guest' sin sesión
+     */
+    function resolveViewerKind(input) {
+        const o = input || {};
+        const artistId = String(o.artistUserId || '').trim().toLowerCase();
+        const sessionId = String(o.sessionUserId || '').trim().toLowerCase();
+        if (!sessionId) return 'guest';
+        if (artistId && artistId === sessionId) return 'owner';
+        return o.isArtistAccount === true ? 'artist' : 'client';
+    }
+
+    // Caracteres de control e invisibles (C0, DEL, ancho cero, separadores de
+    // línea y BOM). Se arma por código para no dejar invisibles en el fuente.
+    const INVISIBLE_RE = (() => {
+        const c = String.fromCharCode;
+        return new RegExp(`[${c(0)}-${c(31)}${c(127)}${c(0x200b)}-${c(0x200f)}${c(0x2028)}-${c(0x202f)}${c(0xfeff)}]+`, 'g');
+    })();
+
+    /**
+     * Pie de foto de un trabajo: texto plano en una línea, sin caracteres de
+     * control ni la cola de hashtags de Instagram, recortado a `max`.
+     */
+    function workCaption(raw, max) {
+        const limit = Number(max) > 0 ? Number(max) : 160;
+        let text = String(raw == null ? '' : (typeof raw === 'object' ? (raw.caption || '') : raw));
+        text = text.replace(INVISIBLE_RE, ' ').replace(/\s+/g, ' ').trim();
+        // Bloque final de hashtags/menciones (típico de los posts importados).
+        text = text.replace(/(?:\s+[#@][\p{L}\p{N}_.]+)+\s*$/u, '').trim();
+        if (/^(?:[#@][\p{L}\p{N}_.]+\s*)+$/u.test(text)) return '';
+        if (text.length <= limit) return text;
+        const cut = text.slice(0, limit - 1);
+        const space = cut.lastIndexOf(' ');
+        return (space > limit * 0.6 ? cut.slice(0, space) : cut).replace(/[\s.,;:·-]+$/, '') + '…';
+    }
+
+    /** Id estable de un trabajo para el contrato de favoritos (kind="design"). */
+    function favoriteWorkId(artistUserId, workKey) {
+        const owner = String(artistUserId || '').trim();
+        const key = String(workKey || '').trim().replace(/\s+/g, '-').slice(0, 160);
+        return owner && key ? `${owner}:${key}` : '';
+    }
+
+    /** artists_db.embajador: 'si' (y variantes) = embajador activo. */
+    function isAmbassador(value) {
+        if (value === true) return true;
+        return ['si', 'sí', 'yes', 'true'].includes(String(value == null ? '' : value).trim().toLowerCase());
+    }
+
+    /**
+     * Insignias de la cabecera, en orden: Verificado · Embajador · Most Wanted.
+     * `badges` es la respuesta de la RPC get_artist_public_badges (puede faltar:
+     * migración sin aplicar); el embajador cae entonces a artists_db.embajador.
+     */
+    function buildProfileBadges(input) {
+        const o = input || {};
+        const badges = o.badges && typeof o.badges === 'object' ? o.badges : null;
+        const list = [];
+        if (o.verified === true) {
+            list.push({ id: 'verified', label: 'Verificado', title: 'Perfil verificado por We Ötzi' });
+        }
+        const ambassador = badges && typeof badges.ambassador === 'boolean'
+            ? badges.ambassador
+            : isAmbassador(o.embajador);
+        if (ambassador) {
+            list.push({ id: 'ambassador', label: 'Embajador We Ötzi', title: 'Forma parte del programa de embajadores de We Ötzi' });
+        }
+        if (badges && badges.most_wanted === true) {
+            const zone = String(badges.most_wanted_zone || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+            list.push({
+                id: 'most-wanted',
+                label: zone ? `Most Wanted · ${zone}` : 'Most Wanted',
+                title: zone
+                    ? `Uno de los perfiles más buscados de ${zone} en los últimos 30 días`
+                    : 'Uno de los perfiles más buscados de su zona en los últimos 30 días',
+                rank: Number(badges.most_wanted_rank) || null
+            });
+        }
+        return list;
+    }
+
     return {
+        resolveViewerKind,
+        workCaption,
+        favoriteWorkId,
+        isAmbassador,
+        buildProfileBadges,
         artistInitials,
         pickBaseStudioIds,
         buildSocialLinks,
