@@ -33,6 +33,7 @@
         identifier: params.get('id') || params.get('quote') || '',
         quote: null,
         attachments: [],
+        extras: null,
         sessions: [],
         messages: [],
         history: [],
@@ -351,15 +352,20 @@
         const disputesTask = data.QuotationDetail
             ? data.QuotationDetail.listDisputes(quote.id).catch(() => ({ available: false, rows: [] }))
             : Promise.resolve({ available: false, rows: [] });
-        const [attachments, sessions, messages, history, disputes] = await Promise.all([
+        // cot-detalle (P13): comentarios del cliente por referencia (quotation_intake_extras).
+        const extrasTask = data.IntakeExtras && quote.quote_id
+            ? data.IntakeExtras.getByQuoteId(quote.quote_id).catch(() => null)
+            : Promise.resolve(null);
+        const [attachments, sessions, messages, history, disputes, extras] = await Promise.all([
             data.Attachments.listByQuoteIds([quote.quote_id]).catch(() => []),
             data.Sessions.listForQuote(quote.id).catch(() => []),
             data.Chat.listByQuote(quote.quote_id).catch(() => []),
             data.StatusHistory ? data.StatusHistory.listForQuotation(quote.id).catch(() => []) : Promise.resolve([]),
             disputesTask,
+            extrasTask,
         ]);
         Object.assign(state, {
-            attachments, sessions, messages, history,
+            attachments, sessions, messages, history, extras,
             disputes: disputes.rows || [],
             disputesAvailable: disputes.available !== false,
         });
@@ -455,35 +461,35 @@
                     <h1 class="qd-title" id="qd-title">${esc(q.client_full_name || 'Cliente')}</h1>
                     <div class="qd-tags">${tags.map((tag) => `<span class="qd-tag">${esc(tag)}</span>`).join('')}</div>
                 </div>
+                <div class="qd-identity-actions" id="qd-identity-actions"></div>
             </section>`;
     }
 
+    // cot-detalle (P13): cada referencia con SU comentario del cliente y la
+    // marca "generada con IA · solo referencial". Se muestran todas; con menos
+    // de tres se completan los lugares del frame (801:576).
     function referencesHtml(q) {
-        const refs = [];
-        const seen = new Set();
-        state.attachments.forEach((a, i) => {
-            const url = a.google_drive_url || a.file_url || a.url || '';
-            if (!url || seen.has(url)) return;
-            seen.add(url);
-            refs.push({ url, name: a.file_name || `Referencia ${i + 1}` });
-        });
-        (Array.isArray(q.reference_images) ? q.reference_images : []).forEach((url, i) => {
-            if (!url || seen.has(url)) return;
-            seen.add(url);
-            refs.push({ url, name: `Referencia ${refs.length + 1}` });
-        });
-        return Array.from({ length: 3 }, (_, index) => {
-            const ref = refs[index];
-            if (!ref) {
-                return `<div class="qd-reference-card" aria-label="Referencia ${index + 1} sin archivo">
-                    ${icon('image', 16)}<strong>Referencia ${index + 1}</strong><small>sin archivo adjunto</small></div>`;
-            }
+        const refs = M.referenceItems(q, state.attachments, state.extras);
+        const cells = refs.map((ref) => {
             const href = safeUrl(ref.url);
-            const thumb = driveThumbnail(ref.url) || ref.url;
-            const more = index === 2 && refs.length > 3 ? ` · +${refs.length - 3}` : '';
-            return `<a class="qd-reference-card has-image" href="${esc(href || '#')}" target="_blank" rel="noopener noreferrer" aria-label="Abrir ${esc(ref.name)}">
-                    <img src="${esc(thumb)}" alt="${esc(ref.name)}" loading="lazy"><span>${esc(ref.name + more)}</span></a>`;
-        }).join('');
+            const thumb = driveThumbnail(ref.url) || href;
+            const card = href
+                ? `<a class="qd-reference-card has-image" href="${esc(href)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir ${esc(ref.name)} en otra pestaña">
+                    <img src="${esc(thumb)}" alt="${esc(ref.name)}" loading="lazy"><span>${esc(ref.name)}</span></a>`
+                : `<div class="qd-reference-card">${icon('image', 16)}<strong>${esc(ref.name)}</strong><small>enlace no disponible</small></div>`;
+            return `<div class="qd-ref${ref.ai ? ' is-ai' : ''}">
+                    ${card}
+                    ${ref.ai ? '<span class="qd-ref-ai">Generada con IA · solo referencial</span>' : ''}
+                    ${ref.note
+                        ? `<p class="qd-ref-note"><span class="qd-label">Comentario del cliente</span>${esc(ref.note)}</p>`
+                        : '<p class="qd-ref-note is-empty">Sin comentario</p>'}
+                </div>`;
+        });
+        for (let index = refs.length; index < 3; index += 1) {
+            cells.push(`<div class="qd-ref"><div class="qd-reference-card" aria-label="Referencia ${index + 1} sin archivo">
+                    ${icon('image', 16)}<strong>Referencia ${index + 1}</strong><small>sin archivo adjunto</small></div></div>`);
+        }
+        return cells.join('');
     }
 
     function evaluationHtml(v) {
@@ -803,6 +809,9 @@
             // Turno pedido desde /turnos (frente turnos): lo pinta quotation-slot-hold.js.
             '<div id="qd-slot-hold-slot"></div>',
             dossierHtml(v),
+            // Datos del cliente, contacto según verificación y exportación (frente cot-detalle):
+            // lo pinta quotation-detail-info.js.
+            '<div id="qd-client-info-slot"></div>',
             agreementHtml(v),
             sessionsHtml(v),
             // Pagos del proyecto (grupo pagos): lo pinta quotation-payments-panel.js.

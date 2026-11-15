@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>We Ötzi · Tu cotización de tatuaje</title>
+    <meta name="description" content="Tu artista te compartió una cotización de tatuaje en We Ötzi. Mírala, descárgala y crea tu cuenta para responder y chatear.">
+    <!-- Enlace privado por token: no se indexa ni filtra el token por referrer -->
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
+    <link rel="icon" href="/favicon.ico">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/quote-share.css?v=20261116-r2">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
+    <script src="/shared/js/wo-consent.js" defer></script>
+</head>
+<body class="wo-app wqp-body">
+    <!-- Ronda 2 · cot-detalle [P30]: cotización compartida por el artista (/cotizacion/<token>) -->
+    <header class="wqp-topbar">
+        <a class="wqp-logo" href="/inicio" aria-label="We Ötzi, ir al inicio">
+            <span class="wqs-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span>WE ÖTZI</span>
+        </a>
+        <nav class="wqp-topbar-links" aria-label="Cuenta">
+            <a href="/client/login" id="wqp-login-link">Iniciar sesión</a>
+        </nav>
+    </header>
+
+    <main class="wqp-main is-message" id="wqp-root" aria-live="polite">
+        <div class="wqp-state">
+            <span class="wqp-loading-mark" aria-hidden="true"></span>
+            <p role="status">Cargando tu cotización…</p>
+        </div>
+    </main>
+
+    <footer class="wqp-footer">
+        <span>© 2026 We Ötzi · <a href="/legal/terms">Términos</a> · <a href="/legal/privacy">Privacidad</a></span>
+    </footer>
+
+    <noscript>
+        <p class="wqp-footer">Activa JavaScript en tu navegador para ver la cotización.</p>
+    </noscript>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/quotation-info-repo.js?v=20261116-r2"></script>
+    <script src="/shared/js/qrcode-generator.js"></script>
+    <script src="/shared/js/quote-share-model.js?v=20261116-r2"></script>
+    <script src="/shared/js/quote-share-sheet.js?v=20261116-r2"></script>
+    <script src="/shared/js/quote-share-page.js?v=20261116-r2"></script>
+</body>
+</html>

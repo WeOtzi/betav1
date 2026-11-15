@@ -409,10 +409,10 @@
         if (action === 'contact') {
             if (quote.client_user_id) {
                 window.location.href = pg.appUrl(`/artist/inbox?quote=${encodeURIComponent(quote.quote_id || quote.id)}`);
-            } else if (quote.client_email) {
-                window.location.href = `mailto:${encodeURIComponent(quote.client_email)}?subject=${encodeURIComponent('Tu cotización ' + (quote.quote_id || ''))}`;
-            } else if (quote.client_whatsapp) {
-                window.open(`https://wa.me/${String(quote.client_whatsapp).replace(/\D/g, '')}`, '_blank', 'noopener');
+            } else if (quote.client_email || quote.client_whatsapp) {
+                // cot-detalle (P20/P23): el contacto de un cliente sin cuenta se ve en el
+                // detalle, donde el servidor lo entrega solo a tatuadores verificados.
+                window.location.href = pg.appUrl(`/my-quotations/detail?id=${encodeURIComponent(quote.quote_id || quote.id)}#contacto`);
             }
             return;
         }

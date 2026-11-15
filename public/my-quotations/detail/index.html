@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/quotation-detail-figma.css?v=20261115-cot">
+    <!-- cot-detalle (ronda 2): datos del cliente, contacto según verificación, compartir y exportar -->
+    <link rel="stylesheet" href="/shared/css/quotation-detail-info.css?v=20261116-r2">
+    <link rel="stylesheet" href="/shared/css/quote-share.css?v=20261116-r2">
     <link rel="stylesheet" href="/shared/css/quotation-payments.css?v=20261112-pagos">
     <link rel="stylesheet" href="/shared/css/work-notes-drawer.css?v=20261112-r3">
     <link rel="stylesheet" href="/shared/css/booking.css?v=20261115-turnos">
@@ -18,6 +21,7 @@
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/data/quotation-detail-repo.js?v=20261113-venc"></script>
+    <script src="/shared/js/data/quotation-info-repo.js?v=20261116-r2"></script>
     <script src="/shared/js/data/note-files-repo.js?v=20261112-r3"></script>
     <script src="/shared/js/data/google-calendar-repo.js?v=20261115-gcal"></script>
     <script src="/shared/js/wo-icons.js" defer></script>
@@ -77,7 +81,7 @@
     <script src="/shared/js/wo-artist-menu.js" defer></script>
     <script src="/shared/js/currency-utils.js"></script>
     <script src="/shared/js/quotations-view-model.js?v=20261115-cot"></script>
-    <script src="/shared/js/quotation-detail-model.js?v=20261115-cot"></script>
+    <script src="/shared/js/quotation-detail-model.js?v=20261116-r2"></script>
     <script src="/shared/js/work-notes-drawer.js?v=20261112-r3"></script>
     <script src="/shared/js/quotation-client-notices.js?v=20261115-cot"></script>
     <!-- Pagos del proyecto (grupo pagos): antes del expediente para escuchar su primer render -->
@@ -90,6 +94,13 @@
     <script src="/shared/js/booking-slots-model.js?v=20261115-turnos"></script>
     <script src="/shared/js/data/booking-repo.js?v=20261115-turnos"></script>
     <script src="/shared/js/quotation-slot-hold.js?v=20261115-turnos"></script>
-    <script src="/shared/js/quotation-detail-figma.js?v=20261115-beta"></script>
+    <!-- cot-detalle (ronda 2): hoja compartible (enlace público, PDF, imagen) y paneles de información.
+         Antes del expediente para escuchar su primer render. -->
+    <script src="/shared/js/qrcode-generator.js"></script>
+    <script src="/shared/js/quote-share-model.js?v=20261116-r2"></script>
+    <script src="/shared/js/quote-share-sheet.js?v=20261116-r2"></script>
+    <script src="/shared/js/quote-share-actions.js?v=20261116-r2"></script>
+    <script src="/shared/js/quotation-detail-info.js?v=20261116-r2"></script>
+    <script src="/shared/js/quotation-detail-figma.js?v=20261116-r2"></script>
 </body>
 </html>

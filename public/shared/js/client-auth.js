@@ -24,6 +24,9 @@ let currentClientData = null;
 const RETURN_TO_PARAM = 'returnTo';
 const RETURN_TO_PREFIX = '/store/';
 const RETURN_TO_EXACT = ['/client/chats', '/client/chats/'];
+// cot-detalle: enlace público de una cotización (/cotizacion/<token>). Al
+// volver del login o del registro, esa página vincula la cotización a la cuenta.
+const RETURN_TO_SHARED_QUOTE = /^\/cotizacion\/[A-Za-z0-9_-]{43}$/;
 
 function clientBasePath() {
     const w = typeof window !== 'undefined' ? window : {};
@@ -61,7 +64,8 @@ function normalizeReturnTo(value) {
     if (pathPart === '/store') pathPart = RETURN_TO_PREFIX;
     // Inbox del cliente: el CTA del correo de chat (/client/chats?quote=…)
     // vuelve a la conversación después de iniciar sesión.
-    if (pathPart.indexOf(RETURN_TO_PREFIX) !== 0 && RETURN_TO_EXACT.indexOf(pathPart) === -1) return null;
+    if (pathPart.indexOf(RETURN_TO_PREFIX) !== 0 && RETURN_TO_EXACT.indexOf(pathPart) === -1
+        && !RETURN_TO_SHARED_QUOTE.test(pathPart)) return null;
     return pathPart + rest;
 }
 
@@ -131,7 +135,7 @@ function propagateReturnTo(root) {
     // CTA de la pantalla de éxito del registro: vuelve a la Store.
     root.querySelectorAll('[data-ca-return-link]').forEach((a) => {
         a.setAttribute('href', clientAppPath(returnTo));
-        const label = a.getAttribute('data-ca-return-label');
+        const label = RETURN_TO_SHARED_QUOTE.test(returnTo.split(/[?#]/)[0]) ? 'Ver mi cotización' : a.getAttribute('data-ca-return-label');
         if (!label) return;
         const textNode = Array.prototype.find.call(a.childNodes, (n) => n.nodeType === 3 && n.textContent.trim());
         if (textNode) textNode.textContent = label + ' ';
