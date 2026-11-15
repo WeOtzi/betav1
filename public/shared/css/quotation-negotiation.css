@@ -1,0 +1,111 @@
+/* ==========================================================================
+   We Ötzi · Negociación de la cotización (ronda 2 · frente "negociacion")
+   Panel que genera quotation-negotiation.js: contrapropuesta del cliente,
+   cambios al acuerdo, formularios e historial. Lo carga el propio módulo.
+   Vive en dos lugares: dentro del bloque de la propuesta del cliente (.cqp)
+   y en el expediente del artista (#qd-negotiation-slot).
+   Lenguaje del DS Bauhaus (ds/tokens.css): bordes duros, mono para las
+   etiquetas, acento amarillo para lo que espera una respuesta.
+   ========================================================================== */
+
+[data-wqn-mount][hidden]{display:none}
+.wqn{display:grid;gap:var(--space-4);min-width:0;color:var(--text-body);font-family:var(--font-body)}
+.cqp .wqn{margin-top:var(--space-5)}
+.wqn-slot--artist{margin:0 0 var(--space-8)}
+.wqn-slot--artist:empty{display:none}
+
+.wqn-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* Tarjeta de la propuesta pendiente y formularios */
+.wqn-card,
+.wqn-form{display:grid;gap:var(--space-3);min-width:0;padding:var(--space-5);border:var(--border-strong-width) solid var(--border-strong);border-left-width:var(--space-2);background:var(--surface-card)}
+.wqn-card--action{border-left-color:var(--accent);box-shadow:var(--shadow-hard-sm)}
+.wqn-card--waiting{border-left-color:var(--border-muted)}
+.wqn-form{border-left-color:var(--blue-400)}
+
+.wqn-kicker{margin:0;font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted)}
+.wqn-title{margin:0;font-family:var(--font-display);font-size:var(--h3-size);line-height:var(--h3-lh);color:var(--text-heading);overflow-wrap:anywhere}
+.wqn-title:focus{outline:none}
+.wqn-copy,
+.wqn-confirm-copy{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body);overflow-wrap:anywhere}
+.wqn-fine{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted)}
+
+/* Antes → después */
+.wqn-diff{width:100%;border-collapse:collapse;table-layout:fixed;font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.wqn-diff thead th{padding:0 var(--space-3) var(--space-2) 0;border-bottom:var(--border-strong-width) solid var(--border-strong);font-family:var(--font-mono);font-size:var(--meta-s-size);font-weight:var(--weight-regular);letter-spacing:var(--meta-m-track);text-transform:uppercase;text-align:left;color:var(--text-muted)}
+.wqn-diff thead th:first-child{width:28%}
+.wqn-diff tbody th,
+.wqn-diff tbody td{padding:var(--space-2) var(--space-3) var(--space-2) 0;border-bottom:var(--border-hairline) solid var(--border-subtle);text-align:left;vertical-align:top;overflow-wrap:anywhere;white-space:pre-line}
+.wqn-diff tbody tr:last-child th,
+.wqn-diff tbody tr:last-child td{border-bottom:0}
+.wqn-diff tbody th{font-family:var(--font-mono);font-size:var(--meta-m-size);font-weight:var(--weight-regular);letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)}
+.wqn-from{color:var(--text-muted);text-decoration:line-through;text-decoration-color:var(--border-muted)}
+.wqn-to{color:var(--text-heading);font-weight:var(--weight-semibold)}
+
+.wqn-note{margin:0;padding:var(--space-3) var(--space-4);background:var(--surface-page);border-left:var(--border-rule-width) solid var(--border-muted);font-size:var(--body-s-size);line-height:var(--body-s-lh);white-space:pre-line;overflow-wrap:anywhere}
+.wqn-note-label{display:block;margin-bottom:var(--space-1);font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted)}
+
+.wqn-actions{display:flex;flex-wrap:wrap;gap:var(--space-3)}
+.wqn-confirm{display:grid;gap:var(--space-3);padding-top:var(--space-3);border-top:var(--border-hairline) solid var(--border-subtle)}
+.wqn-feedback{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted)}
+.wqn-feedback:empty{display:none}
+.wqn-feedback.is-error{color:var(--text-danger);font-weight:var(--weight-semibold)}
+.wqn-flash{margin:0;padding:var(--space-3) var(--space-4);border:var(--border-hairline) solid var(--system-success);border-left-width:var(--border-rule-width);background:var(--status-success-bg);color:var(--status-success-fg);font-size:var(--body-s-size);line-height:var(--body-s-lh);font-weight:var(--weight-semibold)}
+.wqn-flash--warn{border-color:var(--yellow-300);background:var(--status-warning-bg);color:var(--status-warning-fg)}
+.wqn-flash:focus{outline:none}
+
+/* Formularios */
+.wqn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:var(--space-4);min-width:0}
+.wqn-grid .wo-field{min-width:0}
+.wqn-wide{grid-column:1 / -1}
+.wqn-help{font-size:var(--meta-m-size);line-height:1.45;color:var(--text-muted)}
+.wqn .wo-textarea.wqn-textarea{min-height:72px}
+
+/* Acuerdo aprobado por ambas partes */
+.wqn-agreement{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) var(--space-4);border:var(--border-hairline) solid var(--system-success);border-left-width:var(--border-rule-width);background:var(--status-success-bg)}
+.wqn-agreement-line{margin:0;flex:1 1 220px;font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:0.06em;text-transform:uppercase;color:var(--status-success-fg);overflow-wrap:anywhere}
+
+/* Historial */
+.wqn-history{border-top:var(--border-hairline) solid var(--border-subtle);padding-top:var(--space-3)}
+.wqn-history summary{display:inline-flex;align-items:center;min-height:var(--control-h-sm);cursor:pointer;font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)}
+.wqn-history summary:hover{color:var(--text-heading)}
+.wqn-history-list{list-style:none;margin:var(--space-2) 0 0;padding:0;display:grid;gap:var(--space-3)}
+.wqn-history-item{display:grid;gap:var(--space-1);padding-bottom:var(--space-3);border-bottom:var(--border-hairline) solid var(--border-subtle)}
+.wqn-history-item:last-child{border-bottom:0;padding-bottom:0}
+.wqn-history-head{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin:0;font-size:var(--meta-m-size);color:var(--text-muted)}
+.wqn-history-summary,
+.wqn-history-note{margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);overflow-wrap:anywhere}
+.wqn-history-note{color:var(--text-muted)}
+.wqn-chip{display:inline-flex;align-items:center;padding:2px var(--space-2);font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;background:var(--neutral-200);color:var(--neutral-500)}
+.wqn-chip--accepted{background:var(--status-success-bg);color:var(--status-success-fg)}
+.wqn-chip--rejected{background:var(--status-error-bg);color:var(--status-error-fg)}
+
+.wqn .wo-btn:focus-visible,
+.wqn summary:focus-visible,
+.wqn .wo-input:focus-visible,
+.wqn .wo-select:focus-visible,
+.wqn .wo-textarea:focus-visible{outline:2px solid var(--border-focus);outline-offset:2px}
+
+@media (max-width:560px){
+  .wqn-card,
+  .wqn-form{padding:var(--space-4)}
+  .wqn-title{font-size:20px}
+  .wqn-actions .wo-btn{flex:1 1 100%;justify-content:center}
+  .wqn-agreement .wo-btn{flex:1 1 100%;justify-content:center}
+  /* La tabla pasa a fichas: dato, antes y después en columna. */
+  .wqn-diff thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .wqn-diff,
+  .wqn-diff tbody,
+  .wqn-diff tr,
+  .wqn-diff tbody th,
+  .wqn-diff tbody td{display:block;width:100%}
+  .wqn-diff tbody tr{padding:var(--space-2) 0;border-bottom:var(--border-hairline) solid var(--border-subtle)}
+  .wqn-diff tbody tr:last-child{border-bottom:0}
+  .wqn-diff tbody th,
+  .wqn-diff tbody td{padding:0;border-bottom:0}
+  .wqn-diff tbody td::before{content:attr(data-label) ": ";font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted);text-decoration:none;display:inline-block}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .wqn *{scroll-behavior:auto}
+}
