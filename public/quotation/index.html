@@ -51,6 +51,8 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/quotation-ds.css">
+    <!-- Ronda 2 · cot-pasos: pasos Estilo, Cuerpo y Tamaño -->
+    <link rel="stylesheet" href="/shared/css/quotation-pasos.css?v=20261116-r2">
     <link rel="stylesheet" href="/shared/css/booking.css?v=20261115-turnos">
     <script src="/shared/js/wo-icons.js" defer></script>
     <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
@@ -150,50 +152,12 @@
                 </div>
             </template>
 
-            <!-- TEMPLATE: BODY SELECTOR (Figma 03: aside silueta 318:19919 + grilla + panel de lado) -->
+            <!-- TEMPLATE: BODY SELECTOR (Figma 03 · ronda 2 cot-pasos): silueta seleccionable,
+                 grilla de zonas completas, ficha de la zona y resumen. Todo lo dibuja
+                 quotation-body-map.js dentro de #body-selector con los datos de body_parts. -->
             <template id="tmpl-body-selector">
-                <div class="q-body-selector">
-                    <button type="button" class="q-inline-link q-body-aside-toggle" aria-controls="body-silhouette" aria-expanded="false" onclick="toggleBodySilhouette()">Silueta de referencia</button>
-
-                    <div class="q-body-layout">
-                        <aside class="q-body-aside" id="body-silhouette">
-                            <!-- Maniquí por segmentos: cada path lleva en data-sil las keys
-                                 reales de body_parts (zona raíz + subzonas) que representa.
-                                 script.js pinta el segmento activo en azul. -->
-                            <svg class="q-sil" viewBox="0 0 374 660" role="img" aria-label="Silueta corporal con la zona elegida resaltada" xmlns="http://www.w3.org/2000/svg">
-                                <ellipse class="q-sil-seg" data-sil="cabeza rostro oreja" cx="187" cy="78" rx="36" ry="40"/>
-                                <rect class="q-sil-seg" data-sil="cabeza cuello cuello_frente cuello_lat nuca" x="173" y="116" width="28" height="26" rx="10"/>
-                                <rect class="q-sil-seg" data-sil="torso pecho clavicula costillas espalda espalda_alta omoplato columna" x="133" y="140" width="108" height="112" rx="30"/>
-                                <rect class="q-sil-seg" data-sil="torso abdomen pelvis espalda espalda_baja gluteo" x="143" y="256" width="88" height="88" rx="24"/>
-                                <rect class="q-sil-seg" data-sil="brazo hombro brazo_superior codo" data-sil-side="left" x="99" y="152" width="30" height="96" rx="15" transform="rotate(10 114 200)"/>
-                                <rect class="q-sil-seg" data-sil="brazo hombro brazo_superior codo" data-sil-side="right" x="245" y="152" width="30" height="96" rx="15" transform="rotate(-10 260 200)"/>
-                                <rect class="q-sil-seg" data-sil="brazo antebrazo muneca" data-sil-side="left" x="86" y="250" width="26" height="92" rx="13" transform="rotate(6 99 296)"/>
-                                <rect class="q-sil-seg" data-sil="brazo antebrazo muneca" data-sil-side="right" x="262" y="250" width="26" height="92" rx="13" transform="rotate(-6 275 296)"/>
-                                <ellipse class="q-sil-seg" data-sil="brazo mano dedos" data-sil-side="left" cx="92" cy="364" rx="16" ry="22"/>
-                                <ellipse class="q-sil-seg" data-sil="brazo mano dedos" data-sil-side="right" cx="282" cy="364" rx="16" ry="22"/>
-                                <rect class="q-sil-seg" data-sil="pierna muslo" data-sil-side="left" x="146" y="348" width="36" height="124" rx="18"/>
-                                <rect class="q-sil-seg" data-sil="pierna muslo" data-sil-side="right" x="192" y="348" width="36" height="124" rx="18"/>
-                                <rect class="q-sil-seg" data-sil="pierna rodilla pantorrilla tobillo" data-sil-side="left" x="150" y="476" width="30" height="120" rx="15"/>
-                                <rect class="q-sil-seg" data-sil="pierna rodilla pantorrilla tobillo" data-sil-side="right" x="194" y="476" width="30" height="120" rx="15"/>
-                                <ellipse class="q-sil-seg" data-sil="pierna pie" data-sil-side="left" cx="163" cy="612" rx="19" ry="15"/>
-                                <ellipse class="q-sil-seg" data-sil="pierna pie" data-sil-side="right" cx="211" cy="612" rx="19" ry="15"/>
-                            </svg>
-                            <p class="q-body-aside-caption">Silueta corporal de referencia</p>
-                        </aside>
-
-                        <div id="body-zones-grid" class="q-zone-grid">
-                            <!-- Zonas inyectadas por JS desde body_parts (Supabase) -->
-                        </div>
-                    </div>
-
-                    <div id="body-side-panel" class="q-side-panel hidden">
-                        <h3 class="q-side-zone" id="body-side-zone">—</h3>
-                        <p class="q-block-label" id="body-side-label">¿De qué lado?</p>
-                        <div class="q-chips" id="body-side-chips">
-                            <button type="button" class="q-chip" data-side="left" onclick="handleSideChosen('left')">Izquierdo</button>
-                            <button type="button" class="q-chip" data-side="right" onclick="handleSideChosen('right')">Derecho</button>
-                        </div>
-                    </div>
+                <div class="q-body-selector" id="body-selector">
+                    <p class="empty-sheet-msg">Cargando las zonas del cuerpo…</p>
                 </div>
             </template>
 
@@ -286,6 +250,14 @@
     <script src="/shared/js/booking-slots-model.js?v=20261115-turnos"></script>
     <script src="/shared/js/data/booking-repo.js?v=20261115-turnos"></script>
     <script src="/shared/js/quotation-slot.js?v=20261115-turnos"></script>
+
+    <!-- Ronda 2 · cot-pasos: estilos (insignia Artista / Recomendado), silueta y zonas, tamaños -->
+    <script src="/shared/js/quotation-style-model.js?v=20261116-r2"></script>
+    <script src="/shared/js/quotation-style-step.js?v=20261116-r2"></script>
+    <script src="/shared/js/quotation-body-model.js?v=20261116-r2"></script>
+    <script src="/shared/js/quotation-body-figure.js?v=20261116-r2"></script>
+    <script src="/shared/js/quotation-body-map.js?v=20261116-r2"></script>
+    <script src="/shared/js/quotation-size-step.js?v=20261116-r2"></script>
 
     <!-- App Logic -->
     <script src="/shared/js/script.js"></script>
