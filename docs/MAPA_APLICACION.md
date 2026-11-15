@@ -93,10 +93,10 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/explore/globe` | Cliente/publico | `public/explore/globe/index.html` | Globo 3D con artistas, itinerarios, filtros y spotlight. |
 | `/client/register` | Cliente | `public/client/register/index.html` | Registro de cuenta cliente. |
 | `/client/login` | Cliente | `public/client/login/index.html` | Login de cliente. |
-| `/client/dashboard` | Cliente | `public/client/dashboard/index.html` | Panel cliente: cotizaciones, perfil, chat y solicitudes de job board. |
-| `/client/requests` | Cliente | `public/client/requests/index.html` | Solicitudes del job board del cliente: estados, postulaciones recibidas, comparación y negociación (rediseño 2026). |
+| `/client/dashboard` | Cliente | `public/client/dashboard/index.html` | Panel cliente: cotizaciones, perfil, chat y solicitudes de job board. Ronda 2: accesos rápidos (cotizar, publicar idea, explorar, favoritos, mensajes), buscador por código corto y estados unificados (`client-panel-model.js`). |
+| `/client/requests` | Cliente | `public/client/requests/index.html` | Solicitudes del job board del cliente: estados, postulaciones recibidas, comparación y negociación (rediseño 2026). Ronda 2: mismas etiquetas que el dashboard (incluye la contraoferta pendiente) y buscador por código. |
 | `/client/chats` | Cliente | `public/client/chats/index.html` | Chats del cliente con sus artistas sobre `chat_threads` (rediseño 2026). |
-| `/client/profile` | Cliente | `public/client/profile/index.html` | Centro de cuenta del cliente: perfil, seguridad, notificaciones, configuración (rediseño 2026; conserva el modo perfil público). |
+| `/client/profile` | Cliente | `public/client/profile/index.html` | Centro de cuenta del cliente: perfil, seguridad, notificaciones, configuración (rediseño 2026; conserva el modo perfil público). Ronda 2: matriz de avisos email/push con los valores por defecto del servidor (`client-notif-model.js`). |
 | `/bienvenida` | Público | `public/bienvenida/index.html` | Selección de rol post-registro: cliente o tatuador (rediseño 2026). |
 | `/recover` | Público | `public/recover/index.html` | Recuperación de contraseña única (cliente/artista/beta) con OTP de Supabase (rediseño 2026). |
 | `/job-board/request` | Cliente | `public/job-board/request/index.html` | Publicar solicitud abierta de tatuaje. |

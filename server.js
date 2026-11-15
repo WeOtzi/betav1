@@ -6957,6 +6957,7 @@ require('./lib/routes/cot-cliente').register(app); // ── cot-cliente: claim 
 require('./lib/routes/cot-pasos').register(app); // ── cot-pasos: estilos sugeridos según la idea (cotizador, sin PII)
 require('./lib/routes/cot-detalle').register(app, { publicDir: path.join(__dirname, 'public') }); // ── cot-detalle: contacto, perfil del cliente, exportación y enlace público /cotizacion/<token>
 require('./lib/routes/negociacion').register(app); // ── negociacion (ronda 2): contrapropuesta del cliente y cambios al acuerdo
+require('./lib/routes/cliente-panel').register(app); // ── cliente-panel (ronda 2): matriz de notificaciones del cliente
 
 require('./lib/routes/verif-artista').register(app, { resolveBearerUser, getActiveSupportAgent: _getActiveSupportAgent, emailService, applicationBase }); // verif-artista
 

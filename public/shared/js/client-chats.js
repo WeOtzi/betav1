@@ -36,9 +36,11 @@
     const FILE_ACCEPT = IMAGE_ACCEPT + ',application/pdf,text/plain';
 
     // Estado de la cotización → etiqueta y variante de tag (banner del proyecto).
+    // cliente-panel (ronda 2): la fuente es WoClientPanel.statusOf (mismo modelo
+    // que el dashboard); este mapa queda como respaldo si el script no cargó.
     const STATUS_TAGS = {
-        pending:          { label: 'Esperando cotización', cls: 'wo-tag--soft' },
-        responded:        { label: 'Esperando tu respuesta', cls: 'wo-tag--highlight' },
+        pending:          { label: 'Esperando al artista', cls: 'wo-tag--soft' },
+        responded:        { label: 'Propuesta recibida', cls: 'wo-tag--highlight' },
         // Mismas etiquetas que el panel del cliente (client-quote-proposal.js · CC-13).
         client_approved:  { label: 'Aceptada',             cls: 'wo-tag--active' },
         in_progress:      { label: 'En curso',             cls: 'wo-tag--info' },
@@ -117,7 +119,7 @@
             D.Chat.listThreadsForClient(uid),
             D.Inbox && D.Inbox.listClientThreads ? D.Inbox.listClientThreads() : Promise.resolve([]),
             D.Quotations && D.Quotations.listForClient
-                ? D.Quotations.listForClient(uid, userEmail, D.Quotations.CHAT_COLUMNS || '*')
+                ? D.Quotations.listForClient(uid, userEmail, statusColumns(D.Quotations.CHAT_COLUMNS))
                 : Promise.resolve([]),
         ]);
         const value = (r, fallback) => {
@@ -129,6 +131,15 @@
         inboxThreads = value(results[1], []);
         quotes = value(results[2], []).filter(q => q.client_user_id === uid);
         rows = buildRows();
+    }
+
+    // Columnas del chat + las que necesita la etiqueta de estado del panel
+    // (vencimiento y disputa), sin repetir ninguna.
+    function statusColumns(base) {
+        if (!base) return '*';
+        const cols = String(base).split(',').map(c => c.trim()).filter(Boolean);
+        ['quote_expires_at', 'dispute_status'].forEach(c => { if (!cols.includes(c)) cols.push(c); });
+        return cols.join(', ');
     }
 
     async function loadAll({ initial = false } = {}) {
@@ -306,10 +317,18 @@
         else if (activeTab === 'cotizaciones') list = list.filter(r => r.source === 'quote' && !hasReservation(r));
         if (searchTerm) {
             const q = searchTerm.toLocaleLowerCase('es');
-            list = list.filter(r => [r.name, r.username, affiliationOf(r), r.preview]
+            list = list.filter(r => [r.name, r.username, affiliationOf(r), r.preview, searchCodeOf(r)]
                 .filter(Boolean).join(' ').toLocaleLowerCase('es').includes(q));
         }
         return list;
+    }
+
+    // Código por el que también se puede buscar la conversación: el corto de
+    // la cotización si existe (cot-form), el quote_id o el código del pedido.
+    function searchCodeOf(r) {
+        if (r.source !== 'quote') return (r.inbox && r.inbox.context && r.inbox.context.request_code) || '';
+        const P = window.WoClientPanel;
+        return [P ? P.shortCode(r.quote) : (r.quote.short_code || ''), r.id].filter(Boolean).join(' ');
     }
 
     function renderList() {
@@ -520,6 +539,8 @@
         const style = styleNameOf(t);
         const part = String(t.tattoo_body_part || '').trim();
         const meta = [];
+        const P = window.WoClientPanel;
+        if (P && P.hasShortCode(t)) meta.push('Código ' + P.shortCode(t));
         if (part) meta.push(part);
         if (style) meta.push(style);
         if (t.tattoo_size) meta.push(String(t.tattoo_size).trim());
@@ -529,7 +550,7 @@
         if (session) meta.push('próxima sesión ' + DAY_FMT.format(new Date(session.session_date)));
         $('cch-banner-meta').textContent = meta.join(' · ');
 
-        const info = STATUS_TAGS[t.quote_status] || { label: 'En revisión', cls: 'wo-tag--soft' };
+        const info = quoteStatusTag(t);
         tag.className = 'wo-tag cch-tag-s ' + info.cls;
         tag.textContent = info.label;
 
@@ -540,6 +561,19 @@
             link.textContent = t.quote_status === 'responded' ? 'Ver propuesta →' : 'Ver cotización →';
         }
         renderReferences(referencesByQuote[r.id] || []);
+    }
+
+    // Etiqueta del estado igual a la del panel (/client/dashboard). Una
+    // conversación con mensajes nunca se muestra como borrador sin enviar.
+    function quoteStatusTag(t) {
+        const P = window.WoClientPanel;
+        if (!P) return STATUS_TAGS[t.quote_status] || { label: 'En revisión', cls: 'wo-tag--soft' };
+        // La próxima sesión ya cargada para "Reservas" alimenta "Sesión por confirmar".
+        const session = t.quotation_id_int != null ? sessionsByQid[t.quotation_id_int] : null;
+        const ctx = session ? { sessions: [session] } : {};
+        let status = P.statusOf(t, ctx);
+        if (status.key === 'draft' && t.last_message_at) status = P.statusOf(Object.assign({}, t, { quote_status: 'en_progreso' }), ctx);
+        return { label: status.label, cls: status.tag };
     }
 
     function styleNameOf(t) {

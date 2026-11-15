@@ -143,6 +143,26 @@
             return data || [];
         },
 
+        // Contraofertas PENDIENTES de varias postulaciones en una consulta (índice
+        // de /client/requests: "Cambios propuestos por ti / por el artista").
+        // La RLS (jb_counter_offers_parties_select) acota a las propias. Los ids
+        // van en tandas para no pasarse del largo de URL de PostgREST.
+        async listPendingByApplications(applicationIds) {
+            const ids = Array.from(new Set((applicationIds || []).filter(Boolean)));
+            const out = [];
+            for (let i = 0; i < ids.length; i += 60) {
+                const chunk = ids.slice(i, i + 60);
+                const { data } = await run('jobboard.counterOffers.listPendingByApplications', (c) =>
+                    c.from('job_board_counter_offers')
+                        .select('id, application_id, author_role, status, created_at')
+                        .in('application_id', chunk)
+                        .eq('status', 'pendiente')
+                );
+                (data || []).forEach((row) => out.push(row));
+            }
+            return out;
+        },
+
         // Crea una contraoferta marcando como reemplazadas las pendientes previas
         // de la misma postulacion (historial conservado).
         async create({ applicationId, authorRole, price = null, currency = 'USD', proposedDate = null, note = null }) {
