@@ -253,8 +253,9 @@ test('CP3: accesos directos a favoritos y mensajes, presentes en el dashboard', 
     assert.equal(byKey.favorites.href, '/client/favorites');
     assert.equal(byKey.messages.href, '/client/chats/');
     const html = read('public/client/dashboard/index.html');
-    const quick = html.match(/<nav class="cpn-quick"[\s\S]*?<\/nav>/);
+    const quick = html.match(/<div class="cpn-quick">[\s\S]*?<\/form>\s*<\/div>/);
     assert.ok(quick, 'barra de accesos rápidos');
+    assert.match(quick[0], /<nav class="cpn-quick-nav" aria-label="Accesos rápidos">/);
     for (const s of shortcuts) {
         assert.ok(quick[0].includes(`href="${s.href}"`), s.key);
         assert.ok(quick[0].includes(s.label), s.label);
@@ -442,7 +443,7 @@ test('CP2: /client/dashboard, /client/chats y /client/requests cargan el mismo m
     assert.match(reqs, /<a class="wo-o-tile" href="\/client\/profile"/);
 
     const reqJs = read('public/shared/js/client-requests.js');
-    assert.match(reqJs, /Panel\.requestStatusOf\(req, \{ pendingOffers: offers \|\| offersFor\(req\) \}\)/);
+    assert.match(reqJs, /Panel\.requestStatusOf\(req, \{ pendingOffers: offersFor\(req\) \}\)/);
     assert.match(reqJs, /CO\.listPendingByApplications\(ids\)/);
     assert.match(reqJs, /Panel\.emptyHtml\(Panel\.emptyState\('requests'\), \{ variant: 'ds' \}\)/);
     assert.match(reqJs, /'\/client\/chats\/\?quote=' \+ encodeURIComponent\(req\.resulting_quote_id\)/);
@@ -638,7 +639,7 @@ test('textos nuevos en español neutro (tuteo, sin voseo)', () => {
         const strings = [...text.matchAll(/'([^'\n]{4,})'/g)].map((m) => m[1]).join('\n');
         assert.doesNotMatch(strings, voseo, rel);
     }
-    const quick = read('public/client/dashboard/index.html').match(/<nav class="cpn-quick"[\s\S]*?<\/nav>/)[0];
+    const quick = read('public/client/dashboard/index.html').match(/<div class="cpn-quick">[\s\S]*?<\/form>\s*<\/div>/)[0];
     assert.doesNotMatch(quick, voseo);
     const toolbar = read('public/client/dashboard/index.html').match(/<div class="cpn-toolbar">[\s\S]*?<\/div>\s*<p class="cpn-search-count/)[0];
     assert.doesNotMatch(toolbar, voseo);

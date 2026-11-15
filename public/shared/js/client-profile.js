@@ -328,7 +328,7 @@
                 setStatus(statusEl, 'Revisa el alias', true);
                 $('cpa-username').focus();
             } else {
-                setStatus(statusEl, 'No se pudieron guardar los cambios · probá de nuevo', true);
+                setStatus(statusEl, 'No se pudieron guardar los cambios. Inténtalo de nuevo.', true);
             }
         } finally {
             btn.disabled = false;

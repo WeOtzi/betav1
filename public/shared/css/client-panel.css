@@ -9,7 +9,8 @@
 
 /* ---------- Accesos rápidos (debajo del hero del dashboard) ---------- */
 .cpn-quick{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3) var(--space-4);margin-top:var(--space-6)}
-.cpn-quick-links{display:flex;flex-wrap:wrap;gap:var(--space-2);list-style:none;margin:0;padding:0;flex:1 1 auto;min-width:0}
+.cpn-quick-nav{flex:1 1 auto;min-width:0}
+.cpn-quick-links{display:flex;flex-wrap:wrap;gap:var(--space-2);list-style:none;margin:0;padding:0}
 .cpn-quick-links li{display:flex;min-width:0}
 .cpn-quick .wo-btn{min-height:var(--control-h-md)}
 .cpn-quick-link{gap:var(--space-2);min-width:0}
@@ -39,7 +40,6 @@
 .quotation-status.cpn-neutral{background:var(--neutral-200);color:var(--neutral-500)}
 .cpn-status-hint{display:block;margin:0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body)}
 .quotation-card .cpn-status-hint{padding:0 var(--space-6) var(--space-4)}
-.quotation-detail-status .cpn-status-hint{margin-top:var(--space-2)}
 .quotation-detail-status{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2) var(--space-4)}
 .quotation-detail-status .cpn-status-hint{flex:1 1 100%}
 
@@ -84,6 +84,7 @@ html[data-cpn-report="on"] .cpn-report{display:inline-flex}
 .crq-page a.wo-btn--ghost,.crq-page a.wo-btn--ghost:hover{color:var(--action-ghost-fg)}
 
 .crq-page .crq-util{flex-wrap:wrap}
+.crq-card-actions--start{justify-content:flex-start;margin-top:var(--space-5)}
 .crq-page .wo-tag{max-width:100%}
 .crq-page .cpn-toolbar{margin-bottom:var(--space-6)}
 .crq-app-namerow .cpn-fav{margin-left:auto}
@@ -136,7 +137,8 @@ html[data-cpn-report="on"] .cpn-report{display:inline-flex}
   .cpa-topbar{position:static}
 
   .cpn-quick{margin-top:var(--space-5)}
-  .cpn-quick-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .cpn-quick-nav{flex-basis:100%}
+  .cpn-quick-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .cpn-quick-links li:first-child{grid-column:1 / -1}
   .cpn-quick-link{width:100%;padding-inline:var(--space-2);white-space:normal;text-align:center;line-height:1.2}
   .cpn-quick-search{max-width:none;min-width:0}

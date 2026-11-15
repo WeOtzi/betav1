@@ -65,7 +65,8 @@
             <!-- Accesos rápidos (ronda 2 · cliente-panel): las acciones principales
                  del cliente a la vista, sin scroll. Mismos destinos que
                  WoClientPanel.shortcuts() (client-panel-model.js). -->
-            <nav class="cpn-quick" aria-label="Accesos rápidos">
+            <div class="cpn-quick">
+                <nav class="cpn-quick-nav" aria-label="Accesos rápidos">
                 <ul class="cpn-quick-links">
                     <li><a class="wo-btn wo-btn--s wo-btn--hard cpn-quick-link" href="/quotation"><i data-wo-icon="edit-3" aria-hidden="true"></i>Solicitar cotización</a></li>
                     <li><a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard cpn-quick-link" href="/job-board/request"><i data-wo-icon="radio" aria-hidden="true"></i>Publicar una idea</a></li>
@@ -73,12 +74,13 @@
                     <li><a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard cpn-quick-link" href="/client/favorites"><i data-wo-icon="heart" aria-hidden="true"></i>Mis favoritos</a></li>
                     <li><a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard cpn-quick-link" href="/client/chats/"><i data-wo-icon="message-circle" aria-hidden="true"></i>Mensajes</a></li>
                 </ul>
+                </nav>
                 <form class="cpn-quick-search" id="cpn-quick-search" role="search" autocomplete="off">
                     <label class="wo-sr-only" for="cpn-quick-search-input">Busca una cotización por su código</label>
                     <input class="wo-input" type="search" id="cpn-quick-search-input" placeholder="Código de cotización" maxlength="80" enterkeyhint="search">
                     <button class="wo-btn wo-btn--s" type="submit">Buscar</button>
                 </form>
-            </nav>
+            </div>
 
             <!-- Tu actividad -->
             <section class="client-activity">

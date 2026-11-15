@@ -155,6 +155,10 @@
     function isOpen(req) {
         return req.status === 'open' || req.status === 'in_review';
     }
+    // Cerrada por el cliente o vencida: ya no recibe postulaciones ni cambios.
+    function isEnded(req) {
+        return req.status === 'closed' || req.status === 'expired';
+    }
 
     function offersFor(req) {
         const ids = (req.job_board_applications || []).map((a) => a.id);
@@ -163,9 +167,9 @@
 
     // Estado de la solicitud: mismo modelo que el dashboard. Suma "Cambios
     // propuestos por ti / por el artista" cuando hay una contraoferta pendiente.
-    function stateTag(req, offers) {
+    function stateTag(req) {
         if (Panel) {
-            const status = Panel.requestStatusOf(req, { pendingOffers: offers || offersFor(req) });
+            const status = Panel.requestStatusOf(req, { pendingOffers: offersFor(req) });
             return { label: status.label, cls: status.cls };
         }
         if (req.status === 'closed') return { label: 'Cerrada', cls: 'wo-tag--archived' };
@@ -526,7 +530,7 @@
             + goLink(back.qs, 'wo-meta crq-back', '← ' + esc(back.label))
             + '<span class="wo-tag ' + tag.cls + '">' + esc(tag.label) + '</span>'
             + '</div>'
-            + (opts.step ? stepperHtml(opts.step, req.status === 'closed') : '');
+            + (opts.step ? stepperHtml(opts.step, isEnded(req)) : '');
     }
 
     function refsHtml(req, large) {
@@ -570,7 +574,7 @@
                 : emptyBlock(
                     'radio',
                     'Todavía no publicaste ninguna idea',
-                    'Contá qué tatuaje querés hacerte y recibí propuestas de tatuadores interesados.',
+                    'Cuenta qué tatuaje quieres hacerte y recibe propuestas de artistas interesados.',
                     '<a class="wo-btn wo-btn--accent wo-btn--hard" href="/job-board/request">Publicar una idea <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>'
                 );
             root.innerHTML = html;
@@ -678,21 +682,28 @@
     function renderPublished(req) {
         const apps = visibleApps(req);
         const closed = req.status === 'closed';
+        // cliente-panel (ronda 2): una solicitud vencida ya no se muestra como publicada.
+        const expired = req.status === 'expired';
         const qsBase = '?id=' + encodeURIComponent(req.id);
 
         let html = shellHtml(req, { step: 2, back: { qs: location.pathname, label: 'Volver a mis solicitudes' } });
 
         html += '<div class="crq-titlerow">'
-            + '<h1 class="wo-h1">' + (closed ? 'Publicación cerrada' : 'Tu idea está publicada') + '</h1>'
-            + (closed ? '' : '<button class="wo-meta crq-close-link" type="button" data-action="close-request"><i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i> Cerrar publicación</button>')
+            + '<h1 class="wo-h1">' + (closed ? 'Publicación cerrada' : expired ? 'Publicación vencida' : 'Tu idea está publicada') + '</h1>'
+            + (closed || expired ? '' : '<button class="wo-meta crq-close-link" type="button" data-action="close-request"><i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i> Cerrar publicación</button>')
             + '</div>';
 
         const tag = stateTag(req);
-        html += '<div class="crq-state-inline"><span class="wo-tag ' + tag.cls + '">' + (closed ? 'Cerrada' : 'Publicada · recibiendo postulaciones') + '</span></div>';
+        html += '<div class="crq-state-inline"><span class="wo-tag ' + tag.cls + '">' + (closed ? 'Cerrada' : expired ? 'Vencida' : 'Publicada · recibiendo postulaciones') + '</span></div>';
 
         html += '<p class="crq-lede">' + (closed
             ? 'Cerraste esta publicación: los tatuadores ya no la ven y no vas a recibir postulaciones nuevas. Las propuestas recibidas quedan acá como referencia.'
+            : expired
+            ? 'Esta publicación venció: los artistas ya no la ven y no recibirás postulaciones nuevas. Puedes publicar tu idea otra vez cuando quieras.'
             : 'Tu publicación ya está visible para los tatuadores. Cuando recibas propuestas vas a poder compararlas y elegir al artista indicado.') + '</p>';
+        if (expired) {
+            html += '<div class="crq-card-actions crq-card-actions--start"><a class="wo-btn wo-btn--accent wo-btn--hard" href="/job-board/request">Publicar una idea <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a></div>';
+        }
 
         // Asi ven tu publicacion
         html += '<section class="crq-section">'
@@ -737,7 +748,7 @@
                 + '</div>'
                 + goLink(qsBase + '&view=postulaciones', 'wo-btn wo-btn--accent wo-btn--hard', 'Ver postulaciones <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>')
                 + '</div>';
-        } else if (!closed) {
+        } else if (!closed && !expired) {
             html += '<section class="crq-section">' + emptyBlock(
                 'inbox',
                 'Todavía no hay postulaciones',
@@ -1023,6 +1034,10 @@
         let offers = [];
         try {
             offers = await WeotziData.JobBoard.CounterOffers.listByApplication(app.id);
+            // Las pendientes de esta postulación quedan al día: la etiqueta de
+            // arriba y la del seguimiento salen de la misma lista.
+            pendingOffers = pendingOffers.filter((o) => o.application_id !== app.id)
+                .concat((offers || []).filter((o) => o.status === 'pendiente'));
         } catch (err) {
             console.warn('[client-requests] counterOffers:', err && err.message);
         }
@@ -1042,7 +1057,7 @@
         }
         html += '<div class="crq-titlerow">'
             + '<h1 class="wo-h1">' + esc(deriveTitle(req)) + '</h1>'
-            + (req.status !== 'closed' ? '<button class="wo-meta crq-close-link" type="button" data-action="close-request"><i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i> Cerrar publicación</button>' : '')
+            + (!isEnded(req) ? '<button class="wo-meta crq-close-link" type="button" data-action="close-request"><i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i> Cerrar publicación</button>' : '')
             + '</div>';
 
         html += '<div class="crq-follow">';
@@ -1138,7 +1153,7 @@
         html += '</div>'; // /crq-follow-main
 
         // ---- Sidebar de seguimiento ----
-        const followTag = Panel ? stateTag(req, (offers || []).filter((o) => o.status === 'pendiente')) : null;
+        const followTag = Panel ? stateTag(req) : null;
         const stateRow = followTag
             ? '<span class="wo-tag ' + followTag.cls + '">' + esc(followTag.label) + '</span>'
             : req.status === 'closed'
@@ -1190,7 +1205,7 @@
             html += '<button class="wo-btn wo-btn--direct wo-btn--block" type="button" data-action="accept-proposal" data-app="' + esc(app.id) + '"' + (artistCO ? ' data-co="' + esc(artistCO.id) + '"' : '') + '>'
                 + '<i data-wo-icon="check" class="wo-icon-18" aria-hidden="true"></i> Aceptar propuesta</button>';
         }
-        if (req.status !== 'closed') {
+        if (!isEnded(req)) {
             html += '<button class="wo-btn wo-btn--ghost wo-btn--block" type="button" data-action="request-changes" data-app="' + esc(app.id) + '">'
                 + '<i data-wo-icon="edit" class="wo-icon-18" aria-hidden="true"></i> Solicitar cambios</button>';
         }
