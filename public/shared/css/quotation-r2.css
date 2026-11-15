@@ -239,6 +239,12 @@
 
 /* ---------- P19 · Tarjetas de artistas sugeridos ---------- */
 .q-sug-card { position: relative; }
+/* Favoritos: el botón lo activa wo-favorites.js (otro frente). Vacío no ocupa lugar. */
+.q-sug-fav { position: absolute; top: var(--space-3); right: var(--space-3); }
+.q-prof-fav { order: 3; margin-left: auto; flex: none; }
+.q-sug-fav:empty,
+.q-prof-fav:empty { display: none; }
+.q-sug-card:has(.q-sug-fav:not(:empty)) .q-sug-open { padding-right: var(--space-10); }
 .q-sug-open {
   display: flex;
   align-items: center;

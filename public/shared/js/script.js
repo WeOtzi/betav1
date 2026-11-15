@@ -3826,6 +3826,7 @@ function suggestionCardHtml(s, index) {
     const profileHref = `/artist/profile?artist=${encodeURIComponent(s.username || '')}`;
     return `
         <li class="q-sug-card">
+            <button type="button" class="q-sug-fav" data-wo-favorite data-kind="artist" data-id="${escapeQuotationHtml(s.user_id || '')}" data-label="${escapeQuotationHtml(name)}" data-image="${escapeQuotationHtml(picture)}"></button>
             <button type="button" class="q-sug-head q-sug-open" data-sug-profile="${index}" aria-label="Ver el perfil de ${escapeQuotationHtml(name)}">
                 <span class="q-sug-avatar" aria-hidden="true">${picture
                     ? `<img src="${escapeQuotationHtml(picture)}" alt="" loading="lazy" referrerpolicy="no-referrer">`

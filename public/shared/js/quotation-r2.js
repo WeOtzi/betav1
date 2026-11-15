@@ -422,6 +422,8 @@
                 '<div class="q-prof-head">' +
                     '<span class="q-sug-avatar q-prof-avatar" aria-hidden="true">' + (picture
                         ? '<img src="' + esc(picture) + '" alt="" referrerpolicy="no-referrer">' : esc(initials(name))) + '</span>' +
+                    // Favoritos (contrato entre frentes): wo-favorites.js activa este botón; vacío no se ve.
+                    '<button type="button" class="q-prof-fav" data-wo-favorite data-kind="artist" data-id="' + esc(s.user_id || '') + '" data-label="' + esc(name) + '" data-image="' + esc(picture) + '"></button>' +
                     '<div class="q-prof-id">' +
                         '<div class="q-sug-badges">' + (s.verified ? '<span class="q-sug-verified"><i data-wo-icon="check-circle" aria-hidden="true"></i> Verificado</span>' : '') + badgesHtml(s) + '</div>' +
                         (styles.length ? '<p class="q-sug-styles">' + styles.map(esc).join(' · ') + '</p>' : '') +

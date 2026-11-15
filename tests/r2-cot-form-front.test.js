@@ -352,6 +352,10 @@ test('P19: la tarjeta abre el perfil reducido desde la foto, el nombre y "Ver pe
     assert.match(card, /q-sug-tag--style">Trabaja tu estilo/);
     assert.match(card, /q-sug-tag--place">En tu ciudad/);
     assert.doesNotMatch(card, /presupuesto/i, 'no cumple el presupuesto: no se muestra');
+    // Contrato de favoritos: botón vacío que activa wo-favorites.js (si no está, no se ve).
+    assert.match(card, /<button type="button" class="q-sug-fav" data-wo-favorite data-kind="artist" data-id="a1" data-label="&lt;b&gt;Ana&lt;\/b&gt;" data-image="https:\/\/cdn\.test\/a\.jpg"><\/button>/);
+    assert.match(css, /\.q-sug-fav:empty,\n\.q-prof-fav:empty \{ display: none; \}/);
+    assert.match(r2, /class="q-prof-fav" data-wo-favorite data-kind="artist"/);
     assert.match(script, /closest\('\[data-sug-profile\]'\)/);
     assert.match(script, /R2\.openProfile\(s, \{ canChoose: !_isSubmittingQuotation, onChoose: \(\) => chooseSuggestedArtist\(index\) \}\)/);
     // Modal: portfolio + "Ver perfil completo" en otra pestaña; la cotización sigue abierta.
