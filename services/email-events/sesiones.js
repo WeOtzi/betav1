@@ -75,10 +75,12 @@ function sessionRows(d, ctx, extra = []) {
 
 const mapsLink = (d) => (d.location_maps ? { label: 'Abrir en Google Maps', url: d.location_maps } : null);
 
+// Categoría 'transactional': piden o confirman una acción sobre una sesión y
+// no dependen de la matriz de preferencias (no se ofrece un "dejar de recibir").
 function base(spec) {
     return Object.assign({
         audience: 'client',
-        category: 'calendar',
+        category: 'transactional',
         greeting: (d, ctx) => hello(selfName(d, ctx)),
         secondary: mapsLink,
     }, spec);
