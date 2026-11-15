@@ -73,10 +73,11 @@ module.exports = {
             audience: 'client',
             category: 'quotations',
             subject: d => `Rechazaste la propuesta de ${text(d.artist_name, 'tu artista')} · ${text(d.quote_id)}`,
-            preheader: () => 'Le avisamos al artista. Podés seguir buscando o escribirle si querés ajustar algo.',
+            preheader: () => 'La cotización quedó finalizada y le avisamos al artista. Puedes iniciar una nueva.',
             eyebrow: 'COTIZACIÓN / RECHAZADA',
             headline: () => 'Rechazaste la propuesta.',
-            intro: d => `Le avisamos a ${text(d.artist_name, 'el artista')}. Si querés ajustar algo, escribile desde el chat de la cotización: puede mandarte una propuesta nueva. También podés buscar otros artistas en el marketplace.`,
+            // P23 (ronda 2): rechazar es definitivo; el artista ya no puede escribir por el chat.
+            intro: d => `Le avisamos a ${text(d.artist_name, 'el artista')} y la cotización quedó finalizada. Si quieres retomar la idea, inicia una cotización nueva; también puedes buscar otros artistas en el marketplace.`,
             rows: d => {
                 const rows = [
                     ['Cotización', text(d.quote_id)],

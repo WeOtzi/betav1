@@ -322,7 +322,9 @@
         pending: ['responded', 'cancelled'],
         responded: ['client_approved', 'cancelled'],
         client_approved: ['in_progress', 'cancelled'],
-        client_rejected: ['responded'],
+        // Ronda 2 · P23: el rechazo del cliente da por finalizada la cotización; la base
+        // (trg_quotation_zy_negociacion_guard) no deja que el artista la reabra.
+        client_rejected: [],
         cancelled: [],
         in_progress: ['artist_completed', 'cancelled'],
         artist_completed: ['in_progress', 'cancelled'],

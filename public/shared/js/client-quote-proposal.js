@@ -9,7 +9,10 @@
  *   - desglose de la cotización manual (artist_manual_quotes, RLS del cliente),
  *   - seña y pagos registrados por el artista (quotation_payments, RLS del
  *     cliente) — sin pasarela: la seña se coordina con el artista,
- *   - acciones Aceptar / Rechazar cuando la propuesta está vigente.
+ *   - acciones Aceptar / Rechazar / Modificar cuando la propuesta está vigente.
+ *     Ronda 2 (negociación · P23/P25): "Modificar" y el panel de cambios los
+ *     maneja quotation-negotiation.js, que se monta solo en
+ *     [data-wqn-mount]; Rechazar advierte que la cotización queda finalizada.
  * Sin dependencias del DOM: lo usa client-dashboard.js y lo prueban los tests.
  * Expone window.WoClientQuoteProposal (o module.exports en Node).
  */
@@ -43,6 +46,11 @@
         'reembolsable-72': 'La seña se devuelve si cancelás con 72 h de aviso.',
         'sin-sena': 'No se pide seña. Podés cancelar sin costo.'
     };
+
+    // P23 (ronda 2): texto pedido por el dueño para la advertencia del rechazo.
+    var REJECT_WARNING = 'Esto dará por finalizada la cotización y tendrás que iniciar una nueva.';
+    // Estados en los que puede haber negociación o historial que mostrar.
+    var NEGOTIATION_KEYS = ['responded', 'client_approved', 'in_progress', 'artist_completed', 'completed', 'client_rejected', 'expired', 'cancelled'];
 
     var KIND_LABELS = { deposit: 'Seña', session: 'Pago de sesión', balance: 'Saldo', other: 'Otro' };
     var METHOD_LABELS = { cash: 'Efectivo', transfer: 'Transferencia', other: 'Otro' };
@@ -214,14 +222,25 @@
         if (!canDecide(q, now)) return '';
         var id = esc(q.quote_id);
         return '<div class="cqp-decision" data-quote-id="' + id + '">'
-            + '<p class="cqp-decision-copy">¿Te sirve esta propuesta? Si la aceptás, el artista recibe el aviso y coordinan el turno y la seña por el chat.</p>'
+            + '<p class="cqp-decision-copy">¿Te sirve esta propuesta? Si la aceptas, el artista recibe el aviso y coordinan el turno y la seña por el chat. Si necesitas ajustar algo, modifícala y el artista te responde.</p>'
             + '<div class="cqp-decision-actions">'
-            + '<button type="button" class="wo-btn wo-btn--accent wo-btn--s" data-proposal-action="approve" onclick="handleProposalAction(this)">Aceptar propuesta</button>'
+            + '<button type="button" class="wo-btn wo-btn--accent wo-btn--s" data-proposal-action="approve" onclick="handleProposalAction(this)">Aceptar</button>'
             + '<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-proposal-action="reject" onclick="handleProposalAction(this)">Rechazar</button>'
+            // Modificar (P23): lo habilita quotation-negotiation.js cuando el
+            // servidor confirma que se puede contraproponer.
+            + '<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-wqn-open="counter" data-quote-id="' + id + '" data-role="client" hidden>Modificar</button>'
             + '</div>'
             + '<div class="cqp-confirm" data-proposal-confirm hidden></div>'
             + '<p class="cqp-feedback" role="status" aria-live="polite" data-proposal-feedback></p>'
             + '</div>';
+    }
+
+    // Punto de montaje del panel de negociación (quotation-negotiation.js):
+    // contrapropuesta pendiente, cambios al acuerdo e historial. Vacío y
+    // oculto hasta que el módulo lo llena; si el módulo no cargó, no se ve.
+    function negotiationMountHtml(q, key) {
+        if (!q || !hasValue(q.quote_id) || NEGOTIATION_KEYS.indexOf(key) === -1) return '';
+        return '<div data-wqn-mount data-quote-id="' + esc(q.quote_id) + '" data-role="client" data-status="' + esc(q.quote_status) + '" hidden></div>';
     }
 
     function confirmHtml(decision, quoteId) {
@@ -234,10 +253,12 @@
                 + '</div>';
         }
         var fieldId = 'cqp-reason-' + String(quoteId || '').replace(/[^A-Za-z0-9_-]/g, '');
-        return '<div class="wo-field"><label class="wo-label" for="' + esc(fieldId) + '">Motivo (opcional)</label>'
-            + '<textarea class="wo-textarea cqp-reason" id="' + esc(fieldId) + '" maxlength="500" rows="3" placeholder="Contale al artista por qué no te sirve (precio, fechas, diseño…)"></textarea></div>'
+        // P23: rechazar es definitivo (la base cierra la cotización y el chat del artista).
+        return '<p class="cqp-warning" role="alert">' + esc(REJECT_WARNING) + '</p>'
+            + '<div class="wo-field"><label class="wo-label" for="' + esc(fieldId) + '">Motivo (opcional)</label>'
+            + '<textarea class="wo-textarea cqp-reason" id="' + esc(fieldId) + '" maxlength="500" rows="3" placeholder="Cuéntale al artista por qué no te sirve (precio, fechas, diseño…)"></textarea></div>'
             + '<div class="cqp-decision-actions">'
-            + '<button type="button" class="wo-btn wo-btn--danger wo-btn--s" data-proposal-action="confirm-reject" data-quote-id="' + id + '" onclick="handleProposalAction(this)">Rechazar propuesta</button>'
+            + '<button type="button" class="wo-btn wo-btn--danger wo-btn--s" data-proposal-action="confirm-reject" data-quote-id="' + id + '" onclick="handleProposalAction(this)">Sí, rechazar</button>'
             + '<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-proposal-action="cancel" onclick="handleProposalAction(this)">Volver</button>'
             + '</div>';
     }
@@ -247,7 +268,7 @@
         if (key === 'pending') return 'El artista todavía no respondió. Te avisamos por email cuando mande su propuesta.';
         if (key === 'expired') return 'La propuesta venció sin respuesta. Si te sigue interesando, escribile al artista por el chat.';
         if (key === 'client_approved') return 'Aceptaste la propuesta. Coordiná el turno y la seña con el artista por el chat.';
-        if (key === 'client_rejected') return 'Rechazaste esta propuesta. Si el artista te manda una nueva, la vas a ver acá.';
+        if (key === 'client_rejected') return 'Rechazaste esta propuesta y la cotización quedó finalizada. Si quieres retomar la idea, inicia una cotización nueva.';
         if (key === 'cancelled') return 'El artista no va a tomar esta solicitud.';
         if (key === 'responded' && (q.dispute_status || 'none') === 'open') return 'Hay un reclamo abierto: no se puede responder hasta que soporte lo resuelva.';
         return '';
@@ -297,8 +318,12 @@
         if (hasValue(q.proposal_message) && !p.isFinal) parts.push('<p class="cqp-comment">' + esc(String(q.proposal_message).trim()) + '</p>');
         if (p.comment) parts.push('<p class="cqp-comment">' + esc(p.comment) + '</p>');
 
+        // El acuerdo puede haber cambiado después (contrapropuesta o enmienda
+        // aprobada): el desglose queda como referencia de la propuesta original.
+        var agreedTotal = p.isFinal ? toNumber(p.amount) : null;
+        var amended = !!(b && agreedTotal != null && b.total != null && Math.abs(b.total - agreedTotal) > 0.005);
         if (b && b.items.length) {
-            parts.push('<div class="cqp-breakdown"><h4 class="cqp-subtitle">Desglose</h4><ul class="cqp-items">');
+            parts.push('<div class="cqp-breakdown"><h4 class="cqp-subtitle">' + (amended ? 'Desglose de la propuesta original' : 'Desglose') + '</h4><ul class="cqp-items">');
             b.items.forEach(function (it) {
                 var qty = it.qty != null && it.qty !== 1 ? ' × ' + it.qty : '';
                 parts.push('<li><span class="cqp-item-name">' + esc(it.name) + esc(qty)
@@ -309,7 +334,7 @@
             parts.push(row('Subtotal', money(b.subtotal, b.currency)));
             if (b.discountPct) parts.push(row('Descuento (' + b.discountPct + '%)', '− ' + money(b.discount, b.currency)));
             if (b.taxPct) parts.push(row('Impuestos (' + b.taxPct + '%)', money(b.tax, b.currency)));
-            parts.push(row('Total', money(b.total, b.currency), 'cqp-row--total'));
+            parts.push(row(amended ? 'Total original' : 'Total', money(b.total, b.currency), 'cqp-row--total'));
             parts.push('</dl></div>');
         }
 
@@ -356,6 +381,7 @@
 
         var note2 = stateNote(q, now);
         if (note2 && key !== 'pending') parts.push('<p class="cqp-note">' + esc(note2) + '</p>');
+        parts.push(negotiationMountHtml(q, key));
         parts.push(decisionHtml(q, now));
         parts.push('</div>');
         return parts.join('');
@@ -379,6 +405,8 @@
         manualBreakdown: manualBreakdown,
         offeredOf: offeredOf,
         renderProposal: renderProposal,
-        confirmHtml: confirmHtml
+        confirmHtml: confirmHtml,
+        negotiationMountHtml: negotiationMountHtml,
+        REJECT_WARNING: REJECT_WARNING
     };
 }));
