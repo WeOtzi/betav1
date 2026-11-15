@@ -748,13 +748,21 @@ test('módulo: si guardar falla, el corazón vuelve atrás y se avisa', async ()
 });
 
 test('módulo: sin las tablas (migración pendiente) se apaga y deja el clic a la página', async () => {
-    let btn;
+    let btn; let studio;
     const repo = fakeRepo();
     repo.fail = { method: 'listLists', error: Object.assign(new Error("Could not find the table 'public.favorite_lists' in the schema cache"), { code: 'PGRST205' }) };
-    const ctx = loadModule({ repo, before: (dom) => { btn = dom.button({ 'data-kind': 'artist', 'data-id': ARTIST, class: 'mk-card-fav' }, new dom.El('i')); } });
+    const ctx = loadModule({
+        repo,
+        before: (dom) => {
+            btn = dom.button({ 'data-kind': 'artist', 'data-id': ARTIST, class: 'mk-card-fav' }, new dom.El('i'));
+            studio = dom.button({ 'data-kind': 'studio', 'data-id': 's1', hidden: '' });
+        }
+    });
     await flush();
     await ctx.Fav.ready();
     assert.equal(ctx.Fav.available, false);
+    assert.equal(studio.hidden, true, 'los corazones que dependen del módulo vuelven a ocultarse');
+    assert.equal(btn.hidden, false, 'el del marketplace sigue visible: tiene su camino anterior');
     const click = ctx.dom.fire('click', btn);
     assert.equal(click.stopped, false, 'el marketplace sigue con su camino anterior');
     assert.equal(click.defaultPrevented, false);

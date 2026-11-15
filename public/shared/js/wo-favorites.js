@@ -23,6 +23,10 @@
    - Botón vacío: el módulo pinta el corazón (.wo-fav-btn) y su nombre
      accesible. Botón con contenido propio: solo recibe el estado
      (.is-fav + aria-pressed) y conserva su aspecto.
+   - Variantes del botón vacío: "float" lo ubica arriba a la derecha de su
+     contenedor (que debe ser position:relative; .wo-fav-host sirve para
+     envolver una tarjeta que es un <a> completo, con el botón como hermano);
+     "label" agrega el texto Guardar / Guardado.
    - Al tocar: guarda en la lista por defecto ("Favoritos") y ofrece "Guardar
      en otra lista…" (listas del usuario + crear lista). Si ya estaba en una
      lista lo quita (con "Deshacer"); si estaba en varias abre el selector.
@@ -503,6 +507,12 @@
         }
         var text = btn.querySelector('.wo-fav-btn-text');
         if (text) text.textContent = saved ? 'Guardado' : 'Guardar';
+        // Los que llegaron ocultos solo se muestran mientras el módulo puede
+        // atenderlos (si la base todavía no tiene las listas, vuelven a ocultarse).
+        if (btn.hasAttribute('data-wo-fav-hid')) {
+            if (state.available === false) btn.setAttribute('hidden', '');
+            else btn.removeAttribute('hidden');
+        }
     }
 
     function activate(btn) {
@@ -531,8 +541,8 @@
         }
         // Si el botón no trae su propio nombre accesible, lo lleva el módulo.
         if (!btn.getAttribute('aria-label')) btn.setAttribute('data-wo-fav-label', '1');
+        if (btn.hasAttribute('hidden')) btn.setAttribute('data-wo-fav-hid', '1');
         paint(btn);
-        if (btn.hasAttribute('hidden')) btn.removeAttribute('hidden');
     }
 
     function scan(scope) {
