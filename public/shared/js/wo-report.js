@@ -381,7 +381,12 @@
 
     async function getClient() {
         const CM = root.ConfigManager;
-        if (CM && typeof CM.ready === 'function') { try { await CM.ready(); } catch (_) { /* seguimos con lo que haya */ } }
+        if (CM && typeof CM.ready === 'function') {
+            // La configuración llega del servidor: se espera, pero nunca indefinidamente.
+            try {
+                await Promise.race([CM.ready(), new Promise(function (resolve) { root.setTimeout(resolve, 8000); })]);
+            } catch (_) { /* seguimos con lo que haya */ }
+        }
         try {
             if (CM && typeof CM.getSupabaseClient === 'function') {
                 const client = CM.getSupabaseClient();
