@@ -6941,6 +6941,7 @@ app.post('/api/privacy/cookie-consent', async (req, res) => {
 });
 // ── fin privacidad ──
 require('./lib/routes/cot-artista').register(app); // ── cot-artista ── avisos de sesión y acuerdo (límite propio)
+require('./lib/routes/cot-respuesta').register(app); // ── cot-respuesta ── propuesta del artista: agenda real, fechas ofrecidas y campos de la manual
 
 // ── emails ── verificación por email, recordatorio de sesión 24 h y avisos de arranque.
 require('./lib/routes/emails').register(app, { pgrest, getActiveSupportAgent: _getActiveSupportAgent, applicationBase, safeTokenEqual: storeOrders.safeTokenEqual, startJobs: require.main === module });

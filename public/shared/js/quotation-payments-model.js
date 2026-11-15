@@ -118,6 +118,15 @@
         return !!q && PAYABLE_STATUSES.indexOf(q.quote_status) !== -1 && !isDraft(q) && !q.is_archived;
     }
 
+    // Ronda 2 · cot-respuesta (P4): el saldo/importe ACORDADO recién está activo
+    // cuando la cotización está aprobada por ambas partes (el cliente aceptó la
+    // propuesta o el artista registró el acuerdo). Antes es solo el presupuesto
+    // PROPUESTO: se muestra, pero no como deuda ni como saldo pendiente.
+    var AGREED_STATUSES = ['client_approved', 'in_progress', 'en_progreso', 'artist_completed', 'completed'];
+    function agreementActive(q) {
+        return !!q && AGREED_STATUSES.indexOf(q.quote_status) !== -1 && !isDraft(q);
+    }
+
     /* ------------------------------ normalización ------------------------------ */
     function normalize(raw) {
         raw = raw || {};
@@ -223,6 +232,8 @@
         var total = agreed ? agreed.amount : null;
         var out = {
             currency: currency,
+            // false = total todavía PROPUESTO (la cotización no está aprobada por ambas partes).
+            active: agreementActive(quote),
             total: total,
             paid: paid.total,
             others: paid.others,
@@ -461,6 +472,7 @@
         MAX_FILE_BYTES: MAX_FILE_BYTES, RECEIPT_MIME: RECEIPT_MIME,
         round2: round2, isoDateLocal: isoDateLocal, cleanDate: cleanDate, parseAmount: parseAmount,
         storedAmount: storedAmount, isCurrency: isCurrency, isDraft: isDraft, isPayable: isPayable,
+        AGREED_STATUSES: AGREED_STATUSES, agreementActive: agreementActive,
         normalize: normalize, sortPayments: sortPayments, agreedTotal: agreedTotal,
         depositRequired: depositRequired, convertWith: convertWith, summarize: summarize,
         validate: validate, validateFile: validateFile, suggestKind: suggestKind, suggestAmount: suggestAmount,
