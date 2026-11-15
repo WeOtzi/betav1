@@ -1128,12 +1128,39 @@
         `).join(''));
     }
 
+    // ── sesiones (ronda 2 · P27) ── la ubicación sale de las sedes de los
+    // estudios del artista, sus ubicaciones, la que eligió el cliente o una
+    // dirección con el autocompletar de Google Maps (wo-session-flow.js).
+    // #event-location guarda la dirección completa; sin ese módulo queda la
+    // lista de antes.
     function locationSelect() {
+        const flow = window.WoSessionFlow;
+        if (flow && typeof flow.calendarLocationHtml === 'function') return flow.calendarLocationHtml();
         return selectControl('event-location', `
             <option value="Estudio propio">Estudio propio</option>
             <option value="A domicilio">A domicilio</option>
             <option value="Otro estudio">Otro estudio</option>
         `);
+    }
+
+    // Dirección elegida: { location, location_kind, location_ref, location_place_id }.
+    function readLocationChoice() {
+        const flow = window.WoSessionFlow;
+        const picked = flow && typeof flow.readCalendarLocation === 'function' ? flow.readCalendarLocation() : null;
+        if (picked) return picked;
+        return { location: document.getElementById('event-location')?.value || 'Estudio propio' };
+    }
+
+    // Carga las ubicaciones reales en el selector (y las de la cotización elegida).
+    function mountLocationOptions(savedLocation) {
+        const flow = window.WoSessionFlow;
+        if (!flow || typeof flow.mountCalendarLocation !== 'function' || !document.getElementById('event-location')) return;
+        // savedLocation undefined = solo cambió la cotización: se conserva lo elegido.
+        flow.mountCalendarLocation({
+            quoteId: state.selectedQuote?.quote_id || null,
+            value: savedLocation,
+            onChange: () => updateFormSummary(),
+        });
     }
 
     function toggleField(name, title, copy, checked) {
@@ -1305,6 +1332,13 @@
                 location.insertAdjacentHTML('beforeend', `<option value="${escapeAttr(raw.location)}">${escapeHtml(raw.location)}</option>`);
             }
             location.value = raw.location;
+        }
+        // ── sesiones (ronda 2 · P27) ── una sesión trae su dirección guardada; un
+        // turno nuevo arranca con la sede elegida por el cliente o la principal.
+        if (location) {
+            mountLocationOptions(state.editingEvent?.sourceType === 'quotation_session'
+                ? (state.editingEvent.raw?.session?.location || '')
+                : (raw.location || ''));
         }
         syncConditionalFields(state.selectedDate);
         if (state.selectedType === 'confirmed_session') {
@@ -1581,6 +1615,7 @@
         el['event-form-error'].textContent = '';
         closeQuotePicker();
         updateQuoteHint();
+        mountLocationOptions(); // ── sesiones ── suma la sede que eligió el cliente de esta cotización
         onFormChanged();
         syncUrl();
     }
@@ -1642,6 +1677,7 @@
             : 'Ingresá un título para el evento.');
 
         const usesLocation = state.selectedType === 'confirmed_session' || state.selectedType === 'reservation';
+        const locationChoice = usesLocation ? readLocationChoice() : null;
         const payload = {
             event_type: eventType,
             title,
@@ -1649,7 +1685,9 @@
             starts_at: start.toISOString(),
             ends_at: end.toISOString(),
             all_day: allDay,
-            location: usesLocation ? (document.getElementById('event-location')?.value || 'Estudio propio') : null,
+            location: locationChoice ? (locationChoice.location || null) : null,
+            // Origen de la dirección (sede, propia, del cliente o Google Places): viaja con la sesión.
+            location_meta: locationChoice && locationChoice.location_kind ? locationChoice : null,
             notes: document.getElementById('event-notes')?.value.trim() || null,
             status,
             recurrence_rule: recurring ? 'weekly' : 'none',
@@ -1793,7 +1831,7 @@
         } catch (_error) {
             el['summary-time'].textContent = document.getElementById('event-time')?.value || '—';
             el['summary-duration'].textContent = document.getElementById('event-all-day')?.checked ? '1 día' : '1 hora';
-            el['summary-location'].textContent = document.getElementById('event-location')?.value || '—';
+            el['summary-location'].textContent = readLocationChoice().location || '—';
         }
     }
 
@@ -1954,7 +1992,16 @@
             // Solo un turno vigente pasa a "reprogramado": una sesión realizada
             // (o ausente) conserva su estado aunque se corrija la fecha.
             const rescheduled = isOpenSession(event) && !sameInstant(event.start, payload.starts_at);
-            const result = await Calendar.updateQuoteSession(event.baseId, payload, { rescheduled });
+            let result;
+            try {
+                result = await Calendar.updateQuoteSession(event.baseId, payload, { rescheduled });
+            } catch (error) {
+                // ── sesiones (ronda 2 · P28) ── el cliente ya la confirmó: el cambio
+                // de fecha, duración o lugar se le pide (la sesión no se toca).
+                const flow = window.WoSessionFlow;
+                if (!flow || typeof flow.needsAgreement !== 'function' || !flow.needsAgreement(error)) throw error;
+                return flow.requestCalendarChange(event, payload);
+            }
             if (rescheduled) noticeSession('session_rescheduled', sessionQuoteRef(event, payload), event.baseId);
             return result;
         }
@@ -2059,8 +2106,10 @@
                         ? `Reserva pendiente guardada · ${payload.quote_code}.`
                         : 'Evento guardado en tu calendario.'));
             } else if (sourceKind === targetKind) {
-                await persistUpdate(targetKind, editing, payload);
-                showToast('Evento actualizado.');
+                const outcome = await persistUpdate(targetKind, editing, payload);
+                showToast(outcome && outcome.requested
+                    ? 'El cliente ya confirmó esta sesión: le pedimos que acepte el cambio. Sigue como estaba hasta que responda.'
+                    : 'Evento actualizado.');
             } else {
                 // Cambió el destino (p. ej. la cotización se aprobó): se crea en
                 // la tabla correcta y se quita la fila anterior, sin duplicar.
@@ -2074,11 +2123,13 @@
             await loadEvents();
         } catch (error) {
             const overlap = error.code === '23P01' || /CALENDAR_OVERLAP|superpone/i.test(error.message || '');
-            el['event-form-error'].textContent = overlap
+            // ── sesiones (ronda 2) ── reglas de sesiones confirmadas o pasadas, explicadas.
+            const sessionRule = !overlap && window.WoSessionFlow?.explain ? window.WoSessionFlow.explain(error) : '';
+            el['event-form-error'].textContent = sessionRule || (overlap
                 ? (/sesi[oó]n con un cliente|cita de estudio|turno/i.test(`${error.details || ''} ${error.message || ''}`)
                     ? 'Ese horario se superpone con una sesión con un cliente o una cita de estudio. Elegí otro horario o reprogramá la sesión.'
                     : 'Ese horario se superpone con otro evento. Elegí otro horario o editá el evento existente.')
-                : (error.message || 'No pudimos guardar el evento.');
+                : (error.message || 'No pudimos guardar el evento.'));
         } finally {
             el['save-event'].disabled = false;
             setSaveLabel('Guardar evento');

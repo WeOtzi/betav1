@@ -609,7 +609,12 @@
     function sessionRowHtml(v, slot) {
         const q = v.quote;
         const s = slot.session;
-        const actions = M.sessionRowActions(v.stage, slot, new Date());
+        const rowActions = M.sessionRowActions(v.stage, slot, new Date());
+        // ── sesiones (ronda 2 · P28/P27) ── estado frente al cliente, pedidos de
+        // cambio, registro, disputa y dirección completa (wo-session-flow.js).
+        const flow = sessionFlow();
+        const extra = flow && s ? flow.rowExtras(s, { hasReschedule: rowActions.includes('reschedule') }) : null;
+        const actions = extra && extra.hideReschedule ? rowActions.filter((action) => action !== 'reschedule') : rowActions;
         const badge = {
             done: ['done', 'Realizada'],
             scheduled: ['scheduled', s && s.status === 'rescheduled' ? 'Reprogramada' : 'Agendada'],
@@ -630,26 +635,44 @@
             return '';
         }).join('');
         const correction = s && /corrección/i.test(s.notes || '');
+        const extraActions = extra ? extra.actionsHtml : '';
         return `
-            <div class="qd-session is-${slot.state}">
+            <div class="qd-session is-${slot.state}"${s && s.id != null ? ` data-ws-session="${esc(s.id)}"` : ''}>
                 <span class="qd-session-number" aria-hidden="true">${slot.number}</span>
                 <div class="qd-session-copy">
                     <span class="qd-label">Sesión ${slot.number} de ${slot.total}</span>
                     <strong class="qd-session-date">${esc(s && s.session_date ? M.dateTime(s.session_date) : 'Sin fecha asignada')}</strong>
-                    <span class="qd-session-place">${esc(placeOf(q))}</span>
+                    <span class="qd-session-place">${extra && extra.placeHtml ? extra.placeHtml : esc((s && s.location) || placeOf(q))}</span>
+                    ${extra ? extra.notesHtml : ''}
                 </div>
                 <div class="qd-session-side">
                     ${slot.extra || correction ? `<span class="qd-badge qd-badge--extra">${correction ? 'Corrección' : 'Fuera del acuerdo'}</span>` : ''}
                     <span class="qd-badge qd-badge--${badge[0]}">${badge[1]}</span>
+                    ${extra ? extra.badgeHtml : ''}
                     ${slot.state === 'done' && photos ? `<span class="qd-photos">${icon('image', 13)}${photos} ${photos === 1 ? 'foto' : 'fotos'}</span>` : ''}
-                    ${buttons ? `<div class="qd-session-actions">${buttons}</div>` : ''}
+                    ${buttons || extraActions ? `<div class="qd-session-actions">${buttons}${extraActions}</div>` : ''}
                 </div>
             </div>`;
+    }
+
+    // ── sesiones (ronda 2 · P28) ── WoSessionFlow trae del servidor el estado de
+    // cada sesión frente al cliente; cuando llega se repinta solo esta sección.
+    function sessionFlow() {
+        const flow = window.WoSessionFlow;
+        return flow && !state.scenario && state.quote ? flow : null;
+    }
+    function refreshSessionsSection() {
+        const section = document.getElementById('qd-sessions');
+        if (!section || state.scenario) return;
+        section.outerHTML = sessionsHtml(view());
+        hydrateIcons(document.getElementById('qd-sessions'));
     }
 
     function sessionsHtml(v) {
         if (!M.showsSessions(v.stage)) return '';
         const q = v.quote;
+        const flow = sessionFlow();
+        if (flow) flow.ensure(q, v.sessions, refreshSessionsSection);
         const slots = M.sessionSlots(q, v.sessions);
         const counts = M.slotCounts(slots);
         const agreed = M.agreedSessions(q) || slots.length;
@@ -1332,33 +1355,45 @@
         }
         const slot = opts.correction ? null : (slots.find((s) => s.number === Number(slotNumber) && s.state === 'unscheduled') || pending[0]);
         const minutes = M.minutesFrom(q.artist_session_minutes) || 120;
-        openDialog({
+        // ── sesiones (ronda 2) ── P27: lugar con dirección completa. P28: si la
+        // cotización tiene cuenta de cliente, la sesión nace "por confirmar".
+        const flow = sessionFlow();
+        const awaitsClient = !!(flow && flow.available() && q.client_user_id);
+        let place = null;
+        const overlay = openDialog({
             title: opts.correction ? 'Agendar sesión de corrección' : `Agendar sesión ${slot.number} de ${slot.total}`,
             intro: opts.correction
                 ? 'La sesión de corrección se suma fuera del acuerdo y queda visible para soporte mientras la disputa siga abierta.'
-                : 'La sesión aparece en tu calendario y el cliente recibe la confirmación.',
+                : awaitsClient
+                    ? 'La sesión aparece en tu calendario como "por confirmar". El cliente recibe la propuesta y la confirma o te pide otra fecha.'
+                    : 'La sesión aparece en tu calendario y el cliente recibe la confirmación.',
             submitLabel: 'Agendar sesión',
             submitClass: 'wo-btn--direct',
             body: `<div class="qd-dialog-grid">
                 ${field('Fecha y hora', '<input class="wo-input" name="date" type="datetime-local" required>', true)}
                 ${field('Duración (horas)', `<input class="wo-input" name="duration" type="number" min="0.25" max="12" step="0.25" value="${esc(Math.round((minutes / 60) * 100) / 100)}">`)}
                 <span></span>
+                ${flow ? '<div class="is-wide" data-ws-location-slot></div>' : ''}
                 ${field('Nota (opcional)', `<textarea class="wo-textarea" name="note" maxlength="500" placeholder="${opts.correction ? 'Retoque del relleno lumbar.' : 'Traer la crema indicada.'}"></textarea>`, true)}
             </div>`,
             onSubmit: async (form, data) => {
                 const date = readDateTime(data.date, true);
                 const duration = M.numberFrom(data.duration);
                 const note = (data.note || '').trim();
-                const created = await D().QuotationDetail.createSession({
+                const row = {
                     quotation_id: q.id, session_number: null, session_date: date,
                     duration_hours: duration && duration > 0 ? duration : null, status: 'scheduled',
                     notes: opts.correction ? `Sesión de corrección${note ? ` · ${note}` : ''}` : (note || null),
-                });
+                };
+                const created = flow
+                    ? await flow.createSession(row, place ? place.read() : null)
+                    : await D().QuotationDetail.createSession(row);
                 noticeSession('session_scheduled', created && created.id);
                 await reloadAll();
-                showToast('Sesión agendada.', { link: { href: calendarUrl(date, { session: created && created.id, quote: true }), label: 'Ver en el calendario →' } });
+                showToast(awaitsClient ? 'Sesión propuesta. Te avisamos cuando el cliente la confirme.' : 'Sesión agendada.', { link: { href: calendarUrl(date, { session: created && created.id, quote: true }), label: 'Ver en el calendario →' } });
             },
         });
+        if (flow) place = flow.mountLocation(overlay.querySelector('[data-ws-location-slot]'), { quoteId: q.quote_id });
     }
 
     function findSession(id) {
@@ -1370,21 +1405,42 @@
         const session = findSession(sessionId);
         if (!session) return;
         const number = slotNumber || session.session_number || '';
-        openDialog({
+        // ── sesiones (ronda 2) ── edición directa: solo mientras el cliente no la
+        // confirmó (la base rechaza el resto y acá se explica por qué). El
+        // cliente recibe la propuesta nueva para confirmarla.
+        const flow = sessionFlow();
+        const awaitsClient = !!(flow && flow.available() && state.quote.client_user_id);
+        let place = null;
+        const overlay = openDialog({
             title: `Reprogramar sesión ${number}`.trim(),
-            intro: `Fecha actual: ${M.dateTime(session.session_date)}. El cliente recibe la nueva fecha.`,
+            intro: awaitsClient
+                ? `Fecha actual: ${M.dateTime(session.session_date)}. El cliente recibe la nueva propuesta para confirmarla.`
+                : `Fecha actual: ${M.dateTime(session.session_date)}. El cliente recibe la nueva fecha.`,
             submitLabel: 'Reprogramar',
             body: `<div class="qd-dialog-grid">
                 ${field('Nueva fecha y hora', `<input class="wo-input" name="date" type="datetime-local" value="${esc(M.localInputValue(session.session_date))}" required>`, true)}
+                ${flow ? '<div class="is-wide" data-ws-location-slot></div>' : ''}
             </div>`,
             onSubmit: async (form, data) => {
                 const date = readDateTime(data.date, true);
-                await D().QuotationDetail.updateSession(session.id, { session_date: date, status: 'rescheduled' });
-                noticeSession('session_rescheduled', session.id);
+                const moved = new Date(date).getTime() !== new Date(session.session_date).getTime();
+                const patch = moved ? { session_date: date, status: 'rescheduled' } : {};
+                if (flow) {
+                    const chosen = place ? place.read() : null;
+                    const placeChanged = !!chosen && String(chosen.location || '').trim().toLowerCase() !== String(session.location || '').trim().toLowerCase();
+                    if (!moved && !placeChanged) throw userError('Cambia la fecha o el lugar para reprogramar.');
+                    await flow.updateSession(session.id, patch, placeChanged ? chosen : null);
+                } else {
+                    await D().QuotationDetail.updateSession(session.id, { session_date: date, status: 'rescheduled' });
+                }
+                if (moved || !flow) noticeSession('session_rescheduled', session.id);
+                // Solo cambió el lugar: el aviso sale con el estado que ya tiene la sesión.
+                else noticeSession(session.status === 'rescheduled' ? 'session_rescheduled' : 'session_scheduled', session.id);
                 await reloadAll();
-                showToast('Sesión reprogramada.', { link: { href: calendarUrl(date, { session: session.id, quote: true }), label: 'Ver en el calendario →' } });
+                showToast(awaitsClient ? 'Propuesta actualizada. El cliente tiene que confirmarla.' : 'Sesión reprogramada.', { link: { href: calendarUrl(date, { session: session.id, quote: true }), label: 'Ver en el calendario →' } });
             },
         });
+        if (flow) place = flow.mountLocation(overlay.querySelector('[data-ws-location-slot]'), { quoteId: state.quote.quote_id, value: session, preferEmpty: true });
     }
 
     function openCompleteDialog(sessionId, slotNumber) {
@@ -1473,7 +1529,8 @@
         }
     }
 
-    // COT-A-15: el cliente no vino. No se avisa por email; la sesión deja de
+    // COT-A-15: el cliente no vino. Desde la ronda 2 el cliente recibe un aviso
+    // (session_no_show) para poder disputarlo; la sesión deja de
     // ocupar un lugar del acuerdo y sale de Google Calendar.
     async function markNoShow(sessionId, slotNumber) {
         if (!guardWrite()) return;
@@ -1488,6 +1545,9 @@
         if (!ok) return;
         try {
             await D().QuotationDetail.updateSession(session.id, { status: 'no_show' });
+            // ── sesiones (ronda 2) ── el cliente recibe el aviso de la ausencia
+            // (puede pedir una disputa si no es correcto).
+            noticeSession('session_no_show', session.id);
             await reloadAll();
             showToast('Registramos que el cliente no se presentó.');
         } catch (error) {
