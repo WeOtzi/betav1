@@ -1006,6 +1006,12 @@
             caption.textContent = mediaCaption(item);
             cell.appendChild(media);
             cell.appendChild(caption);
+            // ── registro (ronda 2 · N3): pie de foto editable por trabajo (el de
+            // Instagram llega precargado). Sin el módulo, la grilla queda igual.
+            if (root.WoRegistroR2 && typeof root.WoRegistroR2.captionField === 'function') {
+                cell.classList.add('has-caption-field');
+                cell.appendChild(root.WoRegistroR2.captionField(item, persist));
+            }
             grid.appendChild(cell);
         });
         const add = document.createElement('button');
@@ -1486,6 +1492,10 @@
         wireSuccessCta();
         prefillExtras(ctx && ctx.loadedArtistRecord);
         renderPortfolio();
+        // ── registro (ronda 2 · P3): marcas "Traído de Instagram" del borrador.
+        if (root.WoRegistroR2 && typeof root.WoRegistroR2.renderInstagramMarks === 'function' && hasRegister()) {
+            try { root.WoRegistroR2.renderInstagramMarks(formState.data, formState.preAuthMode === true); } catch (_) { /* marcas opcionales */ }
+        }
         applyPreviewState();
         applyReviewPreviewState();
         // Catálogo del servidor: si responde, reemplaza al local (mismo formato).

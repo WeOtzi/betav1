@@ -638,6 +638,19 @@ function artistMagicLinkOutcome(error, email) {
     return { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Probá de nuevo en un momento o ingresá con tu contraseña.' };
 }
 
+// ── registro (ronda 2 · N6): botón visible "Entrar con un enlace por email".
+// Mismo flujo y mismo mensaje neutro que el ícono "Email" de la fila de redes.
+async function handleArtistMagicLink(button) {
+    const btn = button || document.getElementById('btn-magic-link');
+    if (btn && btn.disabled) return;
+    if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+    try {
+        await handleArtistSocialLogin('email');
+    } finally {
+        if (btn) { btn.disabled = false; btn.setAttribute('aria-busy', 'false'); }
+    }
+}
+
 async function handleArtistSocialLogin(provider) {
     clearFormMessage();
 

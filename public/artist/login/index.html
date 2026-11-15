@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/artist-auth-ds.css">
+    <link rel="stylesheet" href="/shared/css/registro-r2.css?v=20261116-r2">
     <script src="/shared/js/wo-icons.js" defer></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -92,6 +93,13 @@
                         <i data-wo-icon="arrow-right" aria-hidden="true"></i>
                     </button>
                 </form>
+
+                <!-- Ronda 2 (N6): el enlace mágico deja de estar escondido en el ícono
+                     "Email" de la fila de redes: botón de texto visible, mismo flujo. -->
+                <button type="button" class="wo-auth-btn wo-auth-btn--outline wo-auth-magic" id="btn-magic-link" onclick="handleArtistMagicLink(this)" aria-describedby="magic-link-hint">
+                    <span class="btn-text">Entrar con un enlace por email</span>
+                </button>
+                <p class="wo-auth-magic-hint" id="magic-link-hint">Sin contraseña: escribe tu email arriba y te enviamos un enlace para entrar.</p>
 
                 <button type="button" class="wo-auth-forgot" onclick="handleArtistPasswordRecovery(event)">¿Olvidaste tu contraseña?</button>
 

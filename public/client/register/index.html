@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/client-register-ds.css">
     <link rel="stylesheet" href="/client/register/step-one.css">
+    <link rel="stylesheet" href="/shared/css/registro-r2.css?v=20261116-r2">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
@@ -396,6 +397,8 @@
     </div>
 
     <script src="/shared/js/email-confirmation.js"></script>
+    <!-- Ronda 2 · registro (P31): estilos del paso 03 con foto -->
+    <script src="/client/register/estilos-r2.js?v=20261116-r2"></script>
     <script src="/shared/js/client-auth.js"></script>
     <script>
     // =========================================================================
@@ -645,6 +648,11 @@
         // ---------------- Paso 03 · estilos ----------------
         function loadStylesCatalog() {
             if (stylesCatalog) return Promise.resolve(stylesCatalog);
+            // Ronda 2 (P31): catálogo ampliado con fotos (estilos-r2.js).
+            if (window.WoClientStyles && typeof WoClientStyles.names === 'function') {
+                stylesCatalog = WoClientStyles.names();
+                return Promise.resolve(stylesCatalog);
+            }
             var fromDb = (window.ConfigManager && typeof ConfigManager.loadTattooStylesFromDB === 'function')
                 ? ConfigManager.loadTattooStylesFromDB()
                 : Promise.resolve([]);
@@ -684,6 +692,9 @@
                         '<span class="cw-style-mark' + shape + color + '" aria-hidden="true"></span>' +
                         '<span class="cw-style-name"></span>';
                     btn.querySelector('.cw-style-name').textContent = name;
+                    grid.appendChild(btn);
+                    // Ronda 2 (P31): foto del estilo (con respaldo si aún no existe).
+                    if (window.WoClientStyles && typeof WoClientStyles.decorate === 'function') WoClientStyles.decorate(btn, name, i);
                     if (state.styles.indexOf(name) !== -1) {
                         btn.classList.add('is-selected');
                         btn.setAttribute('aria-pressed', 'true');
@@ -962,6 +973,19 @@
                 client: window._supabase,
                 redirectTo: clientConfirmRedirectUrl(),
                 note: 'Guardamos tu progreso en este navegador. Cuando abras el link, terminamos tu perfil con lo que ya cargaste.',
+                // Ronda 2 (N4): esta pestaña se entera sola de la confirmación y sigue acá.
+                watch: typeof EC.watchConfirmation === 'function' ? {
+                    key: CLIENT_REGISTER_WATCH_KEY,
+                    userId: pendingConfirmation.userId || null,
+                    onConfirmed: function (info) {
+                        if (info && info.session) { resumeAfterConfirmation(true); return; }
+                        EC.renderConfirmed(main, {
+                            state: 'confirmed',
+                            text: 'Tu email quedó confirmado. Inicia sesión para terminar tu perfil.',
+                            action: { label: 'Iniciar sesión', href: clientAppPath('/client/login') }
+                        });
+                    }
+                } : null,
                 changeEmailMode: 'callback',
                 onChangeEmail: function () {
                     // La cuenta anterior queda sin confirmar (no se puede usar).
@@ -982,7 +1006,9 @@
             });
         }
 
-        async function resumeAfterConfirmation() {
+        // Ronda 2 (N4): canal entre la pestaña "Revisá tu email" y la del link.
+        var CLIENT_REGISTER_WATCH_KEY = 'client-register';
+        async function resumeAfterConfirmation(fromWatcher) {
             var session = null;
             try {
                 var res = await window._supabase.auth.getSession();
@@ -1010,6 +1036,23 @@
                     });
                 }
                 return;
+            }
+            // Ronda 2 (N4): si la pestaña donde empezó el registro sigue abierta,
+            // ella termina el perfil; esta (la del link) solo avisa y se cierra.
+            if (fromWatcher !== true && EC && typeof EC.announceConfirmed === 'function'
+                && new URLSearchParams(window.location.search).get('confirmado') === '1') {
+                var waitingTab = await EC.announceConfirmed(CLIENT_REGISTER_WATCH_KEY, { userId: session.user.id });
+                if (waitingTab) {
+                    $('cw-shell').classList.add('wo-hidden');
+                    $('cw-shell').style.display = 'none';
+                    $('cw-confirm').classList.remove('wo-hidden');
+                    EC.renderConfirmed($('cw-confirm-main'), {
+                        state: 'close',
+                        action: { label: 'Ir a mi panel', href: clientAppPath('/client/dashboard') }
+                    });
+                    setTimeout(function () { EC.tryCloseTab(); }, 1500);
+                    return;
+                }
             }
             accountUserId = session.user.id;
             if (EC) {

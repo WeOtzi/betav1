@@ -445,6 +445,15 @@
         if (heading && o.focus !== false) {
             try { heading.focus({ preventScroll: false }); } catch (_) { /* noop */ }
         }
+        // ── registro (ronda 2 · N4): opts.watch = { key, userId?, statusUrl?,
+        // onConfirmed } deja a esta pestaña atenta a la confirmación.
+        if (o.watch && o.watch.key && typeof o.watch.onConfirmed === 'function') {
+            if (container.__woEcWatcher) { try { container.__woEcWatcher.stop(); } catch (_) { /* noop */ } }
+            container.__woEcWatcher = watchConfirmation({
+                key: o.watch.key, client: o.client, email: email, userId: o.watch.userId,
+                statusUrl: o.watch.statusUrl, onConfirmed: o.watch.onConfirmed
+            });
+        }
         return container.firstElementChild;
     }
 
@@ -511,7 +520,297 @@
         return container.firstElementChild;
     }
 
+    // =====================================================================
+    // ── registro (ronda 2 · N4) ── continuar en la pestaña que espera
+    // =====================================================================
+    // El link "Confirmar mi email" se abre en otra pestaña. La pestaña original
+    // ("Falta confirmar email") se entera sola y sigue ahí; la del link muestra
+    // "Listo, ya puedes cerrar esta pestaña". Canales (todos opcionales):
+    //   · BroadcastChannel + evento `storage`  → aviso inmediato entre pestañas;
+    //   · sesión de Supabase en este navegador → polling liviano (sin red);
+    //   · GET statusUrl ({ confirmed })        → link abierto en otro navegador
+    //     o en el teléfono (polling espaciado).
+    const CHANNEL_NAME = 'weotzi-email-confirm';
+    const SIGNAL_PREFIX = PENDING_PREFIX + 'signal:';
+    const SESSION_POLL_MS = 3000;
+    const STATUS_POLL_MS = 12000;
+    const STATUS_POLL_SLOW_MS = 30000;
+    const STATUS_POLL_SLOW_AFTER_MS = 10 * 60 * 1000;
+    const WATCH_MAX_MS = 45 * 60 * 1000;
+    const HANDOFF_WAIT_MS = 2500;
+    const CLAIM_TTL_MS = 3 * 60 * 1000;
+    const TAB_ID = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+    function sessionMatches(session, who) {
+        const user = session && session.user;
+        if (!user || !who) return false;
+        if (who.userId && user.id === who.userId) return true;
+        const a = String(user.email || '').trim().toLowerCase();
+        const b = String(who.email || '').trim().toLowerCase();
+        return Boolean(a && b && a === b);
+    }
+
+    // Qué hace la pestaña que abrió el link de confirmación. Lógica pura:
+    //   'ignore'    no es una vuelta del link ni hay nada pendiente
+    //   'login'     el link no abrió sesión (otro navegador o link vencido)
+    //   'dashboard' sesión de otra cuenta o sin nada pendiente: al panel
+    //   'handoff'   hay una pestaña esperando: esa termina y esta se cierra
+    //   'complete'  no hay pestaña esperando: esta termina el alta
+    function linkTabAction(o) {
+        const s = o || {};
+        if (!s.confirmed && !s.hasPending) return 'ignore';
+        if (!s.hasSession) return s.confirmed ? 'login' : 'ignore';
+        if (!s.sameAccount) return s.confirmed ? 'dashboard' : 'ignore';
+        if (s.waitingTab || s.claimedElsewhere) return 'handoff';
+        return 'complete';
+    }
+
+    function openChannel() {
+        try {
+            return typeof root.BroadcastChannel === 'function' ? new root.BroadcastChannel(CHANNEL_NAME) : null;
+        } catch (_) { return null; }
+    }
+
+    function writeSignal(kind, key, extra) {
+        const s = storage();
+        if (!s) return;
+        try {
+            s.setItem(SIGNAL_PREFIX + kind + ':' + key, JSON.stringify(Object.assign({ at: Date.now(), tab: TAB_ID }, extra || {})));
+        } catch (_) { /* sin storage: queda el canal */ }
+    }
+
+    function readSignal(kind, key) {
+        const s = storage();
+        if (!s) return null;
+        try { return JSON.parse(s.getItem(SIGNAL_PREFIX + kind + ':' + key) || 'null'); } catch (_) { return null; }
+    }
+
+    // Una sola pestaña termina el alta pendiente: la que la reclama primero.
+    function claimPending(key, store, now) {
+        const rec = readPending(key, store);
+        if (!rec) return false;
+        const t = Number(now || Date.now());
+        if (rec.claimedBy && rec.claimedBy !== TAB_ID && t - Number(rec.claimedAt || 0) < CLAIM_TTL_MS) return false;
+        rec.claimedBy = TAB_ID;
+        rec.claimedAt = t;
+        return savePending(key, rec, store);
+    }
+
+    function isClaimedElsewhere(rec, now) {
+        if (!rec || !rec.claimedBy || rec.claimedBy === TAB_ID) return false;
+        return Number(now || Date.now()) - Number(rec.claimedAt || 0) < CLAIM_TTL_MS;
+    }
+
+    /**
+     * Pestaña en espera: avisa una sola vez cuando el email quedó confirmado.
+     * opts: { key, client?, email?, userId?, statusUrl?, onConfirmed({ session, via }) }
+     * Devuelve { stop() }.
+     */
+    function watchConfirmation(opts) {
+        const o = opts || {};
+        const who = { userId: o.userId || null, email: o.email || null };
+        const startedAt = Date.now();
+        let stopped = false;
+        let lastStatusAt = 0;
+        let checking = false;
+        const channel = openChannel();
+        const doc = root.document;
+        let timer = null;
+        let authSub = null;
+
+        function stop() {
+            stopped = true;
+            if (timer) root.clearInterval(timer);
+            if (channel) { try { channel.close(); } catch (_) { /* cerrado */ } }
+            try { root.removeEventListener('storage', onStorage); } catch (_) { /* sin window */ }
+            try { root.removeEventListener('focus', check); } catch (_) { /* sin window */ }
+            if (doc) { try { doc.removeEventListener('visibilitychange', check); } catch (_) { /* sin document */ } }
+            if (authSub && typeof authSub.unsubscribe === 'function') { try { authSub.unsubscribe(); } catch (_) { /* noop */ } }
+        }
+
+        function done(session, via) {
+            if (stopped) return;
+            stop();
+            try { if (typeof o.onConfirmed === 'function') o.onConfirmed({ session: session || null, via: via }); }
+            catch (err) { console.warn('[email-confirm] onConfirmed:', err && err.message); }
+        }
+
+        async function readSession() {
+            const auth = o.client && o.client.auth;
+            if (!auth || typeof auth.getSession !== 'function') return null;
+            try {
+                const res = await auth.getSession();
+                const session = res && res.data && res.data.session;
+                return sessionMatches(session, who) ? session : null;
+            } catch (_) { return null; }
+        }
+
+        async function readStatus() {
+            if (!o.statusUrl || typeof root.fetch !== 'function') return false;
+            try {
+                const res = await root.fetch(o.statusUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+                if (!res.ok) return false;
+                const body = await res.json();
+                return Boolean(body && body.confirmed === true);
+            } catch (_) { return false; }
+        }
+
+        async function check(force) {
+            if (stopped || checking) return;
+            checking = true;
+            try {
+                const session = await readSession();
+                if (session) { done(session, 'session'); return; }
+                const now = Date.now();
+                if (now - startedAt > WATCH_MAX_MS) { stop(); return; }
+                const every = now - startedAt > STATUS_POLL_SLOW_AFTER_MS ? STATUS_POLL_SLOW_MS : STATUS_POLL_MS;
+                const visible = !doc || doc.visibilityState !== 'hidden';
+                if (force === true || (visible && now - lastStatusAt >= every)) {
+                    lastStatusAt = now;
+                    if (await readStatus()) done(null, 'server');
+                }
+            } finally { checking = false; }
+        }
+
+        function ack() {
+            writeSignal('ack', o.key);
+            if (channel) { try { channel.postMessage({ type: 'ack', key: o.key, tab: TAB_ID }); } catch (_) { /* canal cerrado */ } }
+        }
+
+        function onStorage(event) {
+            if (!event || event.key !== SIGNAL_PREFIX + 'confirmed:' + o.key || !event.newValue) return;
+            ack();
+            check(true);
+        }
+
+        if (channel) {
+            channel.onmessage = function (event) {
+                const msg = event && event.data;
+                if (!msg || msg.key !== o.key || msg.tab === TAB_ID) return;
+                if (msg.type === 'confirmed' || msg.type === 'ping') { ack(); check(msg.type === 'confirmed'); }
+            };
+        }
+        try { root.addEventListener('storage', onStorage); } catch (_) { /* sin window */ }
+        try { root.addEventListener('focus', check); } catch (_) { /* sin window */ }
+        if (doc) { try { doc.addEventListener('visibilitychange', check); } catch (_) { /* sin document */ } }
+        try {
+            const auth = o.client && o.client.auth;
+            if (auth && typeof auth.onAuthStateChange === 'function') {
+                const res = auth.onAuthStateChange(function (event, session) {
+                    // Fuera del callback: supabase-js no admite llamadas a auth acá adentro.
+                    if (session && sessionMatches(session, who)) root.setTimeout(function () { done(session, 'session'); }, 0);
+                });
+                authSub = res && res.data && res.data.subscription;
+            }
+        } catch (_) { /* sin eventos de auth: queda el polling */ }
+        timer = root.setInterval(check, SESSION_POLL_MS);
+        return { stop: stop, check: check };
+    }
+
+    /**
+     * Pestaña del link: avisa que el email quedó confirmado y espera a que una
+     * pestaña en espera lo reciba. Resuelve true si hay una (ella termina).
+     */
+    function announceConfirmed(key, info, waitMs) {
+        return new Promise(function (resolve) {
+            const since = Date.now();
+            const channel = openChannel();
+            let settled = false;
+            let timer = null;
+            let poll = null;
+            function finish(value) {
+                if (settled) return;
+                settled = true;
+                if (timer) root.clearTimeout(timer);
+                if (poll) root.clearInterval(poll);
+                try { root.removeEventListener('storage', onStorage); } catch (_) { /* sin window */ }
+                if (channel) { try { channel.close(); } catch (_) { /* cerrado */ } }
+                resolve(value);
+            }
+            function acked() {
+                const sig = readSignal('ack', key);
+                return Boolean(sig && sig.tab !== TAB_ID && Number(sig.at) >= since - 50);
+            }
+            function onStorage(event) {
+                if (event && event.key === SIGNAL_PREFIX + 'ack:' + key && acked()) finish(true);
+            }
+            if (channel) {
+                channel.onmessage = function (event) {
+                    const msg = event && event.data;
+                    if (msg && msg.type === 'ack' && msg.key === key && msg.tab !== TAB_ID) finish(true);
+                };
+            }
+            try { root.addEventListener('storage', onStorage); } catch (_) { /* sin window */ }
+            writeSignal('confirmed', key, { userId: (info && info.userId) || null });
+            if (channel) {
+                try { channel.postMessage({ type: 'confirmed', key: key, tab: TAB_ID, userId: (info && info.userId) || null }); }
+                catch (_) { /* canal cerrado */ }
+            }
+            poll = root.setInterval(function () { if (acked()) finish(true); }, 150);
+            timer = root.setTimeout(function () { finish(false); }, typeof waitMs === 'number' ? waitMs : HANDOFF_WAIT_MS);
+        });
+    }
+
+    function tryCloseTab() {
+        try { root.close(); } catch (_) { /* el navegador decide */ }
+    }
+
+    /**
+     * Estados posteriores a la confirmación (DS):
+     *   state 'confirmed' → "Email confirmado" + qué sigue (pestaña que espera)
+     *   state 'close'     → "Listo, ya puedes cerrar esta pestaña" (la del link)
+     * opts: { state, title?, text?, busyText?, action?: { label, href }, focus? }
+     */
+    function renderConfirmed(container, opts) {
+        if (!container) return null;
+        const o = opts || {};
+        ensureStyles();
+        const close = o.state === 'close';
+        const headingId = 'wo-ec-done-' + Math.random().toString(36).slice(2, 8);
+        const title = o.title || (close ? 'Listo, ya puedes cerrar esta pestaña' : 'Email confirmado');
+        const text = o.text || (close
+            ? 'Tu email quedó confirmado. Tu registro continúa en la pestaña donde lo empezaste.'
+            : 'Tu cuenta ya está activa. Te llevamos a tu panel.');
+        container.innerHTML =
+            '<section class="wo-ec wo-ec--done" role="status" aria-live="polite" aria-labelledby="' + headingId + '">' +
+                '<span class="wo-ec-done-mark" aria-hidden="true"><i data-wo-icon="check" class="wo-icon-18"></i></span>' +
+                '<p class="wo-eyebrow wo-ec-eyebrow">' + escapeHtml(o.eyebrow || 'Confirmación de email') + '</p>' +
+                '<h2 class="wo-h2 wo-ec-title" id="' + headingId + '" tabindex="-1">' + escapeHtml(title) + '</h2>' +
+                '<p class="wo-ec-lead">' + escapeHtml(text) + '</p>' +
+                (o.busyText ? '<p class="wo-ec-busy"><span class="wo-spinner" aria-hidden="true"></span><span data-ec-busy>' + escapeHtml(o.busyText) + '</span></p>' : '') +
+                '<div class="wo-ec-actions">' +
+                    (close ? '<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-ec-close>Cerrar esta pestaña</button>' : '') +
+                    (o.action && o.action.href ? '<a class="wo-btn wo-btn--' + (close ? 'ghost' : 'secondary') + ' wo-btn--s" href="' + escapeHtml(o.action.href) + '">' + escapeHtml(o.action.label || 'Continuar') + '</a>' : '') +
+                '</div>' +
+                (close ? '<p class="wo-ec-status" data-ec-close-hint hidden>Si la pestaña no se cierra sola, ciérrala desde el navegador.</p>' : '') +
+            '</section>';
+        const closeBtn = container.querySelector('[data-ec-close]');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function () {
+                tryCloseTab();
+                const hint = container.querySelector('[data-ec-close-hint]');
+                if (hint) root.setTimeout(function () { hint.hidden = false; }, 300);
+            });
+        }
+        hydrateIcons(container);
+        const heading = container.querySelector('#' + headingId);
+        if (heading && o.focus !== false) {
+            try { heading.focus({ preventScroll: false }); } catch (_) { /* noop */ }
+        }
+        return container.firstElementChild;
+    }
+
     return {
+        // ── registro (ronda 2 · N4)
+        TAB_ID: TAB_ID,
+        sessionMatches: sessionMatches,
+        linkTabAction: linkTabAction,
+        claimPending: claimPending,
+        isClaimedElsewhere: isClaimedElsewhere,
+        watchConfirmation: watchConfirmation,
+        announceConfirmed: announceConfirmed,
+        renderConfirmed: renderConfirmed,
+        tryCloseTab: tryCloseTab,
         RESEND_COOLDOWN_SECONDS: RESEND_COOLDOWN_SECONDS,
         isNeutralOtpError: isNeutralOtpError,
         magicLinkOutcome: magicLinkOutcome,
