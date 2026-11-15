@@ -859,10 +859,13 @@ function watchViewerChanges() {
         if (event.persisted) void refreshViewer();
     });
     try {
-        _supabase?.auth?.onAuthStateChange?.((event) => {
+        _supabase?.auth?.onAuthStateChange?.((event, session) => {
             if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
                 // Fuera del callback de auth: supabase-js no admite llamadas anidadas ahí.
                 setTimeout(() => { void refreshViewer(); }, 0);
+            } else if (event === 'TOKEN_REFRESHED' && session?.user?.id && session.user.id === viewer.session?.user?.id) {
+                // Misma persona con token nuevo: las llamadas con Bearer usan el vigente.
+                viewer = { ...viewer, session };
             }
         });
     } catch (_) { /* sin eventos de sesión: queda el estado de la carga */ }
