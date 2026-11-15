@@ -4901,6 +4901,8 @@ async function stashArtistPendingSetup(finalizeData, email) {
         // ── roster: con la solicitud pendiente el servidor ya guardó la sede
         // sin studio_id; al volver del link tampoco se pisa (ronda 2).
         membershipPending: finalizeData.membership_pending === true,
+        // Borrador de este registro: al recargar se reconoce la misma espera.
+        draftId: registrationDraftId || finalizeData.draft_id || null,
         registrationCity: getRegistrationCity() || null,
         data,
         // Ítems de Instagram (sin File) y cantidad de archivos locales.
@@ -5009,6 +5011,9 @@ async function continueArtistAfterConfirmationHere(email, info) {
     const mine = pending && EC && typeof EC.claimPending === 'function' ? EC.claimPending(ARTIST_CONFIRM_KEY) : true;
     if (mine) {
         try {
+            // Pestaña recargada: el portfolio ya no está en memoria, se
+            // reconstruye de lo guardado (igual que la pestaña del link).
+            if (pending && !getPortfolioMediaDraft().length) await restoreArtistPendingDraft(pending);
             const membershipPending = pending ? pending.membershipPending === true : _artistConfirmMembershipPending;
             if (!membershipPending) {
                 await persistSelectedStudioLocation(pending ? pending.studioId : null);
@@ -5048,7 +5053,12 @@ async function resumeArtistAfterEmailConfirmation() {
         session = data && data.session;
     } catch (_) { session = null; }
     if (!session) {
-        if (!confirmed) return false;
+        if (!confirmed) {
+            // ── registro (ronda 2 · T1-2): recargar "Falta confirmar email"
+            // mostraba el paso 01 vacío (el borrador ya es una cuenta). Se
+            // vuelve a mostrar la espera de la confirmación.
+            return showArtistPendingConfirmationAgain(pending);
+        }
         // El link no abrió sesión (otro navegador o link vencido): al login.
         // ── acceso (ACC-17): con #error=…otp_expired el login muestra "El link
         // venció o ya se usó" y ofrece reenviar la confirmación.
@@ -5084,14 +5094,7 @@ async function resumeArtistAfterEmailConfirmation() {
     currentUser = session.user;
     goToStep('saving');
     try {
-        Object.assign(formState.data, pending.data || {});
-        const files = await EC.takeFiles(ARTIST_CONFIRM_FILES_KEY);
-        const local = files.map((file, i) => ({
-            id: 'confirm-local-' + i, source: 'local', file,
-            kind: (pending.localKinds && pending.localKinds[i]) || 'image',
-            caption: (pending.localCaptions && pending.localCaptions[i]) || ''
-        }));
-        formState.data.portfolio_media_draft = (pending.igItems || []).concat(local);
+        await restoreArtistPendingDraft(pending);
         // ── roster: con la solicitud pendiente no se pisa la sede (ronda 2).
         if (!pending.membershipPending) await persistSelectedStudioLocation(pending.studioId);
         await persistPortfolioMedia();
@@ -5101,6 +5104,42 @@ async function resumeArtistAfterEmailConfirmation() {
     EC.clearPending(ARTIST_CONFIRM_KEY);
     EC.clearFiles(ARTIST_CONFIRM_FILES_KEY);
     redirectAfterRegistration(appUrl('/artist/dashboard'));
+    return true;
+}
+
+// Reconstruye en memoria lo que quedó guardado para después de confirmar:
+// datos del formulario, publicaciones de Instagram y archivos (IndexedDB).
+async function restoreArtistPendingDraft(pending) {
+    const EC = window.WeotziEmailConfirm;
+    Object.assign(formState.data, pending.data || {});
+    const files = EC ? await EC.takeFiles(ARTIST_CONFIRM_FILES_KEY) : [];
+    const local = files.map((file, i) => ({
+        id: 'confirm-local-' + i, source: 'local', file,
+        kind: (pending.localKinds && pending.localKinds[i]) || 'image',
+        caption: (pending.localCaptions && pending.localCaptions[i]) || ''
+    }));
+    formState.data.portfolio_media_draft = (pending.igItems || []).concat(local);
+}
+
+// ── registro (ronda 2 · T1-2) ── la pestaña "Falta confirmar email" se
+// recargó (o se volvió a abrir) antes de confirmar: se muestra otra vez la
+// espera, con "Reenviar email" y la detección automática. No aplica si la
+// persona está empezando otro registro (otro borrador, Instagram o "de cero").
+function showArtistPendingConfirmationAgain(pending) {
+    if (!pending || !pending.userId || !pending.email) return false;
+    const params = new URLSearchParams(window.location.search || '');
+    if (params.get('startOver') === '1' || params.get('source') === 'instagram') return false;
+    const draftParam = params.get('draft') || params.get('draft_id') || '';
+    if (draftParam && pending.draftId && draftParam !== pending.draftId) return false;
+    if (draftParam && !pending.draftId) return false;
+    currentUser = { id: pending.userId, email: pending.email };
+    _artistConfirmMembershipPending = pending.membershipPending === true;
+    renderSuccessScreen('/artist/dashboard');
+    const nameEl = document.getElementById('ra-success-name');
+    const savedName = pending.data && pending.data.artistic_name;
+    if (nameEl && savedName) nameEl.textContent = savedName;
+    renderArtistEmailConfirmation(pending.email);
+    goToStep('success');
     return true;
 }
 

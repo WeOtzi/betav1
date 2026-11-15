@@ -435,6 +435,18 @@ test('N5: con el perfil completo, /register-artist no vuelve a mostrar el paso 0
     assert.match(read('public/shared/js/register.js'), /if \(session && !treatAsPreAuth && showProfileAlreadyCreated\(\)\) return;/);
 });
 
+test('N5: recargar "Falta confirmar email" vuelve a mostrar la espera, no el paso 01 vacío', () => {
+    const reg = read('public/shared/js/register.js');
+    assert.match(reg, /if \(!confirmed\) \{[\s\S]{0,400}return showArtistPendingConfirmationAgain\(pending\);/);
+    const fn = reg.slice(reg.indexOf('function showArtistPendingConfirmationAgain(pending)'), reg.indexOf('function showArtistConfirmHandoff()'));
+    assert.match(fn, /if \(!pending \|\| !pending\.userId \|\| !pending\.email\) return false;/);
+    assert.match(fn, /params\.get\('startOver'\) === '1' \|\| params\.get\('source'\) === 'instagram'/, 'no secuestra un registro nuevo');
+    assert.match(fn, /draftParam && pending\.draftId && draftParam !== pending\.draftId/);
+    assert.match(fn, /renderArtistEmailConfirmation\(pending\.email\);\s*goToStep\('success'\);/);
+    assert.match(reg, /draftId: registrationDraftId \|\| finalizeData\.draft_id \|\| null,/);
+    assert.match(reg, /if \(pending && !getPortfolioMediaDraft\(\)\.length\) await restoreArtistPendingDraft\(pending\);/);
+});
+
 // ---------------------------------------------------------------- N6 ----
 
 test('N6: los tres logins tienen un botón de texto visible para el enlace mágico', () => {

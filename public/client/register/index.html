@@ -653,7 +653,7 @@
                 stylesCatalog = WoClientStyles.names();
                 return Promise.resolve(stylesCatalog);
             }
-            var fromDb =(window.ConfigManager && typeof ConfigManager.loadTattooStylesFromDB === 'function')
+            var fromDb = (window.ConfigManager && typeof ConfigManager.loadTattooStylesFromDB === 'function')
                 ? ConfigManager.loadTattooStylesFromDB()
                 : Promise.resolve([]);
             return fromDb.then(function (tree) {
