@@ -181,11 +181,28 @@
             taxPct: taxPct, tax: tax, total: total,
             depositPct: depositPct, deposit: deposit && deposit > 0 ? deposit : null,
             balance: deposit && deposit > 0 ? Math.max(0, Math.round((total - deposit) * 100) / 100) : null,
-            validityDays: toNumber(manual.validity_days),
+            // Ronda 2 · cot-respuesta: sin vencimiento activado no se anuncia una validez.
+            validityDays: manual.project && manual.project.expiry_enabled === false ? null : toNumber(manual.validity_days),
+            complexity: String((manual.project && manual.project.complexity) || '').trim(),
             policy: POLICIES[manual.cancellation_policy] || '',
             clientNotes: String(manual.client_notes || '').trim(),
             extraTerms: String(manual.extra_terms || '').trim()
         };
+    }
+
+    // Ronda 2 · cot-respuesta: fechas ofrecidas por el artista
+    // (quotations_db.offered_slots = [{ kind, start, end, label, tz }]) y la
+    // nota libre que queda en artist_availability al quitarle esas etiquetas.
+    function offeredOf(q) {
+        var labels = (Array.isArray(q && q.offered_slots) ? q.offered_slots : []).map(function (s) {
+            return String((s && s.label) || '').trim();
+        }).filter(Boolean);
+        var text = hasValue(q && q.artist_availability) ? String(q.artist_availability).trim() : '';
+        if (!labels.length) return { labels: [], note: text };
+        var tail = labels.join('; ');
+        var note = '';
+        if (text && text !== tail && text.slice(-(tail.length + 2)) === '; ' + tail) note = text.slice(0, text.length - tail.length - 2);
+        return { labels: labels, note: note };
     }
 
     // ------------------------------- HTML -------------------------------
@@ -263,14 +280,23 @@
         parts.push(row(p.isFinal ? 'Total acordado' : 'Presupuesto', p.amountText || 'A confirmar', 'cqp-row--total'));
         if (p.sessions) parts.push(row('Sesiones', p.sessions));
         if (p.durationText) parts.push(row('Duración por sesión', p.durationText));
-        if (p.availability) parts.push(row('Disponibilidad', p.availability));
+        // Ronda 2 · cot-respuesta: con fechas estructuradas, "Disponibilidad" muestra solo la nota libre.
+        var offered = offeredOf(q);
+        if (offered.labels.length ? offered.note : p.availability) parts.push(row('Disponibilidad', offered.labels.length ? offered.note : p.availability));
+        var b = manualBreakdown(ctx.manual);
+        if (b && b.complexity) parts.push(row('Complejidad', b.complexity));
         if (q.quote_status === 'responded' && p.expiresAt) {
             parts.push(row(isExpired(q, now) ? 'Venció el' : 'Válida hasta', dateLabel(p.expiresAt)));
         }
         parts.push('</dl>');
+        if (offered.labels.length) {
+            parts.push('<div class="cqp-dates"><h4 class="cqp-subtitle">Fechas que te ofrece el artista</h4><ul class="cqp-items">');
+            offered.labels.forEach(function (label) { parts.push('<li><span class="cqp-item-name">' + esc(label) + '</span></li>'); });
+            parts.push('</ul></div>');
+        }
+        if (hasValue(q.proposal_message) && !p.isFinal) parts.push('<p class="cqp-comment">' + esc(String(q.proposal_message).trim()) + '</p>');
         if (p.comment) parts.push('<p class="cqp-comment">' + esc(p.comment) + '</p>');
 
-        var b = manualBreakdown(ctx.manual);
         if (b && b.items.length) {
             parts.push('<div class="cqp-breakdown"><h4 class="cqp-subtitle">Desglose</h4><ul class="cqp-items">');
             b.items.forEach(function (it) {
@@ -302,7 +328,8 @@
             }
             if (summary && summary.count) {
                 parts.push(row('Pagado', money(summary.paid, summary.currency)));
-                if (summary.balance != null) parts.push(row('Saldo', money(summary.balance, summary.currency)));
+                // El saldo acordado se activa recién con la cotización aprobada por ambas partes.
+                if (summary.balance != null && summary.active !== false) parts.push(row('Saldo', money(summary.balance, summary.currency)));
             }
             parts.push('</dl>');
             if (summary && summary.payments && summary.payments.length) {
@@ -350,6 +377,7 @@
         canDecide: canDecide,
         proposalOf: proposalOf,
         manualBreakdown: manualBreakdown,
+        offeredOf: offeredOf,
         renderProposal: renderProposal,
         confirmHtml: confirmHtml
     };

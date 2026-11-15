@@ -1024,8 +1024,32 @@
         }
     }
 
-    function openRespondDialog() {
+    // Ronda 2 · cot-respuesta: contexto del diálogo ancho de la propuesta
+    // (quote-respond-dialog.js). `prefill` llega del evento 'wo:quote-respond'.
+    function respondContext(prefill) {
+        const q = state.quote;
+        const budgetInput = document.getElementById('qd-budget');
+        return {
+            quote: q,
+            user: state.user,
+            prefill: prefill && typeof prefill === 'object' && !(prefill instanceof Event) ? prefill : null,
+            budgetDraft: budgetInput ? budgetInput.value.trim() : '',
+            toast: showToast,
+            reload: reloadAll,
+            flushNotes: savePrivateNotes,
+            // notify:false → el mensaje viaja en el aviso de la propuesta (sin correo doble · EM-N7).
+            sendChat: (message) => D().Chat.sendMessage({ quoteId: q.quote_id, senderType: 'artist', senderId: state.user.id, message, notify: false }),
+            notifyResponded: (extra) => notify('artist_responded_quotation', Object.assign(eventBase(), extra, {
+                client_budget: `${q.client_budget_amount || ''} ${q.client_budget_currency || ''}`.trim(),
+            })),
+        };
+    }
+
+    function openRespondDialog(prefill) {
         if (!guardWrite()) return;
+        // Ronda 2 · cot-respuesta (P4/P25/P29): el diálogo ancho con la agenda real, las fechas ofrecidas,
+        // las respuestas rápidas y los campos de la cotización manual. Sin ese módulo sigue el de abajo.
+        if (window.WoQuoteRespond && window.WoQuoteRespond.open(respondContext(prefill))) return;
         const q = state.quote;
         const budgetInput = document.getElementById('qd-budget');
         const amount = (budgetInput && budgetInput.value.trim()) || (M.numberFrom(q.artist_budget_amount) != null ? M.groupThousands(M.numberFrom(q.artist_budget_amount)) : '');
@@ -1091,6 +1115,20 @@
             },
         });
     }
+
+    // Ronda 2 · cot-respuesta (P25): contrato entre frentes. El módulo de negociación (o la franja
+    // "Estado · Prioridad") reabre el diálogo de la propuesta precargado con
+    //   document.dispatchEvent(new CustomEvent('wo:quote-respond', { detail: { quoteId, prefill } }))
+    // quoteId = quote_id o id de la cotización abierta (si no coincide, se ignora).
+    document.addEventListener('wo:quote-respond', (event) => {
+        const detail = (event && event.detail) || {};
+        const q = state.quote;
+        if (!q) return;
+        if (detail.quoteId != null && String(detail.quoteId) !== String(q.quote_id) && String(detail.quoteId) !== String(q.id)) return;
+        // El diálogo anterior (sin el módulo nuevo) solo sabe responder desde estos estados.
+        if (!window.WoQuoteRespond && !['pending', 'responded', 'expired', 'client_rejected'].includes(q.quote_status)) return;
+        openRespondDialog(detail.prefill && typeof detail.prefill === 'object' ? detail.prefill : {});
+    });
 
     async function rejectQuote() {
         if (!guardWrite()) return;
@@ -1165,6 +1203,7 @@
                     ? await window.WoSlotHold.confirmFor(q, { starts_at: first, minutes, from_agreement: true })
                     : null;
                 await updateQuote(patch);
+                syncAgreementExtras();
                 let created = null;
                 if (!edit && slotBooking && slotBooking.session_id) {
                     created = { id: slotBooking.session_id, session_number: slotBooking.session_number };
@@ -1190,6 +1229,94 @@
             },
         });
     }
+
+    // Ronda 2 · cot-respuesta: tras el acuerdo, la seña de la fila de la cotización manual
+    // (artist_manual_quotes) sigue a la acordada; el panel de pagos prioriza esa fila. Silencioso.
+    function syncAgreementExtras() {
+        const repo = D().QuoteRespond;
+        if (!repo || state.scenario || isPreviewEnv() || !state.quote) return;
+        try {
+            Promise.resolve(repo.syncAgreement(state.quote.quote_id || state.quote.id)).catch(() => {});
+        } catch (_) { /* nunca rompe el acuerdo ya guardado */ }
+    }
+
+    // Ronda 2 · cot-respuesta (P5): "Estado" y "Prioridad" editables desde el expediente
+    // (los pinta quote-status-priority.js). Solo las transiciones que el trigger vivo
+    // fn_quotation_status_change acepta al artista (WoQuotationsViewModel.canTransition);
+    // las que piden datos abren su diálogo y las que avisan al cliente pasan por su acción.
+    function askConfirm({ title, message, confirmLabel, cancelLabel, danger }) {
+        return new Promise((resolve) => {
+            let accepted = false;
+            const overlay = openDialog({
+                title, intro: message, cancelLabel,
+                submitLabel: confirmLabel,
+                submitClass: danger ? 'wo-btn--danger' : '',
+                onSubmit: async () => { accepted = true; },
+            });
+            const observer = new MutationObserver(() => {
+                if (!overlay.isConnected) { observer.disconnect(); resolve(accepted); }
+            });
+            observer.observe(overlay.parentNode, { childList: true });
+        });
+    }
+    async function changeStatus(next) {
+        if (!guardWrite()) return false;
+        const vm = VM();
+        const from = state.quote.quote_status;
+        if (!vm || !next || next === from || !vm.canTransition(from, next)) {
+            showToast('Ese cambio de estado no está permitido desde el estado actual.', { error: true });
+            return false;
+        }
+        if (next === 'responded') { openRespondDialog({}); return false; }
+        if (next === 'client_approved') { openAgreementDialog(false); return false; }
+        if (next === 'artist_completed') { await markReady(); return state.quote.quote_status === next; }
+        if (next === 'cancelled' && from === 'pending') { await rejectQuote(); return state.quote.quote_status === next; }
+        if (next === 'in_progress' && from === 'artist_completed') { await reopenWork(); return state.quote.quote_status === next; }
+        const cancel = next === 'cancelled';
+        const ok = await askConfirm(cancel
+            ? {
+                title: '¿Cancelar esta cotización?',
+                message: 'La cotización queda cancelada, el cliente recibe un aviso y el cambio se registra en el historial. No se puede deshacer.',
+                confirmLabel: 'Cancelar cotización', cancelLabel: 'Volver', danger: true,
+            }
+            : {
+                title: '¿Iniciar el trabajo?',
+                message: 'La cotización pasa a "En progreso" y se habilita la gestión de sesiones.',
+                confirmLabel: 'Iniciar trabajo', cancelLabel: 'Volver',
+            });
+        if (!ok) return false;
+        try {
+            await updateQuote({ quote_status: next });
+            if (cancel) noticeClient('cancelled', from);
+            await reloadAll();
+            showToast(cancel ? 'Cotización cancelada. Le avisamos al cliente.' : 'Trabajo iniciado.');
+            return true;
+        } catch (error) {
+            console.error('[quotation-detail] change status', error);
+            showToast('No pudimos cambiar el estado. Intenta de nuevo.', { error: true });
+            return false;
+        }
+    }
+    async function changePriority(next) {
+        if (!guardWrite()) return false;
+        if (!['high', 'medium', 'low'].includes(next)) return false;
+        try {
+            await D().Quotations.updatePriority(state.quote.id, next);
+            state.quote.priority = next;
+            showToast('Prioridad actualizada.');
+            return true;
+        } catch (error) {
+            console.error('[quotation-detail] change priority', error);
+            showToast('No pudimos actualizar la prioridad. Intenta de nuevo.', { error: true });
+            return false;
+        }
+    }
+    window.WoQuotationDetailActions = {
+        respond: (prefill) => openRespondDialog(prefill && typeof prefill === 'object' ? prefill : {}),
+        agreement: () => openAgreementDialog(false),
+        changeStatus,
+        changePriority,
+    };
 
     function openScheduleDialog(slotNumber, opts = {}) {
         if (!guardWrite()) return;

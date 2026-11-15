@@ -140,9 +140,12 @@
         if (!s) return '';
         var money = M.formatMoney;
         var rows = [];
-        rows.push('<div><dt>Acordado</dt><dd>' + esc(s.total != null ? money(s.total, s.currency) : 'Sin monto') + '</dd></div>');
+        // Ronda 2 · cot-respuesta (P4): sin la aprobación de ambas partes el total es solo
+        // el presupuesto propuesto y el saldo acordado todavía no está activo.
+        var proposed = s.active === false;
+        rows.push('<div><dt>' + (proposed ? 'Propuesto' : 'Acordado') + '</dt><dd>' + esc(s.total != null ? money(s.total, s.currency) : 'Sin monto') + '</dd></div>');
         rows.push('<div><dt>Cobrado</dt><dd>' + esc(money(s.paid, s.currency)) + '</dd></div>');
-        rows.push('<div><dt>Saldo</dt><dd class="is-strong">' + esc(s.balance != null ? money(s.balance, s.currency) : '—') + '</dd></div>');
+        rows.push('<div><dt>Saldo</dt><dd class="is-strong">' + esc(!proposed && s.balance != null ? money(s.balance, s.currency) : '—') + '</dd></div>');
         var dep = s.deposit
             ? '<p class="wqp-sum-dep">Seña requerida ' + esc(money(s.deposit.required, s.deposit.currency)) +
               (s.deposit.pct ? ' (' + esc(String(s.deposit.pct).replace('.', ',')) + '%)' : '') +

@@ -79,8 +79,12 @@
     function blockHtml(quote, readOnly) {
         var s = M.summarize(quote, cache.manual, cache.payments, { convert: convertFn() });
         var money = M.formatMoney;
+        // Ronda 2 · cot-respuesta (P4): el saldo acordado se activa recién cuando la cotización
+        // está aprobada por ambas partes. Antes el total es solo el presupuesto propuesto.
+        var proposed = s.active === false;
         var title;
         if (s.total == null) title = s.count ? 'Pagos registrados' : 'Sin pagos registrados';
+        else if (proposed) title = 'Presupuesto propuesto ' + money(s.total, s.currency);
         else if (s.balance > 0) title = 'Saldo pendiente ' + money(s.balance, s.currency);
         else title = 'Pagado en su totalidad';
         var countTxt = s.count ? s.count + (s.count === 1 ? ' pago' : ' pagos') + ' · último ' + M.formatDate(s.lastPaidOn) : 'Todavía no registraste pagos';
@@ -91,7 +95,7 @@
         var others = s.others.length
             ? '<p class="qpp-note">Además cobraste ' + esc(s.others.map(function (o) { return money(o.amount, o.currency); }).join(' · ')) + ': sin tipo de cambio, no se descuenta del saldo.</p>'
             : '';
-        var over = s.overpaid ? '<p class="qpp-note">Lo registrado supera lo acordado por ' + esc(money(s.overpaid, s.currency)) + '.</p>' : '';
+        var over = s.overpaid && !proposed ? '<p class="qpp-note">Lo registrado supera lo acordado por ' + esc(money(s.overpaid, s.currency)) + '.</p>' : '';
         return '<section class="qpp" id="qd-payments" aria-labelledby="qpp-title">' +
             '<div class="qpp-head"><div>' +
                 '<p class="qpp-eyebrow">Pagos del proyecto</p>' +
@@ -100,11 +104,13 @@
             '</div><div class="qpp-actions">' +
                 '<button type="button" class="wqp-btn is-ink" data-qpp-add aria-haspopup="dialog"' + (readOnly ? ' disabled title="Vista de estado simulada"' : '') + '>Registrar pago</button>' +
             '</div></div>' +
-            (s.total ? '<div class="qpp-bar" role="progressbar" aria-label="Cobrado del total acordado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + s.percent + '"><span class="' + (s.percent >= 100 ? 'is-done' : '') + '" style="width:' + s.percent + '%"></span></div>' : '') +
+            (s.total && !proposed ? '<div class="qpp-bar" role="progressbar" aria-label="Cobrado del total acordado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + s.percent + '"><span class="' + (s.percent >= 100 ? 'is-done' : '') + '" style="width:' + s.percent + '%"></span></div>' : '') +
             '<dl class="qpp-facts">' +
-                '<div><dt>Acordado</dt><dd>' + esc(s.total != null ? money(s.total, s.currency) : '—') + '</dd></div>' +
+                '<div><dt>' + (proposed ? 'Propuesto' : 'Acordado') + '</dt><dd>' + esc(s.total != null ? money(s.total, s.currency) : '—') + '</dd></div>' +
                 '<div><dt>Cobrado</dt><dd>' + esc(money(s.paid, s.currency)) + '</dd></div>' +
-                '<div><dt>Saldo pendiente</dt><dd class="' + (s.balance ? 'is-due' : '') + '">' + esc(s.balance != null ? money(s.balance, s.currency) : '—') + '</dd></div>' +
+                (proposed
+                    ? '<div><dt>Saldo acordado</dt><dd>—<small>Se activa cuando el cliente aprueba la propuesta</small></dd></div>'
+                    : '<div><dt>Saldo pendiente</dt><dd class="' + (s.balance ? 'is-due' : '') + '">' + esc(s.balance != null ? money(s.balance, s.currency) : '—') + '</dd></div>') +
                 depositCell +
             '</dl>' +
             (s.count ? '<ul class="qpp-list">' + s.payments.map(function (p) { return rowHtml(p, readOnly); }).join('') + '</ul>' : '') +
