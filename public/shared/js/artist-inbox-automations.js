@@ -2,7 +2,7 @@
  * Ronda 2 · Inbox [P9] — respuestas automáticas del artista.
  *
  * Diálogo de configuración del saludo y de la respuesta de ausencia. Los
- * mensajes NO se envían desde acá: los envía la base (triggers de la migración
+ * mensajes NO se envían desde aquí: los envía la base (triggers de la migración
  * 20261116160200) cuando un cliente escribe. Esta pantalla solo guarda la
  * configuración (artist_inbox_automations) y muestra el estado actual que
  * calcula la base (get_inbox_automation_status).

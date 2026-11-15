@@ -1,7 +1,7 @@
 -- Reversa de 20261116160100_inbox_mensajes_rapidos.sql.
 --
 -- public.artist_message_templates es COMPARTIDA con el frente "cot-respuesta"
--- (kind = 'quote'): acá NO se borra la tabla ni sus policies de dueño. Se
+-- (kind = 'quote'): aquí NO se borra la tabla ni sus policies de dueño. Se
 -- quitan las reglas del Inbox y las plantillas kind = 'chat'. La tabla del
 -- cliente es solo de este frente y sí se elimina.
 
