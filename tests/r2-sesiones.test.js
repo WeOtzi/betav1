@@ -142,6 +142,8 @@ test('P28: una sesión por confirmar avisa "confírmala o pide otra fecha" (no "
     assert.equal(result.event, 'session_confirmation_requested');
     assert.deepEqual(f.sent.map((s) => s.eventId), ['session_confirmation_requested', 'session_confirmation_requested']);
     assert.match(f.sent[0].options.idempotencyKey, /:confirm:client$/);
+    assert.equal(f.sent[0].options.actorUserId, undefined, 'sin resolveUser no se inventa un actor');
+    assert.equal(f.sent[0].options.push, undefined, 'el pedido de confirmación sí avisa por push al cliente');
     assert.equal(f.sent[0].payload.proposal_changed, false);
     assert.equal(f.sent[0].payload.session_id, SESSION);
     assert.match(f.sent[0].payload.location_maps, /^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=Estudio%20X/);
@@ -150,6 +152,17 @@ test('P28: una sesión por confirmar avisa "confírmala o pide otra fecha" (no "
     const plan = notices.sessionNoticePlan('session_rescheduled', { client_confirmation: 'pending', client_user_id: CLIENT, id: SESSION }, 'k');
     assert.equal(plan.eventId, 'session_confirmation_requested');
     assert.equal(plan.payload.proposal_changed, true);
+
+    // EP-01: el artista que agendó viaja como actor (no recibe el push de su propia propuesta).
+    const g = fakeSend();
+    await notices.handleSessionNotice({ headers: {} }, quote.quote_id, { event: 'session_rescheduled', session_id: SESSION }, {
+        useDefaults: false, baseUrl: BASE, sendEmail: g.sendEmail, resolveChannel: async () => 'smtp_relay',
+        resolveUser: async () => ({ id: ARTIST, email: 'mateo@example.com' }),
+        resolveEmailContext: realContext(sessionRow({ status: 'rescheduled', client_confirmation: 'pending' }), quote),
+    });
+    assert.deepEqual(g.sent.map((s) => [s.eventId, s.options.actorUserId]), [
+        ['session_confirmation_requested', ARTIST], ['session_confirmation_requested', ARTIST],
+    ]);
     assert.equal(plan.key, 'k:confirm');
     // Confirmada, sin cuenta de cliente o base sin la migración: el aviso de siempre.
     for (const payload of [
@@ -176,6 +189,7 @@ test('ausencia: el cliente recibe session_no_show; solo el artista y solo con la
     assert.equal(sent.ok, true);
     assert.deepEqual(ok.sent.map((s) => `${s.eventId}:${s.payload.recipient_role}`), ['session_no_show:client', 'session_no_show:artist']);
     assert.equal(ok.sent[0].options.idempotencyKey, `QN3501:session:${SESSION}:no_show:client`);
+    assert.deepEqual(ok.sent.map((s) => s.options.actorUserId), [ARTIST, ARTIST], 'el artista que registró la ausencia no recibe su propio aviso');
     assert.equal(ok.sent[0].payload.notes, undefined, 'las notas privadas no viajan');
 
     const none = fakeSend();
@@ -205,6 +219,8 @@ test('acuerdo: la primera sesión por confirmar suma el pedido de confirmación 
     });
     assert.equal(result.ok, true);
     assert.deepEqual(f.sent.map((s) => s.eventId), ['artist_confirmed_agreement', 'session_confirmation_requested', 'session_confirmation_requested']);
+    // El acuerdo ya avisa por push al cliente: el pedido de confirmación del mismo acto sale solo por correo.
+    assert.deepEqual(f.sent.map((s) => s.options.push), [undefined, false, false]);
     // Un turno reservado online ya nace confirmado: sin pedido de confirmación.
     const g = fakeSend();
     await notices.handleAgreementNotice({ headers: {} }, quote.quote_id, {
@@ -715,6 +731,7 @@ test('rutas: el cliente confirma → RPC con su id, correo a ambos y Google Cale
     await settle();
     assert.deepEqual(mail.sent.map((s) => s.eventId), ['session_confirmed_by_client']);
     assert.equal(mail.sent[0].options.idempotencyKey, `sesion:${SESSION}:confirmed:${iso(0)}`);
+    assert.equal(mail.sent[0].options.actorUserId, CLIENT, 'quien confirma no recibe el push de su comprobante');
     assert.equal(mail.sent[0].payload.app_base_url, BASE);
     assert.equal(mail.sent[0].payload.location, FULL_ADDRESS);
     assert.deepEqual(synced, [ARTIST]);
@@ -743,6 +760,7 @@ test('rutas: pedir, responder y retirar un cambio', async () => {
     assert.equal(mail.sent[0].payload.requested_by_role, 'client');
     assert.equal(mail.sent[0].payload.change_note, 'Convención', 'el motivo sale de lo guardado');
     assert.equal(mail.sent[0].options.idempotencyKey, `sesion:${SESSION}:change:${REQUEST}`);
+    assert.equal(mail.sent[0].options.actorUserId, CLIENT);
 
     const invalid = await call(app, 'POST /api/sesiones/:sessionId/change-requests', { params: { sessionId: SESSION }, user: { id: CLIENT }, body: { proposed_date: iso(-2) } });
     assert.equal(invalid.statusCode, 400);

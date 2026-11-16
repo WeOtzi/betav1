@@ -64,6 +64,15 @@ test('qué eventos avisan: actividad sí; comprobantes propios, códigos y bajas
         ['profile_verified', 'artist'], ['profile_verification_denied', 'artist'], ['dispute_artist_response', 'client']
     ]) assert.equal(dispatch.isPushEvent(eventId, role), true, `${eventId} → ${role}`);
 
+    // Sesiones (P28): sus correos son transaccionales, pero para la otra parte son actividad.
+    assert.equal(dispatch.SESSION_ACTIVITY_EVENTS.size, 7);
+    for (const eventId of ['session_confirmation_requested', 'session_confirmed_by_client', 'session_change_requested',
+        'session_change_resolved', 'session_dispute_opened', 'session_feedback_received', 'session_no_show']) {
+        assert.equal(emailRender.getSpec(eventId).category, 'transactional', `${eventId}: el correo sale siempre`);
+        for (const role of ['client', 'artist']) assert.equal(dispatch.isPushEvent(eventId, role), true, `${eventId} → ${role}`);
+        assert.equal(prefs.EMAIL_EVENT_KINDS[eventId], undefined, `${eventId}: el correo no entra en la matriz`);
+    }
+
     for (const [eventId, role] of [
         ['password_reset_temp', 'client'], ['instagram_verification_code', 'artist'],
         ['artist_registration_completed', 'artist'], ['client_registration_completed', 'client'],
@@ -71,6 +80,7 @@ test('qué eventos avisan: actividad sí; comprobantes propios, códigos y bajas
         ['client_quotation_submitted', 'client'], ['client_quotation_accepted_receipt', 'client'],
         ['client_quotation_rejected_receipt', 'client'], ['job_board_request_created', 'client'],
         ['artist_verification_requested', 'admin'], ['dispute_artist_response', 'support'],
+        ['session_dispute_support', 'admin'], ['session_dispute_support', 'support'], ['session_dispute_support', 'artist'],
         ['artist_responded_quotation', 'admin'], ['evento_inexistente', 'client']
     ]) assert.equal(dispatch.isPushEvent(eventId, role), false, `${eventId} → ${role}`);
 });
@@ -96,6 +106,11 @@ test('la fila de la matriz que gobierna el aviso sale del evento y del rol', () 
     assert.equal(dispatch.pushKind('studio_roster_invite', 'artist'), 'invitaciones');
     assert.equal(dispatch.pushKind('session_scheduled', 'artist'), 'calendario');
     assert.equal(dispatch.pushKind('booking_slot_requested', 'artist'), 'calendario');
+    // Sesiones: al artista lo gobierna "Calendario → Push"; al cliente se le avisa siempre.
+    for (const eventId of dispatch.SESSION_ACTIVITY_EVENTS) {
+        assert.equal(dispatch.pushKind(eventId, 'artist'), 'calendario', eventId);
+        assert.equal(dispatch.pushKind(eventId, 'client'), null, eventId);
+    }
     // Sin fila en la matriz: se avisa siempre.
     assert.equal(dispatch.pushKind('session_scheduled', 'client'), null);
     assert.equal(dispatch.pushKind('profile_verified', 'artist'), null);
@@ -300,6 +315,66 @@ test('quien hizo la acción no recibe el aviso de su propia acción', async () =
     const { repo, deps } = harness();
     await dispatch.notifyForEvent('session_scheduled', fixtureFor('session_scheduled'), { idempotencyKey: 's', actorUserId: ARTIST_ID }, deps);
     assert.deepEqual(repo.state.notifications.map(n => n.user_id), [CLIENT_ID], 'el artista agendó: solo se avisa al cliente');
+});
+
+// EP-01: con cuenta de cliente, agendar o reprogramar manda session_confirmation_requested
+// (transaccional). Sin el aviso, el cliente solo se enteraba por correo.
+function sessionPayload(extra = {}) {
+    return {
+        quote_id: 'WO-2026-0142', app_base_url: 'https://beta.weotzi.com',
+        client_email: 'lucia.cliente@example.com', client_user_id: CLIENT_ID, client_name: 'Lucía Fernández',
+        artist_email: 'mateo.artista@example.com', artist_user_id: ARTIST_ID, artist_name: 'Mateo Rivas',
+        session_id: '44444444-4444-4444-8444-444444444444', session_number: 1,
+        session_date: '2026-12-01T15:00:00Z', duration_hours: 3, location: 'Estudio Norte, Av. Corrientes 2151',
+        ...extra
+    };
+}
+
+test('sesiones: agendar con cuenta de cliente avisa al cliente (in-app + push) y no al artista que agendó', async () => {
+    const { repo, sent, deps } = harness({ subs: { [CLIENT_ID]: [SUB], [ARTIST_ID]: [{ ...SUB, id: 's2' }] } });
+    const results = await dispatch.notifyForEvent('session_confirmation_requested', sessionPayload(),
+        { idempotencyKey: 'WO-2026-0142:session:4444:confirm', actorUserId: ARTIST_ID }, deps);
+    assert.equal(results.length, 1);
+    assert.equal(repo.state.notifications.length, 1, 'un solo aviso');
+    const row = repo.state.notifications[0];
+    assert.equal(row.user_id, CLIENT_ID);
+    assert.equal(row.role, 'client');
+    assert.equal(row.kind, null, 'el cliente no tiene fila "calendario": se avisa siempre');
+    assert.equal(row.event_id, 'session_confirmation_requested');
+    assert.match(row.title, /^Confirma tu sesión/);
+    assert.ok(row.url.startsWith('/client/dashboard?session=44444444-4444-4444-8444-444444444444'), row.url);
+    assert.ok(row.url.endsWith('#mis-sesiones'), row.url);
+    assert.equal(row.tag, 'session:44444444-4444-4444-8444-444444444444');
+    assert.deepEqual(sent.map((s) => s.sub.id), ['s1'], 'push solo al navegador del cliente');
+});
+
+test('sesiones: el cliente confirma o pide un cambio → aviso al artista con "Calendario → Push"; el comprobante propio no avisa', async () => {
+    const asked = [];
+    const { repo, deps } = harness({}, {
+        shouldNotify: async (user, kind, channel, _deps, role) => { asked.push([user.id, kind, channel, role]); return true; }
+    });
+    await dispatch.notifyForEvent('session_confirmed_by_client', sessionPayload(), { idempotencyKey: 'c1', actorUserId: CLIENT_ID }, deps);
+    assert.deepEqual(repo.state.notifications.map((n) => [n.user_id, n.kind]), [[ARTIST_ID, 'calendario']]);
+    assert.deepEqual(asked, [[ARTIST_ID, 'calendario', 'push', 'artist']]);
+    assert.match(repo.state.notifications[0].title, /confirmó la sesión/);
+    assert.match(repo.state.notifications[0].url, /^\/my-quotations\/detail\?quote=WO-2026-0142&session=44444444-4444-4444-8444-444444444444#qd-sessions$/);
+
+    // El artista apagó "Calendario → Push": no se le avisa (el correo sale igual).
+    const off = harness({}, { shouldNotify: async () => false });
+    const skipped = await dispatch.notifyForEvent('session_change_requested', sessionPayload({ requested_by_role: 'client' }),
+        { idempotencyKey: 'c2', actorUserId: CLIENT_ID }, off.deps);
+    assert.deepEqual(skipped, [{ ok: true, skipped: true, role: 'artist' }]);
+    assert.equal(off.repo.state.notifications.length, 0);
+
+    // Cada evento de sesiones arma un aviso con destino interno para ambos roles.
+    for (const eventId of dispatch.SESSION_ACTIVITY_EVENTS) {
+        for (const role of ['client', 'artist']) {
+            const n = dispatch.buildNotification(eventId, sessionPayload({ requested_by_role: 'client', opened_by_role: 'client', author_role: 'client', decision: 'accepted' }), { role });
+            assert.ok(n && n.title.length > 3, `${eventId} → ${role}`);
+            assert.ok(dispatch.isInternalPath(n.url), `${eventId} → ${role}: ${n && n.url}`);
+            assert.match(n.url, /[?&]session=44444444-4444-4444-8444-444444444444/, `${eventId} → ${role}`);
+        }
+    }
 });
 
 test('mensajes de chat: aviso inmediato por mensaje y sin duplicar cuando sale el correo diferido', async () => {
