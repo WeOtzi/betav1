@@ -11,7 +11,8 @@
  *     por confirmar"), sin tocar "Tu actividad".
  *   - Acciones de los estados vacíos ([data-cpn-action]).
  *   - Carga, si existen, de los módulos de otros frentes para los botones que
- *     el panel deja preparados: [data-wo-favorite] → wo-favorites.js y
+ *     el panel deja preparados: [data-wo-favorite] → el cargador de favoritos
+ *     de config-manager.js (WoFavoritesLoader: modelo y módulo, en ese orden) y
  *     [data-wo-report] → wo-report.js. Si el módulo no está, el botón no se ve.
  *
  * Carga: DESPUÉS de client-panel-model.js. En el dashboard, ANTES de
@@ -199,9 +200,22 @@
         document.head.appendChild(script);
     }
 
+    // Favoritos: wo-favorites.js necesita wo-favorites-model.js cargado ANTES.
+    // El panel pinta los corazones y llama a ensureModules() en la misma tarea,
+    // antes de que el MutationObserver del cargador llegue a verlos: si acá se
+    // insertara wo-favorites.js, el cargador lo daría por presente y pondría el
+    // modelo detrás (el módulo arranca sin modelo y los corazones no aparecen).
+    function ensureFavorites() {
+        // Un solo cargador: config-manager.js pide CSS + modelo + módulo en orden.
+        var loader = window.WoFavoritesLoader;
+        if (loader && typeof loader.load === 'function') { loader.load(); return; }
+        // Respaldo (página sin config-manager.js): primero el modelo, después el módulo.
+        ensureModule('wo-favorites-model.js', function () { ensureModule('wo-favorites.js'); });
+    }
+
     function ensureModules(root) {
         var scope = root && root.querySelector ? root : document;
-        if (scope.querySelector('[data-wo-favorite]')) ensureModule('wo-favorites.js');
+        if (scope.querySelector('[data-wo-favorite]')) ensureFavorites();
         if (scope.querySelector('[data-wo-report]')) {
             ensureModule('wo-report.js', function () {
                 document.documentElement.setAttribute('data-cpn-report', 'on');

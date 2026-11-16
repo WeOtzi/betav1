@@ -27,7 +27,7 @@ function node(id) {
 }
 
 // ------------------------------------------------------------ client-panel-ui.js
-function loadUi({ ids = ['cpn-quote-search', 'cpn-quick-search-input', 'cpn-quote-search-clear', 'cpn-quick-search', 'cpn-search-count', 'quotations-list'], hash = '', scripts = [], selectors = {} } = {}) {
+function loadUi({ ids = ['cpn-quote-search', 'cpn-quick-search-input', 'cpn-quote-search-clear', 'cpn-quick-search', 'cpn-search-count', 'quotations-list'], hash = '', scripts = [], selectors = {}, favoritesLoader = null } = {}) {
     const nodes = Object.fromEntries(ids.map((id) => [id, node(id)]));
     nodes['cpn-quote-search-clear'] && (nodes['cpn-quote-search-clear'].hidden = true);
     const calls = [];
@@ -42,7 +42,7 @@ function loadUi({ ids = ['cpn-quote-search', 'cpn-quick-search-input', 'cpn-quot
         createElement: () => ({ remove() { this.removed = true; } }),
         querySelector(selector) {
             const script = selector.match(/^script\[src\*="\/(.+)"\]$/);
-            if (script) return scripts.includes(script[1]) || appended.some((el) => el.src.endsWith('/' + script[1])) ? {} : null;
+            if (script) return scripts.includes(script[1]) || appended.some((el) => !el.removed && el.src.endsWith('/' + script[1])) ? {} : null;
             return selectors[selector] ? {} : null;
         },
     };
@@ -53,6 +53,8 @@ function loadUi({ ids = ['cpn-quote-search', 'cpn-quick-search-input', 'cpn-quot
         revealQuotationsPanel: () => { calls.push(['revealQuotationsPanel']); },
         viewQuotationDetail: (id) => { calls.push(['viewQuotationDetail', id]); },
     };
+    // Cargador de favoritos de config-manager.js (está en las páginas reales del panel).
+    if (favoritesLoader) window.WoFavoritesLoader = favoritesLoader;
     const context = vm.createContext({ window, document, console: { warn() {}, log() {}, error() {} }, setTimeout: (fn) => { fn(); return 1; }, clearTimeout() {}, Promise });
     vm.runInContext(read('public/shared/js/client-panel-ui.js'), context, { filename: 'client-panel-ui.js' });
     return { ui: window.WoClientPanelUi, nodes, calls, appended, html, docListeners, window };
@@ -162,18 +164,38 @@ test('módulos de otros frentes: se piden una sola vez, solo si hay botones, y n
     const none = loadUi();
     assert.equal(none.appended.length, 0, 'sin botones no se pide nada');
 
-    const fav = loadUi({ selectors: { '[data-wo-favorite]': true } });
-    assert.deepEqual(fav.appended.map((el) => el.src), ['/shared/js/wo-favorites.js']);
+    // Favoritos, camino normal (FE-01): el panel delega en el cargador de config-manager.js,
+    // que pide CSS + modelo + módulo en orden. No inserta wo-favorites.js por su cuenta: si lo
+    // hiciera, el cargador lo daría por presente y pondría el modelo DETRÁS del módulo.
+    let loads = 0;
+    const fav = loadUi({ selectors: { '[data-wo-favorite]': true }, favoritesLoader: { load() { loads += 1; } } });
+    assert.equal(loads, 1, 'al arrancar, con corazones en la página');
+    assert.equal(fav.appended.length, 0, 'ningún <script> de favoritos propio');
     fav.ui.ensureModules();
-    fav.ui.ensureModules();
-    assert.equal(fav.appended.length, 1, 'no se duplica el script');
-    // Si el archivo no existe todavía (otro frente), se retira sin ruido.
-    fav.appended[0].onerror();
-    assert.equal(fav.appended[0].removed, true);
-    fav.ui.ensureModules();
-    assert.equal(fav.appended.length, 1, 'no reintenta en bucle');
+    assert.equal(loads, 2, 'cada tanda de corazones vuelve a avisar al cargador (que ignora las repetidas)');
+    assert.equal(fav.appended.length, 0);
+    const broken = loadUi({ selectors: { '[data-wo-favorite]': true }, favoritesLoader: { load: 'no es función' } });
+    assert.deepEqual(broken.appended.map((el) => el.src), ['/shared/js/wo-favorites-model.js'], 'un cargador raro no deja la página sin corazones');
 
-    const present = loadUi({ selectors: { '[data-wo-favorite]': true, '[data-wo-report]': true }, scripts: ['wo-favorites.js', 'wo-report.js'] });
+    // Respaldo (página sin config-manager.js): primero el modelo y, recién cuando cargó, el módulo.
+    const bare = loadUi({ selectors: { '[data-wo-favorite]': true } });
+    assert.deepEqual(bare.appended.map((el) => el.src), ['/shared/js/wo-favorites-model.js']);
+    bare.ui.ensureModules();
+    bare.ui.ensureModules();
+    assert.equal(bare.appended.length, 1, 'no se duplica el script ni se adelanta el módulo');
+    bare.appended[0].onload();
+    assert.deepEqual(bare.appended.map((el) => el.src), ['/shared/js/wo-favorites-model.js', '/shared/js/wo-favorites.js']);
+    bare.appended[1].onload();
+    bare.ui.ensureModules();
+    assert.equal(bare.appended.length, 2);
+    // Si el archivo no existe todavía (otro frente), se retira sin ruido.
+    const missing = loadUi({ selectors: { '[data-wo-favorite]': true } });
+    missing.appended[0].onerror();
+    assert.equal(missing.appended[0].removed, true);
+    missing.ui.ensureModules();
+    assert.equal(missing.appended.length, 1, 'no reintenta en bucle ni pide el módulo sin su modelo');
+
+    const present = loadUi({ selectors: { '[data-wo-favorite]': true, '[data-wo-report]': true }, scripts: ['wo-favorites-model.js', 'wo-favorites.js', 'wo-report.js'] });
     assert.equal(present.appended.length, 0, 'ya los cargó su propio frente');
     assert.equal(present.html.attrs['data-cpn-report'], 'on');
 

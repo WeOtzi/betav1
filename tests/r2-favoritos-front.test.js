@@ -908,6 +908,65 @@ test('cargador de config-manager.js: perezoso y con la misma clave de intención
     assert.equal(typeof idle.win.WoFavoritesLoader.load, 'function');
 });
 
+// FE-01: /client/dashboard y las postulaciones de /client/requests pintan los corazones y
+// llaman a WoClientPanelUi.ensureModules() en la MISMA tarea. El MutationObserver del cargador
+// corre después (microtarea): si el panel insertara wo-favorites.js, el modelo quedaría detrás,
+// el módulo saldría con "falta wo-favorites-model.js" y los corazones quedarían ocultos.
+test('panel del cliente: los corazones pintados en la misma tarea cargan el modelo antes que el módulo', async () => {
+    const cm = read('public/shared/js/config-manager.js');
+    const from = cm.indexOf('// Favoritos (ronda 2 · P22): carga perezosa de wo-favorites.js');
+    const loaderBlock = cm.slice(cm.indexOf('(function () {', from), cm.indexOf('// Auto-initialize when script loads', from));
+    const panelUi = read('public/shared/js/client-panel-ui.js');
+
+    const run = async ({ withLoader }) => {
+        const inserted = [];
+        const observers = [];
+        let pending = [];
+        let hearts = false;
+        // Como en el navegador: los registros del MutationObserver se entregan en una microtarea.
+        const queue = (node) => {
+            if (!pending.length) Promise.resolve().then(() => { const records = pending; pending = []; observers.forEach((o) => { if (!o.off) o.cb(records); }); });
+            pending.push({ addedNodes: [node] });
+        };
+        const document = {
+            readyState: 'complete',
+            currentScript: { src: 'https://beta.weotzi.com/shared/js/config-manager.js' },
+            head: { appendChild(node) { if (node.tag === 'script') inserted.push(node); queue(node); return node; } },
+            documentElement: { setAttribute() {} },
+            createElement: (tag) => ({ tag, nodeType: 1, setAttribute() {}, remove() { this.removed = true; } }),
+            addEventListener() {},
+            getElementById: () => null,
+            querySelector(sel) {
+                const script = /^script\[src\*="(.+)"\]$/.exec(sel);
+                if (script) return inserted.some((s) => !s.removed && s.src.indexOf(script[1]) !== -1) ? {} : null;
+                return sel === '[data-wo-favorite]' && hearts ? {} : null;
+            }
+        };
+        class MO { constructor(cb) { this.cb = cb; observers.push(this); } observe() {} disconnect() { this.off = true; } }
+        const window = { location: { hash: '', pathname: '/client/dashboard' }, localStorage: { getItem: () => null } };
+        const context = vm.createContext({ window, document, MutationObserver: MO, console: { warn() {}, log() {}, error() {} }, setTimeout, clearTimeout, Promise });
+        if (withLoader) vm.runInContext(loaderBlock, context, { filename: 'config-manager.js (cargador de favoritos)' });
+        vm.runInContext(panelUi, context, { filename: 'client-panel-ui.js' });
+        assert.equal(inserted.length, 0, 'sin corazones no se pide nada');
+
+        // client-dashboard.js: grid.innerHTML = '…<button data-wo-favorite>…'; ui.ensureModules(grid);
+        const grid = { nodeType: 1, matches: () => false, querySelector: (sel) => (sel === '[data-wo-favorite]' ? {} : null) };
+        hearts = true;
+        queue(grid);
+        window.WoClientPanelUi.ensureModules(grid);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        // Los scripts con async=false corren en orden de inserción: el respaldo encadena con onload.
+        for (let i = 0; i < inserted.length; i++) if (typeof inserted[i].onload === 'function') inserted[i].onload();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        return inserted.map((s) => s.src.replace(/^https:\/\/beta\.weotzi\.com/, ''));
+    };
+
+    assert.deepEqual(await run({ withLoader: true }), ['/shared/js/wo-favorites-model.js', '/shared/js/wo-favorites.js'],
+        'con el cargador de config-manager.js: una sola copia de cada uno, el modelo primero');
+    assert.deepEqual(await run({ withLoader: false }), ['/shared/js/wo-favorites-model.js', '/shared/js/wo-favorites.js'],
+        'sin config-manager.js (respaldo): el modelo primero');
+});
+
 test('marketplace: corazones de artista y de estudio con el contrato, y espejo del estado', () => {
     const js = read('public/shared/js/marketplace.js');
     const Core = require('../public/shared/js/marketplace-core.js');

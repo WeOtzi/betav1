@@ -958,6 +958,11 @@ function ensureOptionalModule(name) {
         return true;
     };
     optionalModuleState[name] = new Promise((resolve) => {
+        // Favoritos: wo-favorites.js necesita su modelo cargado antes. El cargador de
+        // config-manager.js pide los dos en orden; si acá se insertara solo el módulo,
+        // el cargador lo daría por presente y dejaría el modelo detrás.
+        const favLoader = name === 'favorites' ? window.WoFavoritesLoader : null;
+        if (favLoader && typeof favLoader.load === 'function') favLoader.load();
         // Ya está en la página (lo incluyó su frente) o ya dejó su global.
         if (mod.globals.some((key) => window[key]) || document.querySelector(`script[src*="${file}"]`)) {
             resolve(ready());

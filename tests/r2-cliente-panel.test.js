@@ -469,7 +469,12 @@ test('contratos con otros frentes: favoritos y denuncias quedan como huecos que 
     assert.match(css, /\.cpn-report\{display:none;/);
     assert.match(css, /html\[data-cpn-report="on"\] \.cpn-report\{display:inline-flex\}/);
     const ui = read('public/shared/js/client-panel-ui.js');
-    assert.match(ui, /ensureModule\('wo-favorites\.js'\)/);
+    // FE-01: los corazones los carga el cargador de config-manager.js (modelo antes que módulo);
+    // el respaldo propio también pide primero el modelo.
+    assert.match(ui, /window\.WoFavoritesLoader/);
+    assert.match(ui, /loader\.load\(\); return;/);
+    assert.match(ui, /ensureModule\('wo-favorites-model\.js', function \(\) \{ ensureModule\('wo-favorites\.js'\); \}\);/);
+    assert.doesNotMatch(ui, /querySelector\('\[data-wo-favorite\]'\)\) ensureModule\('wo-favorites\.js'\)/, 'nunca el módulo directo, sin su modelo');
     assert.match(ui, /ensureModule\('wo-report\.js'/);
     assert.match(ui, /script\[src\*="\/' \+ file \+ '"\]/, 'no se carga dos veces el módulo de otro frente');
 });
