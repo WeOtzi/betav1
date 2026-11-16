@@ -1047,7 +1047,7 @@ async function viewQuotationDetail(quoteId) {
         ? `${quotation.artist_session_cost_amount} ${quotation.artist_session_cost_currency || ''}`.trim() : '–';
 
     detailContent.innerHTML = `
-        <p class="quotation-detail-status"><span class="cpn-status-slot" data-cpn-status>${clientStatusPillHtml(quotation)}</span><button type="button" class="cpn-report" data-wo-report data-kind="quotation" data-id="${e(quotation.quote_id)}" data-label="${e('Cotización ' + clientQuoteCode(quotation))}"><i data-wo-icon="flag" aria-hidden="true"></i>Denunciar</button></p>
+        <p class="quotation-detail-status"><span class="cpn-status-slot" data-cpn-status>${clientStatusPillHtml(quotation)}</span></p>
 
         <div id="quote-proposal-slot">${renderProposalBlock(quotation)}</div>
 

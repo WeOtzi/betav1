@@ -445,6 +445,13 @@ test('detalle: sin verificación el contacto NO sale de la fila; aviso y CTA a v
     const report = /<button class="[^"]*qdi-report[^"]*" type="button" data-wo-report data-kind="quotation" data-id="COT-AB12CD" data-label="([^"]*)">Denunciar<\/button>/.exec(html);
     assert.ok(report, 'botón de denuncia con el contrato del frente denuncias');
     assert.doesNotMatch(report[1], /<script>/);
+    // CF-09: con wo-report.js en la página el botón nace oculto (el módulo lo muestra cuando el
+    // servidor confirma); sin el módulo queda a la vista para poder cargarlo al tocarlo.
+    const withModule = loadInfoModule({ info });
+    withModule.window.WoReport = {};
+    const htmlWithModule = (await withModule.fire({ quote: ROW, stage: 'pending', readOnly: false, user: { id: 'a' } }))['qd-client-info-slot'].innerHTML;
+    assert.match(htmlWithModule, /class="[^"]*qdi-report[^"]*" type="button" data-wo-report data-kind="quotation" data-id="COT-AB12CD" data-label="[^"]*" hidden>Denunciar</);
+    assert.match(read('public/my-quotations/detail/index.html'), /<script src="\/shared\/js\/wo-report\.js\?v=[^"]+" defer><\/script>/, 'la página del expediente carga el módulo');
     assert.match(els['qd-identity-actions'].innerHTML, /Cliente sin cuenta/);
 
     // En revisión: otro mensaje.

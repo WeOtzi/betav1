@@ -479,8 +479,8 @@
         syncPanelModules();
     }
 
-    // Botones que el panel deja preparados para otros frentes (favoritos y
-    // denuncias): se pide su módulo solo si la vista pintó alguno.
+    // Botones que el panel deja preparados para otros frentes (favoritos): se
+    // pide su módulo solo si la vista pintó alguno.
     function syncPanelModules() {
         const ui = window.WoClientPanelUi;
         if (ui && typeof ui.ensureModules === 'function') ui.ensureModules(root);
@@ -490,12 +490,6 @@
         if (!app || !app.artist_id) return '';
         return '<button type="button" class="cpn-fav" data-wo-favorite data-kind="artist" data-id="' + esc(app.artist_id)
             + '" data-label="' + esc(artistName(app)) + '" data-image="' + esc(artistOf(app).profile_picture || '') + '"></button>';
-    }
-
-    function reportSlot(app) {
-        if (!app || !app.artist_id) return '';
-        return '<button type="button" class="cpn-report" data-wo-report data-kind="artist" data-id="' + esc(app.artist_id)
-            + '" data-label="' + esc(artistName(app)) + '"><i data-wo-icon="flag" aria-hidden="true"></i>Denunciar</button>';
     }
 
     // ===================== Piezas compartidas =====================
@@ -945,7 +939,7 @@
         }
 
         // Acciones
-        html += '<div class="crq-actions-row">' + reportSlot(app);
+        html += '<div class="crq-actions-row">';
         if (canDecide) {
             html += '<button class="wo-btn wo-btn--ghost" type="button" data-action="reject-app" data-app="' + esc(app.id) + '">'
                 + '<i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i> Rechazar</button>';

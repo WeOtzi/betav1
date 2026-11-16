@@ -475,7 +475,8 @@ test('CP1: la tarjeta y el detalle muestran el código corto y conservan el quot
     vm.runInContext('currentQuotations = [quotation]', context);
     await vm.runInContext('viewQuotationDetail("QN00007")', context);
     assert.equal(nodes.get('modal-quote-id').textContent, 'K7P2QX');
-    assert.match(nodes.get('quotation-detail-content').innerHTML, /data-wo-report data-kind="quotation" data-id="QN00007" data-label="Cotización K7P2QX"/);
+    // CF-09: el servidor solo acepta denuncias de artistas y dueños de estudio; el cliente no ve el botón.
+    assert.doesNotMatch(nodes.get('quotation-detail-content').innerHTML, /data-wo-report|cpn-report|Denunciar/);
 
     // Sin la columna nueva, todo queda como hoy.
     context.quotation = responded({ quote_id: 'QN00010' });
@@ -617,7 +618,7 @@ test('CP2: /client/dashboard, /client/chats y /client/requests cargan el mismo m
     assert.match(reqJs, /'\/client\/chats\/\?quote=' \+ encodeURIComponent\(req\.resulting_quote_id\)/);
     assert.match(reqJs, /'\/client\/dashboard\?quote=' \+ encodeURIComponent\(req\.resulting_quote_id\)/);
     assert.match(reqJs, /data-wo-favorite data-kind="artist" data-id="' \+ esc\(app\.artist_id\)/);
-    assert.match(reqJs, /data-wo-report data-kind="artist" data-id="' \+ esc\(app\.artist_id\)/);
+    assert.doesNotMatch(reqJs, /data-wo-report|reportSlot/);
 
     const repo = read('public/shared/js/data/jobboard-repo.js');
     const method = repo.slice(repo.indexOf('async listPendingByApplications'), repo.indexOf('// Crea una contraoferta'));
@@ -632,8 +633,9 @@ test('contratos con otros frentes: favoritos y denuncias quedan como huecos que 
     assert.match(dash, /data-label="\$\{name\}" data-image="\$\{escapeFeedHtml\(artist\.profile_picture \|\| ''\)\}"><\/button>/);
     const css = read('public/shared/css/client-panel.css');
     assert.match(css, /\.cpn-fav:empty\{display:none\}/);
-    assert.match(css, /\.cpn-report\{display:none;/);
-    assert.match(css, /html\[data-cpn-report="on"\] \.cpn-report\{display:inline-flex\}/);
+    // CF-09: sin botón de denuncia en el panel del cliente (el servidor nunca lo daba por elegible).
+    assert.doesNotMatch(css, /cpn-report/);
+    assert.doesNotMatch(dash, /data-wo-report|cpn-report/);
     const ui = read('public/shared/js/client-panel-ui.js');
     // FE-01: los corazones los carga el cargador de config-manager.js (modelo antes que módulo);
     // el respaldo propio también pide primero el modelo.
@@ -641,7 +643,7 @@ test('contratos con otros frentes: favoritos y denuncias quedan como huecos que 
     assert.match(ui, /loader\.load\(\); return;/);
     assert.match(ui, /ensureModule\('wo-favorites-model\.js', function \(\) \{ ensureModule\('wo-favorites\.js'\); \}\);/);
     assert.doesNotMatch(ui, /querySelector\('\[data-wo-favorite\]'\)\) ensureModule\('wo-favorites\.js'\)/, 'nunca el módulo directo, sin su modelo');
-    assert.match(ui, /ensureModule\('wo-report\.js'/);
+    assert.doesNotMatch(ui, /ensureModule\('wo-report\.js'/, 'CF-09: el panel del cliente no carga el módulo de denuncias');
     assert.match(ui, /script\[src\*="\/' \+ file \+ '"\]/, 'no se carga dos veces el módulo de otro frente');
 });
 

@@ -269,15 +269,13 @@ test('módulos de otros frentes: se piden una sola vez, solo si hay botones, y n
     missing.ui.ensureModules();
     assert.equal(missing.appended.length, 1, 'no reintenta en bucle ni pide el módulo sin su modelo');
 
-    const present = loadUi({ selectors: { '[data-wo-favorite]': true, '[data-wo-report]': true }, scripts: ['wo-favorites-model.js', 'wo-favorites.js', 'wo-report.js'] });
+    const present = loadUi({ selectors: { '[data-wo-favorite]': true }, scripts: ['wo-favorites-model.js', 'wo-favorites.js'] });
     assert.equal(present.appended.length, 0, 'ya los cargó su propio frente');
-    assert.equal(present.html.attrs['data-cpn-report'], 'on');
 
+    // CF-09: el panel del cliente no pide wo-report.js (las denuncias son de artistas y estudios).
     const report = loadUi({ selectors: { '[data-wo-report]': true } });
-    assert.deepEqual(report.appended.map((el) => el.src), ['/shared/js/wo-report.js']);
-    assert.equal(report.html.attrs['data-cpn-report'], undefined, 'el botón de denuncia no se muestra hasta que el módulo cargó');
-    report.appended[0].onload();
-    assert.equal(report.html.attrs['data-cpn-report'], 'on');
+    assert.deepEqual(report.appended.map((el) => el.src), []);
+    assert.equal(report.html.attrs['data-cpn-report'], undefined);
 
     const beta = loadUi({ selectors: { '[data-wo-favorite]': true } });
     assert.equal(beta.ui.appPath('/shared/js/x.js'), '/shared/js/x.js');
@@ -426,7 +424,7 @@ test('/client/requests: postulaciones con los huecos de favoritos y denuncias', 
     const detail = loadRequests({ requests: [baseRequest()], search: '?id=r1&view=postulacion&app=a1' });
     await detail.init();
     html = detail.get('crq-root').innerHTML;
-    assert.match(html, /class="cpn-report" data-wo-report data-kind="artist" data-id="art1" data-label="Lau &lt;Ink&gt;"/);
+    assert.doesNotMatch(html, /data-wo-report|cpn-report|Denunciar/, 'CF-09: el cliente no tiene botón de denuncia');
     assert.match(html, /data-wo-favorite data-kind="artist" data-id="art1"/);
 });
 

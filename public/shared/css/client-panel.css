@@ -2,7 +2,7 @@
    We Ötzi · Panel del cliente — ronda 2 (frente cliente-panel)
    Capa compartida por /client/dashboard, /client/requests y /client/profile:
    accesos rápidos, buscador, estados nuevos de las cotizaciones, estados
-   vacíos con acción y los huecos para favoritos / denuncias.
+   vacíos con acción y los huecos para favoritos.
    Requiere ds/tokens.css + ds/components.css antes. Prefijo: cpn-.
    Regla del DS: solo var(--token), radius 0, sombra dura solo en hover.
    ========================================================================== */
@@ -56,20 +56,14 @@
 .cpn-empty p{max-width:52ch;margin:0}
 .cpn-empty-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-3);margin-top:var(--space-2)}
 
-/* ---------- Huecos para favoritos y denuncias ----------
-   Los llenan wo-favorites.js / wo-report.js (otros frentes). Mientras el
-   módulo no esté cargado, el botón no ocupa lugar ni queda como control muerto. */
+/* ---------- Huecos para favoritos ----------
+   Los llena wo-favorites.js (otro frente). Mientras el módulo no esté
+   cargado, el botón no ocupa lugar ni queda como control muerto. */
 .cpn-fav:empty{display:none}
 .cpn-fav{flex:none}
 .cpn-suggested-item{position:relative;min-width:0}
 .cpn-fav--media{position:absolute;top:var(--space-3);right:var(--space-3);z-index:3}
-.cpn-report{display:none;align-items:center;gap:var(--space-2);background:transparent;border:0;padding:var(--space-2) 0;min-height:var(--control-h-sm);
-  font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted);cursor:pointer}
-.cpn-report:hover{color:var(--text-danger)}
-.cpn-report [data-wo-icon]{display:inline-flex;width:14px;height:14px}
-html[data-cpn-report="on"] .cpn-report{display:inline-flex}
 .cpn-status-slot{display:contents}
-.quotation-detail-status .cpn-report{order:1;margin-left:auto}
 .quotation-detail-status .cpn-status-hint{order:2}
 
 /* ============================================================================
@@ -99,7 +93,6 @@ html[data-cpn-report="on"] .cpn-report{display:inline-flex}
 .crq-page .cpn-toolbar{margin-bottom:var(--space-6)}
 .crq-app-namerow .cpn-fav{margin-left:auto}
 .crq-artist-head .cpn-fav{margin-left:auto;align-self:flex-start}
-.crq-actions-row .cpn-report{margin-right:auto}
 
 /* ============================================================================
    /client/profile

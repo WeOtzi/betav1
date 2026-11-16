@@ -13,10 +13,11 @@
  *       · propuestas pendientes de negociación (quotation_proposals) →
  *         "Cambios propuestos por ti" y "Cambios al acuerdo pendientes de aprobar".
  *   - Acciones de los estados vacíos ([data-cpn-action]).
- *   - Carga, si existen, de los módulos de otros frentes para los botones que
- *     el panel deja preparados: [data-wo-favorite] → el cargador de favoritos
- *     de config-manager.js (WoFavoritesLoader: modelo y módulo, en ese orden) y
- *     [data-wo-report] → wo-report.js. Si el módulo no está, el botón no se ve.
+ *   - Carga, si existe, del módulo de favoritos para los botones que el panel
+ *     deja preparados: [data-wo-favorite] → el cargador de config-manager.js
+ *     (WoFavoritesLoader: modelo y módulo, en ese orden). Si el módulo no está,
+ *     el botón no se ve. El panel del cliente no tiene botón de denuncia: las
+ *     denuncias (wo-report.js) son de artistas y dueños de estudio.
  *
  * Carga: DESPUÉS de client-panel-model.js. En el dashboard, ANTES de
  * client-dashboard.js. Expone window.WoClientPanelUi.
@@ -236,7 +237,7 @@
     }
 
     // ------------------------------------------------------------------
-    // Módulos de otros frentes (favoritos / denuncias)
+    // Módulos de otros frentes (favoritos)
     // ------------------------------------------------------------------
     // Solo se pide el script si la página tiene un botón que lo necesita y
     // nadie lo cargó ya. Si el archivo no existe, no pasa nada.
@@ -274,11 +275,6 @@
     function ensureModules(root) {
         var scope = root && root.querySelector ? root : document;
         if (scope.querySelector('[data-wo-favorite]')) ensureFavorites();
-        if (scope.querySelector('[data-wo-report]')) {
-            ensureModule('wo-report.js', function () {
-                document.documentElement.setAttribute('data-cpn-report', 'on');
-            });
-        }
     }
 
     // ------------------------------------------------------------------

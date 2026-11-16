@@ -244,7 +244,7 @@
                 + '<button class="qd-btn" type="button" data-qdi="image"' + (disabled ? ' disabled' : '') + '>Descargar imagen</button>'
                 + '<button class="qd-btn qd-btn--quiet" type="button" data-qdi="share-options" aria-haspopup="dialog"' + (linkOff ? ' disabled' : '') + '>'
                     + (hasLinks ? 'Gestionar enlace' : 'Opciones del enlace') + '</button>'
-                + '<button class="qd-btn qd-btn--quiet qdi-report" type="button" data-wo-report data-kind="quotation" data-id="' + esc(quoteId) + '" data-label="' + esc(label) + '">Denunciar</button>'
+                + '<button class="qd-btn qd-btn--quiet qdi-report" type="button" data-wo-report data-kind="quotation" data-id="' + esc(quoteId) + '" data-label="' + esc(label) + '"' + (reportModulePresent() ? ' hidden' : '') + '>Denunciar</button>'
             + '</div></section>';
     }
 
