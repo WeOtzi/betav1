@@ -515,6 +515,16 @@ begin
      where r.id = v_pending.id;
   end if;
 
+  -- Tope por sesión y por persona: 6 pedidos de cambio en 24 horas (cuentan
+  -- también los reemplazados, retirados y rechazados). Cada pedido avisa por
+  -- correo y push a la otra parte; sin tope, repetirlos servía para hostigarla.
+  if (select count(*) from public.quotation_session_change_requests r
+       where r.session_id = v_s.id
+         and r.requested_by = p_actor
+         and r.created_at > pg_catalog.now() - interval '24 hours') >= 6 then
+    raise exception 'CHANGE_LIMIT' using errcode = '22023';
+  end if;
+
   insert into public.quotation_session_change_requests (
     session_id, quotation_id, requested_by, requested_by_role, previous_date,
     proposed_date, proposed_duration_hours, proposed_location,

@@ -399,6 +399,8 @@ test('errores de la base → respuestas legibles (sin filtrar detalles)', () => 
     assert.equal(map('SESSION_NOT_PAST').code, 'session_not_past');
     assert.equal(map('SESSION_CLOSED').code, 'session_closed');
     assert.equal(map('REQUEST_PENDING').code, 'request_pending');
+    assert.deepEqual([map('CHANGE_LIMIT').status, map('CHANGE_LIMIT').code], [429, 'change_limit']);
+    assert.match(map('CHANGE_LIMIT').message, /Ya pediste varios cambios para esta sesión hoy/);
     assert.equal(map('REQUEST_CLOSED').code, 'request_closed');
     assert.equal(map('DIRECT_EDIT').code, 'direct_edit');
     assert.equal(map('DISPUTE_ACTIVE').code, 'dispute_active');
@@ -413,7 +415,7 @@ test('errores de la base → respuestas legibles (sin filtrar detalles)', () => 
     // Un error desconocido no se expone.
     assert.equal(Sesiones.mapDbError(new Error('boom')).expose, undefined);
     // Todos los textos nuevos van con tuteo.
-    for (const token of ['EDIT_WINDOW_CLOSED', 'SESSION_PAST', 'REQUEST_PENDING', 'DIRECT_EDIT', 'INVALID_PROPOSAL', 'INVALID_FEEDBACK', 'DISPUTE_ACTIVE', 'INVALID_DISPUTE']) {
+    for (const token of ['EDIT_WINDOW_CLOSED', 'SESSION_PAST', 'REQUEST_PENDING', 'CHANGE_LIMIT', 'DIRECT_EDIT', 'INVALID_PROPOSAL', 'INVALID_FEEDBACK', 'DISPUTE_ACTIVE', 'INVALID_DISPUTE']) {
         assert.doesNotMatch(map(token).message, /\b(podés|querés|pedí|elegí|contanos|probá|respondelo|proponé|editala)\b/i, token);
     }
 });
@@ -921,6 +923,7 @@ test('rutas: las reglas de la base llegan como mensajes legibles (3 días, pasad
         ['EDIT_WINDOW_CLOSED', 409, 'edit_window_closed'],
         ['SESSION_PAST', 409, 'session_past'],
         ['REQUEST_PENDING', 409, 'request_pending'],
+        ['CHANGE_LIMIT', 429, 'change_limit'],
         ['DIRECT_EDIT', 409, 'direct_edit'],
     ];
     for (const [token, status, code] of cases) {
@@ -1071,9 +1074,22 @@ test('migración: en rango, idempotente, con reversa y sin tocar lo de turnos / 
     // Regla de los 3 días en la base, igual que el modelo.
     assert.match(sql, /if v_s\.session_date - pg_catalog\.now\(\) < interval '3 days' then\s*\n\s*raise exception 'EDIT_WINDOW_CLOSED'/);
     assert.equal(Model.EDIT_WINDOW_DAYS, 3);
-    for (const token of ['SESSION_PAST', 'SESSION_NEEDS_AGREEMENT', 'SESSION_DELETE_BLOCKED', 'REQUEST_PENDING', 'DIRECT_EDIT', 'SESSION_NOT_PAST', 'DISPUTE_ACTIVE', 'NOT_DISPUTABLE', 'FORBIDDEN']) {
+    for (const token of ['SESSION_PAST', 'SESSION_NEEDS_AGREEMENT', 'SESSION_DELETE_BLOCKED', 'REQUEST_PENDING', 'CHANGE_LIMIT', 'DIRECT_EDIT', 'SESSION_NOT_PAST', 'DISPUTE_ACTIVE', 'NOT_DISPUTABLE', 'FORBIDDEN']) {
         assert.ok(sql.includes(`'${token}'`), `falta ${token}`);
     }
+    // RS-07: tope de pedidos de cambio por sesión, por persona y por día, dentro de
+    // sesiones_request_change y antes de insertar (cada pedido avisa por correo y push).
+    const requestChange = sql.slice(sql.indexOf('create or replace function public.sesiones_request_change('), sql.indexOf('create or replace function public.sesiones_respond_change('));
+    assert.match(requestChange, /if \(select count\(\*\) from public\.quotation_session_change_requests r\s+where r\.session_id = v_s\.id\s+and r\.requested_by = p_actor\s+and r\.created_at > pg_catalog\.now\(\) - interval '24 hours'\) >= 6 then\s+raise exception 'CHANGE_LIMIT' using errcode = '22023';/);
+    assert.ok(requestChange.indexOf("'REQUEST_PENDING'") < requestChange.indexOf("'CHANGE_LIMIT'"), 'primero el pedido pendiente de la otra parte');
+    assert.ok(requestChange.indexOf("'CHANGE_LIMIT'") < requestChange.indexOf('insert into public.quotation_session_change_requests ('), 'el tope corta antes de guardar');
+    // Y un límite por IP más bajo para pedir o retirar un cambio (el resto de las escrituras, 120).
+    const routesJs = read('lib/routes/sesiones.js');
+    assert.match(routesJs, /const CHANGE_REQUESTS_PER_WINDOW = 20;/);
+    assert.match(routesJs, /writeLimiter\(CHANGE_REQUESTS_PER_WINDOW\)/);
+    assert.match(routesJs, /app\.post\('\/api\/sesiones\/:sessionId\/change-requests', changeLimiter,/);
+    assert.match(routesJs, /app\.post\('\/api\/sesiones\/change-requests\/:requestId\/withdraw', changeLimiter,/);
+    assert.match(routesJs, /app\.post\('\/api\/sesiones\/change-requests\/:requestId\/respond', limiter,/, 'responder no comparte ese límite');
 
     // Tablas nuevas cerradas al navegador; RPC solo service-role, security definer con search_path fijo.
     for (const table of ['quotation_session_change_requests', 'quotation_session_feedback', 'quotation_session_disputes']) {
