@@ -530,10 +530,24 @@
         }
     }
 
+    // CF-10: la dirección sigue al hilo abierto (igual que /client/chats).
+    // wo-notify.js compara ?quote= / ?thread= con el aviso que llega para no
+    // mostrar el toast de la conversación que ya está en pantalla.
+    function syncThreadUrl(row) {
+        const links = window.ArtistInboxDeepLink;
+        if (!links || typeof links.threadLocation !== 'function') return;
+        try {
+            const next = links.threadLocation(row, window.location.href);
+            const current = window.location.pathname + window.location.search + window.location.hash;
+            if (next && next !== current) window.history.replaceState(window.history.state, '', next);
+        } catch (_) { /* sin History API */ }
+    }
+
     async function openThread(key) {
         const row = findRow(key);
         if (!row) return;
         state.activeKey = key;
+        syncThreadUrl(row);
         state.activeMessages = [];
         clearPendingFiles();
         resetThreadExtras();
@@ -675,6 +689,7 @@
 
     function closeThread() {
         state.activeKey = null;
+        syncThreadUrl(null);
         state.activeMessages = [];
         removeThreadChannel();
         clearPendingFiles();
@@ -690,6 +705,10 @@
     function closeMobileThread() {
         setContextSheet(false);
         el('ai-shell').classList.remove('is-thread-open');
+        // En móvil volver a la lista saca el hilo de la pantalla: sus avisos
+        // vuelven a mostrarse. En escritorio el hilo sigue a la vista.
+        const wide = typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 769px)').matches;
+        if (!wide) syncThreadUrl(null);
     }
 
     // INB-12: debajo de 1281px el panel de contexto se abre como hoja lateral

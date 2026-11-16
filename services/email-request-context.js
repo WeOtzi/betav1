@@ -150,7 +150,8 @@ async function inboxContext(user, payload, base, lookup, deps) {
     if (!recipient || !recipient.email) return fail(409, 'El destinatario no tiene un email guardado.');
     const sender = await identifyUser(user.id, lookup);
     const threadParam = encodeURIComponent(thread.id);
-    const chatUrl = recipient.role === 'client' ? `${base}/client/chats`
+    // CF-10: el enlace nombra el hilo también para el cliente (/client/chats abre ?thread=).
+    const chatUrl = recipient.role === 'client' ? `${base}/client/chats?thread=${threadParam}`
         : recipient.role === 'studio' ? `${base}/studio/dashboard?thread=${threadParam}`
             : `${base}/artist/inbox?thread=${threadParam}`;
     const window = messageWindow(message.created_at);

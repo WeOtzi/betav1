@@ -171,6 +171,37 @@ test('WoNotify.ping muestra un toast con enlace real al destino, sin interpretar
     assert.doesNotMatch(read('public', 'shared', 'js', 'wo-notify.js'), /innerHTML|insertAdjacentHTML|document\.write/);
 });
 
+// CF-10: la conversación a la vista se reconoce por ?quote= / ?thread= de la dirección.
+test('el aviso de la conversación que ya está en pantalla no muestra toast; el de otra sí', async () => {
+    const chat = (id) => ({ title: `Mensaje de ${id}`, url: `/artist/inbox?quote=${id}`, tag: `chat:${id}`, kind: 'mensajes' });
+    const b = browser({ pathname: '/artist/inbox', search: '?quote=Q1' });
+    assert.equal(b.window.WoNotify.ping(chat('Q1')), true, 'el aviso se procesa igual (evento wo:notify)');
+    await tick();
+    assert.equal(toasts(b).length, 0, 'Q1 está abierta: sin toast');
+    assert.ok(b.events.some(e => e.type === 'wo:notify' && e.detail.tag === 'chat:Q1'));
+    b.window.WoNotify.ping(chat('Q2'));
+    await tick();
+    assert.deepEqual(toasts(b).map(t => t.querySelector('.wo-ntf-title').textContent), ['Mensaje de Q2']);
+
+    // Hilos de inbox: mismo criterio con ?thread=, también en /client/chats.
+    const inbox = (id, base) => ({ title: `Inbox ${id}`, url: `${base}?thread=${id}`, tag: `inbox:${id}`, kind: 'mensajes' });
+    for (const base of ['/artist/inbox', '/client/chats']) {
+        const t = browser({ pathname: base, search: '?thread=th-1' });
+        t.window.WoNotify.ping(inbox('th-1', base));
+        t.window.WoNotify.ping(inbox('th-2', base));
+        await tick();
+        assert.deepEqual(toasts(t).map(x => x.querySelector('.wo-ntf-title').textContent), ['Inbox th-2'], base);
+    }
+
+    // Sin hilo en la dirección (lista del inbox) o en otra página, el toast se muestra.
+    for (const where of [{ pathname: '/artist/inbox' }, { pathname: '/artist/dashboard', search: '?quote=Q1' }]) {
+        const other = browser(where);
+        other.window.WoNotify.ping(chat('Q1'));
+        await tick();
+        assert.equal(toasts(other).length, 1, where.pathname);
+    }
+});
+
 test('un destino que no es una ruta interna de la app nunca se vuelve enlace', async () => {
     for (const url of ['https://evil.example/login', '//evil.example', '/\\evil.example', 'javascript:alert(1)', 'client/dashboard', '']) {
         const b = browser();

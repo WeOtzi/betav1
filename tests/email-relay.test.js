@@ -191,6 +191,26 @@ test('inbox: avisa al otro participante con ventana de 15 min y no si ya leyó',
     assert.equal(reads.filter(([table]) => table === 'inbox_messages').length, 0);
 });
 
+// CF-10: el enlace del aviso nombra el hilo también para el cliente (wo-notify.js lo compara con la dirección).
+test('inbox: el aviso al cliente abre /client/chats en ese hilo', async () => {
+    const message = { id: '4a1f2c3d-5e6f-4a7b-8c9d-0e1f2a3b4c5d', thread_id: 'th-9', sender_user_id: 'artist-1', body: 'Hola', created_at: '2026-11-14T12:00:00Z' };
+    const deps = {
+        resolveUser: async () => ({ id: 'artist-1', email: 'artista@example.com' }),
+        read: async (table, filters) => {
+            if (table === 'artists_db') return filters.user_id === 'artist-1' ? { user_id: 'artist-1', name: 'Mateo', email: 'artista@example.com' } : null;
+            if (table === 'clients_db') return filters.user_id === 'client-1' ? { user_id: 'client-1', full_name: 'Lucía', email: 'lucia@example.com' } : null;
+            if (table === 'inbox_messages') return filters.sender_user_id === 'artist-1' ? message : null;
+            if (table === 'inbox_threads') return { id: 'th-9', artist_user_id: 'artist-1', counterparty_user_id: 'client-1', subject: 'Consulta' };
+            return null;
+        },
+        listParticipants: async () => [{ user_id: 'artist-1' }, { user_id: 'client-1', last_read_at: null }]
+    };
+    const ctx = await resolveEmailContext({ headers: {} }, 'inbox_message_received', { message_id: message.id }, deps);
+    assert.equal(ctx.ok, true, ctx.error);
+    assert.equal(ctx.payload.recipient_role, 'client');
+    assert.match(ctx.payload.chat_url, /\/client\/chats\?thread=th-9$/);
+});
+
 test('cierre por el cliente: resumen a ambos + pedido de reseña, solo si está completada', async () => {
     const quote = { id: 9, quote_id: 'WO-9', quote_status: 'completed', client_email: 'c@example.com', client_full_name: 'Lucía', artist_id: 'a-1', client_health_conditions: 'SECRETO', client_completed_at: '2026-11-14T10:00:00Z' };
     const read = async (table) => (table === 'quotations_db' ? quote : table === 'artists_db' ? { user_id: 'a-1', email: 'a@example.com', name: 'Mateo' } : null);

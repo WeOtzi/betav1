@@ -527,6 +527,40 @@ test('inbox del artista: voz, rápidos, automáticos, marca y hilo en solo lectu
     assert.match(js, /function resetThreadExtras\(\)[\s\S]*state\.voice\.reset\(\)[\s\S]*window\.WoVoice\.resetPlayers\(\)/);
 });
 
+// CF-10: wo-notify.js reconoce la conversación en pantalla por ?quote= / ?thread=.
+test('inbox del artista: la dirección sigue al hilo abierto', () => {
+    const links = require(path.join(root, 'public', 'shared', 'js', 'inbox-deeplink.js'));
+    const at = 'https://beta.weotzi.com/artist/inbox';
+    // Chat de cotización → ?quote=<quote_id>; el resto → ?thread=<id>.
+    assert.equal(links.threadLocation({ source: 'quote', id: 'WO-1' }, at), '/artist/inbox?quote=WO-1');
+    assert.equal(links.threadLocation({ source: 'unified', id: 'th-1' }, at), '/artist/inbox?thread=th-1');
+    assert.equal(links.threadLocation({ source: 'support', id: 12 }, at), '/artist/inbox?thread=12');
+    // Cambiar de hilo reemplaza el del enlace de llegada; el filtro y el hash se conservan.
+    assert.equal(
+        links.threadLocation({ source: 'unified', id: 'th-2' }, `${at}?quote=WO-1&opportunity=spot&application=7&trip=t1&filter=clients#x`),
+        '/artist/inbox?filter=clients&thread=th-2#x');
+    assert.equal(links.threadLocation({ source: 'quote', id: 'WO-2' }, `${at}?thread=th-1`), '/artist/inbox?quote=WO-2');
+    // Cerrar el hilo (o la fila "Soporte" sin conversación todavía) no deja ninguno.
+    assert.equal(links.threadLocation(null, `${at}?quote=WO-1&filter=clients`), '/artist/inbox?filter=clients');
+    assert.equal(links.threadLocation({ source: 'support', id: null }, `${at}?thread=th-1`), '/artist/inbox');
+    assert.equal(links.threadLocation({ source: 'quote', id: 'WO-1' }, ''), null, 'sin dirección no hay nada que escribir');
+    // Lo que escribe es lo que después resuelve el enlace profundo.
+    const rows = [{ key: 'quote:WO-1', source: 'quote', id: 'WO-1' }, { key: 'unified:th-1', source: 'unified', id: 'th-1' }];
+    for (const row of rows) {
+        const search = new URL(links.threadLocation(row, at), at).searchParams;
+        assert.equal(links.resolveDeepLink(rows, search).key, row.key);
+    }
+
+    const js = read('public/shared/js/artist-inbox.js');
+    assert.match(js, /function syncThreadUrl\(row\)[\s\S]*?threadLocation\(row, window\.location\.href\)[\s\S]*?history\.replaceState\(/);
+    assert.match(js, /async function openThread\(key\) \{[\s\S]*?state\.activeKey = key;\s*syncThreadUrl\(row\);/);
+    assert.match(js, /function closeThread\(\) \{\s*state\.activeKey = null;\s*syncThreadUrl\(null\);/);
+    // En móvil volver a la lista saca el hilo de la pantalla; en escritorio sigue a la vista.
+    assert.match(js, /function closeMobileThread\(\) \{[\s\S]*?min-width: 769px[\s\S]*?if \(!wide\) syncThreadUrl\(null\);/);
+    const html = read('public/artist/inbox/index.html');
+    assert.ok(html.indexOf('/shared/js/inbox-deeplink.js') < html.indexOf('/shared/js/artist-inbox.js'), 'el módulo de enlaces carga antes');
+});
+
 test('inbox del cliente: voz, rápidos y marca de automático sin innerHTML', () => {
     const html = read('public/client/chats/index.html');
     assert.match(html, /id="cch-voice"[^>]*aria-label="Grabar mensaje de voz"/);
