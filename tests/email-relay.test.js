@@ -21,9 +21,11 @@ function fakeQuery(tables) {
         const api = {
             select() { return api; }, limit() { return api; }, single() { api._single = true; return api; },
             eq(col, val) { filters.push([col, val]); return api; }, ilike(col, val) { filters.push([col, String(val).replace(/\\/g, '')]); return api; },
+            in(col, values) { filters.push([col, values]); return api; },
             gte() { return api; }, lte() { return api; }, order() { return api; },
             async execute() {
-                const rows = (tables[table] || []).filter(row => filters.every(([c, v]) => String(row[c]).toLowerCase() === String(v).toLowerCase()));
+                const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+                const rows = (tables[table] || []).filter(row => filters.every(([c, v]) => (Array.isArray(v) ? v.some(item => same(row[c], item)) : same(row[c], v))));
                 return api._single ? rows[0] || null : rows;
             }
         };
@@ -332,6 +334,65 @@ test('recordatorio 24 h: busca la ventana 23-25 h y envía con clave por sesión
         assert.equal(none.length, 0, status);
         assert.equal(out.skipped, 1, status);
     }
+});
+
+// DB-05 (P28): la sesión propuesta queda 'scheduled' con client_confirmation 'pending'
+// (o 'change_requested' si el cliente pidió otra fecha) y entraba igual al recordatorio.
+test('recordatorio 24 h: no recuerda sesiones que el cliente todavía no confirmó', async () => {
+    const NOW = Date.parse('2026-11-14T14:30:00Z');
+    const quotes = { quotations_db: [{ id: 9, quote_id: 'WO-9', quote_status: 'client_approved', client_email: 'c@example.com', artist_id: 'a-1' }],
+        artists_db: [{ user_id: 'a-1', email: 'a@example.com', name: 'Mateo' }] };
+    const session = (id, extra) => Object.assign({ id, quotation_id: 9, session_number: 1, session_date: '2026-11-15T14:00:00Z', status: 'scheduled' }, extra);
+    async function run(sessions, query) {
+        const sent = [];
+        const summary = await sessionReminders.dispatchSessionReminders({
+            query: query || fakeQuery(Object.assign({ quotation_sessions: sessions }, quotes)),
+            sendEmail: async (...args) => { sent.push(args); return { ok: true }; }, baseUrl: 'https://beta.weotzi.com', now: NOW, log: { warn() {} } });
+        return { summary, ids: sent.map(args => args[1].session_id) };
+    }
+
+    const mixed = await run([
+        session('s-pend', { client_confirmation: 'pending' }),
+        session('s-change', { client_confirmation: 'change_requested' }),
+        session('s-ok', { client_confirmation: 'confirmed' }),
+        session('s-legacy'), // fila sin la columna: cuenta como acordada
+        session('s-resched', { status: 'rescheduled', client_confirmation: 'confirmed' }), // cambio aceptado o reprogramada desde el calendario
+        session('s-resched-pend', { status: 'rescheduled', client_confirmation: 'pending' }),
+        session('s-done', { status: 'completed', client_confirmation: 'confirmed' }),
+        session('s-cancel', { status: 'cancelled', client_confirmation: 'confirmed' })
+    ]);
+    assert.deepEqual(mixed.ids, ['s-ok', 's-legacy', 's-resched']);
+    assert.deepEqual(mixed.summary, { found: 6, sent: 3, skipped: 3, failed: 0 });
+    assert.equal(sessionReminders.awaitsClientConfirmation({ client_confirmation: 'pending' }), true);
+    assert.equal(sessionReminders.awaitsClientConfirmation({ client_confirmation: 'confirmed' }), false);
+    assert.equal(sessionReminders.awaitsClientConfirmation({}), false);
+
+    // Base sin la migración 20261116150000: la columna no existe → se repite con las columnas de siempre.
+    const selects = [];
+    const base = fakeQuery(Object.assign({ quotation_sessions: [session('s-old'), session('s-old-resched', { status: 'rescheduled' })] }, quotes));
+    const withoutColumn = (error) => (table) => {
+        const api = base(table);
+        if (table !== 'quotation_sessions') return api;
+        const select = api.select;
+        let columns = '';
+        api.select = (cols) => { columns = cols; selects.push(cols); return select.call(api, cols); };
+        const execute = api.execute;
+        api.execute = async () => { if (/client_confirmation/.test(columns)) throw error; return execute.call(api); };
+        return api;
+    };
+    for (const error of [
+        Object.assign(new Error('column quotation_sessions.client_confirmation does not exist'), { code: '42703' }),
+        new Error("PGRST204: Could not find the 'client_confirmation' column of 'quotation_sessions' in the schema cache")
+    ]) {
+        selects.length = 0;
+        const legacy = await run(null, withoutColumn(error));
+        assert.deepEqual(legacy.ids, ['s-old', 's-old-resched']);
+        assert.equal(selects.length, 2);
+        assert.match(selects[0], /,client_confirmation$/);
+        assert.doesNotMatch(selects[1], /client_confirmation/);
+    }
+    // Cualquier otro error no se tapa con el reintento.
+    await assert.rejects(() => run(null, withoutColumn(new Error('fetch failed'))), /fetch failed/);
 });
 
 test('resolveRequestUser: un fallo de Auth no se cachea; un usuario válido sí', async () => {
