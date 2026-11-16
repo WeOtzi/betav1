@@ -25,15 +25,22 @@ anterior: las cotizaciones de ejemplo no existen en el servidor.
 `WoQuoteRespondModel.canPropose(quote)`. Se puede mientras la cotización **no
 esté aprobada por ambas partes**: bloquean `client_approved`, `in_progress`
 (salvo el borrador del cotizador), `artist_completed`, `completed`,
-`cancelled` y una disputa abierta. Cualquier otro estado admite propuesta
-(lista de bloqueo, así un estado nuevo de la negociación no queda afuera).
+`cancelled`, `client_rejected` y una disputa abierta. Cualquier otro estado
+admite propuesta (lista de bloqueo, así un estado nuevo de la negociación no
+queda afuera).
 
 - `pending` → primera respuesta (`responded`).
 - `responded` → **propuesta actualizada**: el estado no cambia, se renueva
   `artist_responded_at` (y con él el vencimiento), queda una fila
   `responded → responded` en `quotation_status_history` y el cliente recibe
   `artist_updated_quotation_proposal`.
-- `expired` / `client_rejected` → vuelve a `responded`.
+- `expired` → vuelve a `responded` ("Volver a cotizar").
+- `client_rejected` → **no admite propuesta** (P23): el rechazo del cliente da
+  por finalizada la cotización. `canPropose` devuelve `code: 'client_rejected'`,
+  el servidor responde 409 sin guardar, la franja de estado no ofrece "Volver a
+  cotizar" y el trigger `negociacion_quotation_guard` tampoco deja que el
+  servidor (`service_role`) la saque de ese estado. Para retomarla, el cliente
+  inicia una cotización nueva.
 
 La edición **después** de aprobada por ambos es del frente "negociación".
 

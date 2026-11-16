@@ -84,11 +84,21 @@ En el expediente del artista, `quotation-negotiation.js` desactiva el redactor
 (`#qd-compose`) de una cotización rechazada y explica el motivo, por si el
 expediente todavía lo muestra.
 
-Además, para el usuario final `client_rejected` es terminal: el trigger
-rechaza cualquier cambio de estado desde ahí (soporte y `service_role` sí
-pueden). El selector de estado del listado del artista ya no ofrece "volver a
-cotizar" una rechazada (`quotations-view-model.js` · `STATUS_TRANSITIONS`). La visibilidad de los datos de contacto la aplica el frente
-"cot-detalle".
+Además, `client_rejected` es terminal: el trigger rechaza cualquier cambio de
+estado desde ahí, también cuando escribe el servidor con `service_role` (la
+propuesta del artista se guarda con service-role y no debe reabrirla en su
+nombre). Soporte y `postgres` sí pueden. El selector de estado del listado del
+artista no ofrece "volver a cotizar" una rechazada (`quotations-view-model.js`
+· `STATUS_TRANSITIONS`) y el diálogo de la propuesta tampoco se abre
+(`WoQuoteRespondModel.canPropose` → `client_rejected`). La visibilidad de los
+datos de contacto la aplica el frente "cot-detalle".
+
+El acuerdo aprobado tampoco se "desarma" por REST: con el sello puesto y cliente
+con cuenta, el usuario final no puede devolver la cotización a `pending` /
+`responded` (antes ese paso borraba el sello y dejaba reescribir el precio), y
+no puede cambiar `client_user_id`, `source` ni `quotation_medium` de la
+cotización (`fn_quotations_client_column_guard`, migración `20261116220000`):
+las guardas del acuerdo y de las sesiones dependen de ese vínculo.
 
 ## Base de datos (`20261116140000_negociacion_propuestas.sql`)
 
