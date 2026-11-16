@@ -186,12 +186,11 @@ test('intake: source "flash" solo lo fija el servidor', () => {
 // ----------------------------------------------- ruta (dependencias inyectadas)
 
 function fakeRepo(over = {}) {
-    const calls = { copies: [], snapshots: [], reservedChecks: [] };
+    const calls = { copies: [], reservedChecks: [] };
     const repo = {
         getArtistByUsername: async (u) => (u === 'ana.wo' ? artistRow() : null),
         hasReservedRequest: async (artistId, id) => { calls.reservedChecks.push([artistId, id]); return false; },
         copyFlashImage: async (source, target) => { calls.copies.push([source, target]); return true; },
-        saveSnapshot: async (quoteId, snapshot) => { calls.snapshots.push([quoteId, snapshot]); },
         ...over
     };
     return { repo, calls };
@@ -202,7 +201,7 @@ test('POST /api/flash/request: arma el envío con la instantánea y la imagen co
     let submitted = null;
     const handler = createRequestHandler({
         repo, resolveUser: async () => ({ id: CLIENT_ID, email: 'lucia@example.test' }), now: () => NOW,
-        submit: async (req, r, body, user, options) => { submitted = { body, user, options }; await options.afterSave({ quote_id: 'QN' + 'a'.repeat(32) }); return r.json({ success: true, quote_id: 'QN' + 'a'.repeat(32), short_code: 'ABC234', status: 'pending' }); }
+        submit: async (req, r, body, user, options) => { submitted = { body, user, options }; return r.json({ success: true, quote_id: 'QN' + 'a'.repeat(32), short_code: 'ABC234', status: 'pending' }); }
     });
     const r = res();
     await handler({ headers: { authorization: 'Bearer x' }, body: validBody({ price: 1 }) }, r);
@@ -218,7 +217,8 @@ test('POST /api/flash/request: arma el envío con la instantánea y la imagen co
     assert.equal(snap.price, 120, 'precio del servidor');
     assert.equal(snap.reference_path, calls.copies[0][1]);
     assert.equal(submitted.body.quotation.client_budget_amount, 120);
-    assert.deepEqual(calls.snapshots.map((s) => s[1].id), ['fl_golondrina01']);
+    // La instantánea viaja en el guardado (prepare.flash → p_quote), sin un paso posterior.
+    assert.deepEqual(Object.keys(submitted.options).sort(), ['prepare', 'sessionExpired']);
     assert.deepEqual(calls.reservedChecks, [[ARTIST_ID, 'fl_golondrina01']]);
 });
 
@@ -297,8 +297,6 @@ test('de punta a punta: la cotización sale con source flash, presupuesto del fl
     intake.hooks.afterSubmit = null;
     try {
         const { repo, calls: repoCalls } = fakeRepo();
-        const realRepo = require('../lib/repos/flash').FlashRepo;
-        repo.saveSnapshot = (quoteId, snapshot) => realRepo.saveSnapshot(quoteId, snapshot);
         const handler = createRequestHandler({ repo, resolveUser: async () => null, now: () => NOW });
         const r = res();
         await handler({ headers: {}, body: validBody() }, r);
@@ -311,9 +309,8 @@ test('de punta a punta: la cotización sale con source flash, presupuesto del fl
         assert.equal(rpc.body.p_quote.client_user_id, null, 'sin sesión no se vincula');
         assert.equal(rpc.body.p_quote.flash_snapshot.id, 'fl_golondrina01');
         assert.equal(rpc.body.p_extras.personalization_level, 'tal_cual');
-        const snap = calls.find((c) => c.method === 'PATCH' && c.url.includes('quotations_db') && c.body && c.body.flash_snapshot);
-        assert.ok(snap, 'guarda la instantánea');
-        assert.match(snap.url, /flash_snapshot=is\.null/);
+        assert.equal(rpc.body.p_quote.flash_snapshot.price, 120, 'la instantánea va en el mismo guardado');
+        assert.equal(calls.some((c) => c.method === 'PATCH' && c.body && 'flash_snapshot' in c.body), false, 'sin PATCH posterior de la instantánea');
         const refs = calls.find((c) => c.method === 'PATCH' && c.body && c.body.reference_images);
         assert.equal(refs.body.reference_images.length, 1);
         assert.equal(refs.body.reference_images[0], `${SUPA}/storage/v1/object/public/quotation-references/${repoCalls.copies[0][1]}`);
@@ -323,6 +320,48 @@ test('de punta a punta: la cotización sale con source flash, presupuesto del fl
         global.fetch = previousFetch;
         intake.hooks.afterSubmit = previousHook;
     }
+});
+
+test('de punta a punta: si el guardado falla, la solicitud falla (no queda una cotización sin instantánea)', async () => {
+    const calls = [];
+    const previousFetch = global.fetch;
+    global.fetch = async (url, opts = {}) => {
+        const u = String(url);
+        const method = opts.method || 'GET';
+        calls.push({ url: u, method, body: opts.body ? JSON.parse(opts.body) : undefined });
+        if (u.includes('/rest/v1/artists_db')) return json(200, [{ user_id: ARTIST_ID, username: 'ana.wo', name: 'Ana', email: 'ana@example.test', registration_status: 'aprobado' }]);
+        if (u.includes('/rest/v1/rpc/save_web_quotation')) return json(500, { code: 'XX000', message: 'boom' });
+        if (u.includes('/rest/v1/quotations_db') && method === 'GET') return json(200, []);
+        if (method === 'PATCH' || method === 'DELETE') return json(204);
+        if (method === 'POST') return json(201);
+        return json(404, {});
+    };
+    const previousHook = intake.hooks.afterSubmit;
+    let notified = false;
+    intake.hooks.afterSubmit = () => { notified = true; };
+    const previousError = console.error;
+    console.error = () => {};
+    try {
+        const handler = createRequestHandler({ repo: fakeRepo().repo, resolveUser: async () => null, now: () => NOW });
+        const r = res();
+        await handler({ headers: {}, body: validBody() }, r);
+        assert.equal(r.statusCode, 502);
+        assert.equal(r.body.success, false);
+        const rpc = calls.find((c) => c.url.includes('rpc/save_web_quotation'));
+        assert.equal(rpc.body.p_quote.flash_snapshot.id, 'fl_golondrina01');
+        assert.equal(calls.some((c) => c.method === 'PATCH' && c.url.includes('quotations_db')), false);
+        assert.equal(notified, false, 'sin avisos de una solicitud que no se guardó');
+    } finally {
+        global.fetch = previousFetch;
+        intake.hooks.afterSubmit = previousHook;
+        console.error = previousError;
+    }
+});
+
+test('instantánea: el servidor ya no la escribe con un PATCH aparte', () => {
+    assert.equal(typeof require('../lib/repos/flash').FlashRepo.saveSnapshot, 'undefined');
+    assert.doesNotMatch(read('lib/routes/flash.js'), /afterSave|saveSnapshot/);
+    assert.doesNotMatch(read('services/quotation-intake.js'), /afterSave/);
 });
 
 test('de punta a punta: la cuenta solo se vincula con el correo verificado (como en 2.5.2)', () => {
@@ -369,6 +408,106 @@ test('migración 20261117130000: source flash, columna protegida y trigger de di
     for (const status of flash.RESERVED_STATUSES) assert.ok(trigger.includes(`'${status}'`), status);
     assert.match(sql, /^begin;/m);
     assert.match(sql, /^commit;/m);
+});
+
+const SQL_FLASH = 'supabase/migrations/20261117130000_flash_tattoos.sql';
+const sectionOf = (sql, from, to) => {
+    const start = sql.indexOf(from);
+    const end = sql.indexOf(to, start + 1);
+    assert.ok(start > -1 && end > start, `sección ${from}`);
+    return sql.slice(start, end);
+};
+
+test('migración 20261117130000: un flash único no queda aprobado dos veces (todos los roles)', () => {
+    const sql = read(SQL_FLASH);
+    const fn = sectionOf(sql, 'function public.fn_quotations_flash_unique_reservation', 'comment on function public.fn_quotations_flash_unique_reservation');
+    assert.match(fn, /security definer\s+set search_path = public, pg_temp/);
+    assert.doesNotMatch(fn, /current_user/, 'sin excepción por rol: también service_role');
+    assert.match(fn, /new\.quote_status is distinct from 'client_approved'\s+or old\.quote_status is not distinct from 'client_approved'/);
+    assert.match(fn, /new\.source is distinct from 'flash' or new\.flash_snapshot is null/);
+    assert.match(fn, /coalesce\(new\.flash_snapshot ->> 'mode', 'unique'\) <> 'unique'/);
+    assert.match(fn, /pg_advisory_xact_lock\(hashtext\(new\.artist_id::text \|\| ':' \|\| v_flash_id\)\)/);
+    // El candado va ANTES de mirar las otras solicitudes.
+    assert.ok(fn.indexOf('pg_advisory_xact_lock') < fn.indexOf('if exists ('));
+    assert.match(fn, /other\.id <> new\.id[\s\S]*other\.artist_id = new\.artist_id[\s\S]*other\.flash_snapshot ->> 'id' = v_flash_id[\s\S]*other\.quote_status = any \(v_reserved\)/);
+    for (const status of flash.RESERVED_STATUSES) assert.ok(fn.includes(`'${status}'`), status);
+    assert.ok(fn.includes(`raise exception '${flash.FLASH_TAKEN_MESSAGE}'`), 'mismo mensaje que el servidor');
+    assert.match(fn, /using errcode = 'P0001'/);
+    assert.ok(sql.includes('revoke all on function public.fn_quotations_flash_unique_reservation() from public, anon, authenticated;'));
+    assert.match(sql, /create trigger trg_quotations_flash_unique_reservation\s+before update of quote_status on public\.quotations_db\s+for each row\s+when \(new\.quote_status = 'client_approved' and old\.quote_status is distinct from new\.quote_status\)\s+execute function public\.fn_quotations_flash_unique_reservation\(\);/);
+    // Tuteo neutro.
+    assert.match(flash.FLASH_TAKEN_MESSAGE, /Escríbele al artista/);
+});
+
+test('migración 20261117130000: save_web_quotation guarda flash_snapshot sobre la definición viva', () => {
+    const sql = read(SQL_FLASH);
+    const block = sectionOf(sql, 'do $migration$', '$migration$;');
+    assert.match(block, /pg_get_functiondef\('public\.save_web_quotation\(jsonb, jsonb\)'::regprocedure\)/);
+    assert.doesNotMatch(block, /create or replace function public\.save_web_quotation\(/i, 'no copia la función del repo');
+    // Reemplazos exactos sobre el texto vivo.
+    for (const s of [
+        String.raw`E'artist_studio_name, artist_session_cost_amount, quotation_medium, source\n  )'`,
+        String.raw`E'artist_studio_name, artist_session_cost_amount, quotation_medium, source, flash_snapshot\n  )'`,
+        String.raw`E'q.artist_studio_name, q.artist_session_cost_amount, q.quotation_medium, q.source\n  )'`,
+        String.raw`E'q.artist_studio_name, q.artist_session_cost_amount, q.quotation_medium, q.source, q.flash_snapshot\n  )'`,
+        String.raw`E'    source = excluded.source,\n    updated_at = now()'`,
+        String.raw`E'    source = excluded.source,\n    flash_snapshot = coalesce(excluded.flash_snapshot, quotations_db.flash_snapshot),\n    updated_at = now()'`
+    ]) assert.ok(block.includes(s), s);
+    assert.match(block, /if v_count <> 1 then\s+raise exception/);
+    assert.match(block, /v_def := replace\(v_def, v_from\[i\], v_to\[i\]\);[\s\S]*execute v_def;/);
+    // Idempotente y con la variante con turno comprobada.
+    assert.match(block, /if position\('flash_snapshot' in v_def\) > 0 then[\s\S]*return;/);
+    assert.match(block, /pg_get_functiondef\('public\.save_web_quotation_with_slot\(jsonb, jsonb, jsonb\)'::regprocedure\)/);
+    assert.match(block, /insert\\s\+into\\s\+public\\\.quotations_db/);
+    // La variante con turno del repo delega en save_web_quotation (no duplica el insert).
+    const slot = read('supabase/migrations/20261115160000_turnos_reservas_online.sql');
+    const slotFn = sectionOf(slot, 'create or replace function public.save_web_quotation_with_slot(', 'revoke all on function public.save_web_quotation_with_slot');
+    assert.match(slotFn, /public\.save_web_quotation\(p_quote, p_extras\)/);
+    assert.doesNotMatch(slotFn, /insert into public\.quotations_db/);
+    // La definición del repo trae exactamente los textos que se reemplazan.
+    const repoFn = read('supabase/migrations/20261116110100_cot_form_r2_intake.sql');
+    for (const s of ['artist_studio_name, artist_session_cost_amount, quotation_medium, source\n  )',
+        'q.artist_studio_name, q.artist_session_cost_amount, q.quotation_medium, q.source\n  )',
+        '    source = excluded.source,\n    updated_at = now()']) {
+        assert.equal(repoFn.split(s).length - 1, 1, JSON.stringify(s));
+    }
+});
+
+test('migración 20261117130000: la galería no vuelve "disponible" un flash único ya reservado', () => {
+    const sql = read(SQL_FLASH);
+    const fn = sectionOf(sql, 'function public.fn_artists_flash_keep_reserved', 'comment on function public.fn_artists_flash_keep_reserved');
+    assert.match(fn, /security definer\s+set search_path = public, pg_temp/);
+    assert.match(fn, /feed\.item ->> 'category' = 'flash'/);
+    assert.match(fn, /coalesce\(feed\.item #>> '\{flash,mode\}', 'unique'\) = 'unique'/);
+    assert.match(fn, /\(feed\.item #> '\{flash,available\}'\) = 'true'::jsonb/);
+    assert.match(fn, /q\.artist_id = new\.user_id[\s\S]*q\.source = 'flash'[\s\S]*q\.flash_snapshot ->> 'id' = feed\.item ->> 'id'[\s\S]*q\.quote_status = any \(v_reserved\)/);
+    for (const status of flash.RESERVED_STATUSES) assert.ok(fn.includes(`'${status}'`), status);
+    // Solo cambia flash.available del ítem y conserva el orden (la forma del ítem no cambia).
+    assert.match(fn, /jsonb_set\(feed\.item, '\{flash,available\}', 'false'::jsonb, true\)/);
+    assert.match(fn, /order by feed\.ord/);
+    assert.ok(sql.includes('revoke all on function public.fn_artists_flash_keep_reserved() from public, anon, authenticated;'));
+    assert.match(sql, /create trigger trg_artists_flash_keep_reserved\s+before update of gallery_feed_items on public\.artists_db\s+for each row\s+execute function public\.fn_artists_flash_keep_reserved\(\);/);
+});
+
+test('reversa de 20261117130000: quita la reserva única, el trigger de galería y vuelve save_web_quotation sin instantánea', () => {
+    const down = read('supabase/rollbacks/20261117130000_flash_tattoos.down.sql');
+    for (const s of ['drop trigger if exists trg_artists_flash_keep_reserved on public.artists_db',
+        'drop trigger if exists trg_quotations_flash_unique_reservation on public.quotations_db',
+        'drop function if exists public.fn_artists_flash_keep_reserved()',
+        'drop function if exists public.fn_quotations_flash_unique_reservation()']) {
+        assert.ok(down.includes(s), s);
+    }
+    const block = sectionOf(down, 'do $rollback$', '$rollback$;');
+    assert.match(block, /pg_get_functiondef\('public\.save_web_quotation\(jsonb, jsonb\)'::regprocedure\)/);
+    assert.match(block, /if v_count <> 1 then\s+raise exception/);
+    assert.match(block, /execute v_def;/);
+    // Reemplazos inversos de los de la migración.
+    const up = sectionOf(read(SQL_FLASH), 'do $migration$', '$migration$;');
+    const arr = (src, name) => (new RegExp(`${name} text\\[\\] := array\\[([\\s\\S]*?)\\n  \\];`).exec(src) || [])[1];
+    assert.equal(arr(block, 'v_from'), arr(up, 'v_to'));
+    assert.equal(arr(block, 'v_to'), arr(up, 'v_from'));
+    // Antes de borrar la columna.
+    assert.ok(down.indexOf('do $rollback$') < down.indexOf('drop column if exists flash_snapshot'));
 });
 
 test('reversa de 20261117130000: quita triggers, funciones y columna y vuelve al CHECK sin flash', () => {
@@ -474,6 +613,53 @@ test('diálogo de respuesta: precarga el precio del flash y la duración del tur
     assert.equal(M.initialValues(quote, null, { amount: '1.500' }, { now: NOW }).amount, '1.500', 'el prefill manda');
     const plain = M.initialValues({ client_budget_currency: 'USD' }, null, null, { now: NOW });
     assert.equal(plain.amount, '');
+});
+
+test('diálogo de respuesta: no pisa las sesiones estimadas ya guardadas al editar o volver a cotizar', () => {
+    const snap = { id: 'fl_golondrina01', title: 'Golondrina', price: 1200, currency: 'ARS' };
+    assert.equal(F.respondPrefill({ source: 'flash', flash_snapshot: snap }).sessions, 1, 'sin sesiones guardadas: 1');
+    assert.equal(F.respondPrefill({ source: 'flash', flash_snapshot: snap, tattoo_estimated_sessions: '' }).sessions, 1);
+    assert.equal('sessions' in F.respondPrefill({ source: 'flash', flash_snapshot: snap, tattoo_estimated_sessions: 3 }), false);
+    assert.equal('sessions' in F.respondPrefill({ source: 'flash', flash_snapshot: snap, tattoo_estimated_sessions: '2' }), false);
+    const M = require('../public/shared/js/quote-respond-model.js');
+    const saved = { source: 'flash', client_budget_currency: 'USD', flash_snapshot: snap, tattoo_estimated_sessions: 3, quote_status: 'expired' };
+    assert.equal(M.initialValues(saved, null, null, { now: NOW }).sessions, '3', 'volver a cotizar conserva las 3 sesiones');
+    assert.equal(M.initialValues({ ...saved, quote_status: 'responded' }, null, null, { now: NOW }).sessions, '3', 'editar conserva las 3 sesiones');
+});
+
+test('decisión del cliente: el segundo cliente de un flash único recibe 409 con el mensaje (no un 500)', async () => {
+    const { createHandlers } = require('../lib/routes/cot-cliente');
+    const responded = { id: 7, quote_id: 'WO-7', quote_status: 'responded', client_user_id: 'user-2', client_email: 'b@example.com', artist_id: ARTIST_ID,
+        artist_budget_amount: '120', artist_budget_currency: 'USD', artist_responded_at: '2026-11-10T00:00:00Z', quote_expires_at: null, dispute_status: 'none',
+        source: 'flash', flash_snapshot: { id: 'fl_golondrina01' } };
+    const emails = [];
+    // Así llega el error del trigger por la capa PostgREST (P0001 → 400).
+    const pgError = new Error(`PostgREST PATCH quotations_db failed (400): {"code":"P0001","details":null,"hint":null,"message":"${flash.FLASH_TAKEN_MESSAGE}"}`);
+    const handlers = createHandlers({
+        resolveBearerUser: async () => ({ id: 'user-2', email: 'b@example.com', raw: { email_confirmed_at: '2026-11-01T00:00:00Z' } }),
+        applicationBase: () => 'https://beta.weotzi.com',
+        logger: { log() {}, warn() {}, error() {} },
+        now: () => NOW.getTime(),
+        emailService: { async sendEmail(eventId) { emails.push(eventId); return { ok: true }; } },
+        repo: {
+            async getForDecision() { return responded; },
+            async decide() { throw pgError; },
+            async annotateHistory() {}, async getArtist() { return null; }, async listScheduledSessions() { return []; }
+        }
+    });
+    const r = res();
+    await handlers.decision({ params: { quoteId: 'WO-7' }, body: { decision: 'approve' } }, r);
+    assert.equal(r.statusCode, 409);
+    assert.equal(r.body.code, 'flash_reserved');
+    assert.equal(r.body.error, flash.FLASH_TAKEN_MESSAGE);
+    assert.equal(emails.length, 0);
+    // También si el texto llega con la tilde escapada.
+    assert.equal(flash.isFlashTakenError(new Error('{"message":"Este flash ya se reserv\\u00f3 con otra solicitud."}')), true);
+    assert.equal(flash.isFlashTakenError(new Error('network down')), false);
+    // El panel del cliente muestra el error de la decisión (409 incluido) con su texto.
+    const dash = read('public/shared/js/client-dashboard.js');
+    assert.match(dash, /setProposalFeedback\(box, error && error\.message \? error\.message : [^)]*\)[^;]*;/);
+    assert.match(dash, /error\.status === 409 \|\| error\.status === 410\)[\s\S]{0,700}note\.textContent = error\.message;/);
 });
 
 test('listado y detalle: insignia "Flash" y bloque del flash con imagen, título y precio', () => {

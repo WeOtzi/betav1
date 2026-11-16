@@ -50,7 +50,7 @@ Código: lógica pura en `lib/feedback.js`, rutas en `lib/routes/feedback.js`, d
 
 ## Datos
 
-Tabla `public.beta_feedback` (migración `supabase/migrations/20261117120000_beta_feedback.sql`, reversa en `supabase/rollbacks/`). Una fila por envío o por encuesta respondida o descartada (`dismissed = true`, sin calificación ni mensaje). Hay un índice único parcial `(user_id, survey_key)` para las encuestas. RLS está activo: la persona inserta y lee solo lo suyo (sin el estado, la nota ni el responsable), no puede editar ni borrar, y anon no tiene acceso. El servidor escribe con service-role.
+Tabla `public.beta_feedback` (migración `supabase/migrations/20261117120000_beta_feedback.sql`, reversa en `supabase/rollbacks/`). Una fila por envío o por encuesta respondida o descartada (`dismissed = true`, sin calificación ni mensaje). Hay un índice único parcial `(user_id, survey_key)` para las encuestas. RLS está activo: la persona solo lee lo suyo (sin el estado, la nota ni el responsable); no puede insertar, editar ni borrar, y anon no tiene acceso. Solo escribe el servidor, con service-role (así aplica el tope diario, detecta el rol y valida que cada encuesta sea del tipo de cuenta de la persona).
 
 ## Cómo leerlo en soporte
 

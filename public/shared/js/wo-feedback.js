@@ -56,6 +56,16 @@
         primera_sesion_agendada: '¿Cómo fue agendar tu primera sesión?',
         primer_tatuador_equipo: '¿Cómo fue sumar a tu primer tatuador al equipo?'
     };
+    // Tipo de cuenta de cada encuesta (igual que SURVEY_ROLES de lib/feedback.js).
+    const SURVEY_ROLES = {
+        registro_tatuador: 'artist',
+        propuesta_enviada: 'artist',
+        primera_sesion_agendada: 'artist',
+        registro_cliente: 'client',
+        cotizacion_enviada: 'client',
+        registro_estudio: 'studio',
+        primer_tatuador_equipo: 'studio'
+    };
     const ROLES = ['artist', 'client', 'studio'];
     const MESSAGE_MIN = 10;
     const MESSAGE_MAX = 2000;
@@ -69,6 +79,7 @@
     const LS_PENDING = 'wo_fb_pending';
     const LS_DONE = 'wo_fb_done:';
     const SS_STATE = 'wo_fb_state:';
+    const SS_TAB = 'wo_fb_tab';
     const STATE_TTL_MS = 10 * 60 * 1000;
     const PENDING_TTL_MS = 3 * 24 * 60 * 60 * 1000;
     const SURVEY_DELAY_MS = 1500;
@@ -204,11 +215,50 @@
     }
 
     // Lista de encuestas pendientes: agrega sin duplicar y descarta las viejas.
-    function addPending(list, key, question, now) {
+    // Cada pendiente tiene dueño: el id de la cuenta o 'anon' (pedida sin
+    // sesión todavía) junto con la pestaña (`tab`) que la pidió.
+    function addPending(list, key, question, now, owner, tab) {
         const t = Number(now) || Date.now();
-        const clean = prunePending(list, t).filter(function (p) { return p.key !== key; });
-        clean.push({ key: key, question: String(question || '').slice(0, 160), at: t });
+        const who = owner ? String(owner) : 'anon';
+        const clean = prunePending(list, t).filter(function (p) { return !(p.key === key && (p.owner || 'anon') === who); });
+        const entry = { key: key, question: String(question || '').slice(0, 160), at: t, owner: who };
+        if (who === 'anon' && tab) entry.tab = String(tab);
+        clean.push(entry);
         return clean;
+    }
+
+    // Pendientes de esta cuenta. Una 'anon' pasa a la primera cuenta que entra
+    // en ESA pestaña dentro del plazo; las de otra cuenta se descartan; las
+    // 'anon' de otra pestaña quedan para esa pestaña.
+    // → { list: lista a guardar, mine: pendientes de userId }
+    function claimPending(list, userId, tab, now) {
+        const uid = String(userId || '');
+        const pruned = prunePending(list, now);
+        if (!uid) return { list: pruned, mine: [] };
+        const out = [];
+        const mine = [];
+        const mineKeys = {};
+        pruned.forEach(function (p) {
+            const owner = p.owner || 'anon';
+            let entry = p;
+            if (owner === 'anon') {
+                if (!(tab && p.tab === String(tab))) { out.push(p); return; }
+                entry = { key: p.key, question: p.question, at: p.at, owner: uid };
+            } else if (owner !== uid) {
+                return; // de otra cuenta: se descarta
+            }
+            if (mineKeys[entry.key]) return; // misma encuesta dos veces: queda una
+            mineKeys[entry.key] = true;
+            out.push(entry);
+            mine.push(entry);
+        });
+        return { list: out, mine: mine };
+    }
+
+    // ¿La encuesta es de un tipo de cuenta que la persona tiene?
+    function surveyFitsRoles(key, roles) {
+        const role = SURVEY_ROLES[key];
+        return !!role && Array.isArray(roles) && roles.indexOf(role) >= 0;
     }
 
     function prunePending(list, now) {
@@ -335,7 +385,8 @@
     }
 
     const pure = {
-        KINDS: KINDS, KIND_LABELS: KIND_LABELS, SURVEYS: SURVEYS, ROLES: ROLES, MSG: MSG, BUCKET: BUCKET, FOLDER: FOLDER,
+        KINDS: KINDS, KIND_LABELS: KIND_LABELS, SURVEYS: SURVEYS, SURVEY_ROLES: SURVEY_ROLES, ROLES: ROLES, MSG: MSG, BUCKET: BUCKET, FOLDER: FOLDER,
+        claimPending: claimPending, surveyFitsRoles: surveyFitsRoles,
         MESSAGE_MIN: MESSAGE_MIN, MESSAGE_MAX: MESSAGE_MAX, MAX_IMAGES: MAX_IMAGES, MAX_IMAGE_BYTES: MAX_IMAGE_BYTES,
         IMAGE_TYPES: IMAGE_TYPES, LS_PENDING: LS_PENDING, PENDING_TTL_MS: PENDING_TTL_MS, SURVEY_DELAY_MS: SURVEY_DELAY_MS,
         esc: esc, appPath: appPath, buttonAllowed: buttonAllowed, modeFromPath: modeFromPath, fileType: fileType,
@@ -353,6 +404,8 @@
     // ---------------------------------------------------------------
     // Almacenamiento (todo con try: modo privado o bloqueado)
     // ---------------------------------------------------------------
+    // Última cuenta con sesión vista en esta página (dueño de las encuestas que se piden).
+    let knownUserId = null;
     function lsGet(key) { try { return root.localStorage.getItem(key); } catch (_) { return null; } }
     function lsSet(key, value) { try { root.localStorage.setItem(key, value); } catch (_) { /* sin almacenamiento */ } }
     function lsRemove(key) { try { root.localStorage.removeItem(key); } catch (_) { /* idem */ } }
@@ -364,7 +417,21 @@
     function writePending(list) {
         if (list && list.length) lsSet(LS_PENDING, JSON.stringify(list)); else lsRemove(LS_PENDING);
     }
-    function removePending(key) { writePending(readPending().filter(function (p) { return p.key !== key; })); }
+    function removePending(key, userId) {
+        const who = String(userId || 'anon');
+        writePending(readPending().filter(function (p) { return !(p.key === key && (p.owner || 'anon') === who); }));
+    }
+    // Pestaña actual (sessionStorage): una encuesta pedida sin sesión solo la
+    // reclama la cuenta que entra en esta misma pestaña.
+    function tabId() {
+        let id = ssGet(SS_TAB);
+        if (!id) {
+            id = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+            ssSet(SS_TAB, id);
+            if (ssGet(SS_TAB) !== id) return '';
+        }
+        return id;
+    }
     function localDone(userId) { return readJson(lsGet(LS_DONE + userId), []); }
     function markLocalDone(userId, key) {
         const list = localDone(userId);
@@ -405,7 +472,9 @@
             if (!client || !client.auth || typeof client.auth.getSession !== 'function') return null;
             const res = await client.auth.getSession();
             const session = res && res.data && res.data.session;
-            return session && session.user && session.access_token ? session : null;
+            const ok = session && session.user && session.access_token ? session : null;
+            knownUserId = ok ? String(ok.user.id) : null;
+            return ok;
         } catch (_) {
             return null;
         }
@@ -938,7 +1007,7 @@
 
     function finishSurvey(key, session) {
         rememberKey(session, key);
-        removePending(key);
+        removePending(key, session.user.id);
     }
 
     async function answerSurvey() {
@@ -956,9 +1025,11 @@
         }), s.session);
         if (survey !== s) return;
         s.busy = false;
-        if (res.ok || res.status === 403) {
+        // 403: sin tipo de cuenta; SURVEY_ROLE_MISMATCH: la encuesta no es de su tipo de cuenta.
+        const notForMe = res.status === 403 || (res.json && res.json.code === 'SURVEY_ROLE_MISMATCH');
+        if (res.ok || notForMe) {
             finishSurvey(s.key, s.session);
-            if (res.status === 403) { hideCard(); return; }
+            if (notForMe) { hideCard(); return; }
             s.step = 'done';
             renderCard();
             root.setTimeout(function () { if (survey === s) { hideCard(); processPending(); } }, 2600);
@@ -988,14 +1059,19 @@
         try {
             const session = await getSession();
             if (!session) return;
+            // Solo las de esta cuenta: reclama las 'anon' de esta pestaña y
+            // descarta las de otra cuenta.
+            const claimed = claimPending(pending, session.user.id, tabId(), Date.now());
+            writePending(claimed.list);
+            if (!claimed.mine.length) return;
             const st = await loadState(session, forceState);
             forceState = false;
             if (st.failed || !st.roles.length) return;
             const done = st.keys.concat(localDone(session.user.id));
             let next = null;
-            pending.forEach(function (p) {
-                if (done.indexOf(p.key) >= 0) removePending(p.key);
-                else if (!next) next = p;
+            claimed.mine.forEach(function (p) {
+                if (done.indexOf(p.key) >= 0) removePending(p.key, session.user.id);
+                else if (!next && surveyFitsRoles(p.key, st.roles)) next = p;
             });
             if (next && !card && !(dialog && dialog.open)) showCard(next, session);
         } finally {
@@ -1010,7 +1086,8 @@
             if (root.console) root.console.warn('[wo-feedback] encuesta desconocida:', key);
             return false;
         }
-        writePending(addPending(readPending(), key, opts.question, Date.now()));
+        // Dueño: la cuenta con sesión en esta página o 'anon' + esta pestaña.
+        writePending(addPending(readPending(), key, opts.question, Date.now(), knownUserId || 'anon', tabId()));
         // Recién registrada o con un tipo de cuenta nuevo: se vuelve a preguntar al servidor.
         forceState = true;
         const delay = Number.isFinite(Number(opts.delay)) ? Math.max(0, Number(opts.delay)) : SURVEY_DELAY_MS;
@@ -1036,7 +1113,7 @@
             if (!client || !client.auth || typeof client.auth.onAuthStateChange !== 'function') return;
             client.auth.onAuthStateChange(function (event) {
                 if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') return;
-                if (event === 'SIGNED_OUT') { unmountButton(); hideCard(); return; }
+                if (event === 'SIGNED_OUT') { knownUserId = null; unmountButton(); hideCard(); return; }
                 // Fuera del callback: supabase-js retiene el candado de auth mientras lo ejecuta.
                 root.setTimeout(function () { refresh(); processPending(); }, 0);
             });

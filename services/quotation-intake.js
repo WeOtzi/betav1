@@ -167,7 +167,8 @@ async function prepareQuotation(body, user, { forceNoArtist = false, reusedFrom 
     if (forceNoArtist && body.quotation) body = { ...body, quotation: { ...input, artist_id: null } };
     const { q, extras, references } = normalizeIntake(body, user, artist, { flash: !!flash });
     // Flash Tattoos: instantánea armada por el servidor (lib/routes/flash.js).
-    // save_web_quotation no la guarda: la escribe options.afterSave.
+    // Viaja en p_quote: save_web_quotation (y la variante con turno) la guarda
+    // en el mismo insert/upsert que la cotización (migración 20261117130000).
     if (flash && artist) q.flash_snapshot = flash;
     // P32: origen de "Cotizar con otro artista" (solo lo fija el servidor al clonar).
     if (reusedFrom) q.reused_from_quote_id = String(reusedFrom).slice(0, 64);
@@ -264,7 +265,6 @@ async function handleSlotSubmit(req, res, body, user, slot, sessionExpired, opti
     const out = captured.body || { success: false, error: 'No pudimos guardar la cotización.' };
     let referencesSaved = true;
     if (out.success && out.status === 'pending') {
-        if (typeof options.afterSave === 'function') await runAfterSave(options.afterSave, prepared.q);
         try { await persistReferences(prepared.q.quote_id, prepared.references); }
         catch (error) {
             referencesSaved = false;
@@ -289,20 +289,12 @@ function notifyArtist(quoteId, req) {
     notices.inBackground('artist_new_quotation', () => notices.notifyArtistNewQuotation(quoteId, { baseUrl: applicationBase(req) }));
 }
 
-// Paso extra del servidor justo después de guardar (antes de referencias y
-// avisos). Un fallo queda en el log: la cotización ya está guardada.
-async function runAfterSave(afterSave, q) {
-    try { await afterSave(q); }
-    catch (error) { console.error('[quotation-intake] después de guardar', q.quote_id, String(error.message || '').slice(0, 200)); }
-}
-
 /**
  * Guardado + envío con un body ya armado. Lo usan POST /api/quotations/intake
  * (body del navegador) y POST /api/flash/request (body que arma el servidor).
  * options:
  *   sessionExpired  la sesión del Bearer venció (la cotización sigue anónima)
  *   prepare         opciones de prepareQuotation (p. ej. { flash })
- *   afterSave(q)    corre una vez guardada como 'pending', antes de los avisos
  */
 async function submitIntake(req, res, body, user, options = {}) {
     const sessionExpired = !!options.sessionExpired;
@@ -316,7 +308,6 @@ async function submitIntake(req, res, body, user, options = {}) {
     }
     let referencesSaved = true;
     if (body.mode === 'submit' && status === 'pending') {
-        if (typeof options.afterSave === 'function') await runAfterSave(options.afterSave, saved.q);
         try { await persistReferences(saved.q.quote_id, saved.references); }
         catch (error) {
             referencesSaved = false;

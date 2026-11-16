@@ -23,7 +23,15 @@
 --      galería del artista; si una cotización ya aprobada se cancela (o vence,
 --      o el cliente la rechaza) vuelve a available = true, salvo que otra
 --      cotización del mismo flash siga aprobada. Antes de aprobarse, cancelar o
---      rechazar no cambia nada. Solo se edita ESE ítem del jsonb (por id).
+--      rechazar no cambia nada. Solo se edita ESE ítem del jsonb (por id);
+--   5. una sola reserva por flash único: ninguna cotización pasa a
+--      'client_approved' si otra del mismo artista y flash ya está aprobada o en
+--      curso (para todos los roles, service_role incluido; candado por flash);
+--   6. save_web_quotation guarda flash_snapshot en el mismo insert/upsert (sin
+--      un PATCH posterior que pueda fallar en silencio). Se edita la definición
+--      VIVA con pg_get_functiondef + replace(), no se copia la del repo;
+--   7. una pestaña del artista con datos viejos no vuelve "disponible" un flash
+--      único que ya tiene una cotización aprobada o en curso.
 --
 -- Idempotente. Reversa: supabase/rollbacks/20261117130000_flash_tattoos.down.sql
 -- ============================================================================
@@ -205,6 +213,190 @@ create trigger trg_quotations_flash_availability
   for each row
   when (old.quote_status is distinct from new.quote_status)
   execute function public.fn_quotations_flash_availability();
+
+-- 5. Una sola reserva por flash único ---------------------------------------------
+-- La disponibilidad (4) solo marca "Reservado"; esto impide que dos solicitudes
+-- del mismo flash único queden aprobadas. El candado por artista + flash
+-- serializa dos aprobaciones simultáneas: la segunda espera, vuelve a mirar
+-- (cada consulta de plpgsql toma una instantánea nueva) y falla.
+create or replace function public.fn_quotations_flash_unique_reservation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_flash_id text;
+  v_reserved constant text[] := array['client_approved', 'in_progress', 'en_progreso', 'artist_completed', 'completed'];
+begin
+  if new.quote_status is distinct from 'client_approved'
+     or old.quote_status is not distinct from 'client_approved' then
+    return new;
+  end if;
+  if new.source is distinct from 'flash' or new.flash_snapshot is null or new.artist_id is null then
+    return new;
+  end if;
+  if coalesce(new.flash_snapshot ->> 'mode', 'unique') <> 'unique' then
+    return new;
+  end if;
+  v_flash_id := nullif(btrim(new.flash_snapshot ->> 'id'), '');
+  if v_flash_id is null then
+    return new;
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext(new.artist_id::text || ':' || v_flash_id));
+
+  if exists (
+    select 1
+      from public.quotations_db other
+     where other.id <> new.id
+       and other.artist_id = new.artist_id
+       and other.source = 'flash'
+       and other.flash_snapshot is not null
+       and other.flash_snapshot ->> 'id' = v_flash_id
+       and other.quote_status = any (v_reserved)
+  ) then
+    raise exception 'Este flash ya se reservó con otra solicitud. Escríbele al artista para elegir otro diseño.'
+      using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+
+comment on function public.fn_quotations_flash_unique_reservation() is
+  'Flash Tattoos: BEFORE UPDATE OF quote_status de quotations_db. Un flash único no pasa a client_approved si otra cotización del mismo artista y flash ya está aprobada o en curso (todos los roles).';
+
+revoke all on function public.fn_quotations_flash_unique_reservation() from public, anon, authenticated;
+
+drop trigger if exists trg_quotations_flash_unique_reservation on public.quotations_db;
+create trigger trg_quotations_flash_unique_reservation
+  before update of quote_status on public.quotations_db
+  for each row
+  when (new.quote_status = 'client_approved' and old.quote_status is distinct from new.quote_status)
+  execute function public.fn_quotations_flash_unique_reservation();
+
+-- 6. La instantánea viaja en el mismo guardado ------------------------------------
+-- save_web_quotation (la llama el servidor y también save_web_quotation_with_slot)
+-- guarda flash_snapshot en el insert y la conserva en el upsert. Se parte de la
+-- definición VIVA (puede diferir del repo) y cada reemplazo tiene que encontrar
+-- exactamente una ocurrencia; si no, la migración falla sin tocar nada.
+do $migration$
+declare
+  v_def text;
+  v_slot_def text;
+  v_from text[] := array[
+    E'artist_studio_name, artist_session_cost_amount, quotation_medium, source\n  )',
+    E'q.artist_studio_name, q.artist_session_cost_amount, q.quotation_medium, q.source\n  )',
+    E'    source = excluded.source,\n    updated_at = now()'
+  ];
+  v_to text[] := array[
+    E'artist_studio_name, artist_session_cost_amount, quotation_medium, source, flash_snapshot\n  )',
+    E'q.artist_studio_name, q.artist_session_cost_amount, q.quotation_medium, q.source, q.flash_snapshot\n  )',
+    E'    source = excluded.source,\n    flash_snapshot = coalesce(excluded.flash_snapshot, quotations_db.flash_snapshot),\n    updated_at = now()'
+  ];
+  v_count integer;
+  i integer;
+begin
+  -- save_web_quotation_with_slot no debe tener su propio insert: delega en
+  -- save_web_quotation. Si algún día lo duplica, hay que aplicarle lo mismo.
+  if to_regprocedure('public.save_web_quotation_with_slot(jsonb, jsonb, jsonb)') is not null then
+    v_slot_def := pg_get_functiondef('public.save_web_quotation_with_slot(jsonb, jsonb, jsonb)'::regprocedure);
+    if position('public.save_web_quotation(' in v_slot_def) = 0
+       or v_slot_def ~* 'insert\s+into\s+public\.quotations_db' then
+      raise exception 'save_web_quotation_with_slot ya no delega en save_web_quotation: revisa la migración de Flash Tattoos.';
+    end if;
+  end if;
+
+  v_def := pg_get_functiondef('public.save_web_quotation(jsonb, jsonb)'::regprocedure);
+  if position('flash_snapshot' in v_def) > 0 then
+    raise notice 'save_web_quotation ya guarda flash_snapshot: sin cambios.';
+    return;
+  end if;
+  for i in 1 .. array_length(v_from, 1) loop
+    v_count := (length(v_def) - length(replace(v_def, v_from[i], ''))) / length(v_from[i]);
+    if v_count <> 1 then
+      raise exception 'save_web_quotation: el reemplazo % encontró % ocurrencias (se esperaba 1).', i, v_count;
+    end if;
+    v_def := replace(v_def, v_from[i], v_to[i]);
+  end loop;
+  execute v_def;
+end;
+$migration$;
+
+-- 7. La galería no vuelve "disponible" un flash ya reservado ------------------------
+-- El panel guarda el arreglo entero: una pestaña con datos viejos traería
+-- available = true de un flash que ya se reservó. Solo se toca flash.available
+-- de esos ítems (la forma del ítem no cambia: el CHECK de la galería sigue igual).
+create or replace function public.fn_artists_flash_keep_reserved()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_reserved constant text[] := array['client_approved', 'in_progress', 'en_progreso', 'artist_completed', 'completed'];
+begin
+  if new.user_id is null or jsonb_typeof(new.gallery_feed_items) is distinct from 'array' then
+    return new;
+  end if;
+  if not exists (
+    select 1
+      from jsonb_array_elements(new.gallery_feed_items) as feed(item)
+     where jsonb_typeof(feed.item) = 'object'
+       and feed.item ->> 'category' = 'flash'
+       and jsonb_typeof(feed.item -> 'flash') = 'object'
+       and coalesce(feed.item #>> '{flash,mode}', 'unique') = 'unique'
+       and (feed.item #> '{flash,available}') = 'true'::jsonb
+       and exists (
+         select 1
+           from public.quotations_db q
+          where q.artist_id = new.user_id
+            and q.source = 'flash'
+            and q.flash_snapshot is not null
+            and q.flash_snapshot ->> 'id' = feed.item ->> 'id'
+            and q.quote_status = any (v_reserved)
+       )
+  ) then
+    return new;
+  end if;
+
+  new.gallery_feed_items := (
+    select coalesce(jsonb_agg(
+             case
+               when jsonb_typeof(feed.item) = 'object'
+                    and feed.item ->> 'category' = 'flash'
+                    and jsonb_typeof(feed.item -> 'flash') = 'object'
+                    and coalesce(feed.item #>> '{flash,mode}', 'unique') = 'unique'
+                    and (feed.item #> '{flash,available}') = 'true'::jsonb
+                    and exists (
+                      select 1
+                        from public.quotations_db q
+                       where q.artist_id = new.user_id
+                         and q.source = 'flash'
+                         and q.flash_snapshot is not null
+                         and q.flash_snapshot ->> 'id' = feed.item ->> 'id'
+                         and q.quote_status = any (v_reserved)
+                    )
+                 then jsonb_set(feed.item, '{flash,available}', 'false'::jsonb, true)
+               else feed.item
+             end
+             order by feed.ord), '[]'::jsonb)
+      from jsonb_array_elements(new.gallery_feed_items) with ordinality as feed(item, ord)
+  );
+  return new;
+end;
+$$;
+
+comment on function public.fn_artists_flash_keep_reserved() is
+  'Flash Tattoos: BEFORE UPDATE OF gallery_feed_items de artists_db. Un flash único con una cotización aprobada o en curso queda available = false aunque la pestaña que guarda traiga true.';
+
+revoke all on function public.fn_artists_flash_keep_reserved() from public, anon, authenticated;
+
+drop trigger if exists trg_artists_flash_keep_reserved on public.artists_db;
+create trigger trg_artists_flash_keep_reserved
+  before update of gallery_feed_items on public.artists_db
+  for each row
+  execute function public.fn_artists_flash_keep_reserved();
 
 notify pgrst, 'reload schema';
 

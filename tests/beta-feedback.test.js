@@ -143,13 +143,29 @@ test('resumen: conteos por rol, tipo y estado; promedio y descartes por encuesta
     assert.equal(s.surveys.length, Object.keys(F.SURVEYS).length);
 });
 
+test('CSV: todas las celdas entre comillas (Excel en español separa por ";")', () => {
+    // Sin comillas, `ok;=1+1` se parte en dos celdas y la segunda es una fórmula.
+    assert.equal(F.csvCell('ok;=1+1'), '"ok;=1+1"');
+    assert.equal(F.csvCell('ok,=1+1'), '"ok,=1+1"');
+    assert.equal(F.csvCell('texto'), '"texto"');
+    assert.equal(F.csvCell(''), '""');
+    assert.equal(F.csvCell(null), '""');
+    assert.equal(F.csvCell(3), '"3"');
+    for (const lead of ['=', '+', '-', '@', '\t', '\r']) assert.equal(F.csvCell(lead + '1+1'), `"'${lead}1+1"`, JSON.stringify(lead));
+    const csv = F.toCsv([{ id: ROW_ID, user_id: UID, role: 'client', kind: 'comment', message: 'ok;=1+1', status: 'new', context: {}, attachments: [] }], new Map());
+    const line = csv.split('\r\n')[1];
+    assert.ok(line.includes('"ok;=1+1"'));
+    // Ninguna celda queda sin comillas.
+    assert.match(line, /^"[^"]*"(,"(?:[^"]|"")*")*$/);
+});
+
 test('CSV: BOM, comillas, guardia contra fórmulas y sin correos', () => {
     const names = new Map([[UID, { client: 'Ana "La" Pérez' }]]);
     const csv = F.toCsv([{
         id: ROW_ID, user_id: UID, role: 'client', kind: 'comment', rating: null, message: '=HYPERLINK("x")\nsegunda línea',
         page_path: '/client/dashboard', status: 'new', context: { lang: 'es', viewport: { w: 1280, h: 800 } }, attachments: [{}]
     }], names);
-    assert.ok(csv.startsWith('﻿id,fecha,tipo_de_cuenta'));
+    assert.ok(csv.startsWith('﻿"id","fecha","tipo_de_cuenta"'));
     assert.match(csv, /"'=HYPERLINK\(""x""\)\nsegunda línea"/);
     assert.match(csv, /"Ana ""La"" Pérez"/);
     assert.match(csv, /1280x800/);
@@ -296,6 +312,46 @@ test('encuesta: respuesta idempotente (misma clave dos veces y carrera de pesta�
     await handlersWith(race).submit(fakeReq({ user: person, body }), res);
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.duplicate, true);
+});
+
+test('encuesta: la clave tiene que ser del tipo de cuenta de la persona (400 si no)', async () => {
+    assert.deepEqual(Object.keys(F.SURVEY_ROLES).sort(), Object.keys(F.SURVEYS).sort(), 'cada encuesta tiene su tipo de cuenta');
+    assert.deepEqual(F.SURVEY_ROLES, {
+        registro_tatuador: 'artist', propuesta_enviada: 'artist', primera_sesion_agendada: 'artist',
+        registro_cliente: 'client', cotizacion_enviada: 'client',
+        registro_estudio: 'studio', primer_tatuador_equipo: 'studio'
+    });
+    // Solo cliente: una encuesta de tatuador o de estudio no entra.
+    const repo = memoryRepo({ roles: { [UID]: { artist: false, client: true, studio: false } } });
+    const h = handlersWith(repo);
+    for (const key of ['registro_tatuador', 'propuesta_enviada', 'primera_sesion_agendada', 'registro_estudio', 'primer_tatuador_equipo']) {
+        const res = fakeRes();
+        await h.submit(fakeReq({ user: person, body: { kind: 'survey', survey_key: key, rating: 5, mode: 'client' } }), res);
+        assert.equal(res.statusCode, 400, key);
+        assert.equal(res.body.code, 'SURVEY_ROLE_MISMATCH', key);
+        assert.equal(res.body.field, 'survey_key');
+        const dismissed = fakeRes();
+        await h.dismiss(fakeReq({ user: person, params: { key }, body: { mode: 'client' } }), dismissed);
+        assert.equal(dismissed.statusCode, 400, 'dismiss ' + key);
+        assert.equal(dismissed.body.code, 'SURVEY_ROLE_MISMATCH');
+    }
+    assert.equal(repo.inserted.length, 0);
+    let res = fakeRes();
+    await h.submit(fakeReq({ user: person, body: { kind: 'survey', survey_key: 'cotizacion_enviada', rating: 4 } }), res);
+    assert.equal(res.statusCode, 201);
+    assert.equal(repo.inserted[0].role, 'client');
+
+    // Tatuador y cliente con modo "client" activo: la encuesta del tatuador se
+    // guarda con el rol del tatuador (no con el modo que manda el front).
+    const both = memoryRepo();
+    res = fakeRes();
+    await handlersWith(both).submit(fakeReq({ user: person, body: { kind: 'survey', survey_key: 'propuesta_enviada', rating: 3, mode: 'client' } }), res);
+    assert.equal(res.statusCode, 201);
+    assert.equal(both.inserted[0].role, 'artist');
+    res = fakeRes();
+    await handlersWith(both).dismiss(fakeReq({ user: person, params: { key: 'registro_cliente' }, body: { mode: 'artist' } }), res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(both.inserted[1].role, 'client');
 });
 
 test('GET /api/feedback/surveys y "Ahora no": no se vuelve a preguntar', async () => {
@@ -468,7 +524,10 @@ test('migración: tabla con RLS, checks, único parcial, índices y sin depender
     assert.match(code, /alter table public\.beta_feedback enable row level security;/);
     assert.match(code, /revoke all on table public\.beta_feedback from anon;/);
     assert.match(code, /for select\s+to authenticated\s+using \(user_id = \(select auth\.uid\(\)\)\)/);
-    assert.match(code, /for insert\s+to authenticated\s+with check \(user_id = \(select auth\.uid\(\)\)\)/);
+    // Solo escribe el servidor: sin grant ni política de insert para authenticated.
+    assert.doesNotMatch(code, /grant insert[^;]*to authenticated/);
+    assert.doesNotMatch(code, /for insert\b/);
+    assert.doesNotMatch(code, /create policy beta_feedback_insert_own/);
     assert.doesNotMatch(code, /for (update|delete|all)\b/, 'sin update ni delete para la persona');
     assert.doesNotMatch(code, /grant (update|delete)[^;]*to authenticated/);
     assert.doesNotMatch(code, /to anon/);
@@ -637,6 +696,52 @@ test('wo-feedback.js: encuestas pendientes sin duplicar y con vencimiento', () =
     assert.equal(WF.prunePending([{ key: 'inventada', at: NOW }], NOW).length, 0);
     assert.equal(WF.questionFor('registro_estudio', ''), F.SURVEYS.registro_estudio);
     assert.equal(WF.questionFor('registro_estudio', '¿Qué tal?'), '¿Qué tal?');
+});
+
+test('wo-feedback.js: cada encuesta pendiente tiene dueño; las de otra cuenta se descartan', () => {
+    assert.deepEqual(WF.SURVEY_ROLES, F.SURVEY_ROLES, 'mismo mapa encuesta → tipo de cuenta que el servidor');
+    // Pedida con sesión: dueño = la cuenta. Sin sesión: 'anon' + pestaña.
+    let list = WF.addPending([], 'registro_tatuador', '', NOW, UID, 'tab-a');
+    assert.equal(list[0].owner, UID);
+    assert.equal(list[0].tab, undefined, 'con dueño no hace falta la pestaña');
+    list = WF.addPending(list, 'cotizacion_enviada', '', NOW, 'anon', 'tab-a');
+    list = WF.addPending(list, 'registro_cliente', '', NOW, 'anon', 'tab-b');
+    list = WF.addPending(list, 'propuesta_enviada', '', NOW, OTHER, 'tab-a');
+    assert.equal(list.length, 4);
+
+    // Entra UID en la pestaña A: suya, más la 'anon' de A; la de OTHER se
+    // descarta; la 'anon' de la pestaña B queda para esa pestaña.
+    const a = WF.claimPending(list, UID, 'tab-a', NOW + 1000);
+    assert.deepEqual(a.mine.map((p) => p.key), ['registro_tatuador', 'cotizacion_enviada']);
+    assert.ok(a.mine.every((p) => p.owner === UID));
+    assert.deepEqual(a.list.map((p) => `${p.key}:${p.owner}`).sort(),
+        ['cotizacion_enviada:' + UID, 'registro_cliente:anon', 'registro_tatuador:' + UID].sort());
+    assert.equal(a.list.some((p) => p.owner === OTHER), false);
+
+    // Otra cuenta en la misma pestaña después: no ve las de UID (y las descarta).
+    const b = WF.claimPending(a.list, OTHER, 'tab-a', NOW + 2000);
+    assert.deepEqual(b.mine, []);
+    assert.deepEqual(b.list.map((p) => p.key), ['registro_cliente']);
+    // La 'anon' de la pestaña B solo la reclama quien entra en B, dentro del plazo.
+    assert.deepEqual(WF.claimPending(b.list, OTHER, 'tab-b', NOW + 3000).mine.map((p) => p.key), ['registro_cliente']);
+    assert.deepEqual(WF.claimPending(b.list, OTHER, 'tab-b', NOW + WF.PENDING_TTL_MS + 1).mine, []);
+    // Sin pestaña (sessionStorage bloqueado) no se reclama una 'anon'.
+    assert.deepEqual(WF.claimPending(b.list, OTHER, '', NOW).mine, []);
+    // Pendientes viejos sin dueño: no se le muestran a nadie.
+    assert.deepEqual(WF.claimPending([{ key: 'registro_cliente', at: NOW }], UID, 'tab-a', NOW).mine, []);
+
+    // Solo se muestran las del tipo de cuenta de la persona.
+    assert.equal(WF.surveyFitsRoles('propuesta_enviada', ['artist']), true);
+    assert.equal(WF.surveyFitsRoles('propuesta_enviada', ['client']), false);
+    assert.equal(WF.surveyFitsRoles('inventada', ['client']), false);
+
+    // El módulo usa el dueño al pedir, al procesar y al quitar.
+    const src = read('public/shared/js/wo-feedback.js');
+    assert.match(src, /addPending\(readPending\(\), key, opts\.question, Date\.now\(\), knownUserId \|\| 'anon', tabId\(\)\)/);
+    assert.match(src, /claimPending\(pending, session\.user\.id, tabId\(\), Date\.now\(\)\)/);
+    assert.match(src, /surveyFitsRoles\(p\.key, st\.roles\)/);
+    assert.match(src, /removePending\(key, session\.user\.id\)/);
+    assert.match(src, /res\.json\.code === 'SURVEY_ROLE_MISMATCH'/);
 });
 
 test('wo-feedback.js: modal y tarjeta accesibles, con todo escapado', () => {

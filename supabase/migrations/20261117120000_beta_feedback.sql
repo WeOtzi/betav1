@@ -7,9 +7,11 @@
 -- no se vuelve a preguntar esa clave.
 --
 -- Escribe y lee el servidor (lib/routes/feedback.js) con service-role: valida,
--- detecta el rol y aplica el tope diario. RLS queda activo igual, como
--- segunda barrera: la persona solo inserta y lee lo suyo (sin la nota interna
--- de soporte), no puede editar ni borrar, y anon no tiene acceso.
+-- detecta el rol y aplica el tope diario. Solo el servidor inserta: un insert
+-- directo de la persona saltaría el tope y le dejaría elegir el rol. RLS queda
+-- activo igual, como segunda barrera: la persona solo lee lo suyo (sin la nota
+-- interna de soporte), no puede insertar, editar ni borrar, y anon no tiene
+-- acceso.
 --
 -- Capturas: rutas del bucket privado `support-attachments`
 -- (`<uid>/feedback/<ts>-<rand>-<nombre>`); soporte las ve con URL firmada.
@@ -116,9 +118,6 @@ grant all on table public.beta_feedback to service_role;
 grant select (id, user_id, role, kind, survey_key, rating, dismissed, message, page_path, page_title,
               context, attachments, created_at)
   on table public.beta_feedback to authenticated;
-grant insert (user_id, role, kind, survey_key, rating, dismissed, message, page_path, page_title,
-              context, attachments)
-  on table public.beta_feedback to authenticated;
 
 drop policy if exists beta_feedback_select_own on public.beta_feedback;
 create policy beta_feedback_select_own
@@ -127,16 +126,10 @@ create policy beta_feedback_select_own
   to authenticated
   using (user_id = (select auth.uid()));
 
+-- Sin grant ni política de insert, update o delete para la persona: el
+-- feedback lo crea el servidor (lib/routes/feedback.js, service-role) y soporte
+-- lo gestiona por el servidor. Por si una versión anterior de esta migración
+-- dejó la política de insert, se quita.
 drop policy if exists beta_feedback_insert_own on public.beta_feedback;
-create policy beta_feedback_insert_own
-  on public.beta_feedback
-  for insert
-  to authenticated
-  with check (user_id = (select auth.uid()));
-
--- status, support_note y handled_by quedan fuera del grant de insert: una fila
--- nueva siempre nace en 'new', sin nota ni responsable.
--- Sin políticas de update ni delete: la persona no puede editar ni borrar su
--- feedback. Soporte lo gestiona por el servidor (service-role).
 
 commit;

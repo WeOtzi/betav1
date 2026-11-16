@@ -295,12 +295,15 @@
     /**
      * Precargado del diálogo "Aceptar y enviar presupuesto" para una cotización
      * de flash: el precio del flash y, si el cliente eligió turno, su duración.
-     * No pisa lo que el artista ya cargó (artist_budget_amount) ni un prefill.
+     * No pisa lo que el artista ya cargó (artist_budget_amount, sesiones
+     * estimadas, duración) ni un prefill.
      */
     function respondPrefill(quote) {
         var view = snapshotView(quote);
         if (!view) return null;
-        var out = { sessions: 1 };
+        var out = {};
+        var savedSessions = quote && quote.tattoo_estimated_sessions;
+        if (savedSessions == null || String(savedSessions).trim() === '') out.sessions = 1;
         var already = toNumber(quote && quote.artist_budget_amount);
         if (view.price != null && !(already != null && already > 0)) {
             out.amount = groupThousands(view.price);
