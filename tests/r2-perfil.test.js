@@ -375,7 +375,11 @@ test('migración 20261116180000: misma fórmula que lib/most-wanted.js, privileg
     }
     assert.match(SQL, /grant select \(artist_user_id, rank, zone_level, awarded_at, computed_at\)\s+on table public\.artist_most_wanted to anon, authenticated;/);
     assert.doesNotMatch(SQL, /grant select[^;]*artist_trend_scores to anon/);
-    assert.doesNotMatch(SQL, /grant (insert|all)[^;]*artist_profile_shares to (anon|authenticated)/);
+    // Compartidos: solo service_role. Cada fila trae sharer_user_id e ip_hash,
+    // y ninguna pantalla la lee: ni grant ni policy para el navegador (SEG-09).
+    assert.doesNotMatch(SQL, /grant [^;]*artist_profile_shares to (public|anon|authenticated)/);
+    assert.doesNotMatch(SQL, /create policy [^;]*on public\.artist_profile_shares/);
+    assert.match(SQL, /grant all on table public\.artist_profile_shares to service_role;/);
     // Embajador: el artista no se lo puede escribir.
     assert.match(SQL, /create trigger trg_guard_artist_embajador\s+before insert or update of embajador on public\.artists_db/);
     assert.match(SQL, /if public\.wo_is_privileged_writer\(\) then\s+return new;/);

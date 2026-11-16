@@ -9,8 +9,10 @@
 --    trg_guard_artist_embajador solo deja cambiarla a soporte / service-role.
 --
 -- 2) COMPARTIDOS. public.artist_profile_shares registra cada vez que alguien
---    comparte un perfil (canal, día, hash de IP). Solo inserta el servidor
---    (POST /api/artist/profile-share, service-role); el artista lee los suyos.
+--    comparte un perfil (canal, día, hash de IP). Solo la toca el servidor
+--    (POST /api/artist/profile-share y el recálculo, service-role): ni el
+--    artista ni soporte la leen desde el navegador, porque cada fila trae
+--    quién compartió (sharer_user_id) y el hash de su IP.
 --
 -- 3) MOST WANTED. Perfiles en tendencia por zona, ventana de 30 días.
 --      puntaje = 1·visitas (tope 300) + 6·cotizaciones + 4·favoritos
@@ -115,7 +117,7 @@ create table if not exists public.artist_profile_shares (
 );
 
 comment on table public.artist_profile_shares is
-  'Veces que se compartió un perfil de artista (canal y día). Inserta solo el servidor; alimenta Most Wanted.';
+  'Veces que se compartió un perfil de artista (canal y día). Solo la lee y la escribe el servidor (service_role); alimenta Most Wanted.';
 
 create index if not exists artist_profile_shares_artist_created_idx
   on public.artist_profile_shares (artist_id, created_at desc);
@@ -126,14 +128,12 @@ create index if not exists artist_profile_shares_sharer_idx
 
 alter table public.artist_profile_shares enable row level security;
 
+-- RLS encendido y sin policies: solo service_role. Ninguna pantalla lee esta
+-- tabla, y cada fila trae sharer_user_id e ip_hash de quien compartió. Si el
+-- panel llega a mostrar "veces compartido", que sea un conteo agregado por RPC
+-- o un select acotado a (id, artist_id, channel, created_at).
 revoke all on table public.artist_profile_shares from public, anon, authenticated;
-grant select on table public.artist_profile_shares to authenticated;
 grant all on table public.artist_profile_shares to service_role;
-
-drop policy if exists artist_profile_shares_owner_read on public.artist_profile_shares;
-create policy artist_profile_shares_owner_read on public.artist_profile_shares
-  for select to authenticated
-  using (artist_id = (select auth.uid()) or (select public.is_support_user()));
 
 -- 3) Most Wanted --------------------------------------------------------------
 

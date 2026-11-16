@@ -118,6 +118,11 @@ límite de frecuencia). Canales: `copy, native, whatsapp, instagram, story, face
 other`. Cuenta una vez por persona (huella de IP con sal, nunca la IP), canal y hora.
 Lo llaman la hoja "Compartir" del perfil y el panel "Compartir mi perfil" del dashboard.
 
+`artist_profile_shares` tiene RLS encendido y ninguna policy: solo la lee y la escribe el
+servidor (`service_role`). Cada fila guarda quién compartió (`sharer_user_id`) y la huella de
+su IP, así que ni el artista ni soporte la consultan desde el navegador. Si el panel llega a
+mostrar "veces compartido", que salga de un conteo agregado por RPC.
+
 ## Tarjeta Open Graph e historia
 
 `public/shared/js/wo-share-cards.js` compone con `<canvas>`:
