@@ -487,7 +487,7 @@ test('P27: opciones de ubicación (la del cliente, sedes del roster, propias y p
     assert.equal(Sesiones.clientPreferredLocation(quoteRow()), null);
     assert.equal(Sesiones.clientPreferredLocation(null), null);
     assert.deepEqual(Sesiones.clientPreferredLocation({ preferred_location_name: 'Sede Sur', preferred_location_kind: 'studio' }),
-        { label: 'Sede Sur', address: '', kind: 'studio', id: null, studio_id: null, place_id: null });
+        { label: 'Sede Sur', address: '', kind: 'studio', id: null, ref: null, studio_id: null, place_id: null, city: '', country: '' });
     assert.equal(Sesiones.clientPreferredLocation({ preferred_location_id: 'no-es-uuid' }), null);
     // Solo el estudio elegido: la dirección sale de su sede principal.
     const byStudio = Sesiones.buildLocationOptions({ studios, studioLocations, quote: { preferred_studio_id: 's1'.padEnd(8, '0') } });
@@ -500,6 +500,120 @@ test('P27: opciones de ubicación (la del cliente, sedes del roster, propias y p
     });
     assert.deepEqual(fromStudio.map((o) => `${o.kind}|${o.location}`), ['client|Estudio Sur - Calle 5 123, Montevideo, Uruguay']);
     assert.deepEqual(Sesiones.buildLocationOptions({}), []);
+});
+
+// REQ-01: contrato cruzado con el frente cot-form. El cotizador guarda la sede elegida en
+// preferred_location_type + preferred_location_ref; antes sesiones buscaba el id en columnas
+// que no existen y "Elegida por el cliente" salía con la dirección de la sede principal.
+test('P27: la sede que eligió el cliente al cotizar llega al agendar con SU dirección (nunca la de la principal)', () => {
+    const cotForm = require('../lib/cot-form');
+    const STUDIO = '11111111-aaaa-4111-8111-111111111111';
+    const CENTRO = '22222222-aaaa-4222-8222-222222222222';
+    const TIGRE = '33333333-aaaa-4333-8333-333333333333';
+    const studios = [{ id: STUDIO, name: 'Estudio X', city: 'Buenos Aires', country: 'Argentina', is_active: true }];
+    const studioLocations = [
+        { id: CENTRO, studio_id: STUDIO, label: 'Centro', is_primary: true, is_active: true, formatted_address: 'Av. Corrientes 2151, Buenos Aires, Argentina', city: 'Buenos Aires', country: 'Argentina' },
+        { id: TIGRE, studio_id: STUDIO, label: 'Tigre', is_primary: false, is_active: true, formatted_address: 'Av. Cazón 500, Tigre, Argentina', city: 'Tigre', country: 'Argentina', google_place_id: 'ChIJ_tigre_place' },
+    ];
+    // Lo que de verdad guarda el cotizador cuando el cliente elige la sede Tigre.
+    const offered = cotForm.buildLocationOptions({ artist: { studio_id: STUDIO }, studios, studioLocations, memberships: [{ studio_id: STUDIO, role: 'resident' }] }, { today: '2026-11-15' });
+    const columns = cotForm.preferredLocationColumns(offered.find((o) => o.ref === TIGRE));
+    assert.equal(columns.preferred_location_type, 'studio_location');
+    assert.equal(columns.preferred_location_ref, TIGRE);
+    const quote = { id: 1, quote_id: 'QN1', ...columns };
+
+    const preferred = Sesiones.clientPreferredLocation(quote);
+    assert.equal(preferred.id, TIGRE, 'el id de la sede sale de preferred_location_ref');
+    assert.equal(preferred.ref, TIGRE);
+    assert.equal(preferred.kind, 'studio_location');
+    assert.equal(preferred.studio_id, STUDIO);
+    assert.deepEqual([preferred.city, preferred.country], ['Tigre', 'Argentina']);
+
+    // Con la sede cargada por la ruta (repo.getStudioLocation(preferred.id)).
+    const loaded = Sesiones.buildLocationOptions({ studios, studioLocations, quote, preferredStudioLocation: studioLocations[1] });
+    assert.deepEqual(loaded.map((o) => [o.key, o.location, o.place_id, o.group]), [
+        [`client:${TIGRE}`, 'Estudio X · Tigre - Av. Cazón 500, Tigre, Argentina', 'ChIJ_tigre_place', 'Elegida por el cliente'],
+    ]);
+    assert.equal(loaded[0].ref, TIGRE, 'la sesión guarda location_ref = la sede elegida');
+    // Sin preferredStudioLocation: la encuentra entre las sedes del estudio ya cargadas.
+    const fromList = Sesiones.buildLocationOptions({ studios, studioLocations, quote, preferredStudioLocation: null });
+    assert.equal(fromList[0].location, 'Estudio X · Tigre - Av. Cazón 500, Tigre, Argentina');
+    // La sede ya no se puede cargar (desactivada o borrada): ciudad y país de la cotización,
+    // NUNCA la dirección de la sede principal.
+    const gone = Sesiones.buildLocationOptions({ studios, studioLocations: [studioLocations[0]], quote, preferredStudioLocation: null });
+    assert.equal(gone[0].kind, 'client');
+    assert.equal(gone[0].location, 'Estudio X · Tigre - Tigre, Argentina');
+    assert.doesNotMatch(JSON.stringify(gone[0]), /Corrientes/);
+    // El resto de las sedes del roster sigue apareciendo aparte.
+    const withRoster = Sesiones.buildLocationOptions({ roster: [{ studio_id: STUDIO, location_id: CENTRO }], studios, studioLocations, quote });
+    assert.deepEqual(withRoster.map((o) => `${o.kind}|${o.location}`), [
+        'client|Estudio X · Tigre - Av. Cazón 500, Tigre, Argentina',
+        'studio|Estudio X · Centro - Av. Corrientes 2151, Buenos Aires, Argentina',
+    ]);
+
+    // El cliente eligió el estudio cuando todavía no tenía sedes (ref null): ahí sí vale la principal.
+    const noSede = cotForm.buildLocationOptions({ artist: { studio_id: STUDIO }, studios, studioLocations: [] }, { today: '2026-11-15' });
+    assert.equal(noSede[0].ref, null);
+    const byStudio = Sesiones.buildLocationOptions({ studios, studioLocations, quote: cotForm.preferredLocationColumns(noSede[0]) });
+    assert.equal(byStudio[0].location, 'Estudio X · Buenos Aires - Av. Corrientes 2151, Buenos Aires, Argentina');
+    assert.equal(byStudio[0].ref, null);
+
+    // Lugar propio del artista: la fila de artist_tattoo_locations con el mismo id.
+    const OWN = '44444444-aaaa-4444-8444-444444444444';
+    const TRIP = '55555555-aaaa-4555-8555-555555555555';
+    const more = cotForm.buildLocationOptions({
+        artist: {},
+        tattooLocations: [{ id: OWN, period_type: 'current', studio_name: 'Taller Sur', city: 'Rosario', country: 'Argentina', agenda_status: 'open' }],
+        trips: [{ id: TRIP, share_enabled: true, status: 'confirmado', city: 'Madrid', country: 'España', start_date: '2027-02-01', end_date: '2027-02-10', event_name: 'Convención' }],
+    }, { today: '2026-11-15' });
+    const ownQuote = cotForm.preferredLocationColumns(more.find((o) => o.type === 'artist_location'));
+    const ownPreferred = Sesiones.clientPreferredLocation(ownQuote);
+    assert.equal(ownPreferred.id, null, 'no es una sede: la ruta no la busca en studio_locations');
+    assert.equal(ownPreferred.ref, OWN);
+    const own = Sesiones.buildLocationOptions({ quote: ownQuote, artistLocations: [{ id: OWN, studio_name: 'Taller Sur', city: 'Rosario', country: 'Argentina', period_type: 'current' }] });
+    assert.deepEqual(own.map((o) => [o.kind, o.ref, o.location]), [['client', OWN, 'Taller Sur - Rosario, Argentina']],
+        'una sola vez: no se repite abajo en "Mis ubicaciones"');
+    // Si la fila ya no está entre las ubicaciones del artista, queda lo guardado en la cotización.
+    const ownGone = Sesiones.buildLocationOptions({ quote: ownQuote, artistLocations: [] });
+    assert.deepEqual(ownGone.map((o) => [o.kind, o.ref, o.location]), [['client', OWN, 'Taller Sur · Rosario - Rosario, Argentina']]);
+    // Viaje publicado: ciudad y país (la etiqueta ya los nombra: no se repiten).
+    const tripQuote = cotForm.preferredLocationColumns(more.find((o) => o.type === 'trip'));
+    const trip = Sesiones.buildLocationOptions({ quote: tripQuote, studios, studioLocations });
+    assert.deepEqual(trip.map((o) => [o.kind, o.ref, o.location]), [['client', TRIP, 'Convención · Madrid · España']]);
+});
+
+test('P27: la ruta de ubicaciones solo busca en studio_locations cuando el cliente eligió una sede', async () => {
+    const SEDE = '33333333-aaaa-4333-8333-333333333333';
+    const STUDIO = '11111111-aaaa-4111-8111-111111111111';
+    const sede = { id: SEDE, studio_id: STUDIO, label: 'Tigre', formatted_address: 'Av. Cazón 500, Tigre, Argentina' };
+    const studio = { id: STUDIO, name: 'Estudio X', is_active: true };
+    const primary = { id: '22222222-aaaa-4222-8222-222222222222', studio_id: STUDIO, label: 'Centro', is_primary: true, formatted_address: 'Av. Corrientes 2151, Buenos Aires, Argentina' };
+    const chosen = quoteRow({
+        preferred_location_type: 'studio_location', preferred_location_ref: SEDE, preferred_location_label: 'Estudio X · Tigre',
+        preferred_location_city: 'Tigre', preferred_location_country: 'Argentina', preferred_location_studio_id: STUDIO,
+    });
+    const withSede = setup({
+        getQuoteRaw: async () => chosen,
+        getStudioLocation: async (id) => (id === SEDE ? sede : null),
+        listStudios: async () => [studio],
+        listStudioLocations: async () => [primary, sede],
+    });
+    const res = await call(withSede.app, 'GET /api/sesiones/locations', { query: { quote: 'QN3501' }, user: { id: ARTIST } });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.options[0].location, 'Estudio X · Tigre - Av. Cazón 500, Tigre, Argentina');
+    assert.equal(res.body.options[0].group, 'Elegida por el cliente');
+    assert.equal(res.body.default_key, `client:${SEDE}`);
+    assert.doesNotMatch(JSON.stringify(res.body.options[0]), /Corrientes/);
+
+    // Un viaje o un lugar propio no son sedes: no se consulta studio_locations por su id.
+    const asked = [];
+    const trip = setup({
+        getQuoteRaw: async () => quoteRow({ preferred_location_type: 'trip', preferred_location_ref: SEDE, preferred_location_label: 'Convención · Madrid', preferred_location_city: 'Madrid', preferred_location_country: 'España' }),
+        getStudioLocation: async (id) => { asked.push(id); return sede; },
+    });
+    const tripRes = await call(trip.app, 'GET /api/sesiones/locations', { query: { quote: 'QN3501' }, user: { id: ARTIST } });
+    assert.deepEqual(asked, []);
+    assert.equal(tripRes.body.options[0].location, 'Convención · Madrid - Madrid, España');
 });
 
 test('payload de email: datos de la sesión, sin claves *_url (withLinks las descarta) ni datos privados', () => {
