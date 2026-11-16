@@ -11,7 +11,10 @@
 //
 // Solo lo dispara el servidor (lib/routes/cot-detalle.js) después de guardar
 // el vínculo; el destinatario sale de la cotización guardada. Sin datos de
-// salud ni de contacto del cliente.
+// salud, WhatsApp ni Instagram del cliente. En las cotizaciones manuales lleva
+// el correo de la cuenta que vinculó (linked_account_email): el nombre es el
+// del cliente que el artista tenía previsto, y sin ese dato no podría notar
+// que la vinculó otra persona.
 // ===========================================================================
 
 // Código que lee la persona: el corto de la cotización (short_code) y, si la
@@ -27,6 +30,12 @@ function detailPath(d) {
     return `/my-quotations/detail?quote=${encodeURIComponent(text(d.quote_id))}`;
 }
 
+// Correo de la cuenta que vinculó: solo si tiene forma de correo.
+function linkedEmail(d) {
+    const email = text(d && d.linked_account_email).toLowerCase();
+    return /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(email) && email.length <= 254 ? email : '';
+}
+
 module.exports = {
     shared_quotation_linked: {
         name: 'Artista: el cliente vinculó la cotización compartida',
@@ -39,6 +48,7 @@ module.exports = {
             quote_code: text(visibleCode(p)),
             artist_name: text(p.artist_name, 'Hola'),
             client_name: text(p.client_name, 'Tu cliente'),
+            linked_account_email: linkedEmail(p),
             quotation_url: text(p.quotation_url),
             chat_url: text(p.chat_url)
         }),
@@ -49,10 +59,13 @@ module.exports = {
             preheader: d => `${text(d.client_name, 'Tu cliente').slice(0, 40)} abrió tu enlace y ya tiene cuenta: pueden seguir por el chat.`,
             eyebrow: 'COTIZACIÓN / CLIENTE VINCULADO',
             headline: () => 'Tu cliente ya tiene cuenta.',
-            intro: d => `${text(d.client_name, 'Tu cliente')} abrió el enlace que le compartiste y vinculó la cotización a su cuenta de We Ötzi. Desde ahora puede responder tu propuesta y escribirte por el chat de la cotización.`,
+            intro: d => (linkedEmail(d)
+                ? `La cuenta ${linkedEmail(d)} abrió el enlace que compartiste y vinculó la cotización de ${text(d.client_name, 'tu cliente')} en We Ötzi. Desde ahora puede responder tu propuesta y escribirte por el chat de la cotización. Si no reconoces ese correo, escríbenos a soporte.`
+                : `${text(d.client_name, 'Tu cliente')} abrió el enlace que le compartiste y vinculó la cotización a su cuenta de We Ötzi. Desde ahora puede responder tu propuesta y escribirte por el chat de la cotización.`),
             rows: d => [
                 ['Cotización', text(visibleCode(d))],
-                ['Cliente', text(d.client_name, 'Tu cliente')]
+                ['Cliente', text(d.client_name, 'Tu cliente')],
+                ['Cuenta que la vinculó', linkedEmail(d)]
             ],
             cta: (d, ctx) => ({ label: 'Abrir la cotización', url: ctx.url(detailPath(d)) })
         }

@@ -354,7 +354,7 @@ test('hoja: cotización manual con desglose, términos y seña; sin propuesta qu
 
 // ------------------------------------------------------------ vínculo desde el enlace
 
-test('vínculo: manual alcanza con el enlace; recibida exige el email verificado de la solicitud', () => {
+test('vínculo: exige el email verificado de la cotización; la manual sin correo alcanza con el enlace (SEG-02)', () => {
     const link = { id: 'l1', quotation_id: 77, artist_id: ARTIST, expires_at: '2026-12-01T00:00:00Z', revoked_at: null };
     const verifiedUser = { id: CLIENT, email: 'Lucia@Example.com', raw: { email_confirmed_at: '2026-11-01T00:00:00Z' } };
     const manual = quoteRow({ source: 'manual', quotation_medium: 'manual', client_email: null });
@@ -362,10 +362,20 @@ test('vínculo: manual alcanza con el enlace; recibida exige el email verificado
 
     assert.deepEqual(logic.claimVerdict(args()), { ok: true, claim: true, setEmail: false });
     assert.deepEqual(logic.claimVerdict(args({ quote: manual })), { ok: true, claim: true, setEmail: true });
-    // Manual con email cargado por el artista: no se pisa.
-    assert.equal(logic.claimVerdict(args({ quote: { ...manual, client_email: 'otro@example.com' } })).setEmail, false);
-    // Manual + cuenta sin email confirmado: se vincula igual, sin copiar el email.
+    // SEG-02 · Manual con el correo del cliente cargado por el artista: un
+    // enlace reenviado no alcanza, la cuenta tiene que ser la de ese correo.
+    const other = logic.claimVerdict(args({ quote: { ...manual, client_email: 'otro@example.com' } }));
+    assert.deepEqual([other.ok, other.status, other.code], [false, 403, 'email_mismatch']);
+    assert.equal(other.error, 'Tu artista envió esta cotización a otro correo. Entra con la cuenta de ese correo o pídele que lo actualice.');
+    // …con el mismo correo verificado se vincula y no se pisa (sin distinguir mayúsculas ni espacios).
+    assert.deepEqual(logic.claimVerdict(args({ quote: { ...manual, client_email: ' LUCIA@example.com ' } })), { ok: true, claim: true, setEmail: false });
+    // …y con el mismo correo pero sin confirmar, no.
+    assert.equal(logic.claimVerdict(args({ quote: { ...manual, client_email: 'lucia@example.com' }, user: { id: CLIENT, email: 'lucia@example.com', raw: {} } })).code, 'email_unverified');
+    assert.equal(logic.claimVerdict(args({ quote: { ...manual, client_email: 'lucia@example.com' }, user: { id: CLIENT, email: 'lucia@example.com', raw: { email_confirmed_at: 'x', user_metadata: { qa_unverified_email: 'true' } } } })).code, 'email_unverified');
+    // Manual SIN correo + cuenta sin email confirmado: se vincula igual, sin copiar el email.
     assert.deepEqual(logic.claimVerdict(args({ quote: manual, user: { id: CLIENT, email: 'x@example.com', raw: {} } })), { ok: true, claim: true, setEmail: false });
+    // El mensaje de las recibidas por el cotizador no cambia.
+    assert.match(logic.claimVerdict(args({ user: { id: CLIENT, email: 'otra@example.com', raw: { email_confirmed_at: 'x' } } })).error, /se pidió con otro correo/);
 
     assert.equal(logic.claimVerdict(args({ user: null })).status, 401);
     assert.equal(logic.claimVerdict(args({ user: { id: CLIENT, email: 'otra@example.com', raw: { email_confirmed_at: 'x' } } })).code, 'email_mismatch');
@@ -616,7 +626,9 @@ test('POST claim: vincula la cotización a la cuenta del cliente y avisa al arti
     assert.equal(db.emails[0].payload.quotation_url, 'https://beta.weotzi.com/my-quotations/detail?quote=COT-AB12CD');
     assert.equal(db.emails[0].payload.quote_code, 'COT-AB12CD', 'sin código corto se muestra el quote_id');
     assert.equal(db.emails[0].options.idempotencyKey, `cot-detalle:linked:COT-AB12CD:${CLIENT}`);
-    assert.doesNotMatch(JSON.stringify(db.emails[0].payload), /SECRETO|300 111|lucia@example\.com/, 'el aviso no lleva contacto ni salud');
+    // SEG-02: el artista ve qué cuenta vinculó (client_name es el cliente que él tenía previsto).
+    assert.equal(db.emails[0].payload.linked_account_email, 'lucia@example.com');
+    assert.doesNotMatch(JSON.stringify(db.emails[0].payload), /SECRETO|300 111/, 'el aviso no lleva salud ni teléfono');
 
     // Idempotente: repetir no duplica ni vuelve a avisar.
     const again = await call(handlers.claim, { params: { token }, headers: { authorization: 'Bearer cliente' } });
@@ -673,6 +685,34 @@ test('POST claim: una cotización recibida no se vincula a una cuenta con otro c
     assert.equal(ok.statusCode, 200);
     assert.equal(db.quote.client_user_id, CLIENT);
     assert.equal(db.quote.client_email, 'lucia@example.com');
+    // En las recibidas el aviso no repite el correo: lo gobierna la regla de contacto del detalle.
+    assert.equal(db.emails[0].payload.linked_account_email, '');
+});
+
+test('SEG-02: una manual con el correo del cliente cargado no se vincula a otra cuenta con el enlace reenviado', async () => {
+    const manual = quoteRow({ source: 'manual', quotation_medium: 'manual', quote_status: 'responded', client_email: 'Lucia@Example.com', artist_budget_amount: '900', artist_budget_currency: 'USD' });
+    const { handlers, db } = harness({ users: USERS, quote: manual, manual: MANUAL_DETAILS });
+    const created = await call(handlers.createShare, { params: { quoteId: 'COT-AB12CD' }, headers: ARTIST_AUTH });
+    const token = created.body.url.split('/').pop();
+
+    // La hoja ya le dice a esa cuenta que no puede vincular (no hay botón ni vínculo automático).
+    const seen = await call(handlers.publicSheet, { params: { token }, headers: { authorization: 'Bearer cliente-otro-mail' } });
+    assert.equal(seen.body.viewer.can_claim, false);
+    assert.equal(seen.body.viewer.reason, 'email_mismatch');
+    assert.match(seen.body.viewer.message, /^Tu artista envió esta cotización a otro correo\./);
+
+    const forwarded = await call(handlers.claim, { params: { token }, headers: { authorization: 'Bearer cliente-otro-mail' } });
+    assert.equal(forwarded.statusCode, 403);
+    assert.equal(forwarded.body.code, 'email_mismatch');
+    assert.equal(db.quote.client_user_id, null);
+    assert.equal(db.emails.length, 0);
+
+    // La cuenta del correo cargado sí, y el artista lee qué cuenta fue.
+    const ok = await call(handlers.claim, { params: { token }, headers: { authorization: 'Bearer cliente' } });
+    assert.equal(ok.statusCode, 200);
+    assert.equal(db.quote.client_user_id, CLIENT);
+    assert.equal(db.quote.client_email, 'Lucia@Example.com', 'el correo que cargó el artista no se pisa');
+    assert.equal(db.emails[0].payload.linked_account_email, 'lucia@example.com');
 });
 
 test('POST claim: carrera perdida contra otra cuenta → 409', async () => {
@@ -804,7 +844,16 @@ test('email shared_quotation_linked: solo servidor, al artista, sin datos privad
     assert.doesNotMatch(out.html, /<b>Lucía<\/b>/, 'escapa el nombre');
     assert.doesNotMatch(out.html + out.text, /SECRETO|300 111/);
     const attribs = def.attribs({ quote_id: 'COT-1', client_whatsapp: 'x', client_health_conditions: 'y' });
-    assert.deepEqual(Object.keys(attribs).sort(), ['artist_name', 'chat_url', 'client_name', 'quotation_url', 'quote_code', 'quote_id']);
+    assert.deepEqual(Object.keys(attribs).sort(), ['artist_name', 'chat_url', 'client_name', 'linked_account_email', 'quotation_url', 'quote_code', 'quote_id']);
+    // SEG-02: el correo de la cuenta que vinculó se lee en el cuerpo y en la tabla, no en el asunto (que va al push).
+    assert.doesNotMatch(out.html + out.text, /Cuenta que la vinculó/i, 'sin el dato no hay fila');
+    const linked = renderEmail('shared_quotation_linked', {
+        quote_id: 'COT-AB12CD', artist_email: 'mateo@example.com', client_name: 'Lucía', linked_account_email: 'Otra.Persona@Example.com'
+    }, { role: 'artist' });
+    assert.match(linked.text, /La cuenta otra\.persona@example\.com abrió el enlace que compartiste y vinculó la cotización de Lucía/);
+    assert.match(linked.text, /Cuenta que la vinculó/i);
+    assert.doesNotMatch(linked.subject + linked.preheader, /otra\.persona/i);
+    assert.equal(def.attribs({ linked_account_email: '<script>@x' }).linked_account_email, '', 'solo viaja si tiene forma de correo');
     // CF-03: con código corto, el asunto y la fila lo muestran; el enlace sigue por quote_id.
     const coded = renderEmail('shared_quotation_linked', { quote_id: 'COT-AB12CD', quote_code: 'AB23CD', artist_email: 'mateo@example.com', client_name: 'Lucía' }, { role: 'artist' });
     assert.match(coded.subject, /vinculó la cotización AB23CD a su cuenta$/);
