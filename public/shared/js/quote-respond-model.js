@@ -7,8 +7,10 @@
  *   - quién puede (re)enviar una propuesta: mientras la cotización NO esté
  *     aprobada por ambas partes (P25) y cuándo el saldo acordado está activo;
  *   - respuestas rápidas con variables ({{cliente}}, {{presupuesto}},
- *     {{moneda}}, {{sesiones}}, {{duracion}}, {{seña}}, {{fechas}},
- *     {{estudio}}, {{artista}}) y su resolución antes de guardar (P4);
+ *     {{moneda}}, {{sesiones}}, {{duracion}}, {{anticipo}}, {{fechas}},
+ *     {{estudio}}, {{artista}}) y su resolución antes de guardar (P4).
+ *     {{seña}}, {{sena}}, {{señal}}, {{deposito}} y {{depósito}} siguen
+ *     resolviendo como alias de {{anticipo}} (plantillas ya guardadas);
  *   - fechas ofrecidas: turnos con horario ("slot") y rangos de días
  *     ("range"), su validación, etiquetas en la zona horaria del artista y el
  *     cruce con la agenda real (P4). Lo confirmado bloquea: eventos que
@@ -173,13 +175,15 @@
         { key: 'moneda', label: 'Moneda', hint: 'Moneda del presupuesto' },
         { key: 'sesiones', label: 'Sesiones', hint: 'Cantidad de sesiones' },
         { key: 'duracion', label: 'Duración', hint: 'Duración por sesión' },
-        { key: 'seña', label: 'Seña', hint: 'Seña para reservar' },
+        { key: 'anticipo', label: 'Anticipo', hint: 'Anticipo para reservar' },
         { key: 'fechas', label: 'Fechas', hint: 'Fechas que ofreces' },
         { key: 'estudio', label: 'Estudio', hint: 'Estudio o ubicación' },
         { key: 'artista', label: 'Artista', hint: 'Tu nombre' }
     ];
+    // {{anticipo}} es la variable canónica. Las formas anteriores quedan como
+    // alias: los artistas ya tienen respuestas rápidas guardadas con {{seña}}.
     var VARIABLE_ALIASES = {
-        sena: 'seña', 'señal': 'seña', deposito: 'seña', 'depósito': 'seña',
+        'seña': 'anticipo', sena: 'anticipo', 'señal': 'anticipo', deposito: 'anticipo', 'depósito': 'anticipo',
         'duración': 'duracion', monto: 'presupuesto', precio: 'presupuesto',
         nombre: 'cliente', fecha: 'fechas', turnos: 'fechas', lugar: 'estudio', ubicacion: 'estudio', 'ubicación': 'estudio'
     };
@@ -188,7 +192,7 @@
     var DEFAULT_TEMPLATES = [
         {
             id: 'default-propuesta', title: 'Propuesta completa',
-            body: 'Hola {{cliente}}, gracias por tu solicitud. Mi presupuesto para tu tatuaje es de {{presupuesto}} {{moneda}}, en {{sesiones}} de {{duracion}}. Para reservar pido una seña de {{seña}}. Estas son las fechas que te puedo ofrecer: {{fechas}}. Cuéntame cuál te queda mejor.'
+            body: 'Hola {{cliente}}, gracias por tu solicitud. Mi presupuesto para tu tatuaje es de {{presupuesto}} {{moneda}}, en {{sesiones}} de {{duracion}}. Para reservar pido un anticipo de {{anticipo}}. Estas son las fechas que te puedo ofrecer: {{fechas}}. Cuéntame cuál te queda mejor.'
         },
         {
             id: 'default-fechas', title: 'Fechas disponibles',
@@ -234,7 +238,7 @@
             moneda: currency,
             sesiones: sessionsText(o.sessions),
             duracion: durationText(o.minutes),
-            'seña': deposit,
+            anticipo: deposit,
             fechas: labels.length ? labels.join('; ') : 'a coordinar',
             estudio: clean(o.location) || 'a confirmar',
             artista: clean(o.artistName)

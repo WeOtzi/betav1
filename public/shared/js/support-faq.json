@@ -22,7 +22,7 @@
   {
     "question": "¿Cómo funcionan los pagos?",
     "answer": "WeOtzi facilita el contacto entre cliente y artista, pero los pagos se coordinan directamente entre ambas partes (anticipo, efectivo, transferencia). Recomendamos acordar un anticipo al aceptar la cotización. Si necesitas ayuda con disputas, puedo escalar la conversación a un agente de soporte.",
-    "tags": ["pago", "pagos", "seña", "dinero", "billing", "cobro"]
+    "tags": ["pago", "pagos", "anticipo", "seña", "dinero", "billing", "cobro"]
   },
   {
     "question": "Olvidé mi contraseña, ¿qué hago?",

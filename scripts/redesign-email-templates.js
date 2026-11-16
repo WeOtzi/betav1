@@ -34,7 +34,7 @@ const LABELS = {
     artist_budget_currency: 'Moneda',
     artist_current_city: 'Ciudad del artista',
     artist_name: 'Artista',
-    deposit_text: 'Seña',
+    deposit_text: 'Anticipo',
     artist_response: 'Respuesta',
     artist_studio_name: 'Estudio',
     artistic_name: 'Nombre artístico',

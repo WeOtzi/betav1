@@ -75,7 +75,7 @@ el `quote_id` (texto) o el `id` numérico.
 | GET | `/api/cot-respuesta/quotations/:quoteId/proposal` | Contexto: `editable`, `mode`, `timezone`, `has_schedule`, `extras` (campos de la manual guardados) |
 | GET | `/api/cot-respuesta/quotations/:quoteId/availability?from&to&minutes` | Agenda real por día (máx. 62 días): `status`, `open`, `slots`, `busy` |
 | POST | `/api/cot-respuesta/quotations/:quoteId/proposal` | Valida y guarda. `validate_only: true` solo valida |
-| POST | `/api/cot-respuesta/quotations/:quoteId/agreement-sync` | Tras el acuerdo, alinea la seña de la fila manual |
+| POST | `/api/cot-respuesta/quotations/:quoteId/agreement-sync` | Tras el acuerdo, alinea el anticipo de la fila manual |
 
 Errores del POST: `400 invalid` (`errors` por campo), `400 invalid_offer`,
 `409 slot_conflict` (`conflicts: [{ index, label, reason }]`), `409 approved`,
@@ -127,8 +127,15 @@ no se confía.
 ## Respuestas rápidas y variables (P4)
 
 - Variables: `{{cliente}}`, `{{presupuesto}}`, `{{moneda}}`, `{{sesiones}}`,
-  `{{duracion}}`, `{{seña}}` (también `{{sena}}`), `{{fechas}}`, `{{estudio}}`,
-  `{{artista}}`. El diálogo las inserta con chips y muestra la vista previa.
+  `{{duracion}}`, `{{anticipo}}`, `{{fechas}}`, `{{estudio}}`, `{{artista}}`.
+  El diálogo las inserta con chips y muestra la vista previa.
+- `{{anticipo}}` es la variable canónica del pago para reservar (la que
+  muestran el chip, la ayuda y las plantillas por defecto). `{{seña}}`,
+  `{{sena}}`, `{{señal}}`, `{{deposito}}` y `{{depósito}}` siguen resolviendo
+  al mismo valor como alias (`VARIABLE_ALIASES` en `quote-respond-model.js`):
+  las respuestas rápidas que un artista ya guardó con la forma anterior no se
+  reescriben y siguen funcionando. Mayúsculas y espacios dentro de las llaves
+  no importan (`{{ Anticipo }}`).
 - El mensaje se **guarda ya resuelto** (chat de la cotización, correo y
   `proposal_message`). Si queda una variable desconocida (`{{…}}`), ni el
   diálogo ni el servidor dejan enviar: al cliente nunca le llega una variable
@@ -154,7 +161,7 @@ Dónde se guardan y **qué lee el panel del cliente**:
 | Notas / términos | `artist_manual_quotes.client_notes`, `extra_terms` | "Condiciones del artista" |
 | Complejidad | `artist_manual_quotes.project.complexity` | Fila "Complejidad" |
 | Estudio o ubicación | `quotations_db.artist_studio_name` | Campo "Estudio" del detalle |
-| Seña | `quotations_db.artist_deposit_*` y `artist_manual_quotes.deposit_*` | "Seña y pagos" |
+| Anticipo | `quotations_db.artist_deposit_*` y `artist_manual_quotes.deposit_*` | "Anticipo y pagos" |
 | Fechas ofrecidas | `quotations_db.offered_slots` | "Fechas que te ofrece el artista" |
 | Mensaje | `quotations_db.proposal_message` | Texto bajo el resumen |
 
@@ -193,5 +200,5 @@ que `approvedByBoth`). `summarize()` devuelve `active`:
 ## Email
 
 `artist_updated_quotation_proposal` (server-only, al cliente): presupuesto,
-seña, sesiones, duración, fechas ofrecidas, estudio, vigencia y el mensaje. La
+anticipo, sesiones, duración, fechas ofrecidas, estudio, vigencia y el mensaje. La
 primera respuesta sigue saliendo por `artist_responded_quotation`.

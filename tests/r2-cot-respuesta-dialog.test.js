@@ -119,7 +119,7 @@ function makeEnv(options = {}) {
             if (options.saveError) throw options.saveError;
             return options.saveResult || { success: true, first_response: true, updated: false, extras_saved: true };
         },
-        listTemplates: async () => ({ available: true, rows: [{ id: 'tpl-1', title: `Mía ${XSS}`, body: 'Hola {{cliente}}, te ofrezco {{fechas}}.' }] }),
+        listTemplates: async () => ({ available: true, rows: options.templates || [{ id: 'tpl-1', title: `Mía ${XSS}`, body: 'Hola {{cliente}}, te ofrezco {{fechas}}.' }] }),
         saveTemplate: async (userId, template) => { calls.savedTemplates.push({ userId, template }); return Object.assign({ id: 'tpl-2' }, template); },
         deleteTemplate: async (id) => { calls.deletedTemplates.push(id); },
         syncAgreement: async () => ({ success: true }),
@@ -236,9 +236,13 @@ test('P4: el diálogo abre ancho, con cuatro pestañas y los datos de usuario es
         'Respuestas rápidas', 'Mensaje para el cliente (opcional)', 'Fechas ofrecidas']) {
         assert.ok(shell.includes(label), label);
     }
-    for (const key of ['cliente', 'presupuesto', 'moneda', 'sesiones', 'duracion', 'seña', 'fechas', 'estudio', 'artista']) {
+    for (const key of ['cliente', 'presupuesto', 'moneda', 'sesiones', 'duracion', 'anticipo', 'fechas', 'estudio', 'artista']) {
         assert.ok(shell.includes(`data-qr-var="${key}"`), `chip de ${key}`);
     }
+    // El chip muestra la variable canónica: la anterior ya no se ofrece.
+    assert.ok(shell.includes('data-qr-var="anticipo" title="Anticipo para reservar">{{anticipo}}</button>'), 'chip {{anticipo}} con su ayuda');
+    assert.equal((shell.match(/data-qr-var="/g) || []).length, 9, 'un chip por variable, sin alias');
+    assert.ok(!shell.includes('data-qr-var="seña"') && !shell.includes('{{seña}}'), 'sin chip {{seña}}');
     assert.equal(d.q('#qr-panel-propuesta').hidden, false);
     assert.equal(d.q('#qr-panel-disponibilidad').hidden, true);
     assert.equal(d.q('#qr-tab-propuesta').getAttribute('aria-selected'), 'true');
@@ -381,14 +385,14 @@ test('P29 + P4: desglose, respuestas rápidas, variables y envío con el mensaje
     assert.equal(area.value, 'Hola {{cliente}}, te ofrezco {{fechas}}.');
     area.selectionStart = area.value.length;
     area.selectionEnd = area.value.length;
-    d.click({ 'data-qr-var': 'seña' });
-    assert.equal(area.value, 'Hola {{cliente}}, te ofrezco {{fechas}}. {{seña}}');
+    d.click({ 'data-qr-var': 'anticipo' });
+    assert.equal(area.value, 'Hola {{cliente}}, te ofrezco {{fechas}}. {{anticipo}}');
     assert.equal(d.q('#qr-preview').textContent, 'Hola Lucía, te ofrezco mar 17 nov 2026 · 10:00–13:00. 30 % (135.000 ARS)');
     // Guardar el mensaje como respuesta rápida propia (con las variables sin resolver).
     d.q('[name="template_title"]').value = 'Con anticipo';
     d.click({ 'data-qr-template-save': '' });
     await flush();
-    assert.deepEqual(plain(env.calls.savedTemplates[0]), { userId: 'artist-1', template: { title: 'Con anticipo', body: 'Hola {{cliente}}, te ofrezco {{fechas}}. {{seña}}', sort: 2 } });
+    assert.deepEqual(plain(env.calls.savedTemplates[0]), { userId: 'artist-1', template: { title: 'Con anticipo', body: 'Hola {{cliente}}, te ofrezco {{fechas}}. {{anticipo}}', sort: 2 } });
     assert.equal(d.q('#qr-template-status').textContent, 'Respuesta rápida guardada.');
     // Eliminar pide confirmación en dos pasos.
     d.click({ 'data-qr-template-delete': 'tpl-1' });
@@ -424,6 +428,45 @@ test('P29 + P4: desglose, respuestas rápidas, variables y envío con el mensaje
     assert.equal(d.overlay.removed, true);
     assert.equal(dialog.isOpen(), false);
     assert.equal(env.document.documentElement.classes.has('qr-open'), false);
+});
+
+test('P4: una respuesta rápida guardada con {{seña}} sigue resolviendo como {{anticipo}}', async () => {
+    // Lo que un artista ya tiene guardado en artist_message_templates.
+    const env = makeEnv({
+        templates: [
+            { id: 'tpl-old', title: 'Con seña', body: 'Hola {{cliente}}, para reservar pido {{seña}}.' },
+            { id: 'tpl-alias', title: 'Otras formas', body: '{{sena}} · {{señal}} · {{deposito}} · {{Depósito}} · {{anticipo}}' },
+        ],
+    });
+    const dialog = loadDialog(env);
+    const { ctx, log } = makeCtx();
+    dialog.open(ctx);
+    const d = driver(env);
+    await flush();
+    d.input('deposit_pct', '30');
+    d.click({ 'data-qr-tab': 'mensaje' });
+
+    // Se usa tal como está guardada: el texto del artista no se reescribe.
+    d.click({ 'data-qr-template': 'tpl-old' });
+    const area = d.q('#qr-message');
+    assert.equal(area.value, 'Hola {{cliente}}, para reservar pido {{seña}}.');
+    assert.equal(d.q('#qr-preview').textContent, 'Hola Lucía, para reservar pido 30 % (123.000 ARS).');
+    assert.doesNotMatch(d.q('#qr-preview-note').textContent, /No reconocemos|Sin valor todavía/);
+    assert.equal(d.q('#qr-preview-note').classes.has('is-error'), false);
+
+    // Todas las formas anteriores dan el mismo valor que la canónica.
+    d.input('message', '{{sena}} · {{señal}} · {{deposito}} · {{Depósito}} · {{anticipo}}');
+    assert.equal(d.q('#qr-preview').textContent, Array(5).fill('30 % (123.000 ARS)').join(' · '));
+    assert.doesNotMatch(d.q('#qr-preview-note').textContent, /No reconocemos/);
+
+    // Y se envía resuelta: al cliente no le llega ni {{seña}} ni {{anticipo}}.
+    d.input('message', 'Hola {{cliente}}, para reservar pido {{seña}}.');
+    await d.submit();
+    await flush();
+    assert.equal(env.calls.saves.length, 1);
+    assert.equal(env.calls.saves[0].payload.message, 'Hola Lucía, para reservar pido 30 % (123.000 ARS).');
+    assert.deepEqual(log.chats, ['Hola Lucía, para reservar pido 30 % (123.000 ARS).']);
+    assert.equal(d.q('#qr-error').hidden, true);
 });
 
 test('validación antes de enviar: lleva a la pestaña y al campo con el error', async () => {

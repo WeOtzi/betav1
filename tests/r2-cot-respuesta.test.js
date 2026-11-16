@@ -97,14 +97,16 @@ test('P4: el saldo acordado solo está activo con la cotización aprobada por am
 
 // ------------------------------------------------------- P4 · respuestas rápidas
 test('P4: variables de las respuestas rápidas y mensaje resuelto', () => {
-    assert.deepEqual(M.VARIABLES.map((v) => v.key), ['cliente', 'presupuesto', 'moneda', 'sesiones', 'duracion', 'seña', 'fechas', 'estudio', 'artista']);
+    assert.deepEqual(M.VARIABLES.map((v) => v.key), ['cliente', 'presupuesto', 'moneda', 'sesiones', 'duracion', 'anticipo', 'fechas', 'estudio', 'artista']);
+    assert.deepEqual(M.VARIABLES.find((v) => v.key === 'anticipo'), { key: 'anticipo', label: 'Anticipo', hint: 'Anticipo para reservar' });
+    assert.doesNotMatch(JSON.stringify(M.VARIABLES), /\bse[ñn]as?\b/i, 'los chips y su ayuda ya no nombran la seña');
     const vars = M.templateVars({
         clientName: 'Ana Pérez', artistName: 'Mateo Rivas', amount: '410.000', currency: 'ars', sessions: 2, minutes: 150,
         depositPct: 30, offerLabels: ['sáb 5 dic 2026 · 14:00–17:00', '10 al 15 dic 2026'], location: 'Estudio Norte',
     });
     assert.deepEqual(vars, {
         cliente: 'Ana', presupuesto: '410.000', moneda: 'ARS', sesiones: '2 sesiones', duracion: '2 h 30 min',
-        'seña': '30 % (123.000 ARS)', fechas: 'sáb 5 dic 2026 · 14:00–17:00; 10 al 15 dic 2026',
+        anticipo: '30 % (123.000 ARS)', fechas: 'sáb 5 dic 2026 · 14:00–17:00; 10 al 15 dic 2026',
         estudio: 'Estudio Norte', artista: 'Mateo Rivas',
     });
     const out = M.resolveTemplate('Hola {{cliente}}: {{presupuesto}} {{moneda}}, {{ SENA }}, {{Duración}}, {{fechas}}. {{otra}}', vars);
@@ -112,10 +114,37 @@ test('P4: variables de las respuestas rápidas y mensaje resuelto', () => {
     assert.deepEqual(out.unknown, ['{{otra}}']);
     assert.deepEqual(out.empty, []);
 
+    // {{anticipo}} es la variable canónica. Las anteriores ({{seña}}, {{sena}},
+    // {{señal}}, {{deposito}}, {{depósito}}) siguen resolviendo al mismo valor:
+    // los artistas ya tienen respuestas rápidas guardadas con ellas.
+    assert.equal(M.variableKey('anticipo'), 'anticipo');
+    for (const alias of ['anticipo', 'Anticipo', ' ANTICIPO ', 'seña', 'Seña', 'SEÑA', 'sena', 'Sena', 'señal', 'deposito', 'Deposito', 'depósito', 'DEPÓSITO']) {
+        assert.equal(M.variableKey(alias), 'anticipo', `variableKey(${alias})`);
+        const token = `{{${alias}}}`;
+        const saved = M.resolveTemplate(`Para reservar pido ${token}. Gracias, {{cliente}}.`, vars);
+        assert.equal(saved.text, 'Para reservar pido 30 % (123.000 ARS). Gracias, Ana.', token);
+        assert.deepEqual(saved.unknown, [], token);
+        assert.deepEqual(saved.empty, [], token);
+    }
+    // Una plantilla vieja que mezcla la forma anterior y la nueva.
+    assert.equal(M.resolveTemplate('{{seña}} = {{anticipo}} = {{ depósito }}', vars).text, '30 % (123.000 ARS) = 30 % (123.000 ARS) = 30 % (123.000 ARS)');
+    // Lo que no es un alias sigue sin reconocerse (no se resuelve por parecido).
+    for (const other of ['señas', 'anticipos', 'reserva']) {
+        assert.equal(M.variableKey(other), '', other);
+        assert.deepEqual(M.resolveTemplate(`{{${other}}}`, vars).unknown, [`{{${other}}}`], other);
+    }
+    // El valor sale por la clave canónica: ya no hay una clave "seña" suelta.
+    assert.equal(Object.prototype.hasOwnProperty.call(vars, 'seña'), false);
+    // El chip inserta la forma canónica.
+    assert.equal(M.insertVariable('Reserva con', 'anticipo').text, 'Reserva con {{anticipo}}');
+
     // Sin datos: nada de "undefined" ni huecos antes de la puntuación.
-    const empty = M.resolveTemplate('Hola {{cliente}}, te ofrezco {{fechas}} con {{seña}} en {{estudio}}.', M.templateVars({}));
+    const empty = M.resolveTemplate('Hola {{cliente}}, te ofrezco {{fechas}} con {{anticipo}} en {{estudio}}.', M.templateVars({}));
     assert.equal(empty.text, 'Hola, te ofrezco a coordinar con sin anticipo en a confirmar.');
     assert.deepEqual(empty.empty, ['cliente']);
+    // La misma plantilla guardada con la variable anterior da el mismo mensaje.
+    const legacy = M.resolveTemplate('Hola {{cliente}}, te ofrezco {{fechas}} con {{seña}} en {{estudio}}.', M.templateVars({}));
+    assert.deepEqual(legacy, empty);
     assert.equal(M.templateVars({ sessions: 1, minutes: 60 }).sesiones, '1 sesión');
     assert.equal(M.templateVars({ minutes: 45 }).duracion, '45 min');
 });
@@ -127,7 +156,14 @@ test('P4: set por defecto en español neutro, solo con variables conocidas', () 
         assert.doesNotMatch(t.body + ' ' + t.title, VOSEO, t.id);
         assert.deepEqual(M.resolveTemplate(t.body, M.templateVars({ clientName: 'Ana' })).unknown, [], t.id);
         assert.ok(M.validateTemplate(t).ok, t.id);
+        assert.doesNotMatch(t.body + ' ' + t.title, /\bse[ñn]as?\b/i, t.id + ': el pago para reservar es el anticipo');
     }
+    // La propuesta completa pide el anticipo con la variable canónica.
+    const full = M.DEFAULT_TEMPLATES.find((t) => t.id === 'default-propuesta');
+    assert.ok(full.body.includes('Para reservar pido un anticipo de {{anticipo}}.'));
+    const sent = M.resolveTemplate(full.body, M.templateVars({ clientName: 'Ana Pérez', amount: 410000, currency: 'ARS', sessions: 2, minutes: 180, depositPct: 30 }));
+    assert.ok(sent.text.includes('Para reservar pido un anticipo de 30 % (123.000 ARS).'), sent.text);
+    assert.deepEqual(sent.unknown, []);
 });
 
 test('P4: insertar una variable en el cursor y validar una respuesta rápida', () => {
@@ -676,6 +712,11 @@ test('textos nuevos en español neutro (sin voseo) y documentación del frente',
     const doc = read('docs/COT_RESPUESTA.md');
     for (const term of ['wo:quote-respond', 'offered_slots', 'artist_manual_quotes', 'artist_message_templates', 'artist_updated_quotation_proposal', '/api/cot-respuesta/quotations/:quoteId/proposal']) {
         assert.ok(doc.includes(term), `doc: ${term}`);
+    }
+    // La variable canónica del pago para reservar y los alias que siguen resolviendo.
+    for (const token of ['{{anticipo}}', '{{seña}}', '{{sena}}', '{{señal}}', '{{deposito}}', '{{depósito}}']) {
+        assert.ok(doc.includes('`' + token + '`'), `doc: ${token}`);
+        assert.equal(M.variableKey(token.slice(2, -2)), 'anticipo', `doc y modelo coinciden: ${token}`);
     }
     assert.deepEqual(JSON.parse(read('docs/plans/ronda2-assets/cot-respuesta.json')), [], 'este frente no necesita imágenes');
 });

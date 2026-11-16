@@ -168,14 +168,14 @@ test('P14: punto de extensión registerSource (grupo pagos) y fuentes que fallan
     const window = { WeotziData: { run: async () => ({ data: [] }) } };
     const document = { dispatchEvent: (e) => events.push(e) };
     function CustomEvent(type, init) { this.type = type; this.detail = init && init.detail; }
-    window.WoDashboardActivitySources = [{ name: 'temprana', loader: async () => [{ type: 'payment', text: 'Seña', created_at: 'x' }] }];
+    window.WoDashboardActivitySources = [{ name: 'temprana', loader: async () => [{ type: 'payment', text: 'Anticipo', created_at: 'x' }] }];
     vm.runInNewContext(read('public/shared/js/data/dashboard-repo.js'), { window, console: { error() {}, warn() {} }, document, CustomEvent });
     const A = window.WeotziData.DashboardActivity;
     A.registerSource('payments', async (ctx) => [{ type: 'payment', text: 'Pago recibido · ' + ctx.artistId }]);
     A.registerSource('rota', async () => { throw new Error('boom'); });
     assert.equal(events[0].type, 'weotzi:dashboard-activity-refresh');
     const items = await A.loadSources({ artistId: 'a1' });
-    assert.deepEqual(plain(items.map((i) => i.text).sort()), ['Pago recibido · a1', 'Seña']);
+    assert.deepEqual(plain(items.map((i) => i.text).sort()), ['Anticipo', 'Pago recibido · a1']);
 
     const redesign = read('public/shared/js/dashboard-redesign.js');
     assert.match(redesign, /weotzi:dashboard-activity-refresh/);
