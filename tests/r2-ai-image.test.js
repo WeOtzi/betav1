@@ -1,0 +1,379 @@
+'use strict';
+// Ronda 2 · IA de imágenes neutral de proveedor (lib/ai-image.js): OpenAI
+// GPT Image 2.6 por defecto y Gemini como proveedor heredado. Sin red: todo
+// pedido pasa por un fetch simulado.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const aiImage = require('../lib/ai-image');
+
+const ROOT = path.join(__dirname, '..');
+const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8').replace(/\r\n/g, '\n');
+
+// Ningún test puede salir a la red: si algo llama al fetch global, falla.
+const realFetch = global.fetch;
+test.before(() => { global.fetch = async () => { throw new Error('llamada de red real en un test'); }; });
+test.after(() => { global.fetch = realFetch; });
+
+const KEY = 'sk-test-0123456789abcdef';
+const ENV = Object.freeze({ OPENAI_API_KEY: KEY });
+const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01]).toString('base64');
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52]).toString('base64');
+const WEBP = Buffer.from('RIFF\x24\x00\x00\x00WEBPVP8 ', 'latin1').toString('base64');
+
+function reply(status, payload) {
+    return { ok: status >= 200 && status < 300, status, json: async () => payload };
+}
+
+function okReply(b64 = JPEG) {
+    return reply(200, { created: 1, data: [{ b64_json: b64 }], output_format: 'jpeg', quality: 'medium', size: '1024x1024', usage: {} });
+}
+
+function recorder(response = okReply()) {
+    const calls = [];
+    const fetchImpl = async (url, opts) => {
+        calls.push({ url, opts, body: JSON.parse(opts.body) });
+        return typeof response === 'function' ? response(url, opts) : response;
+    };
+    return { calls, fetchImpl };
+}
+
+function failsWith(expected) {
+    return (error) => {
+        for (const [key, value] of Object.entries(expected)) assert.equal(error[key], value, `${key}: ${JSON.stringify(error.detail || error.message)}`);
+        assert.doesNotMatch(`${error.message} ${error.detail || ''}`, new RegExp(KEY.replace(/[-]/g, '\\-')), 'la clave nunca aparece en el error');
+        return true;
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Pedido a OpenAI
+// ---------------------------------------------------------------------------
+test('OpenAI: URL, cabeceras y cuerpo exactos del pedido; respuesta en image/jpeg', async () => {
+    const { calls, fetchImpl } = recorder();
+    const image = await aiImage.generateImage({ prompt: '  Una golondrina con rosas  ', aspectRatio: '1:1', userKey: 'borrador-1', env: ENV, fetchImpl });
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'https://api.openai.com/v1/images/generations');
+    assert.equal(calls[0].opts.method, 'POST');
+    assert.deepEqual(calls[0].opts.headers, { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' });
+    assert.ok(calls[0].opts.signal instanceof AbortSignal, 'el pedido se puede cortar por tiempo');
+    assert.deepEqual(calls[0].body, {
+        model: 'gpt-image-2.6-flare',
+        prompt: 'Una golondrina con rosas',
+        n: 1,
+        size: '1024x1024',
+        quality: 'medium',
+        output_format: 'jpeg',
+        output_compression: 85,
+        background: 'opaque',
+        moderation: 'auto',
+        safety_identifier: crypto.createHash('sha256').update('borrador-1').digest('hex')
+    });
+    assert.ok(!('response_format' in calls[0].body) && !('style' in calls[0].body), 'GPT Image no admite response_format ni style');
+    assert.doesNotMatch(calls[0].url, /sk-/, 'la clave va en la cabecera, nunca en la URL');
+    assert.doesNotMatch(calls[0].opts.body, /sk-|borrador-1/, 'ni la clave ni el identificador en claro viajan en el cuerpo');
+    assert.deepEqual(image, { mimeType: 'image/jpeg', base64: JPEG, model: 'gpt-image-2.6-flare', provider: 'openai' });
+});
+
+test('OpenAI: sin userKey no se manda safety_identifier; con userKey va solo su SHA-256', async () => {
+    const anon = recorder();
+    await aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: anon.fetchImpl });
+    assert.ok(!('safety_identifier' in anon.calls[0].body));
+    const blank = recorder();
+    await aiImage.generateImage({ prompt: 'p', userKey: '   ', env: ENV, fetchImpl: blank.fetchImpl });
+    assert.ok(!('safety_identifier' in blank.calls[0].body));
+
+    const personal = recorder();
+    await aiImage.generateImage({ prompt: 'p', userKey: 'ana@example.test', env: ENV, fetchImpl: personal.fetchImpl });
+    const sent = personal.calls[0].body.safety_identifier;
+    assert.match(sent, /^[0-9a-f]{64}$/);
+    assert.equal(sent, aiImage.safetyIdentifier('ana@example.test'));
+    assert.doesNotMatch(personal.calls[0].opts.body, /ana@example\.test/, 'nunca un dato personal en claro');
+    assert.equal(aiImage.safetyIdentifier(''), '');
+    assert.equal(aiImage.safetyIdentifier(null), '');
+});
+
+test('OpenAI: mapa de proporciones a tamaños', async () => {
+    const expected = {
+        '1:1': '1024x1024',
+        '4:3': '1536x1024', '3:2': '1536x1024', '16:9': '1536x1024',
+        '3:4': '1024x1536', '2:3': '1024x1536', '9:16': '1024x1536'
+    };
+    for (const [aspect, size] of Object.entries(expected)) {
+        assert.equal(aiImage.sizeForAspect(aspect), size, aspect);
+        const { calls, fetchImpl } = recorder();
+        await aiImage.generateImage({ prompt: 'p', aspectRatio: aspect, env: ENV, fetchImpl });
+        assert.equal(calls[0].body.size, size, aspect);
+    }
+    for (const other of ['7:1', '21:9', '', undefined, null, 42, 'auto', 'constructor', '__proto__', '1024x1536']) {
+        assert.equal(aiImage.sizeForAspect(other), '1024x1024', String(other));
+    }
+    assert.deepEqual([...aiImage.ASPECT_RATIOS].sort(), Object.keys(expected).sort());
+});
+
+test('OpenAI: lista blanca de modelos y calidad; lo desconocido cae al default sin romper', async () => {
+    assert.deepEqual([...aiImage.OPENAI_MODELS], ['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst']);
+    assert.equal(aiImage.OPENAI_DEFAULT_MODEL, 'gpt-image-2.6-flare');
+    const sent = async (args, env = ENV) => {
+        const { calls, fetchImpl } = recorder();
+        const image = await aiImage.generateImage({ prompt: 'p', env, fetchImpl, ...args });
+        assert.equal(image.model, calls[0].body.model);
+        return calls[0].body;
+    };
+    assert.equal((await sent({ model: 'gpt-image-2.6-sunburst' })).model, 'gpt-image-2.6-sunburst');
+    // Un ID viejo de Gemini (p. ej. AI_REFERENCE_MODEL sin actualizar) o cualquier texto raro: default.
+    for (const bad of ['gemini-2.5-flash-image', 'gemini-3-pro-image-preview', '../../v1/files?x=', 'gpt-image-1', '', null, 7]) {
+        assert.equal((await sent({ model: bad })).model, 'gpt-image-2.6-flare', String(bad));
+    }
+    // AI_IMAGE_MODEL es el general; el modelo pedido por la ruta (si es válido) gana.
+    const general = { ...ENV, AI_IMAGE_MODEL: ' gpt-image-2.6-sunburst ' };
+    assert.equal((await sent({}, general)).model, 'gpt-image-2.6-sunburst');
+    assert.equal((await sent({ model: 'gemini-2.5-flash-image' }, general)).model, 'gpt-image-2.6-sunburst');
+    assert.equal((await sent({ model: 'gpt-image-2.6-flare' }, general)).model, 'gpt-image-2.6-flare');
+    assert.equal((await sent({}, { ...ENV, AI_IMAGE_MODEL: 'dall-e-3' })).model, 'gpt-image-2.6-flare');
+
+    assert.equal((await sent({})).quality, 'medium');
+    assert.equal((await sent({}, { ...ENV, AI_IMAGE_QUALITY: 'HIGH' })).quality, 'high');
+    assert.equal((await sent({}, { ...ENV, AI_IMAGE_QUALITY: 'auto' })).quality, 'medium', 'auto no está en la lista: default');
+    assert.equal((await sent({ quality: 'low' }, { ...ENV, AI_IMAGE_QUALITY: 'high' })).quality, 'low');
+    assert.equal((await sent({ quality: 'ultra' }, { ...ENV, AI_IMAGE_QUALITY: 'high' })).quality, 'high');
+});
+
+test('OpenAI: el prompt se recorta al máximo de la API y uno vacío no llega al proveedor', async () => {
+    const long = recorder();
+    await aiImage.generateImage({ prompt: 'x'.repeat(40000), env: ENV, fetchImpl: long.fetchImpl });
+    assert.equal(long.calls[0].body.prompt.length, 32000);
+    for (const empty of ['', '   ', null, undefined]) {
+        const { calls, fetchImpl } = recorder();
+        await assert.rejects(aiImage.generateImage({ prompt: empty, env: ENV, fetchImpl }), failsWith({ code: 'invalid', status: 400 }));
+        assert.equal(calls.length, 0);
+    }
+});
+
+test('OpenAI: el tipo de la imagen sale de sus bytes (jpeg, png o webp)', async () => {
+    for (const [b64, mime] of [[JPEG, 'image/jpeg'], [PNG, 'image/png'], [WEBP, 'image/webp']]) {
+        const image = await aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: recorder(okReply(b64)).fetchImpl });
+        assert.equal(image.mimeType, mime);
+        assert.equal(image.base64, b64);
+    }
+});
+
+// ---------------------------------------------------------------------------
+// Selección de proveedor
+// ---------------------------------------------------------------------------
+test('proveedor según variables: OpenAI por defecto, Gemini heredado, apagado explícito', () => {
+    const info = (env) => aiImage.providerInfo(env);
+    assert.deepEqual(info({}), { provider: 'openai', configured: false, model: 'gpt-image-2.6-flare' });
+    assert.deepEqual(info({ OPENAI_API_KEY: 'k' }), { provider: 'openai', configured: true, model: 'gpt-image-2.6-flare' });
+    assert.deepEqual(info({ OPENAI_API_KEY: 'k', GEMINI_API_KEY: 'g' }), { provider: 'openai', configured: true, model: 'gpt-image-2.6-flare' });
+    assert.deepEqual(info({ GEMINI_API_KEY: 'g' }), { provider: 'gemini', configured: true, model: 'gemini-2.5-flash-image' });
+    assert.deepEqual(info({ OPENAI_API_KEY: 'k', GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'Gemini ' }), { provider: 'gemini', configured: true, model: 'gemini-2.5-flash-image' });
+    assert.deepEqual(info({ OPENAI_API_KEY: 'k', AI_IMAGE_PROVIDER: 'gemini' }), { provider: 'gemini', configured: false, model: 'gemini-2.5-flash-image' });
+    assert.deepEqual(info({ GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'openai' }), { provider: 'openai', configured: false, model: 'gpt-image-2.6-flare' });
+    assert.deepEqual(info({ OPENAI_API_KEY: 'k', AI_IMAGE_PROVIDER: 'cualquiera' }), { provider: 'openai', configured: true, model: 'gpt-image-2.6-flare' });
+    assert.deepEqual(info({ OPENAI_API_KEY: 'k', AI_IMAGE_MODEL: 'gpt-image-2.6-sunburst' }), { provider: 'openai', configured: true, model: 'gpt-image-2.6-sunburst' });
+    assert.deepEqual(info({ OPENAI_API_KEY: '   ' }), { provider: 'openai', configured: false, model: 'gpt-image-2.6-flare' }, 'una clave en blanco no cuenta');
+    for (const off of ['off', 'none', 'OFF', 'disabled']) {
+        assert.deepEqual(info({ OPENAI_API_KEY: 'k', GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: off }), { provider: 'none', configured: false, model: null });
+    }
+    assert.equal(aiImage.isConfigured({ OPENAI_API_KEY: 'k' }), true);
+    assert.equal(aiImage.isConfigured({ GEMINI_API_KEY: 'g' }), true);
+    assert.equal(aiImage.isConfigured({}), false);
+    assert.equal(aiImage.isConfigured({ OPENAI_API_KEY: 'k', AI_IMAGE_PROVIDER: 'off' }), false);
+    assert.doesNotMatch(JSON.stringify(info({ OPENAI_API_KEY: KEY })), /sk-/, 'providerInfo nunca incluye la clave');
+});
+
+test('Gemini heredado: delega en lib/gemini-image.js con su URL y su cabecera', async () => {
+    const seen = [];
+    const fetchImpl = async (url, opts) => {
+        seen.push({ url, opts });
+        return reply(200, { candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: 'QUJD' } }] } }] });
+    };
+    const image = await aiImage.generateImage({ prompt: 'p', model: 'gpt-image-2.6-flare', aspectRatio: '3:4', userKey: 'u', env: { GEMINI_API_KEY: 'g-key' }, fetchImpl });
+    assert.deepEqual(image, { mimeType: 'image/png', base64: 'QUJD', model: 'gemini-2.5-flash-image', provider: 'gemini' });
+    assert.equal(seen[0].url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent');
+    assert.equal(seen[0].opts.headers['x-goog-api-key'], 'g-key');
+    assert.equal(JSON.parse(seen[0].opts.body).generationConfig.imageConfig.aspectRatio, '3:4');
+
+    // Con las dos claves y sin AI_IMAGE_PROVIDER, manda OpenAI.
+    const both = recorder();
+    const viaOpenAi = await aiImage.generateImage({ prompt: 'p', env: { OPENAI_API_KEY: KEY, GEMINI_API_KEY: 'g-key' }, fetchImpl: both.fetchImpl });
+    assert.equal(viaOpenAi.provider, 'openai');
+    assert.equal(both.calls[0].url, 'https://api.openai.com/v1/images/generations');
+
+    // El 429 de Gemini sale con el mismo código que el de OpenAI.
+    await assert.rejects(
+        aiImage.generateImage({ prompt: 'p', env: { GEMINI_API_KEY: 'g-key' }, fetchImpl: async () => reply(429, { error: { message: 'quota' } }) }),
+        (e) => e.status === 429 && e.code === 'rate_limited');
+});
+
+// ---------------------------------------------------------------------------
+// Errores
+// ---------------------------------------------------------------------------
+test('sin clave: not_configured (503) y ningún pedido al proveedor', async () => {
+    for (const env of [{}, { OPENAI_API_KEY: '' }, { OPENAI_API_KEY: KEY, AI_IMAGE_PROVIDER: 'off' }, { OPENAI_API_KEY: KEY, AI_IMAGE_PROVIDER: 'gemini' }, null]) {
+        const { calls, fetchImpl } = recorder();
+        await assert.rejects(aiImage.generateImage({ prompt: 'p', env, fetchImpl }), (e) => e.code === 'not_configured' && e.status === 503);
+        assert.equal(calls.length, 0);
+    }
+    // La clave no se acepta por parámetro: solo del entorno.
+    const { calls, fetchImpl } = recorder();
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', apiKey: KEY, env: {}, fetchImpl }), (e) => e.code === 'not_configured');
+    assert.equal(calls.length, 0);
+});
+
+test('400 con contenido bloqueado: blocked (422), con code, con type o solo con el mensaje', async () => {
+    const run = (payload) => aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: async () => reply(400, payload) });
+    for (const payload of [
+        { error: { message: 'Your request was rejected by the safety system.', type: 'image_generation_user_error', code: 'moderation_blocked' } },
+        { error: { message: 'Rejected.', type: 'invalid_request_error', code: 'content_policy_violation' } },
+        { error: { message: 'x', type: 'image_generation_user_error' } },
+        { error: { message: 'Your request was rejected as a result of our safety system.' } },
+        { error: { code: 'moderation_blocked' } }
+    ]) {
+        await assert.rejects(run(payload), failsWith({ code: 'blocked', status: 422, providerStatus: 400 }));
+    }
+    // Un 400 que NO es de contenido (parámetro o modelo inválido) es un fallo de integración, no del usuario.
+    for (const payload of [
+        { error: { message: "Invalid value: 'gpt-image-9'.", type: 'invalid_request_error', code: 'invalid_value' } },
+        { error: { message: 'Billing hard limit has been reached', type: 'invalid_request_error', code: 'billing_hard_limit_reached' } },
+        { error: 'bad request' },
+        {},
+        null
+    ]) {
+        await assert.rejects(run(payload), failsWith({ code: 'provider', status: 502, providerStatus: 400 }));
+    }
+});
+
+test('401 y 403: provider (502); el detalle queda para el log sin la clave', async () => {
+    const unauthorized = async () => reply(401, { error: { message: `Incorrect API key provided: ${KEY}. You can find your API key at https://platform.openai.com.`, type: 'invalid_request_error', code: 'invalid_api_key' } });
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: unauthorized }), (e) => {
+        failsWith({ code: 'provider', status: 502, providerStatus: 401, providerCode: 'invalid_api_key' })(e);
+        assert.match(e.detail, /^HTTP 401 invalid_api_key: Incorrect API key provided: \[clave\]/);
+        assert.doesNotMatch(e.message, /Incorrect|invalid_api_key|401/, 'el mensaje público no trae el detalle del proveedor');
+        return true;
+    });
+    // OpenAI suele devolver la clave enmascarada: tampoco queda en el detalle.
+    const masked = async () => reply(401, { error: { message: 'Incorrect API key provided: sk-proj-********************cdef.', code: 'invalid_api_key' } });
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: masked }), (e) => !/sk-proj|cdef/.test(e.detail) && /\[clave\]/.test(e.detail));
+
+    const forbidden = async () => reply(403, { error: { message: 'Your organization must be verified to use the model `gpt-image-2.6-flare`.', type: 'invalid_request_error', code: null } });
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: forbidden }), (e) => {
+        failsWith({ code: 'provider', status: 502, providerStatus: 403, providerCode: 'invalid_request_error' })(e);
+        assert.match(e.detail, /^HTTP 403 invalid_request_error: Your organization must be verified/);
+        return true;
+    });
+});
+
+test('429: límite o cuota → 429 (rate_limited) con el código del proveedor en el detalle', async () => {
+    for (const code of ['insufficient_quota', 'rate_limit_exceeded']) {
+        const fetchImpl = async () => reply(429, { error: { message: 'You exceeded your current quota.', type: code, code } });
+        await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl }), (e) => {
+            failsWith({ code: 'rate_limited', status: 429, providerStatus: 429, providerCode: code })(e);
+            assert.match(e.detail, new RegExp(`^HTTP 429 ${code}: `));
+            return true;
+        });
+    }
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: async () => reply(429, null) }), failsWith({ code: 'rate_limited', status: 429 }));
+});
+
+test('5xx, cuerpo que no es JSON y fallo de red: provider (502)', async () => {
+    for (const status of [500, 502, 503, 404]) {
+        const fetchImpl = async () => reply(status, { error: { message: 'The server had an error.', type: 'server_error' } });
+        await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl }), failsWith({ code: 'provider', status: 502, providerStatus: status }));
+    }
+    const html = async () => ({ ok: false, status: 502, json: async () => { throw new SyntaxError('Unexpected token <'); } });
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: html }), (e) => e.code === 'provider' && e.status === 502 && e.detail === 'HTTP 502');
+    const network = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } }); };
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: network }), (e) => e.code === 'provider' && e.status === 502 && /ENOTFOUND/.test(e.detail));
+});
+
+test('timeout: 504 al cortar por tiempo, también si se corta mientras llega el cuerpo', async () => {
+    // El proveedor nunca responde: el AbortController corta el pedido.
+    const hang = (url, opts) => new Promise((resolve, reject) => {
+        opts.signal.addEventListener('abort', () => reject(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })));
+    });
+    const started = Date.now();
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: hang, timeoutMs: 20 }), failsWith({ code: 'timeout', status: 504 }));
+    assert.ok(Date.now() - started < 2000);
+    // Llegan las cabeceras pero el cuerpo se queda a medias.
+    const slowBody = async (url, opts) => ({ ok: true, status: 200, json: () => new Promise((resolve, reject) => {
+        opts.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    }) });
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: slowBody, timeoutMs: 20 }), failsWith({ code: 'timeout', status: 504 }));
+    // AbortSignal.timeout usa TimeoutError: mismo resultado.
+    const timeoutError = async () => { throw Object.assign(new Error('timed out'), { name: 'TimeoutError' }); };
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: timeoutError }), failsWith({ code: 'timeout', status: 504 }));
+    // AI_IMAGE_TIMEOUT_MS: default 120000; un valor inválido no rompe.
+    assert.equal(aiImage.DEFAULT_TIMEOUT_MS, 120000);
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: { ...ENV, AI_IMAGE_TIMEOUT_MS: '1000' }, fetchImpl: hang }), failsWith({ code: 'timeout', status: 504 }));
+    const image = await aiImage.generateImage({ prompt: 'p', env: { ...ENV, AI_IMAGE_TIMEOUT_MS: 'abc' }, fetchImpl: recorder().fetchImpl });
+    assert.equal(image.provider, 'openai');
+});
+
+test('base64 inválido, imagen que no es imagen o demasiado grande: provider (502)', async () => {
+    const run = (b64) => aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: async () => okReply(b64) });
+    const html = Buffer.from('<html><script>alert(1)</script></html>').toString('base64');
+    const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>').toString('base64');
+    for (const bad of ['no es base64 !!', `${JPEG}\n${JPEG}`, `data:image/jpeg;base64,${JPEG}`, '====', html, svg, 'QUJD']) {
+        await assert.rejects(run(bad), failsWith({ code: 'provider', status: 502 }), bad.slice(0, 20));
+    }
+    const huge = JPEG.replace(/=+$/, '') + 'A'.repeat(aiImage.MAX_IMAGE_BASE64);
+    await assert.rejects(run(huge), failsWith({ code: 'provider', status: 502 }));
+    assert.equal(aiImage.MAX_IMAGE_BASE64, require('../lib/gemini-image').MAX_IMAGE_BASE64, 'mismo tope que el proveedor heredado');
+});
+
+test('respuesta 200 sin data: provider (502)', async () => {
+    for (const payload of [{}, { data: [] }, { data: [{}] }, { data: [{ url: 'https://x.test/a.png' }] }, { data: [{ b64_json: 42 }] }, { data: 'x' }, null]) {
+        await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: async () => reply(200, payload) }),
+            failsWith({ code: 'provider', status: 502 }), JSON.stringify(payload));
+    }
+    const notJson = async () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError('x'); } });
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: notJson }), failsWith({ code: 'provider', status: 502 }));
+});
+
+// ---------------------------------------------------------------------------
+// Chequeo de salud (sin generar imágenes)
+// ---------------------------------------------------------------------------
+test('salud: consulta el modelo activo sin gastar cuota y nunca devuelve la clave ni el texto del proveedor', async () => {
+    assert.deepEqual(await aiImage.checkHealth({ env: {}, fetchImpl: async () => { throw new Error('no debería llamar'); } }),
+        { status: 'unconfigured', metadata: { provider: 'openai', model: 'gpt-image-2.6-flare' } });
+    assert.deepEqual(await aiImage.checkHealth({ env: { OPENAI_API_KEY: KEY, AI_IMAGE_PROVIDER: 'off' }, fetchImpl: async () => { throw new Error('no debería llamar'); } }),
+        { status: 'unconfigured', metadata: { provider: 'none' } });
+
+    const seen = [];
+    const ok = async (url, opts) => { seen.push({ url, opts }); return reply(200, { id: 'gpt-image-2.6-flare' }); };
+    assert.deepEqual(await aiImage.checkHealth({ env: ENV, fetchImpl: ok }), { status: 'healthy', metadata: { provider: 'openai', model: 'gpt-image-2.6-flare' } });
+    assert.equal(seen[0].url, 'https://api.openai.com/v1/models/gpt-image-2.6-flare');
+    assert.equal(seen[0].opts.method, 'GET');
+    assert.deepEqual(seen[0].opts.headers, { Authorization: `Bearer ${KEY}` });
+
+    const gemini = [];
+    await aiImage.checkHealth({ env: { GEMINI_API_KEY: 'g-key' }, fetchImpl: async (url, opts) => { gemini.push({ url, opts }); return reply(200, {}); } });
+    assert.doesNotMatch(gemini[0].url, /g-key|key=/, 'la clave de Gemini va en la cabecera, no en la URL');
+    assert.equal(gemini[0].opts.headers['x-goog-api-key'], 'g-key');
+
+    for (const [status, hint] of [[401, /clave fue rechazada/], [403, /verificación/], [404, /modelo no existe/], [429, /cuota/], [500, /HTTP 500/]]) {
+        const fetchImpl = async () => reply(status, { error: { message: `Incorrect API key provided: ${KEY}` } });
+        await assert.rejects(aiImage.checkHealth({ env: ENV, fetchImpl }), (e) => {
+            assert.match(e.message, new RegExp(`OpenAI respondió HTTP ${status}`));
+            assert.match(e.message, hint);
+            assert.doesNotMatch(e.message, /sk-|Incorrect/);
+            return true;
+        });
+    }
+    await assert.rejects(aiImage.checkHealth({ env: ENV, fetchImpl: async () => { throw new TypeError('fetch failed'); } }), /No pudimos conectar con OpenAI/);
+    await assert.rejects(aiImage.checkHealth({ env: ENV, fetchImpl: async () => { throw Object.assign(new Error('t'), { name: 'TimeoutError' }); } }), /no respondió a tiempo/);
+});
+
+test('el módulo no registra la clave ni lee nada del body', () => {
+    // Solo el código: los comentarios pueden nombrar lo que NO se envía.
+    const source = read('lib', 'ai-image.js').replace(/^\s*(\/\/|\/\*|\*).*$/gm, '');
+    assert.doesNotMatch(source, /console\.(log|info|warn|error|debug)/, 'el módulo no escribe logs: el detalle lo decide la ruta');
+    assert.doesNotMatch(source, /req\.body|apiKey\s*=\s*process\.env/, 'la clave sale solo del env recibido');
+    assert.doesNotMatch(source, /response_format|\bstyle\b/);
+});
