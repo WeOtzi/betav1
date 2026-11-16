@@ -195,7 +195,7 @@ Si tu modalidad es Estudio/Ambos, el estudio y su sede se crean o vinculan autom
 - **Galería de trabajos** (se edita aquí): tres categorías — **Trabajos realizados / Flash disponibles / Proyectos** — con subida de fotos y videos (límites: **12 archivos, hasta 2 videos MP4/MOV de máx. 80 MB y 30 s**), importador de Instagram, reordenar arrastrando y lightbox.
 - **Mi perfil / Sobre mí**: tarjeta resumen + bio editable inline (280 caracteres).
 - **Acciones rápidas**: ver perfil público, solicitar verificación, subir fotos, compartir perfil, **generar tarjeta QR** (de tu perfil o galería, PNG/SVG), cambiar contraseña.
-- **Generar foto con IA**: crea un avatar a partir de un prompt (Gemini).
+- **Generar foto con IA**: crea un avatar a partir de un prompt (OpenAI GPT Image; puede tardar hasta dos minutos).
 - **Visitantes** (`/artist/visitors/`): total, únicos, países, ciudades, feed en vivo y mapa de las visitas a tu perfil público.
 
 La edición completa del perfil vive en **`/artist/profile/details`**: identidad, ubicación, estilos, experiencia, tarifa, portfolio, modalidad y estudio, **"Tatuando en" / "Próximamente tatuando en"** (residencias y viajes con fechas y agenda abierta/cerrada — esto alimenta el mapa y el globo), Instagram, WhatsApp, fecha de nacimiento y newsletter. El **email no se puede cambiar** desde el perfil.
@@ -380,7 +380,7 @@ Los usuarios (incluso anónimos) escriben por el widget flotante. La conversaci�
 | **Configuración** | Credenciales y ajustes de la app ⚠️ se guardan solo en el navegador (localStorage) |
 | **Contenido** | Textos de la app persistidos en la base (página de éxito, generador de avatares IA) |
 | **Analytics** | Uso por tipo de usuario, dispositivos, ubicaciones, páginas, errores; métricas de cotizaciones |
-| **APIs** | Integraciones: Supabase, Gemini, Google Drive/Calendar/Maps, n8n, EmailJS, **Apify** (token secreto: una vez guardado solo se ven los últimos 6 caracteres) + salud de servicios |
+| **APIs** | Integraciones: Supabase, IA de imágenes (OpenAI), Google Drive/Calendar/Maps, n8n, EmailJS, **Apify** (token secreto: una vez guardado solo se ven los últimos 6 caracteres) + salud de servicios |
 | **Base de Datos** | Inspector genérico de ~40 tablas: ver, insertar, editar y borrar filas **sin restricciones** (⚠️ escribe directo en producción, sin deshacer) |
 | **Rutas** | Verificación de accesibilidad de todas las rutas |
 | **Backup** | ZIP completo del sistema (código + datos + config), backups selectivos, restauración de configuración |

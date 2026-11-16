@@ -38,7 +38,7 @@ Supabase
   |
   | Integraciones externas
   v
-Google Drive, Gemini, Google Maps, n8n, EmailJS, Apify/Instagram, CDNs
+Google Drive, OpenAI (imagenes con IA), Google Maps, n8n, EmailJS, Apify/Instagram, CDNs
 ```
 
 ### Backend local
@@ -71,7 +71,7 @@ Google Drive, Gemini, Google Maps, n8n, EmailJS, Apify/Instagram, CDNs
 | Supabase Postgres | Datos de producto, RLS, vistas y funciones SQL | Migraciones en `supabase/migrations/`; consultas en JS |
 | Supabase Storage | Imagenes de cotizacion, perfil, galeria, media importada, estudios, spots y documentos | Buckets `quotation-references`, `profile-pictures`, `artist-gallery`, `studio-photos`, `studio-documents`, `studio-spot-attachments` |
 | Google Drive | Carpeta por cotizacion y subida de referencias | `/api/google-drive/*` |
-| Gemini | Generacion de imagen/concepto para tatuajes | `/api/gemini/generate-image` |
+| OpenAI (GPT Image 2.6) | Generacion de imagenes con IA: referencia del cotizador, avatar del artista, inspiracion del Job Board e iconos del backoffice. Gemini queda solo como proveedor heredado | `lib/ai-image.js`; `/api/ai/generate-image` (alias `/api/gemini/generate-image`) y `/api/quotations/ai-reference` |
 | Google Maps/Geocoder | Direcciones, mapas, pins, exploracion | `geocoder.js` (caché del visitante, no persiste), `address-picker.js` |
 | n8n | Webhooks de email/eventos de negocio | `app-config.json`, `/api/studio/notify`, flujos de registro/cotizacion/job board |
 | EmailJS | Notificaciones frontend heredadas | Config publica en `app-config.json` |
@@ -149,7 +149,9 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 
 | Metodo | Ruta | Funcion | Dependencias principales |
 | --- | --- | --- | --- |
-| `POST` | `/api/gemini/generate-image` | Genera imagenes/conceptos con Gemini usando `GEMINI_API_KEY`. | Gemini API |
+| `POST` | `/api/ai/generate-image` | Genera una imagen con IA (OpenAI GPT Image 2.6) usando `OPENAI_API_KEY`; modelo, tamano y calidad los decide el servidor. Limite por IP y tope diario. | `lib/routes/ai-image.js`, `lib/ai-image.js`, OpenAI Images API |
+| `POST` | `/api/gemini/generate-image` | Alias historico de `/api/ai/generate-image` (mismo guard y handler). | `lib/routes/ai-image.js` |
+| `POST` | `/api/quotations/ai-reference` | Referencia con IA del cotizador ("solo referencial"): el servidor arma el prompt y limita por borrador, por IP y por dia. | `lib/routes/cot-form.js`, `lib/ai-image.js` |
 | `POST` | `/api/google-drive/test` | Valida acceso a una carpeta de Google Drive. | Google Drive service account |
 | `POST` | `/api/google-drive/create-quote-folder` | Re-copia manual (superadmin) de referencias a Drive; credenciales solo del `.env`. | Google Drive |
 | `POST` | `/api/quotations/intake` | Autosave y envio del cotizador web (service role, llave `submission_key`). | `services/quotation-intake.js` |
@@ -166,10 +168,10 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `POST` | `/api/tattoo-styles/ensure` | Busca o crea estilo raiz en `tattoo_styles`. | Supabase REST |
 | `POST` | `/api/admin/generate-backup` | Genera ZIP con datos recibidos, config y archivos de app. | `archiver`, filesystem |
 | `GET` | `/api/admin/backup-tables` | Lista tablas conocidas para backup. | `verifyAdminCaller` |
-| `GET` | `/shared/js/app-config.json` | Sirve configuracion publica con overrides de entorno, saneada (`sanitizePublicConfig`: sin service account, Gemini key, PRESET_PASSWORD ni webhook de referencias). | `app-config.json`, env vars |
+| `GET` | `/shared/js/app-config.json` | Sirve configuracion publica con overrides de entorno, saneada (`sanitizePublicConfig`: sin service account, keys de la IA de imagenes, PRESET_PASSWORD ni webhook de referencias; publica `aiImages { enabled, provider }`). | `app-config.json`, env vars |
 | `POST` | `/api/job-board/accept-application` | Cliente acepta postulacion, crea cotizacion, actualiza solicitud y rechaza otras postulaciones. | Supabase REST/Admin |
 | `POST` | `/api/client/quotations/:quoteId/hide` | Oculta cotizacion para el cliente con `client_deleted_at`. | Supabase Auth/REST |
-| `GET` | `/api/health/all` | Healthcheck de todos los servicios configurados. | Supabase, n8n, Gemini, Maps, Drive, EmailJS, Calendar |
+| `GET` | `/api/health/all` | Healthcheck de todos los servicios configurados. | Supabase, n8n, IA de imagenes (OpenAI; clave historica `gemini`), Maps, Drive, EmailJS, Calendar |
 | `GET` | `/api/health/:service` | Healthcheck individual. | Config local/env |
 | `GET` | `/api/health/history/:service` | Historial desde `service_health_logs`. | Supabase |
 | `GET` | `/api/analytics/users` | Sesiones por tipo de usuario y periodo. | `analytics_user_sessions` |
@@ -458,7 +460,8 @@ RPC principales: `create_store_order`, `report_store_payment`, `confirm_store_or
 
 | Archivo/modulo | Rol |
 | --- | --- |
-| `server.js` | Servidor Express, APIs, health, analytics, Google, Gemini, Instagram, backup y clean URLs. |
+| `server.js` | Servidor Express, APIs, health, analytics, Google, Instagram, backup y clean URLs. |
+| `lib/ai-image.js` | Generacion de imagenes con IA neutral de proveedor: OpenAI GPT Image 2.6 por defecto; Gemini heredado en `lib/gemini-image.js`. Rutas en `lib/routes/ai-image.js`. |
 | `lib/prequote-estimator.js` | Logica pura del pre-cotizador. |
 | `lib/app-settings.js` | Lectura/escritura de settings privados/publicos en Supabase (sobre la capa PostgREST). |
 | `lib/postgrest.js` | **Capa PostgREST unificada (servidor):** query-builder sobre `fetch` + service-role. Fuente unica de acceso a datos del backend. Ver `docs/plans/2026-06-21-postgrest-capa-unificada-piloto-cotizaciones.md`. |

@@ -208,3 +208,30 @@ test('las páginas cargan la versión nueva de los scripts que cambiaron', () =>
         }
     }
 });
+
+test('textos legales y documentación: OpenAI es el proveedor de imágenes y sus variables están documentadas', () => {
+    const privacy = read('public', 'legal', 'privacy', 'index.html');
+    const terms = read('public', 'legal', 'terms', 'index.html');
+    assert.match(privacy, /<th scope="row">OpenAI<\/th>/);
+    assert.doesNotMatch(privacy, /Gemini/, 'Gemini ya no procesa datos de la plataforma');
+    assert.match(privacy, /No le enviamos tu nombre, tu email ni tu dirección IP/);
+    assert.match(terms, /inteligencia artificial de OpenAI \(GPT Image\)/);
+    assert.doesNotMatch(terms, /Gemini/);
+
+    const env = read('.env.example');
+    const deploy = read('deployments', 'DEPLOY.md');
+    const technical = read('docs', 'TECHNICAL.md');
+    for (const name of ['OPENAI_API_KEY', 'AI_IMAGE_PROVIDER', 'AI_IMAGE_MODEL', 'AI_REFERENCE_MODEL', 'AI_IMAGE_QUALITY', 'AI_IMAGE_TIMEOUT_MS']) {
+        assert.match(env, new RegExp(`^${name}=$`, 'm'), `.env.example documenta ${name} sin valor`);
+        assert.match(deploy, new RegExp('`' + name + '`'), `DEPLOY.md documenta ${name}`);
+        assert.match(technical, new RegExp('`' + name + '`'), `TECHNICAL.md documenta ${name}`);
+    }
+    for (const doc of [env, deploy, technical]) {
+        assert.match(doc, /gpt-image-2\.6-flare/);
+        assert.match(doc, /verificaci[óo]n|Verificar la organización/, 'avisa que la organización de OpenAI puede necesitar verificación');
+    }
+    assert.doesNotMatch(env, /sk-[A-Za-z0-9]{8,}|AIza[0-9A-Za-z_-]{10,}/, 'sin claves reales en el ejemplo');
+    assert.match(deploy, /proxy PHP[^\n]*60 s/, 'DEPLOY.md avisa del corte del proxy a los 60 s');
+    assert.match(technical, /POST \/api\/ai\/generate-image/);
+    assert.match(read('docs', 'MAPA_APLICACION.md'), /\/api\/ai\/generate-image/);
+});

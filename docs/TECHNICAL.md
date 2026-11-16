@@ -14,7 +14,7 @@ We Ötzi Unified es una aplicación web moderna construida sobre una arquitectur
 *   **Almacenamiento de Archivos**:
     *   **Supabase Storage**: Para activos inmediatos.
     *   **Google Drive**: Para organización de carpetas de cotizaciones y archivos de referencia a largo plazo.
-*   **IA Generativa**: Google Gemini API (modelo `gemini-3-pro-image-preview`) para generación de imágenes.
+*   **IA Generativa**: OpenAI Images API con GPT Image 2.6 (`gpt-image-2.6-flare` por defecto; `gpt-image-2.6-sunburst` para trabajo detallado) para generación de imágenes, vía [`lib/ai-image.js`](../lib/ai-image.js). Gemini queda solo como proveedor heredado ([`lib/gemini-image.js`](../lib/gemini-image.js)).
 
 ## 2. Estructura de Directorios
 
@@ -42,8 +42,17 @@ weotzi-unified/
 El archivo `server.js` expone los siguientes endpoints API:
 
 ### IA & Generación
-*   `POST /api/gemini/generate-image`: Genera imágenes de tatuajes usando Gemini.
-    *   Body: `{ prompt, model, aspectRatio, imageSize, temperature, safetySettings }`. La API key se lee desde `GEMINI_API_KEY` en el entorno del servidor.
+*   `POST /api/ai/generate-image` (alias histórico: `POST /api/gemini/generate-image`, mismo guard y mismo handler · [`lib/routes/ai-image.js`](../lib/routes/ai-image.js)): genera una imagen con el proveedor activo. Lo usan el backoffice (íconos de zonas y prueba de conexión), el avatar con IA del artista y "Inspirarme con AI" del Job Board.
+    *   Body: `{ prompt, aspectRatio?, model? }`. Del navegador solo cuentan el prompt (máx. 4000 caracteres) y la proporción (`1:1`, `4:3`, `3:2`, `16:9`, `3:4`, `2:3`, `9:16`); `model` solo vale si lo pide un superadmin y está en la lista blanca. `imageSize`, `temperature`, `maxOutputTokens` y `safetySettings` se descartan.
+    *   Respuesta: `{ success: true, image: "data:image/jpeg;base64,…", mime_type, provider, model }`. Error: `{ success: false, code, error }` con `400 ai_invalid`, `422 ai_blocked` (contenido bloqueado), `429 ai_busy` (límite o cuota), `502 ai_error`, `503 ai_unavailable` (sin clave) o `504 ai_timeout`. El detalle del proveedor queda solo en el log del servidor (`[ai-image] generación: …`).
+    *   Límites: 20 por hora por IP y un tope diario del proceso (`AI_IMAGE_DAILY_CAP`, con `GEMINI_DAILY_CAP` como alias; 500 por defecto).
+*   Proveedor de imágenes ([`lib/ai-image.js`](../lib/ai-image.js)): OpenAI (`POST https://api.openai.com/v1/images/generations`) cuando hay `OPENAI_API_KEY`; Gemini solo si `AI_IMAGE_PROVIDER=gemini` o si no hay `OPENAI_API_KEY` y sí `GEMINI_API_KEY`; `AI_IMAGE_PROVIDER=off` apaga la función. La clave se lee solo del entorno del servidor: nunca del body ni de la configuración del backoffice.
+    *   Modelos (lista blanca): `gpt-image-2.6-flare` (default) y `gpt-image-2.6-sunburst`. Tamaño según la proporción: `1024x1024`, `1536x1024` (apaisadas) o `1024x1536` (verticales). Salida JPEG (compresión 85), fondo opaco, moderación `auto`. Los modelos GPT Image devuelven siempre base64 (`data[0].b64_json`).
+    *   Al proveedor va un `safety_identifier`: el SHA-256 de la llave del borrador (cotizador) o del id de la cuenta (endpoint genérico con sesión). Nunca email, nombre ni IP.
+    *   Variables: `OPENAI_API_KEY`, `AI_IMAGE_PROVIDER` (`openai` | `gemini` | `off`), `AI_IMAGE_MODEL`, `AI_REFERENCE_MODEL` (cotizador), `AI_IMAGE_QUALITY` (`low` | `medium` | `high`; default `medium`) y `AI_IMAGE_TIMEOUT_MS` (default `120000`). Detalle y puesta en marcha en [`deployments/DEPLOY.md`](../deployments/DEPLOY.md).
+    *   La organización de OpenAI puede necesitar verificación para usar los modelos GPT Image: sin ella la API responde 403 y el endpoint devuelve `502 ai_error`.
+    *   Config pública (`/shared/js/app-config.json`): `aiImages: { enabled, provider }`. `gemini.enabled` conserva el nombre por compatibilidad y vale lo mismo.
+    *   Salud: `GET /api/health/gemini` (clave histórica del servicio) consulta el modelo del proveedor activo sin generar imágenes y devuelve `metadata.provider` y `metadata.model`.
 
 ### Google Drive Integration
 *   `POST /api/google-drive/test`: Verifica conexión y permisos de carpeta.
@@ -61,6 +70,7 @@ El archivo `server.js` expone los siguientes endpoints API:
 *   `POST /api/quotations/suggestions`: artistas sugeridos para una cotización sin artista (`lib/artist-matching.js`: estilo, ciudad/cercanía, presupuesto, verificado). Sin PII.
 *   `POST /api/quotations/intake/job-board`: publica la idea sin artista en el Job Board (requiere sesión de cliente; `401/403 { needs_account: true }`). Idempotente por borrador.
 *   `POST /api/quotations/style-suggestions`: `{ idea?, artist_styles?, limit? }` → estilos del catálogo `tattoo_styles` sugeridos por palabras clave (`public/shared/js/quotation-style-model.js`, compartido con el wizard) y los que trabaja el artista. Público, sin PII: la idea va en el cuerpo y no se guarda ni se registra. El paso Estilo de `/quotation` calcula lo mismo en el navegador (`quotation-style-step.js`); los pasos Cuerpo y Tamaño viven en `quotation-body-map.js` (silueta + zonas de `body_parts`) y `quotation-size-step.js`.
+*   `POST /api/quotations/ai-reference`: referencia generada con IA ("solo referencial"). Body `{ submission_key, idea, styles?, body_part?, color? }`; el prompt, el modelo (`AI_REFERENCE_MODEL`), el tamaño y la calidad los decide el servidor ([`lib/ai-image.js`](../lib/ai-image.js), OpenAI GPT Image). Responde `{ success, image, mime_type, ai_generated, label }`. Límites: 6 por borrador y 30 por IP por hora, más un tope diario (`AI_REFERENCE_DAILY_CAP`, 300 por defecto).
 *   Rate limit propio (no el `apiLimiter` global): 120 por borrador y 1500 por IP cada 15 min en el intake.
 
 ### Pre Cotizador

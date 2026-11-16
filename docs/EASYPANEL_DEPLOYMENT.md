@@ -167,7 +167,8 @@ Para actualizar la aplicacion:
 | `EMAILJS_SERVICE_ID` | ID del servicio EmailJS | No |
 | `EMAILJS_TEMPLATE_ID` | ID del template EmailJS | No |
 | `EMAILJS_PUBLIC_KEY` | Clave publica de EmailJS | No |
-| `GEMINI_API_KEY` | API Key de Google Gemini | No |
+| `OPENAI_API_KEY` | API Key de OpenAI: imagenes con IA (GPT Image 2.6) y chat de soporte | No |
+| `GEMINI_API_KEY` | API Key de Google Gemini (solo proveedor heredado de imagenes: `AI_IMAGE_PROVIDER=gemini`) | No |
 | `GOOGLE_DRIVE_FOLDER_ID` | ID de carpeta Google Drive | No |
 | `GOOGLE_DRIVE_SERVICE_ACCOUNT` | JSON de cuenta de servicio | No |
 
