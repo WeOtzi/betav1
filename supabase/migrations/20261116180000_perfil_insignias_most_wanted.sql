@@ -17,21 +17,27 @@
 --              + 3·compartidos (tope 40) + 8·trabajos completados
 --    - visitas: visitantes únicos por día de artist_profile_visits
 --      (event_kind 'profile_view', sin contar al propio artista).
---    - cotizaciones: clientes distintos que le pidieron cotización
---      (quotations_db con artist_id, sin borradores 'in_progress').
+--    - cotizaciones: personas distintas que le pidieron cotización
+--      (quotations_db con artist_id, sin borradores 'in_progress'): clientes
+--      con cuenta, más hasta 3 correos de solicitudes de invitado. Las
+--      cotizaciones manuales (las carga el artista) no cuentan sin un cliente
+--      vinculado.
 --    - favoritos: client_favorites + (si existe) la función puente
 --      public.wo_favorites_artist_counts(timestamptz) -> (artist_user_id uuid,
 --      favorites bigint) que el frente "favoritos" puede definir sobre su
 --      tabla nueva. Si no existe, no pasa nada.
---    - compartidos: personas distintas por día de artist_profile_shares.
---    - completados: cotizaciones 'completed' / 'artist_completed' cerradas en
---      la ventana.
+--    - compartidos: personas distintas por día de artist_profile_shares, sin
+--      los del propio artista (is_owner o su sesión).
+--    - completados: cotizaciones 'completed' que el cliente cerró desde su
+--      cuenta en la ventana ('artist_completed' lo marca el artista solo).
 --    Zona: la ciudad del artista si en esa ciudad hay 3 o más perfiles
 --    públicos; si no, su país ("resto del país"). Sin ciudad ni país no
 --    participa. Ganan los primeros N de cada zona (N = 1 hasta 4 perfiles,
 --    2 hasta 8, 3 desde 9; tope p_top_n) que además cumplan el mínimo de
---    actividad: puntaje >= 12 y al menos 2 señales distintas. La misma lógica
---    está en lib/most-wanted.js (función pura con tests).
+--    actividad: puntaje >= 12, al menos 2 señales distintas y al menos una
+--    que el artista no puede generar solo (cotización de un cliente con
+--    cuenta, favorito o trabajo cerrado por el cliente). La misma lógica está
+--    en lib/most-wanted.js (función pura con tests).
 --
 --    Materialización:
 --      public.artist_trend_scores  conteos y puntaje (PRIVADO: el artista lee
@@ -160,6 +166,8 @@ create table if not exists public.artist_trend_scores (
   window_days integer not null default 30,
   visits integer not null default 0,
   quotes integer not null default 0,
+  -- De esas, las de clientes con cuenta (las que habilitan la insignia).
+  quotes_account integer not null default 0,
   favorites integer not null default 0,
   shares integer not null default 0,
   completed integer not null default 0,
@@ -310,11 +318,19 @@ begin
        and (pv.visitor_user_id is null or pv.visitor_user_id <> pv.artist_id)
      group by 1
   ),
+  -- Cotizaciones: personas distintas que le pidieron una.
+  --   n_account: clientes con cuenta (sin tope).
+  --   n_guest:   correos distintos de solicitudes sin cuenta, tope 3. Las
+  --              manuales las carga el propio artista: sin un cliente
+  --              vinculado no cuentan.
   q as (
     select qd.artist_id as user_id,
-           count(distinct coalesce(qd.client_user_id::text,
-                                   nullif(lower(btrim(qd.client_email)), ''),
-                                   qd.id::text))::integer as n
+           (count(distinct qd.client_user_id)
+              filter (where qd.client_user_id is not null))::integer as n_account,
+           least(count(distinct nullif(lower(btrim(qd.client_email)), ''))
+                   filter (where qd.client_user_id is null
+                             and coalesce(qd.source, '') <> 'manual'
+                             and coalesce(qd.quotation_medium, '') <> 'manual'), 3)::integer as n_guest
       from public.quotations_db qd
      where qd.artist_id is not null
        and coalesce(qd.sent_to_artist_at, qd.created_at) >= v_since
@@ -322,13 +338,16 @@ begin
        and (qd.client_user_id is null or qd.client_user_id <> qd.artist_id)
      group by 1
   ),
+  -- Trabajos completados: solo los que cerró el cliente desde su cuenta.
+  -- 'artist_completed' lo marca el artista solo y no suma.
   d as (
     select qd.artist_id as user_id, count(*)::integer as n
       from public.quotations_db qd
      where qd.artist_id is not null
-       and qd.quote_status in ('completed', 'artist_completed')
-       and coalesce(qd.client_completed_at, qd.artist_completed_at) >= v_since
-       and (qd.client_user_id is null or qd.client_user_id <> qd.artist_id)
+       and qd.quote_status = 'completed'
+       and qd.client_completed_at >= v_since
+       and qd.client_user_id is not null
+       and qd.client_user_id <> qd.artist_id
      group by 1
   ),
   f as (
@@ -338,19 +357,23 @@ begin
        and cf.client_user_id <> cf.artist_user_id
      group by 1
   ),
+  -- Compartidos: los del propio artista (desde su panel o con su sesión) no suman.
   s as (
     select sh.artist_id as user_id,
            count(distinct (coalesce(sh.ip_hash, sh.sharer_user_id::text, sh.id::text),
                            (sh.created_at at time zone 'utc')::date))::integer as n
       from public.artist_profile_shares sh
      where sh.created_at >= v_since
+       and not sh.is_owner
+       and (sh.sharer_user_id is null or sh.sharer_user_id <> sh.artist_id)
      group by 1
   ),
   agg as (
     select z.user_id, z.zone_key, z.zone_label, z.zone_level, z.zone_country,
            coalesce(zs.n, 0) as zone_size,
            coalesce(v.n, 0) as visits,
-           coalesce(q.n, 0) as quotes,
+           coalesce(q.n_account, 0) + coalesce(q.n_guest, 0) as quotes,
+           coalesce(q.n_account, 0) as quotes_account,
            coalesce(f.n, 0) + least(coalesce((v_extra ->> z.user_id::text)::bigint, 0), 100000)::integer as favorites,
            coalesce(s.n, 0) as shares,
            coalesce(d.n, 0) as completed
@@ -370,21 +393,28 @@ begin
               + (g.shares > 0)::integer + (g.completed > 0)::integer) as signals
       from agg g
   ),
+  -- Mínimo de actividad: puntaje, dos señales y al menos una que el artista
+  -- no puede generar solo (un cliente con cuenta que le cotizó, un favorito o
+  -- un trabajo que cerró el cliente). Visitas sin sesión, compartidos y
+  -- solicitudes de invitado no alcanzan por sí solos.
   ranked as (
     select sc.*,
-           (sc.zone_key is not null and sc.score >= 12 and sc.signals >= 2) as eligible,
+           (sc.zone_key is not null and sc.score >= 12 and sc.signals >= 2
+              and (sc.quotes_account > 0 or sc.favorites > 0 or sc.completed > 0)) as eligible,
            row_number() over (
-             partition by sc.zone_key, (sc.zone_key is not null and sc.score >= 12 and sc.signals >= 2)
+             partition by sc.zone_key,
+                          (sc.zone_key is not null and sc.score >= 12 and sc.signals >= 2
+                             and (sc.quotes_account > 0 or sc.favorites > 0 or sc.completed > 0))
              order by sc.score desc, sc.completed desc, sc.quotes desc, sc.user_id
            )::integer as pos
       from scored sc
   )
   insert into public.artist_trend_scores (
     artist_user_id, zone_key, zone_label, zone_level, zone_country, zone_size, window_days,
-    visits, quotes, favorites, shares, completed, signals, score, zone_rank, most_wanted, computed_at
+    visits, quotes, quotes_account, favorites, shares, completed, signals, score, zone_rank, most_wanted, computed_at
   )
   select r.user_id, r.zone_key, r.zone_label, r.zone_level, r.zone_country, r.zone_size, v_days,
-         r.visits, r.quotes, r.favorites, r.shares, r.completed, r.signals, r.score,
+         r.visits, r.quotes, r.quotes_account, r.favorites, r.shares, r.completed, r.signals, r.score,
          case when r.eligible then r.pos end,
          r.eligible and r.pos <= least(v_top, greatest(1, ceil(r.zone_size * 0.25)::integer)),
          now()

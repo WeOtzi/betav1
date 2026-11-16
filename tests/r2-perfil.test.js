@@ -219,12 +219,28 @@ test('Most Wanted: puntaje, topes, mínimo de actividad y cupos por zona', () =>
     assert.equal(MostWanted.trendScore({ visits: -4, quotes: 'x', favorites: null, shares: 2.9 }), 6);
     assert.equal(MostWanted.trendScore(), 0);
     assert.equal(MostWanted.signalCount({ visits: 3, quotes: 1 }), 2);
-    // Mínimo: 12 puntos Y dos señales distintas.
-    assert.equal(MostWanted.isEligible({ quotes: 3 }), false, 'una sola señal no alcanza');
-    assert.equal(MostWanted.isEligible({ visits: 5, quotes: 1 }), false, '11 puntos');
-    assert.equal(MostWanted.isEligible({ visits: 6, quotes: 1 }), true);
+    // Mínimo: 12 puntos, dos señales distintas Y una que no dependa solo del artista.
+    assert.equal(MostWanted.isEligible({ quotes: 3, quotesAccount: 3 }), false, 'una sola señal no alcanza');
+    assert.equal(MostWanted.isEligible({ visits: 5, quotes: 1, quotesAccount: 1 }), false, '11 puntos');
+    assert.equal(MostWanted.isEligible({ visits: 6, quotes: 1, quotesAccount: 1 }), true);
     assert.equal(MostWanted.isEligible({ quotes: 1, completed: 1 }), true);
     assert.equal(MostWanted.isEligible({}), false, 'un perfil vacío nunca gana');
+    // SEG-06: lo que el artista puede generar solo no alcanza para la insignia.
+    assert.deepEqual(MostWanted.INDEPENDENT_SIGNALS, ['quotesAccount', 'favorites', 'completed']);
+    assert.equal(MostWanted.trendScore({ visits: 3, shares: 3 }), 12);
+    assert.equal(MostWanted.isEligible({ visits: 3, shares: 3 }), false, 'compartir su perfil y abrirlo sin sesión');
+    assert.equal(MostWanted.isEligible({ visits: 300, shares: 40 }), false, 'ni con los topes: 420 puntos sin nadie más');
+    assert.equal(MostWanted.trendScore({ quotes: 5, visits: 1 }), 31);
+    assert.equal(MostWanted.isEligible({ quotes: 5, visits: 1 }), false, 'solo solicitudes de invitado');
+    assert.equal(MostWanted.isEligible({ quotes: 5, quotesAccount: 1, visits: 1 }), true, 'al menos un cliente con cuenta');
+    assert.equal(MostWanted.isEligible({ visits: 8, favorites: 1 }), true, 'un favorito es de otra cuenta');
+    assert.equal(MostWanted.isEligible({ visits: 20, quotesAccount: 4 }), false, 'quotesAccount nunca supera a quotes');
+    assert.equal(MostWanted.hasIndependentSignal({ shares: 9, visits: 9, quotes: 2 }), false);
+    // Cotizaciones: clientes con cuenta sin tope, invitados hasta 3.
+    assert.equal(MostWanted.CAPS.guestQuotes, 3);
+    assert.deepEqual(MostWanted.quoteCount({ account: 2, guest: 9 }), { quotes: 5, quotesAccount: 2 });
+    assert.deepEqual(MostWanted.quoteCount({ guest: 2 }), { quotes: 2, quotesAccount: 0 });
+    assert.deepEqual(MostWanted.quoteCount(), { quotes: 0, quotesAccount: 0 });
     // Cupos: 1 hasta 4 perfiles, 2 hasta 8, 3 desde 9.
     assert.deepEqual([1, 4, 5, 8, 9, 40].map((n) => MostWanted.topNForZone(n)), [1, 1, 2, 2, 3, 3]);
     assert.equal(MostWanted.topNForZone(40, 1), 1);
@@ -234,15 +250,17 @@ test('Most Wanted: puntaje, topes, mínimo de actividad y cupos por zona', () =>
 
 test('Most Wanted: zonas por ciudad (3 o más perfiles) o país, y ranking determinista', () => {
     const artists = [
-        { userId: 'a1', city: 'Buenos Aires', country: 'Argentina', visits: 40, quotes: 3 },
+        { userId: 'a1', city: 'Buenos Aires', country: 'Argentina', visits: 40, quotes: 3, quotesAccount: 2 },
         { userId: 'a2', city: 'buenos aires', country: 'argentina', visits: 10, quotes: 1, completed: 1 },
         { userId: 'a3', city: 'BUENOS  AIRES', country: 'Argentina', quotes: 4 },
         { userId: 'a4', city: 'Buenos Aires', country: 'Argentina' },
         { userId: 'a5', city: 'Buenos Aires', country: 'Argentina', visits: 200 },
         { userId: 'p1', city: 'Pilar', country: 'Argentina', visits: 8, favorites: 2 },
         { userId: 'p2', city: 'Acassuso', country: 'Argentina', visits: 7, shares: 2 },
-        { userId: 'n1', city: '', country: '', visits: 90, quotes: 9 },
-        { userId: 's1', city: 'Sin ciudad', country: 'Chile', quotes: 2, visits: 3 }
+        { userId: 'n1', city: '', country: '', visits: 90, quotes: 9, quotesAccount: 9 },
+        { userId: 's1', city: 'Sin ciudad', country: 'Chile', quotes: 2, quotesAccount: 1, visits: 3 },
+        // SEG-06: mucho puntaje propio (visitas sin sesión, compartidos, invitados) y nadie más.
+        { userId: 'x1', city: 'Lima', country: 'Perú', visits: 300, shares: 40, quotes: 3 }
     ];
     const zones = Object.fromEntries(MostWanted.assignZones(artists).map((z) => [z.userId, z]));
     assert.equal(zones.a1.zoneKey, 'city:buenos aires|argentina');
@@ -260,14 +278,18 @@ test('Most Wanted: zonas por ciudad (3 o más perfiles) o país, y ranking deter
     assert.equal(byId.a3.eligible, false, 'solo cotizaciones: una señal');
     // Buenos Aires (5 perfiles) premia a 2; el resto de Argentina (2 perfiles) a 1; Chile (1) a 1.
     assert.deepEqual(winners.map((w) => `${w.userId}#${w.zoneRank}`), ['a1#1', 'a2#2', 'p1#1', 's1#1']);
-    assert.equal(byId.p2.zoneRank, 2);
+    assert.equal(byId.p2.eligible, false, 'visitas y compartidos: nada que dependa de otra cuenta');
+    assert.equal(byId.p2.zoneRank, null);
     assert.equal(byId.p2.mostWanted, false);
+    assert.equal(byId.x1.score, 438);
+    assert.equal(byId.x1.eligible, false, 'solo en su zona y con 438 puntos, igual no gana');
+    assert.equal(byId.x1.mostWanted, false);
     assert.equal(byId.n1.mostWanted, false, 'sin zona no hay insignia aunque tenga actividad');
     // Empate: gana el de más trabajos completados y después el id.
     const tie = MostWanted.rankMostWanted([
         { userId: 'b', city: 'X', country: 'Y', quotes: 2, completed: 1 },
         { userId: 'a', city: 'X', country: 'Y', quotes: 2, completed: 1 },
-        { userId: 'c', city: 'X', country: 'Y', visits: 4, quotes: 4 }
+        { userId: 'c', city: 'X', country: 'Y', visits: 4, quotes: 4, quotesAccount: 4 }
     ]).scores.sort((x, y) => x.zoneRank - y.zoneRank).map((s) => s.userId);
     assert.deepEqual(tie, ['c', 'a', 'b']);
 });
@@ -293,6 +315,9 @@ test('migración 20261116180000: misma fórmula que lib/most-wanted.js, privileg
     );
     assert.match(SQL, formula);
     assert.match(SQL, new RegExp(`sc\\.score >= ${MostWanted.MIN_SCORE} and sc\\.signals >= ${MostWanted.MIN_SIGNALS}`));
+    // SEG-06: además, una señal que el artista no puede generar solo (en la condición y en la partición del ranking).
+    assert.equal((SQL.match(/sc\.signals >= 2\s+and \(sc\.quotes_account > 0 or sc\.favorites > 0 or sc\.completed > 0\)/g) || []).length, 2);
+    assert.doesNotMatch(SQL, /sc\.signals >= \d+\)/, 'ninguna condición de elegibilidad queda sin la señal independiente');
     assert.match(SQL, new RegExp(`cs\\.n >= ${MostWanted.MIN_CITY_ZONE_SIZE} or b\\.country_key is null`));
     assert.match(SQL, /least\(v_top, greatest\(1, ceil\(r\.zone_size \* 0\.25\)::integer\)\)/);
     assert.match(SQL, /p_window_days integer default 30,\s+p_top_n integer default 3/);
@@ -303,7 +328,17 @@ test('migración 20261116180000: misma fórmula que lib/most-wanted.js, privileg
     assert.match(SQL, /from public\.client_favorites cf/);
     assert.match(SQL, /to_regprocedure\('public\.wo_favorites_artist_counts\(timestamp with time zone\)'\) is not null/);
     assert.match(SQL, /from public\.artist_profile_shares sh/);
-    assert.match(SQL, /qd\.quote_status in \('completed', 'artist_completed'\)/);
+    // SEG-06 · compartidos: los del propio artista no suman.
+    assert.match(SQL, /from public\.artist_profile_shares sh\s+where sh\.created_at >= v_since\s+and not sh\.is_owner\s+and \(sh\.sharer_user_id is null or sh\.sharer_user_id <> sh\.artist_id\)/);
+    // SEG-06 · cotizaciones: con cuenta sin tope; de invitado hasta 3 y nunca las manuales.
+    assert.match(SQL, /count\(distinct qd\.client_user_id\)\s+filter \(where qd\.client_user_id is not null\)\)::integer as n_account/);
+    assert.match(SQL, new RegExp(`least\\(count\\(distinct nullif\\(lower\\(btrim\\(qd\\.client_email\\)\\), ''\\)\\)\\s+filter \\(where qd\\.client_user_id is null\\s+and coalesce\\(qd\\.source, ''\\) <> 'manual'\\s+and coalesce\\(qd\\.quotation_medium, ''\\) <> 'manual'\\), ${MostWanted.CAPS.guestQuotes}\\)::integer as n_guest`));
+    assert.match(SQL, /coalesce\(q\.n_account, 0\) \+ coalesce\(q\.n_guest, 0\) as quotes,\s+coalesce\(q\.n_account, 0\) as quotes_account,/);
+    assert.doesNotMatch(SQL, /qd\.id::text/, 'una cotización sin cliente identificable no suma');
+    assert.match(SQL, /quotes_account integer not null default 0,/);
+    // SEG-06 · completados: solo los que cerró el cliente con su cuenta.
+    assert.match(SQL, /qd\.quote_status = 'completed'\s+and qd\.client_completed_at >= v_since\s+and qd\.client_user_id is not null\s+and qd\.client_user_id <> qd\.artist_id/);
+    assert.doesNotMatch(SQL, /quote_status in \('completed', 'artist_completed'\)|qd\.artist_completed_at/, 'lo que el artista marca solo no suma');
     // Nadie se suma a sí mismo.
     assert.match(SQL, /pv\.visitor_user_id <> pv\.artist_id/);
     assert.match(SQL, /qd\.client_user_id <> qd\.artist_id/);

@@ -55,19 +55,26 @@ materializa con la misma fórmula.
 
 | Señal | Fuente | Peso |
 | --- | --- | --- |
-| Visitas al perfil | `artist_profile_visits` (`profile_view`), visitantes únicos por día, tope 300 | × 1 |
-| Cotizaciones recibidas | `quotations_db` con `artist_id`, clientes distintos, sin borradores `in_progress` | × 6 |
+| Visitas al perfil | `artist_profile_visits` (`profile_view`), visitantes únicos por día, tope 300. No cuenta al artista con su sesión | × 1 |
+| Cotizaciones recibidas | `quotations_db` con `artist_id`, sin borradores `in_progress`: clientes con cuenta distintos (sin tope) + correos distintos de solicitudes de invitado (tope 3). Las cotizaciones manuales sin cliente vinculado no cuentan | × 6 |
 | Veces en favoritos | `client_favorites` + puente opcional (abajo) | × 4 |
-| Veces compartido | `artist_profile_shares`, personas distintas por día, tope 40 | × 3 |
-| Trabajos completados | `quotations_db` `completed` / `artist_completed` cerradas en la ventana | × 8 |
+| Veces compartido | `artist_profile_shares`, personas distintas por día, tope 40. No cuentan los del propio artista (`is_owner` o su sesión) | × 3 |
+| Trabajos completados | `quotations_db` en `completed`, cerradas en la ventana por un cliente con cuenta (`client_completed_at`). `artist_completed` no cuenta | × 8 |
 
 - **Zona**: la ciudad del artista si en ella hay 3 o más perfiles públicos; si no, su país
   ("resto del país"). Sin ciudad ni país el perfil no participa.
 - **Cupos por zona**: 1 ganador hasta 4 perfiles, 2 hasta 8 y 3 desde 9 (tope `p_top_n`).
-- **Mínimo de actividad**: puntaje ≥ 12 **y** al menos 2 señales distintas. Un perfil vacío o
-  con una sola señal nunca gana. Nadie suma a su propio perfil.
+- **Mínimo de actividad**: puntaje ≥ 12, al menos 2 señales distintas **y** al menos una señal
+  que el artista no puede generar solo: una cotización de un cliente con cuenta, un favorito o
+  un trabajo cerrado por el cliente. Un perfil vacío, con una sola señal, o que solo suma
+  visitas, compartidos y solicitudes de invitado nunca gana. Nadie suma a su propio perfil.
 - Los conteos quedan en `public.artist_trend_scores` (privada: el artista lee su fila, soporte
-  todas, anon nada).
+  todas, anon nada). `quotes_account` es la parte de `quotes` que viene de clientes con cuenta.
+
+**Qué se puede forzar todavía.** Las visitas sin sesión y los compartidos anónimos se cuentan
+por hash de IP y día: quien cambia de red puede inflarlos, pero ya no alcanzan para ganar
+(hace falta la señal de otra cuenta) y tienen tope. Un artista con una segunda cuenta de
+cliente verificada sí puede darse esa señal; se detecta mirando `artist_trend_scores`.
 
 ### Favoritos del frente "favoritos"
 
