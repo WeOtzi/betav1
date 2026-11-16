@@ -22,14 +22,14 @@ function json(status, body) {
         text: async () => (body === undefined ? '' : JSON.stringify(body)), json: async () => body };
 }
 
-function installFetch({ clientRow = null, clientsFail = false } = {}) {
+function installFetch({ clientRow = null, clientsFail = false, authUser = { id: 'user-artista', email: 'qa@example.test', email_confirmed_at: '2026-11-16T12:00:00Z' } } = {}) {
     const calls = [];
     global.fetch = async (url, opts = {}) => {
         const u = String(url);
         const method = opts.method || 'GET';
         const body = opts.body ? JSON.parse(opts.body) : undefined;
         calls.push({ url: u, method, body });
-        if (u.endsWith('/auth/v1/user')) return json(200, { id: 'user-artista', email: 'qa@example.test' });
+        if (u.endsWith('/auth/v1/user')) return json(200, authUser);
         if (u.includes('/rest/v1/clients_db')) return clientsFail ? json(500, {}) : json(200, clientRow ? [clientRow] : []);
         if (u.includes('/rest/v1/artists_db')) return json(200, [{ user_id: ARTIST_ID, username: 'ana', name: 'Ana', email: 'ana@example.test', registration_status: 'pendiente de validacion' }]);
         if (u.includes('/rest/v1/rpc/save_web_quotation')) return json(200, { quote_id: intake.deriveQuoteId(KEY), status: 'in_progress' });
@@ -65,6 +65,21 @@ test('sesión de cliente con el mismo correo: la cotización queda vinculada a s
     assert.equal(r.statusCode, 200, JSON.stringify(r.body));
     const rpc = calls.find((c) => c.url.includes('save_web_quotation'));
     assert.equal(rpc.body.p_quote.client_user_id, 'user-artista');
+});
+
+// 2.5.2: el vínculo exige el correo verificado (mismo criterio que isEmailVerified).
+test('sesión con el mismo correo sin verificar (sin confirmar o cuenta de QA): queda como invitado', async () => {
+    for (const authUser of [
+        { id: 'user-artista', email: 'qa@example.test', email_confirmed_at: null },
+        { id: 'user-artista', email: 'qa@example.test', email_confirmed_at: '2026-11-16T12:00:00Z', app_metadata: { qa_unverified_email: true } }
+    ]) {
+        const calls = installFetch({ clientRow: { user_id: 'user-artista' }, authUser });
+        const r = res();
+        await intake.handleIntake({ headers: { authorization: 'Bearer token-cliente' }, body: draftBody() }, r);
+        assert.equal(r.statusCode, 200, JSON.stringify(r.body));
+        const rpc = calls.find((c) => c.url.includes('save_web_quotation'));
+        assert.equal(rpc.body.p_quote.client_user_id, null);
+    }
 });
 
 test('si no se puede consultar clients_db, guarda igual como anónima (nunca traba el wizard)', async () => {

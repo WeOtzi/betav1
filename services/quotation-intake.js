@@ -19,6 +19,7 @@ const { pgrest } = require('../lib/postgrest');
 const { resolveBearerUser } = require('../lib/auth/supabase-auth');
 const cotForm = require('../lib/cot-form');
 const turnosIntake = require('../lib/turnos-intake');
+const { isEmailVerified } = require('../lib/cot-cliente');
 
 const CLIENT_FIELDS = ['tattoo_body_part','tattoo_body_side','tattoo_idea_description','tattoo_size','tattoo_style','tattoo_color_type','reference_images_count','tattoo_references','tattoo_is_first_tattoo','tattoo_is_cover_up','client_full_name','client_email','client_instagram','client_city_residence','client_travel_willing','city_mismatch_acknowledged','style_mismatch_acknowledged','client_preferred_date','client_flexible_dates','client_budget_amount','client_budget_currency','client_contact_preference','client_whatsapp','client_birth_date','client_age','client_health_conditions','client_allergies','tattoo_estimated_sessions'];
 const ARTIST_SELECT = 'user_id,username,name,email,instagram,styles_array,ubicacion,city,estudios,session_price,registration_status';
@@ -85,7 +86,9 @@ function normalizeIntake(body, user, artist) {
     Object.assign(q, {
         quote_id: quoteId,
         quote_status: body.mode === 'submit' ? 'pending' : 'in_progress',
-        client_user_id: user && user.email?.toLowerCase() === q.client_email ? user.id : null,
+        // Solo una cuenta con el correo verificado de verdad (mismo criterio que
+        // lib/cot-cliente.js): una cuenta de QA sin verificar queda como invitado.
+        client_user_id: user && isEmailVerified(user) && String(user.email).trim().toLowerCase() === q.client_email ? user.id : null,
         artist_id: artist?.user_id || null, artist_name: artist?.name || null, artist_email: artist?.email || null,
         artist_instagram: artist?.instagram || null, artist_styles: artist?.styles_array || [],
         artist_current_city: artist?.ubicacion || artist?.city || null, artist_studio_name: artist?.estudios || null,

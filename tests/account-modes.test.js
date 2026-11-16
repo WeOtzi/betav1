@@ -10,8 +10,8 @@ test('profile identity comes from verified session, test email is not considered
 test('unverified test email cannot claim old guest quotations or another client record',()=>{
  const q={client_email:'qa@example.test',client_user_id:null};
  assert.equal(canClaimByEmail({email:q.client_email,raw:{app_metadata:{qa_unverified_email:true}}},q),false);
- assert.equal(canClaimByEmail({email:q.client_email,raw:{}},{...q,client_user_id:'other'}),false);
- assert.equal(canClaimByEmail({email:'QA@example.test',raw:{}},q),true);
+ assert.equal(canClaimByEmail({email:q.client_email,raw:{email_confirmed_at:'2026-11-16T00:00:00Z'}},{...q,client_user_id:'other'}),false);
+ assert.equal(canClaimByEmail({email:'QA@example.test',raw:{email_confirmed_at:'2026-11-16T00:00:00Z'}},q),true);
 });
 test('changing mode requires a session',async()=>{
  const r=response();await activate({headers:{},body:{mode:'client',user_id:'victim'}},r);assert.equal(r.code,401);

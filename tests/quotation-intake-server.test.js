@@ -6,7 +6,7 @@ const artist = {user_id:'artist-user',username:'real.wo',name:'Real',email:'arti
 const body = () => ({submission_key:key,mode:'submit',quotation:{artist_id:'artist-user',client_full_name:'QA',client_email:'qa@example.test',tattoo_idea_description:'Idea',tattoo_style:{style_name:'Realismo'},tattoo_body_part:'Brazo',tattoo_size:'Mediano'}});
 test('el servidor deriva artista y estado sin confiar en destinatario ni propietario del navegador', () => {
  const b=body(); Object.assign(b.quotation,{artist_email:'override@example.test',quote_status:'completed',client_user_id:'other',artist_budget_amount:999});
- const {q}=normalizeIntake(b,{id:'session-user',email:'qa@example.test'},artist);
+ const {q}=normalizeIntake(b,{id:'session-user',email:'qa@example.test',raw:{email_confirmed_at:'2026-11-16T00:00:00Z'}},artist);
  assert.equal(q.artist_email,artist.email); assert.equal(q.quote_status,'pending'); assert.equal(q.client_user_id,'session-user'); assert.equal(q.artist_budget_amount,undefined);
 });
 test('un visitante no puede vincular una cotización a una cuenta ajena',()=>{
