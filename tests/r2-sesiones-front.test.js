@@ -546,6 +546,79 @@ test('calendario: cambiar solo el lugar o la duración de una sesión también l
     assert.match(read('public/calendar/index.html'), /\/shared\/js\/calendar\.js\?v=20261116-r2b"/);
 });
 
+// REQ-17 (P28): una sesión que el cliente todavía no confirmó no es un "turno confirmado".
+// El correo al artista promete que "aparece como 'por confirmar' en tu calendario".
+test('calendario: la sesión sin confirmar por el cliente se muestra y se cuenta "por confirmar"', () => {
+    // 1) El repo marca la sesión con la misma regla que Google Calendar (lib/gcal-sync.js).
+    const sandbox = { console: { error() {}, warn() {}, log() {} }, Date, Map, Set, Promise, Number, String, Object, RegExp, encodeURIComponent };
+    sandbox.window = sandbox;
+    sandbox.WeotziData = { run: async () => ({ data: [] }) };
+    vm.runInNewContext(read('public/shared/js/data/calendar-repo.js'), sandbox, { filename: 'calendar-repo.js' });
+    const { normalizeSession } = sandbox.WeotziData.Calendar._internal;
+    const quotation = { id: 9, quote_id: 'QN1', client_full_name: 'Ana Ruiz' };
+    const session = (extra) => Object.assign({ id: 's-1', quotation_id: 9, session_date: '2026-12-10T15:00:00.000Z', duration_hours: 2, status: 'scheduled' }, extra);
+
+    const pending = normalizeSession(session({ client_confirmation: 'pending' }), quotation);
+    assert.equal(pending.awaitingClient, true);
+    assert.equal(pending.title, 'Sesión (por confirmar) — Ana Ruiz');
+    assert.equal(pending.type, 'confirmed_session', 'el tipo no cambia: el editor depende de él');
+    const changing = normalizeSession(session({ client_confirmation: 'change_requested', status: 'rescheduled' }), quotation);
+    assert.equal(changing.awaitingClient, true);
+    const confirmed = normalizeSession(session({ client_confirmation: 'confirmed' }), quotation);
+    assert.deepEqual([confirmed.awaitingClient, confirmed.title], [false, 'Sesión — Ana Ruiz']);
+    // Sin la migración 20261116150000 la columna no existe: queda como hasta ahora.
+    const legacy = normalizeSession(session(), quotation);
+    assert.deepEqual([legacy.awaitingClient, legacy.title], [false, 'Sesión — Ana Ruiz']);
+    // Una sesión cerrada no espera a nadie.
+    for (const status of ['completed', 'cancelled', 'no_show']) {
+        assert.equal(normalizeSession(session({ client_confirmation: 'pending', status }), quotation).awaitingClient, false, status);
+    }
+    assert.match(read('lib/gcal-sync.js'), /\['pending', 'change_requested'\]\.includes\(String\(session\.client_confirmation \|\| ''\)\)/, 'misma regla que Google Calendar');
+
+    // 2) El calendario: contadores, encabezado y etiqueta del tipo (código real, con dobles).
+    const cal = read('public/shared/js/calendar.js');
+    const slice = (from, to) => {
+        const start = cal.indexOf(from);
+        const end = cal.indexOf(to, start);
+        assert.ok(start >= 0 && end > start, `no encontré el bloque ${from.trim()}`);
+        return cal.slice(start, end);
+    };
+    const code = [
+        slice('    function pad(value) {', '    function eventClass(type) {'),
+        slice('    function monthCounters() {', "    document.addEventListener('wo:booking-summary'"),
+        'this.api = { monthCounters, typeLabel, updateHeaderSummary };',
+    ].join('\n');
+    const el = { 'calendar-summary': { textContent: '' } };
+    const events = [pending, changing, confirmed, legacy,
+        { type: 'confirmed_session', sourceType: 'manual', start: '2026-12-12T15:00:00.000Z', end: '2026-12-12T16:00:00.000Z' },
+        { type: 'pending_request', start: '2026-12-14T15:00:00.000Z', end: '2026-12-14T16:00:00.000Z' }];
+    const calSandbox = {
+        window: {}, el, MONTHS: [], MONTH_VISIBLE_EVENTS: 3,
+        TYPE_META: { confirmed_session: { label: 'Turno confirmado' }, pending_request: { label: 'Solicitud pendiente' } },
+        state: { currentDate: new Date(2026, 11, 15), events },
+    };
+    vm.runInNewContext(code, calSandbox);
+    const counters = calSandbox.api.monthCounters();
+    assert.deepEqual([counters.confirmed, counters.awaiting, counters.pending], [3, 2, 1]);
+    calSandbox.api.updateHeaderSummary();
+    assert.match(el['calendar-summary'].textContent, /^3 turnos confirmados, 2 sesiones por confirmar, 1 solicitud esperando respuesta y 0 días bloqueados este mes\.$/);
+    assert.equal(calSandbox.api.typeLabel(pending), 'Por confirmar');
+    assert.equal(calSandbox.api.typeLabel(confirmed), 'Turno confirmado');
+    assert.equal(calSandbox.api.typeLabel(events[5]), 'Solicitud pendiente');
+    // Sin sesiones por confirmar el encabezado queda como antes.
+    calSandbox.state.events = [confirmed];
+    calSandbox.api.updateHeaderSummary();
+    assert.equal(el['calendar-summary'].textContent, '1 turno confirmado, 0 solicitudes esperando respuesta y 0 días bloqueados este mes.');
+    // La etiqueta del evento (vista día y agenda) sale de typeLabel, no del tipo a secas.
+    assert.match(cal, /const eventType = typeLabel\(event\) \|\| 'Evento';/);
+    assert.match(cal, /const context = \[typeLabel\(event\), event\.location, event\.quoteCode\]/);
+    assert.match(cal, /turnos confirmados'\)\} en total\$\{awaitingPhrase\(awaiting, ' · '\)\}\./);
+    // Las páginas cargan la versión nueva del repo.
+    for (const page of ['public/calendar/index.html', 'public/artist/dashboard/index.html']) {
+        assert.match(read(page), /\/shared\/js\/data\/calendar-repo\.js\?v=20261116-r2b"/, page);
+    }
+});
+
 test('archivos nuevos: español neutro (tuteo), sin CRUD ad-hoc y con estilos del DS', () => {
     const files = [
         'public/shared/js/wo-session-model.js', 'public/shared/js/wo-session-ui.js', 'public/shared/js/wo-session-flow.js',

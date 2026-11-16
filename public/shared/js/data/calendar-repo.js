@@ -158,6 +158,14 @@
         const durationHours = Number(session.duration_hours) > 0 ? Number(session.duration_hours) : 1;
         const end = new Date(start.getTime() + (durationHours * 60 * 60 * 1000));
         const clientName = quotation?.client_full_name || 'Cliente';
+        // ── sesiones (ronda 2 · P28) ── mientras el cliente no la confirma (o
+        // pidió otra fecha) la sesión va "por confirmar", con la misma regla
+        // que Google Calendar (lib/gcal-sync.js). Una sesión ya cerrada no
+        // espera a nadie. Sin la migración 20261116150000 la columna no existe
+        // y queda en false. `type` no cambia: el editor depende de él.
+        const closed = ['cancelled', 'no_show', 'completed'].includes(String(session.status || ''));
+        const awaitingClient = !closed
+            && ['pending', 'change_requested'].includes(String(session.client_confirmation || ''));
         return {
             id: `quotation_session:${session.id}`,
             baseId: session.id,
@@ -165,7 +173,8 @@
             sourceId: String(session.id),
             readonly: false,
             type: 'confirmed_session',
-            title: `Sesión — ${clientName}`,
+            awaitingClient,
+            title: awaitingClient ? `Sesión (por confirmar) — ${clientName}` : `Sesión — ${clientName}`,
             clientName,
             start: start.toISOString(),
             end: end.toISOString(),

@@ -566,8 +566,11 @@
         const from = startOfMonth(state.currentDate);
         const to = endOfMonth(state.currentDate);
         const inMonth = state.events.filter((event) => overlaps(event, from, to));
+        // P28: una sesión que el cliente todavía no confirmó no es un turno
+        // confirmado: se cuenta aparte.
         return {
-            confirmed: inMonth.filter((event) => event.type === 'confirmed_session').length,
+            confirmed: inMonth.filter((event) => event.type === 'confirmed_session' && !isAwaitingClient(event)).length,
+            awaiting: inMonth.filter(isAwaitingClient).length,
             pending: inMonth.filter((event) => event.type === 'pending_request' || (event.type === 'reservation' && event.status !== 'scheduled')).length,
             blocked: new Set(inMonth
                 .filter((event) => event.type === 'blocked_day' && !event.external)
@@ -579,11 +582,28 @@
         return `${count} ${count === 1 ? singular : pluralForm}`;
     }
 
+    // ── sesiones (ronda 2 · P28) ── sesión propuesta que el cliente todavía no
+    // confirmó (calendar-repo la marca con awaitingClient).
+    function isAwaitingClient(event) {
+        return !!event && event.type === 'confirmed_session' && event.awaitingClient === true;
+    }
+
+    // Etiqueta del tipo para un evento: "Por confirmar" en vez de "Turno
+    // confirmado" mientras el cliente no confirma.
+    function typeLabel(event) {
+        if (isAwaitingClient(event)) return 'Por confirmar';
+        return TYPE_META[event && event.type]?.label || '';
+    }
+
+    function awaitingPhrase(count, separator) {
+        return count > 0 ? `${separator}${plural(count, 'sesión por confirmar', 'sesiones por confirmar')}` : '';
+    }
+
     function updateHeaderSummary() {
-        const { confirmed, pending, blocked } = monthCounters();
+        const { confirmed, awaiting, pending, blocked } = monthCounters();
         // Turnos: booking-summary.js publica la capacidad libre del mes.
         const free = window.WoBookingSummary && window.WoBookingSummary.monthPhrase(window.WoBookingSummary.last);
-        el['calendar-summary'].textContent = `${plural(confirmed, 'turno confirmado', 'turnos confirmados')}, ${plural(pending, 'solicitud esperando respuesta', 'solicitudes esperando respuesta')} y ${plural(blocked, 'día bloqueado', 'días bloqueados')} este mes${free ? ` · ${free}` : ''}.`;
+        el['calendar-summary'].textContent = `${plural(confirmed, 'turno confirmado', 'turnos confirmados')}${awaitingPhrase(awaiting, ', ')}, ${plural(pending, 'solicitud esperando respuesta', 'solicitudes esperando respuesta')} y ${plural(blocked, 'día bloqueado', 'días bloqueados')} este mes${free ? ` · ${free}` : ''}.`;
     }
     document.addEventListener('wo:booking-summary', () => { if (el['calendar-summary'] && state.events) updateHeaderSummary(); });
 
@@ -713,7 +733,7 @@
             }
         }
         const time = event.allDay ? 'Todo el día' : `${formatTime(start)}–${formatTime(end)}`;
-        const eventType = TYPE_META[event.type]?.label || 'Evento';
+        const eventType = typeLabel(event) || 'Evento';
         const timeLabel = isDayView ? `${time} · ${eventType}` : time;
         const client = isDayView && event.clientName
             ? `<small>${escapeHtml(event.clientName)}</small>`
@@ -824,7 +844,7 @@
                     <h3>${escapeHtml(capitalize(dayFormat.format(date)))}</h3>
                     ${rows.map((event) => {
                         const { start, end } = eventDates(event);
-                        const context = [TYPE_META[event.type]?.label, event.location, event.quoteCode].filter(Boolean).join(' · ');
+                        const context = [typeLabel(event), event.location, event.quoteCode].filter(Boolean).join(' · ');
                         return `
                             <button type="button" class="cal-agenda-event ${eventClass(event.type)}${externalClass(event)}" data-event-id="${escapeAttr(event.id)}">
                                 <time>${event.allDay ? 'Todo el día' : `${formatTime(start)}–${formatTime(end)}`}</time>
@@ -855,8 +875,8 @@
             `;
         }).join('') : '<p class="cal-upcoming-empty">Sin próximos eventos en este período.</p>';
 
-        const { confirmed, pending, blocked } = monthCounters();
-        el['upcoming-summary'].textContent = `${pending} ${pending === 1 ? 'pendiente' : 'pendientes'} de confirmar · ${plural(blocked, 'día bloqueado', 'días bloqueados')} · ${plural(confirmed, 'turno confirmado', 'turnos confirmados')} en total.`;
+        const { confirmed, awaiting, pending, blocked } = monthCounters();
+        el['upcoming-summary'].textContent = `${pending} ${pending === 1 ? 'pendiente' : 'pendientes'} de confirmar · ${plural(blocked, 'día bloqueado', 'días bloqueados')} · ${plural(confirmed, 'turno confirmado', 'turnos confirmados')} en total${awaitingPhrase(awaiting, ' · ')}.`;
     }
 
     function onBoardClick(event) {
