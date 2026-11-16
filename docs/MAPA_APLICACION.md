@@ -136,7 +136,7 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 
 ### Ronda 2 (nov 2026): qué suma cada pantalla
 
-Trece frentes sobre la beta 2.4.0. Dependen de las 19 migraciones `20261116*`, que se aplican después de publicar el código (orden en `deployments/DEPLOY.md`): mientras falte una, su módulo queda oculto o responde "pendiente" y el resto de la pantalla sigue igual.
+Trece frentes sobre la beta 2.4.0. Dependen de las 20 migraciones `20261116*`, que se aplican después de publicar el código (orden en `deployments/DEPLOY.md`): mientras falte una, su módulo queda oculto o responde "pendiente" y el resto de la pantalla sigue igual.
 
 | Pantalla | Qué suma | Módulos y detalle |
 | --- | --- | --- |

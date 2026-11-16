@@ -407,7 +407,10 @@ test('textos legales y documentación: OpenAI es el proveedor de imágenes y sus
     // decidirlo antes, y lo que dice la guía tiene que seguir siendo cierto en server.js.
     assert.match(deploy, /\*\*Chat de soporte con IA — decidir antes de cargar la clave\.\*\*/);
     assert.match(deploy, /dejar `SUPPORT_CHAT_ENABLED=false`/);
-    assert.match(deploy, /sumar a la fila OpenAI de la política el chat de soporte/);
+    // Decisión tomada (16 nov 2026): el bot va, y la política lo declara desde su versión 1.1.
+    assert.match(deploy, /la política ya lo declara desde su versión 1\.1/);
+    assert.match(deploy, /20261116240000_terminos_version_privacidad_1_1\.sql/, 'la guía dice cómo subir la versión legal');
+    assert.match(privacy, /Asistente automático del chat de soporte, solo cuando escribes en ese chat\./, 'lo que la guía afirma tiene que estar en la política');
     assert.match(env, /^SUPPORT_CHAT_ENABLED=false$/m);
     assert.match(env, /cargarla lo ENCIENDE/);
     assert.match(read('server.js'), /const SUPPORT_CHAT_ENABLED = \(process\.env\.SUPPORT_CHAT_ENABLED \|\| 'true'\) === 'true';/,
