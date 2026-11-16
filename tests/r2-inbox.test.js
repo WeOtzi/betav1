@@ -217,6 +217,85 @@ test('[Chat cerrado] motivo visible según el estado de la cotización', () => {
     assert.equal(X.closedReason(undefined), 'Esta conversación está cerrada.');
 });
 
+// CF-05: el rechazo cierra la conversación para los dos. Se ejecutan las
+// funciones reales de client-chats.js (fila del hilo + redactor) sobre un DOM mínimo.
+function loadClientChatClosure() {
+    const js = read('public/shared/js/client-chats.js');
+    const between = (from, to) => {
+        const a = js.indexOf(from);
+        const b = js.indexOf(to, a + from.length);
+        assert.ok(a > -1 && b > a, 'client-chats.js: ' + from);
+        return js.slice(a, b);
+    };
+    const nodes = {};
+    const node = (id) => ({ id, disabled: false, placeholder: '', hidden: false, textContent: '', className: '', attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } });
+    ['cch-input', 'cch-attach', 'cch-reference', 'cch-voice', 'cch-quick'].forEach((id) => { nodes[id] = node(id); });
+    const inserted = [];
+    nodes['cch-composer'] = { id: 'cch-composer', parentNode: { insertBefore(n, ref) { inserted.push([n, ref.id]); nodes[n.id] = n; } } };
+    const sandbox = { nodes, node, out: null };
+    vm.runInNewContext(`
+        const $ = (id) => nodes[id] || null;
+        const el = (tag, className) => Object.assign(node(''), { tag, className });
+        let synced = 0;
+        const syncSend = () => { synced += 1; };
+        ${between('    const REJECTED_CLOSED_REASON', '    const APPLICATION_TAGS')}
+        ${between('    function quoteRow(t) {', '    function inboxRow(t) {')}
+        ${between('    function setComposerEnabled(enabled, reason) {', '    // Al cambiar de hilo:')}
+        out = { quoteRow, setComposerEnabled, REJECTED_CLOSED_REASON, CLOSED_FALLBACK_REASON, synced: () => synced };
+    `, sandbox);
+    return Object.assign(sandbox.out, { nodes, inserted });
+}
+
+test('[Chat cerrado] CF-05: el cliente tampoco escribe en el chat de la cotización que rechazó', () => {
+    const page = loadClientChatClosure();
+    const thread = (status) => page.quoteRow({ quote_id: 'QN1', artist_name: 'Lau', quote_status: status, unread_for_client: 0 });
+
+    const rejected = thread('client_rejected');
+    assert.equal(rejected.closed, true);
+    assert.equal(rejected.closedReason, page.REJECTED_CLOSED_REASON);
+    assert.equal(page.REJECTED_CLOSED_REASON, 'Rechazaste esta propuesta y la conversación quedó cerrada. Si quieres retomar la idea, inicia una cotización nueva.');
+    // El motivo es el del cliente: el del artista habla de "el cliente rechazó".
+    assert.notEqual(rejected.closedReason, X.closedReason('client_rejected'));
+    assert.equal(thread('CLIENT_REJECTED').closed, true);
+    for (const status of ['pending', 'responded', 'client_approved', 'in_progress', 'artist_completed', undefined, null]) {
+        const row = thread(status);
+        assert.equal(row.closed, false, String(status));
+        assert.equal(row.closedReason, '', String(status));
+    }
+
+    // Abrir el hilo rechazado: todo el redactor deshabilitado y el motivo a la vista.
+    page.setComposerEnabled(!rejected.closed, rejected.closedReason);
+    for (const id of ['cch-input', 'cch-attach', 'cch-reference', 'cch-voice', 'cch-quick']) assert.equal(page.nodes[id].disabled, true, id);
+    assert.equal(page.nodes['cch-input'].placeholder, page.CLOSED_FALLBACK_REASON);
+    assert.equal(page.inserted.length, 1);
+    assert.equal(page.inserted[0][1], 'cch-composer', 'el aviso va justo antes del redactor');
+    const note = page.nodes['cch-closed-note'];
+    assert.equal(note.className, 'cch-closed-note');
+    assert.equal(note.attrs.role, 'status');
+    assert.equal(note.textContent, page.REJECTED_CLOSED_REASON);
+    assert.equal(note.hidden, false);
+    assert.equal(page.synced(), 1, 'el botón Enviar se recalcula');
+
+    // Pasar a un hilo abierto: se habilita y el aviso se oculta (no se duplica).
+    page.setComposerEnabled(true, '');
+    for (const id of ['cch-input', 'cch-attach', 'cch-reference', 'cch-voice', 'cch-quick']) assert.equal(page.nodes[id].disabled, false, id);
+    assert.equal(note.hidden, true);
+    assert.equal(note.textContent, '');
+    assert.equal(page.inserted.length, 1);
+    // Un hilo del inbox cerrado sin motivo propio usa el texto genérico.
+    page.setComposerEnabled(false);
+    assert.equal(note.textContent, page.CLOSED_FALLBACK_REASON);
+    assert.equal(note.hidden, false);
+
+    // El resto del módulo ya obedece a row.closed: enviar, voz, rápidos y el botón.
+    const js = read('public/shared/js/client-chats.js');
+    assert.match(js, /setComposerEnabled\(!row\.closed, row\.closedReason\);/);
+    assert.match(js, /if \(!row \|\| row\.closed \|\| sending \|\| \(!text && !files\.length\)\) return;/);
+    assert.match(js, /if \(!row \|\| row\.closed \|\| sending\) throw new Error\('conversación no disponible'\);/);
+    assert.match(js, /\$\('cch-send'\)\.disabled = sending \|\| !row \|\| row\.closed \|\| !hasContent;/);
+    assert.match(read('public/shared/css/client-chats-ds.css'), /\.cch-closed-note\{[^}]*color:var\(--text-muted\)/);
+});
+
 /* ------------------------------ repo (PostgREST de prueba) ------------------------------ */
 
 function loadExtrasRepo() {

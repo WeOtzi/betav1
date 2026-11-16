@@ -247,6 +247,56 @@ test('CF-02: "Próxima cita" no muestra como firme una sesión que falta confirm
     assert.doesNotMatch((await run(base)).innerHTML, /por confirmar/);
 });
 
+test('CF-05: el chat del detalle queda cerrado en la cotización que el cliente rechazó', async () => {
+    const { context, nodes } = dashboard();
+    const inserted = [];
+    let note = null;
+    const container = { parentNode: { insertBefore(node, ref) { inserted.push(ref); note = node; } } };
+    const input = { id: 'chat-input', value: 'hola', disabled: false, closest: (sel) => (sel === '.chat-input-container' ? container : null) };
+    const send = { id: 'chat-send-btn', disabled: false };
+    nodes.set('chat-input', input);
+    nodes.set('chat-send-btn', send);
+    const getById = context.document.getElementById;
+    context.document.getElementById = (id) => (id === 'chat-closed-note' ? note : getById(id));
+    context.document.createElement = (tag) => ({ tag, attrs: {}, hidden: false, setAttribute(k, v) { this.attrs[k] = v; } });
+    const sent = [];
+    context.WeotziData.Chat = { sendMessage: async (m) => { sent.push(m); return [{ id: 'm1' }]; } };
+    vm.runInContext('addMessageToChat = () => {}; enrichProposal = () => {};', context);
+    context.rejected = responded({ quote_id: 'QN-R', quote_status: 'client_rejected' });
+    context.open = responded({ quote_id: 'QN-O' });
+    vm.runInContext('currentQuotations = [rejected, open]', context);
+
+    await vm.runInContext('viewQuotationDetail("QN-R")', context);
+    assert.deepEqual([input.disabled, send.disabled], [true, true]);
+    assert.equal(inserted.length, 1);
+    assert.equal(inserted[0], container, 'el aviso va justo antes del redactor');
+    assert.equal(note.className, 'chat-closed-note');
+    assert.equal(note.attrs.role, 'status');
+    assert.equal(note.textContent, 'Rechazaste esta propuesta y la conversación quedó cerrada. Si quieres retomar la idea, inicia una cotización nueva.');
+    assert.equal(note.hidden, false);
+    // Enter o el botón: no sale nada hacia el artista.
+    await vm.runInContext('sendChatMessage()', context);
+    assert.equal(sent.length, 0);
+    assert.equal(input.value, 'hola');
+
+    // Otra cotización abierta: el mismo redactor vuelve a servir y el aviso se oculta.
+    await vm.runInContext('viewQuotationDetail("QN-O")', context);
+    assert.deepEqual([input.disabled, send.disabled, note.hidden], [false, false, true]);
+    await vm.runInContext('sendChatMessage()', context);
+    assert.equal(sent.length, 1);
+    assert.deepEqual([sent[0].quoteId, sent[0].senderType, sent[0].message], ['QN-O', 'client', 'hola']);
+    assert.equal(send.disabled, false);
+
+    // El cliente la rechaza con el detalle abierto: el redactor se cierra en el acto.
+    input.value = 'otra cosa';
+    vm.runInContext('open.quote_status = "client_rejected"; refreshOpenDetail("QN-O");', context);
+    assert.deepEqual([input.disabled, send.disabled, note.hidden], [true, true, false]);
+    await vm.runInContext('sendChatMessage()', context);
+    assert.equal(sent.length, 1);
+    assert.equal(inserted.length, 1, 'el aviso no se duplica');
+    assert.match(read('public/shared/css/client.css'), /\.chat-closed-note\{[^}]*color:var\(--text-muted\)/);
+});
+
 test('CP2: prioridad (primero lo que espera al cliente) y cotizaciones cerradas sin etiquetas nuevas', () => {
     const q = responded({ quote_status: 'client_approved' });
     const all = { now: NOW, counterBy: 'client', agreementChangePending: true, sessionToConfirm: true };

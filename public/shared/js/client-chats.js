@@ -51,6 +51,12 @@
         cancelled:        { label: 'Cancelada',            cls: 'wo-tag--archived' },
         expired:          { label: 'Vencida',              cls: 'wo-tag--archived' },
     };
+    // Rechazar una propuesta cierra la conversación para los dos: el artista no
+    // puede responder (artist-inbox.js) y la base tampoco deja escribir (policy
+    // chat_closed_after_client_rejection, migración 20261116140000).
+    const REJECTED_CLOSED_REASON = 'Rechazaste esta propuesta y la conversación quedó cerrada. Si quieres retomar la idea, inicia una cotización nueva.';
+    const CLOSED_FALLBACK_REASON = 'Esta conversación está cerrada.';
+
     const APPLICATION_TAGS = {
         pending:     { label: 'Propuesta recibida', cls: 'wo-tag--highlight' },
         shortlisted: { label: 'Preseleccionada',    cls: 'wo-tag--info' },
@@ -196,6 +202,7 @@
 
     function quoteRow(t) {
         const name = t.artist_name || t.artist_username || 'Artista';
+        const rejected = String(t.quote_status || '').toLowerCase() === 'client_rejected';
         return {
             key: 'quote:' + t.quote_id,
             source: 'quote',
@@ -208,7 +215,8 @@
             lastAt: t.last_message_at,
             lastFromArtist: t.last_message_sender === 'artist',
             unread: Number(t.unread_for_client) || 0,
-            closed: false,
+            closed: rejected,
+            closedReason: rejected ? REJECTED_CLOSED_REASON : '',
             quote: t,
         };
     }
@@ -413,7 +421,7 @@
 
         paintHead(row);
         paintBanner(row);
-        setComposerEnabled(!row.closed);
+        setComposerEnabled(!row.closed, row.closedReason);
         renderList();
 
         const messagesEl = $('cch-messages');
@@ -860,14 +868,32 @@
     // ENVÍO
     // ============================================
 
-    function setComposerEnabled(enabled) {
+    function setComposerEnabled(enabled, reason) {
         $('cch-input').disabled = !enabled;
         $('cch-attach').disabled = !enabled;
         $('cch-reference').disabled = !enabled;
         if ($('cch-voice')) $('cch-voice').disabled = !enabled;
         if ($('cch-quick')) $('cch-quick').disabled = !enabled;
-        $('cch-input').placeholder = enabled ? 'Escribí un mensaje…' : 'Esta conversación está cerrada.';
+        const why = enabled ? '' : (reason || CLOSED_FALLBACK_REASON);
+        $('cch-input').placeholder = enabled ? 'Escribí un mensaje…' : CLOSED_FALLBACK_REASON;
+        paintClosedNote(why);
         syncSend();
+    }
+
+    // Motivo del cierre, a la vista sobre el redactor (el placeholder de una
+    // línea no alcanza para explicarlo).
+    function paintClosedNote(text) {
+        const form = $('cch-composer');
+        let note = $('cch-closed-note');
+        if (!note) {
+            if (!text || !form || !form.parentNode) return;
+            note = el('p', 'cch-closed-note');
+            note.id = 'cch-closed-note';
+            note.setAttribute('role', 'status');
+            form.parentNode.insertBefore(note, form);
+        }
+        note.textContent = text || '';
+        note.hidden = !text;
     }
 
     // Al cambiar de hilo: se descarta una grabación en curso, se frena el

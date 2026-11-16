@@ -1104,6 +1104,7 @@ async function viewQuotationDetail(quoteId) {
 
     // Subscribe to chat for this quotation
     subscribeToChatMessages(quoteId);
+    syncChatComposer(quotation);
 
     // Desglose manual + seña/pagos (lecturas con la RLS del cliente).
     enrichProposal(quotation);
@@ -1156,6 +1157,7 @@ function refreshOpenDetail(quoteId) {
     const detail = document.getElementById('quotation-detail-content');
     const pill = detail && detail.querySelector ? (detail.querySelector('[data-cpn-status]') || detail.querySelector('.quotation-detail-status')) : null;
     if (quotation && pill) pill.innerHTML = clientStatusPillHtml(quotation);
+    if (quotation) syncChatComposer(quotation);
     rerenderProposal(quoteId);
 }
 
@@ -1488,11 +1490,50 @@ async function markMessagesAsRead(quoteId) {
     }
 }
 
+// Rechazar la propuesta cierra la conversación para los dos: el artista ya no
+// puede responder y la base tampoco deja escribir (policy
+// chat_closed_after_client_rejection, migración 20261116140000).
+const CHAT_CLOSED_REJECTED_NOTE = 'Rechazaste esta propuesta y la conversación quedó cerrada. Si quieres retomar la idea, inicia una cotización nueva.';
+
+function isChatClosedForClient(quotation) {
+    return !!quotation && String(quotation.quote_status || '').toLowerCase() === 'client_rejected';
+}
+
+// Habilita o cierra el redactor del detalle según el estado de la cotización.
+function syncChatComposer(quotation) {
+    const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('chat-send-btn');
+    if (!input || !sendBtn) return;
+    const closed = isChatClosedForClient(quotation);
+    input.disabled = closed;
+    sendBtn.disabled = closed;
+    let note = document.getElementById('chat-closed-note');
+    if (closed && !note) {
+        const container = input.closest ? input.closest('.chat-input-container') : null;
+        if (container && container.parentNode) {
+            note = document.createElement('p');
+            note.id = 'chat-closed-note';
+            note.className = 'chat-closed-note';
+            note.setAttribute('role', 'status');
+            container.parentNode.insertBefore(note, container);
+        }
+    }
+    if (note) {
+        note.textContent = closed ? CHAT_CLOSED_REJECTED_NOTE : '';
+        note.hidden = !closed;
+    }
+}
+
 async function sendChatMessage() {
     const input = document.getElementById('chat-input');
     const message = input.value.trim();
     
     if (!message || !currentQuotationId) return;
+    const openQuotation = currentQuotations.find(q => q.quote_id === currentQuotationId) || null;
+    if (isChatClosedForClient(openQuotation)) {
+        syncChatComposer(openQuotation);
+        return;
+    }
     
     const sendBtn = document.getElementById('chat-send-btn');
     sendBtn.disabled = true;
@@ -1521,7 +1562,7 @@ async function sendChatMessage() {
         console.error('Error sending message:', error);
         alert('Error al enviar el mensaje');
     } finally {
-        sendBtn.disabled = false;
+        sendBtn.disabled = isChatClosedForClient(currentQuotations.find(q => q.quote_id === currentQuotationId) || null);
     }
 }
 

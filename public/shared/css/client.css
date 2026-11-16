@@ -216,6 +216,10 @@
 .chat-message.artist{align-self:flex-start;background:var(--sand-150);color:var(--ink)}
 .chat-message .time{position:absolute;right:var(--space-3);bottom:var(--space-1);font-family:var(--font-mono);font-size:9px;letter-spacing:0.04em;opacity:var(--opacity-muted)}
 .chat-input-container{display:flex;gap:var(--space-3);padding:var(--space-4) var(--space-5);border-top:var(--border-hairline) solid var(--border-subtle);background:var(--surface-card);flex:none}
+/* Conversación cerrada tras rechazar la propuesta: motivo sobre el redactor. */
+.chat-closed-note{flex:none;margin:0;padding:var(--space-3) var(--space-5) 0;background:var(--surface-card);border-top:var(--border-hairline) solid var(--border-subtle);color:var(--text-muted);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.chat-closed-note[hidden]{display:none}
+.chat-closed-note + .chat-input-container{border-top:0}
 .chat-input{flex:1;min-height:var(--control-h-md);max-height:120px;resize:none;box-sizing:border-box;
   background:var(--surface-page);border:var(--border-hairline) solid var(--border-strong);border-radius:var(--radius-none);
   padding:var(--space-3) var(--space-4);font-family:var(--font-body);font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--neutral-500)}
