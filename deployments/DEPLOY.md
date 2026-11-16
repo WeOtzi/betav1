@@ -18,6 +18,8 @@ disperso). Cómo construir sobre la capa: [docs/GUIA_CAPA_DATOS.md](../docs/GUIA
 3. Cero accesos directos a los dominios ya migrados fuera de los repos
    (`grep -rnE "\.from\('quotations_db'" public/shared/js --include=*.js | grep -v data/`).
 4. Si cambió el esquema: la migración SQL está aplicada en Supabase (`flbgmlvfiejfttlawnfu`).
+   **Excepción, ronda 2:** las migraciones `20261116*` van DESPUÉS del código, no antes
+   (ver [Ronda 2 · orden de despliegue y migraciones](#ronda-2--orden-de-despliegue-y-migraciones)).
 5. Decidir Opción A (solo `public/`) vs Opción B (server.js/lib/package.json → reinicia PM2).
 
 ---
@@ -343,6 +345,58 @@ Notas:
 - Errores que conviene reconocer en el log: `HTTP 401` (clave inválida), `HTTP 403` (organización sin verificar o sin acceso al modelo), `HTTP 429 insufficient_quota` (sin saldo) y `HTTP 429 rate_limit_exceeded` (límite por minuto). Cada línea trae además `req=<id>` (el `x-request-id` de OpenAI: es lo que pide su soporte para rastrear un pedido) y, en los bloqueos de contenido, `etapa=` (`input` u `output`) y `categorias=`. Un `HTTP 400` con `unknown_parameter`, `invalid_value` o similar es un fallo de integración (`502 ai_error`), no un bloqueo. El navegador nunca recibe ese detalle.
 - Compatibilidad: `POST /api/gemini/generate-image` sigue respondiendo (alias de `POST /api/ai/generate-image`) y la bandera pública `gemini.enabled` conserva el nombre.
 - Encendido y apagado: solo en el servidor (clave cargada y `AI_IMAGE_PROVIDER`). El backoffice no tiene interruptor: muestra el estado y prueba la conexión. `gemini.enabled` y `aiImages` los publica el servidor en `/shared/js/app-config.json` y el navegador ya no los pisa con lo que tenga guardado (antes, el navegador que había usado el backoffice podía no ver "Generar referencia con IA" con la clave ya cargada).
+
+---
+
+## Ronda 2 · orden de despliegue y migraciones
+
+Vale para el paso de **beta 2.4.0** a la rama `feature/beta-ronda-2` (migraciones
+`supabase/migrations/20261116*.sql`, con su reversa en `supabase/rollbacks/`).
+En la ronda anterior las migraciones se aplicaron antes del deploy; **esta vez es al revés**.
+
+**Por qué.** Dos migraciones cambian reglas que el código de 2.4.0 no conoce, y con
+2.4.0 todavía sirviendo dejan errores crudos en pantalla:
+
+| Migración | Qué pasa con 2.4.0 corriendo |
+|---|---|
+| `20261116150000_sesiones_confirmacion_ubicacion.sql` | Las sesiones existentes quedan confirmadas. Reprogramar o borrar una sesión de una cotización con cuenta de cliente falla (`WOS01` / `WOS03`): 2.4.0 edita la sesión directo desde el navegador. |
+| `20261116140000_negociacion_propuestas.sql` | Sella las cotizaciones aprobadas. "Editar acuerdo" falla (`42501`): 2.4.0 escribe `final_budget_amount`, `final_sessions` y `final_comment` directo. |
+
+El código nuevo, en cambio, **sí funciona sin las migraciones**: negociación, sesiones,
+favoritos, denuncias y enlaces de cotización responden "todavía no disponible"
+(`GET /api/negociacion/quotations/:id` → `available:false`; las rutas de sesiones →
+`503 sessions_unavailable` y la agenda sigue en el modo anterior) y lo que ya existía
+no se rompe.
+
+**Orden:**
+
+1. **Primero el código.** Desplegar `feature/beta-ronda-2` (Opción B: reinicia PM2).
+2. **Enseguida, en la misma ventana, las migraciones.** Aplicar todas las
+   `supabase/migrations/20261116*.sql` en orden de nombre (timestamp) sobre
+   `flbgmlvfiejfttlawnfu`. Las que se agreguen después de esta guía van al final,
+   en el mismo orden.
+3. **No aplicar `20261116140000` ni `20261116150000` mientras 2.4.0 esté sirviendo.**
+   Si por algún motivo las migraciones tienen que ir primero, hacerlo pegado al
+   deploy (minutos, no horas) y avisar que en ese rato fallan "Editar acuerdo" y
+   reprogramar o borrar sesiones.
+4. **Volver atrás.** Si se vuelve a 2.4.0 (`rollbackHold`), correr ANTES las reversas,
+   en orden inverso al de aplicación; como mínimo
+   `supabase/rollbacks/20261116150000_sesiones_confirmacion_ubicacion.down.sql` y después
+   `supabase/rollbacks/20261116140000_negociacion_propuestas.down.sql`. Si no, 2.4.0
+   queda con los mismos errores. Ojo: la reversa de `150000` borra los pedidos de
+   cambio, los registros y las disputas de sesiones cargados desde el deploy.
+
+**Comprobar** con el código y las migraciones ya puestos:
+
+- Reprogramar una sesión confirmada de una cotización con cuenta de cliente pide
+  el acuerdo de la otra parte (sin error crudo).
+- "Editá el acuerdo" del expediente abre el formulario de cambio propuesto.
+- `GET /api/negociacion/quotations/:id` devuelve `available` distinto de `false`.
+- Panel del cliente: al agendar una sesión, la tarjeta de la cotización dice
+  "Sesión por confirmar" y "Próxima cita" agrega "· por confirmar"; al mandar
+  "Modificar", la tarjeta pasa a "Cambios propuestos por ti".
+- Una cotización rechazada por el cliente no deja escribir en el chat a ninguna
+  de las dos partes.
 
 ---
 

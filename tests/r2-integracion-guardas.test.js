@@ -114,6 +114,42 @@ test('SEG-01: chat_threads ya no entrega el email del cliente', () => {
     assert.doesNotMatch(demoView, /client_email/);
 });
 
+// DB-02: con beta 2.4.0 sirviendo, las migraciones de negociación y de sesiones
+// rompen "Editar acuerdo" y reprogramar o borrar sesiones. El orden queda escrito.
+test('DB-02: la guía de despliegue fija el orden de la ronda 2 (primero el código, después las migraciones)', () => {
+    const doc = read('deployments/DEPLOY.md');
+    const at = doc.indexOf('## Ronda 2 · orden de despliegue y migraciones');
+    assert.ok(at > -1, 'sección de la ronda 2');
+    const section = doc.slice(at, doc.indexOf('\n## ', at + 10));
+    const step = (n) => section.indexOf('\n' + n + '. **');
+    assert.ok(step(1) > -1 && step(1) < step(2) && step(2) < step(3) && step(3) < step(4), 'cuatro pasos en orden');
+    assert.match(section.slice(step(1), step(2)), /Primero el código/);
+    assert.match(section.slice(step(2), step(3)), /las migraciones[\s\S]*20261116\*\.sql[\s\S]*en orden de nombre/);
+    assert.match(section.slice(step(3), step(4)), /No aplicar `20261116140000` ni `20261116150000` mientras 2\.4\.0 esté sirviendo/);
+    // Volver a 2.4.0: primero las reversas, la de sesiones antes que la de negociación.
+    const back = section.slice(step(4));
+    const downs = ['supabase/rollbacks/20261116150000_sesiones_confirmacion_ubicacion.down.sql', 'supabase/rollbacks/20261116140000_negociacion_propuestas.down.sql'];
+    for (const file of downs) {
+        assert.ok(back.includes(file), file);
+        assert.ok(exists(file), file + ' no existe');
+    }
+    assert.ok(back.indexOf(downs[0]) < back.indexOf(downs[1]), 'orden inverso al de aplicación');
+    for (const file of ['supabase/migrations/20261116140000_negociacion_propuestas.sql', 'supabase/migrations/20261116150000_sesiones_confirmacion_ubicacion.sql']) {
+        assert.ok(exists(file), file);
+        assert.ok(section.includes(path.basename(file)), path.basename(file));
+    }
+    // El checklist general ya no manda aplicar estas migraciones antes del deploy.
+    assert.match(doc.slice(0, at), /Excepción, ronda 2:[^\n]*\n[^\n]*#ronda-2--orden-de-despliegue-y-migraciones/);
+
+    // Lo que la guía promete del código nuevo sin migraciones sigue siendo cierto.
+    assert.match(read('lib/routes/negociacion.js'), /isMissingSchema\(err\)\) return res\.json\(\{ success: true, available: false \}\)/);
+    assert.match(read('lib/sesiones.js'), /'sessions_unavailable'/);
+    // Y lo que rompe a 2.4.0 sigue en las migraciones que nombra.
+    const sessions = read('supabase/migrations/20261116150000_sesiones_confirmacion_ubicacion.sql');
+    for (const code of ['WOS01', 'WOS03']) assert.ok(sessions.includes(`errcode = '${code}'`), code);
+    assert.match(read('supabase/migrations/20261116140000_negociacion_propuestas.sql'), /El acuerdo ya está aprobado por ambas partes/);
+});
+
 test('SEG-01: el riesgo residual por REST queda documentado', () => {
     const doc = read('docs/TECHNICAL.md');
     assert.match(doc, /### 7\.1 Contacto del cliente en las cotizaciones/);
