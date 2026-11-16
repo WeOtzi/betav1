@@ -292,6 +292,17 @@
         return new File([bytes], name + '.' + ext, { type: match[1] });
     }
 
+    // Mensaje de error de la referencia con IA. El del servidor ya viene listo;
+    // si la respuesta no trae uno (sin conexión, o un proxy cortó una espera
+    // larga) se muestra uno propio de la IA y no el genérico de "guardar".
+    function aiErrorMessage(error) {
+        var fromServer = error && error.data && typeof error.data.error === 'string' ? error.data.error : '';
+        if (fromServer) return fromServer;
+        if (error && error.status === 0) return 'No hay conexión. Revisa tu internet e inténtalo de nuevo.';
+        if (error && typeof error.status === 'number') return 'La imagen tardó demasiado o el servicio no respondió. Inténtalo de nuevo.';
+        return (error && error.message) || 'No pudimos generar la imagen. Inténtalo de nuevo.';
+    }
+
     /**
      * ctx: { request(body) → Promise<{ image }>, payload() → { idea, styles, body_part, color },
      *        onUse(file) → Promise|void, canAdd() → boolean }
@@ -332,7 +343,8 @@
             useBtn.disabled = busy;
             if (busy) {
                 generateBtn.setAttribute('aria-busy', 'true');
-                stage.innerHTML = '<div class="q-ai-loading"><div class="wo-spinner" aria-hidden="true"></div><p>Generando tu referencia… puede tardar hasta un minuto.</p></div>';
+                // La generación puede tardar entre medio minuto y dos minutos (no hay timeout en el navegador).
+                stage.innerHTML = '<div class="q-ai-loading"><div class="wo-spinner" aria-hidden="true"></div><p>Generando tu referencia… puede tardar hasta dos minutos. No cierres esta ventana.</p></div>';
             } else {
                 generateBtn.removeAttribute('aria-busy');
             }
@@ -355,7 +367,7 @@
                 generateBtn.querySelector('span').textContent = 'Generar otra';
             }).catch(function (error) {
                 stage.innerHTML = '';
-                showError((error && error.message) || 'No pudimos generar la imagen. Inténtalo de nuevo.');
+                showError(aiErrorMessage(error));
             }).then(function () { setBusy(false); });
         }
         generateBtn.addEventListener('click', generate);
@@ -635,6 +647,7 @@
         clearInvalid: clearInvalid,
         aiEnabled: aiEnabled,
         aiTileHtml: aiTileHtml,
+        aiErrorMessage: aiErrorMessage,
         openAiPanel: openAiPanel,
         badgesHtml: badgesHtml,
         tagsHtml: tagsHtml,

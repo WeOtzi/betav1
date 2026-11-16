@@ -3437,10 +3437,64 @@ async function handleExpandedMediaUpload(input) {
     input.value = '';
 }
 
+// IA de imágenes: OpenAI (GPT Image 2.6) por defecto; Gemini solo como proveedor
+// heredado. La clave vive en el servidor y nunca pasa por el navegador. El
+// servidor decide modelo, tamaño y calidad; con sesión de superadmin respeta el
+// modelo elegido en el panel si está en su lista blanca. Una imagen puede
+// tardar entre medio minuto y dos minutos: no hay timeout en el navegador.
+const AI_IMAGE_MODELS = ['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'];
+const AI_IMAGE_PROVIDER_LABELS = {
+    openai: 'OpenAI (GPT Image 2.6)',
+    gemini: 'Gemini (proveedor heredado)',
+    none: 'apagada (AI_IMAGE_PROVIDER=off)'
+};
+
+// Estado de la IA de imágenes según el servidor. Lee la configuración pública
+// ya saneada (aiImages: { enabled, provider }), que nunca trae claves.
+async function refreshAiImagesStatus() {
+    const note = document.getElementById('api-gemini-provider');
+    let ai = null;
+    try {
+        const response = await fetch('/shared/js/app-config.json', { cache: 'no-store' });
+        const publicConfig = await response.json();
+        ai = publicConfig && publicConfig.aiImages ? publicConfig.aiImages : null;
+    } catch (_) {
+        ai = null;
+    }
+    updateAPIStatus('gemini', ai && ai.enabled ? 'configured' : 'none');
+    if (note) {
+        if (!ai) {
+            note.textContent = 'No pudimos consultar el estado de la IA de imágenes en el servidor.';
+        } else if (ai.enabled) {
+            note.textContent = `Proveedor activo: ${AI_IMAGE_PROVIDER_LABELS[ai.provider] || ai.provider}. La clave está cargada en el servidor y no se muestra aquí.`;
+        } else if (ai.provider === 'none') {
+            note.textContent = 'La generación de imágenes está apagada en el servidor (AI_IMAGE_PROVIDER=off).';
+        } else {
+            note.textContent = 'Falta la clave en el servidor: carga OPENAI_API_KEY en su .env y reinicia la aplicación.';
+        }
+    }
+    return ai;
+}
+
+async function requestAiImage({ prompt, aspectRatio = '1:1', model } = {}) {
+    const auth = await _getApifyAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
+    if (auth && auth.Authorization) headers.Authorization = auth.Authorization;
+    const body = { prompt, aspectRatio };
+    if (model) body.model = model;
+    const response = await fetch('/api/ai/generate-image', { method: 'POST', headers, body: JSON.stringify(body) });
+    // Si un proxy corta una espera larga, la respuesta puede no ser JSON.
+    const data = await response.json().catch(() => null);
+    if (!data || !data.success || !/^data:image\/(png|jpeg|webp);base64,/.test(String(data.image || ''))) {
+        throw new Error((data && data.error) || `El servidor no devolvió una imagen (HTTP ${response.status}).`);
+    }
+    return data;
+}
+
 async function generateBodyPartIcon(specificNode = null) {
     const config = window.ConfigManager?.get();
     if (!config?.gemini?.enabled) {
-        showToast('Gemini AI no está habilitado', 'error');
+        showToast('La IA de imágenes no está habilitada', 'error');
         return;
     }
 
@@ -3453,23 +3507,12 @@ async function generateBodyPartIcon(specificNode = null) {
         return;
     }
 
-    showToast(`Generando icono para "${nodeLabel}"...`, 'info');
+    showToast(`Generando icono para "${nodeLabel}"… puede tardar hasta dos minutos.`, 'info');
 
     try {
         const prompt = `Create a ${style} icon of a human body part: ${nodeLabel}. The icon should be ${style}. Background color: ${bg}. Resolution: 1024x1024. Only the body part should be visible, centered.`;
 
-        const response = await fetch('/api/gemini/generate-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt,
-                model: config.gemini.model,
-                aspectRatio: '1:1',
-                imageSize: '1K'
-            })
-        });
-
-        const data = await response.json();
+        const data = await requestAiImage({ prompt, aspectRatio: '1:1', model: config.gemini.model });
 
         if (data.success && data.image) {
             // If called from the edit form (single generation)
@@ -3499,11 +3542,11 @@ async function generateAllBodyPartIcons() {
 
     const config = window.ConfigManager?.get();
     if (!config?.gemini?.enabled) {
-        showToast('Gemini AI no está habilitado', 'error');
+        showToast('La IA de imágenes no está habilitada', 'error');
         return;
     }
 
-    showToast('Iniciando generación masiva... Esto puede tardar.', 'info');
+    showToast('Iniciando generación masiva… Cada icono puede tardar hasta dos minutos.', 'info');
 
     // Helper to traverse and update
     async function traverseAndUpdate(nodes) {
@@ -3641,9 +3684,9 @@ function loadAPIsSection() {
     // Google Maps
     document.getElementById('api-gmaps-key').value = config.googleMaps?.apiKey || '';
 
-    // Gemini AI
-    document.getElementById('api-gemini-key').value = config.gemini?.apiKey || '';
-    document.getElementById('api-gemini-model').value = config.gemini?.model || 'gemini-3-pro-image-preview';
+    // IA de imágenes (OpenAI por defecto). La clave vive solo en el servidor;
+    // los ids api-gemini-* se conservan por compatibilidad.
+    document.getElementById('api-gemini-model').value = AI_IMAGE_MODELS.includes(config.gemini?.model) ? config.gemini.model : AI_IMAGE_MODELS[0];
     document.getElementById('api-gemini-style').value = config.gemini?.defaultStyle || 'Minimalist line art';
     document.getElementById('api-gemini-bg').value = config.gemini?.defaultBackgroundColor || 'White';
     document.getElementById('api-gemini-enabled').checked = config.gemini?.enabled || false;
@@ -3675,7 +3718,8 @@ function loadAPIsSection() {
     updateAPIStatus('n8n', config.n8n?.webhookUrl ? 'configured' : 'none');
     updateAPIStatus('emailjs', config.emailjs?.serviceId ? 'configured' : 'none');
     updateAPIStatus('gmaps', config.googleMaps?.apiKey ? 'configured' : 'none');
-    updateAPIStatus('gemini', config.gemini?.apiKey ? 'configured' : 'none');
+    // IA de imágenes: el estado real lo informa el servidor (la clave no llega al navegador).
+    refreshAiImagesStatus();
 
     // Apify lives in app_settings (server-side), not localStorage. Fetch async.
     if (typeof loadApifySavedInfo === 'function') {
@@ -4057,39 +4101,24 @@ function saveGoogleMapsAPI() {
     updateAPIStatus('gmaps', apiKey ? 'configured' : 'none');
 }
 
+// Prueba de punta a punta de la IA de imágenes: genera una imagen real con el
+// proveedor activo (consume cuota). No pide la clave: vive en el servidor.
+// (El nombre testGeminiAPI se conserva porque lo llama el HTML del panel.)
 async function testGeminiAPI() {
-    const apiKey = document.getElementById('api-gemini-key').value.trim();
     const model = document.getElementById('api-gemini-model').value;
-    
-    if (!apiKey) {
-        showToast('Por favor ingresa la API Key', 'error');
-        return;
-    }
-    
-    showToast('Generando imagen de prueba...', 'info');
+
+    showToast('Generando imagen de prueba… puede tardar hasta dos minutos.', 'info');
     updateAPIStatus('gemini', 'none');
-    
+
     try {
-        const response = await fetch('/api/gemini/generate-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt: 'A simple minimalist line art icon of a circle',
-                model,
-                aspectRatio: '1:1',
-                imageSize: '1K'
-            })
+        const data = await requestAiImage({
+            prompt: 'A simple minimalist line art icon of a circle',
+            aspectRatio: '1:1',
+            model
         });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            updateAPIStatus('gemini', 'connected');
-            showToast('Conexión exitosa. Imagen generada.', 'success');
-            // We could show the image in a modal or log it, but success is enough for config test
-        } else {
-            throw new Error(data.error);
-        }
+        updateAPIStatus('gemini', 'connected');
+        const provider = AI_IMAGE_PROVIDER_LABELS[data.provider] || data.provider || 'el proveedor activo';
+        showToast(`Conexión correcta: imagen generada con ${provider}${data.model ? ` · ${data.model}` : ''}.`, 'success');
     } catch (err) {
         updateAPIStatus('gemini', 'error');
         showToast('Error: ' + err.message, 'error');
@@ -4097,7 +4126,6 @@ async function testGeminiAPI() {
 }
 
 function saveGeminiAPI() {
-    const apiKey = document.getElementById('api-gemini-key').value.trim();
     const model = document.getElementById('api-gemini-model').value;
     const defaultStyle = document.getElementById('api-gemini-style').value.trim();
     const defaultBackgroundColor = document.getElementById('api-gemini-bg').value.trim();
@@ -4105,7 +4133,9 @@ function saveGeminiAPI() {
 
     window.ConfigManager?.update({
         gemini: {
-            apiKey,
+            // La clave ya no se guarda en el navegador (vive en el servidor):
+            // se limpia cualquier valor que haya quedado de antes.
+            apiKey: '',
             model,
             defaultStyle,
             defaultBackgroundColor,
@@ -4113,8 +4143,8 @@ function saveGeminiAPI() {
         }
     });
 
-    showToast('Configuración de Gemini AI guardada', 'success');
-    updateAPIStatus('gemini', apiKey ? 'configured' : 'none');
+    showToast('Configuración de la IA de imágenes guardada', 'success');
+    refreshAiImagesStatus();
 }
 
 // ============================================
@@ -4494,7 +4524,7 @@ async function testAllConnections() {
                 const svcMap = {
                     'supabase': 'supabase',
                     'n8n': 'n8n',
-                    'gemini': 'gemini',
+                    'gemini': 'gemini', // IA de imágenes (OpenAI): clave histórica del servicio
                     'google-maps': 'gmaps',
                     'google-drive': 'gdrive',
                     'emailjs': 'emailjs',
@@ -5625,7 +5655,8 @@ function loadAIProfileSettings() {
         document.getElementById('ai-profile-enabled').checked = settings.enabled;
     }
     if (document.getElementById('ai-profile-model')) {
-        document.getElementById('ai-profile-model').value = settings.model || 'gemini-3-pro-image-preview';
+        // El modelo lo define el servidor (OpenAI GPT Image): el selector es informativo.
+        document.getElementById('ai-profile-model').value = '';
     }
     if (document.getElementById('ai-profile-temp')) {
         document.getElementById('ai-profile-temp').value = settings.temperature || 0.7;

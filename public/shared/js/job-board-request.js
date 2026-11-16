@@ -390,6 +390,7 @@ function renderInspiration(el) {
                     <span class="wo-error-msg wo-hidden" id="jbrq-ai-error">No pudimos generar la imagen. Probá de nuevo en un rato.</span>
                     <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-ai-btn" onclick="generateInspiration()">INSPIRARME CON AI <img src="/shared/assets/job-board-inspiration/arrow-right.svg" alt="" width="18" height="18"></button>
                 </div>
+                <p class="wo-meta-s wo-muted wo-hidden" id="jbrq-ai-status" role="status" aria-live="polite"></p>
                 <div class="jbrq-ai-result wo-hidden" id="jbrq-ai-result"></div>
             </div>
         </section>
@@ -599,14 +600,20 @@ window.goToForm = async function() {
     setView('form');
 };
 
-// --- IA de inspiración (POST /api/gemini/generate-image) ---
+// --- IA de inspiración (POST /api/ai/generate-image · OpenAI GPT Image) ---
+// El servidor decide el modelo, el tamaño y la calidad; del navegador solo
+// viajan el prompt y la proporción. La generación puede tardar entre medio
+// minuto y dos minutos: no hay timeout en el navegador y se muestra el estado.
+const AI_IMAGE_ERROR = 'No pudimos generar la imagen. Inténtalo de nuevo en un rato.';
+const AI_IMAGE_DATA_URL_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 
 window.generateInspiration = async function() {
     const promptEl = document.getElementById('jbrq-ai-prompt');
     const btn = document.getElementById('jbrq-ai-btn');
     const errEl = document.getElementById('jbrq-ai-error');
+    const statusEl = document.getElementById('jbrq-ai-status');
     const resultEl = document.getElementById('jbrq-ai-result');
-    if (!promptEl || !btn) return;
+    if (!promptEl || !btn || btn.disabled) return;
 
     const idea = promptEl.value.trim();
     if (!idea) {
@@ -616,21 +623,31 @@ window.generateInspiration = async function() {
 
     if (errEl) errEl.classList.add('wo-hidden');
     btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
     btn.textContent = 'Generando…';
+    if (statusEl) {
+        statusEl.textContent = 'Estamos generando tu imagen. Puede tardar hasta dos minutos: no cierres esta página.';
+        statusEl.classList.remove('wo-hidden');
+    }
 
     try {
-        const response = await fetch('/api/gemini/generate-image', {
+        const response = await fetch('/api/ai/generate-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 prompt: 'Referencia visual para un tatuaje: ' + idea + '. Ilustración de diseño de tatuaje sobre fondo claro, líneas definidas, alto contraste, sin texto.',
-                aspectRatio: '1:1',
-                imageSize: '1K',
-                temperature: 0.7
+                aspectRatio: '1:1'
             })
         });
-        const data = await response.json();
-        if (!data.success || !data.image) throw new Error(data.error || 'Sin imagen');
+        // Si un proxy corta la espera, la respuesta puede no ser JSON.
+        const data = await response.json().catch(() => null);
+        if (!data || !data.success || !AI_IMAGE_DATA_URL_RE.test(String(data.image || ''))) {
+            // Solo se muestran los mensajes propios del endpoint (vienen en español).
+            const own = data && (data.code || data.rate_limited) && typeof data.error === 'string' ? data.error : '';
+            const failure = new Error(own || AI_IMAGE_ERROR);
+            failure.userMessage = own || AI_IMAGE_ERROR;
+            throw failure;
+        }
 
         if (resultEl) {
             resultEl.innerHTML = `
@@ -645,10 +662,18 @@ window.generateInspiration = async function() {
         }
     } catch (e) {
         console.warn('[Job Board] Error generando inspiración:', e?.message || e);
-        if (errEl) errEl.classList.remove('wo-hidden');
+        if (errEl) {
+            errEl.textContent = e?.userMessage || AI_IMAGE_ERROR;
+            errEl.classList.remove('wo-hidden');
+        }
     } finally {
         btn.disabled = false;
+        btn.removeAttribute('aria-busy');
         btn.innerHTML = 'INSPIRARME CON AI <img src="/shared/assets/job-board-inspiration/arrow-right.svg" alt="" width="18" height="18">';
+        if (statusEl) {
+            statusEl.textContent = '';
+            statusEl.classList.add('wo-hidden');
+        }
     }
 };
 
@@ -662,7 +687,10 @@ window.useAiReference = async function(btnEl) {
     try {
         const resp = await fetch(img.src);
         const blob = await resp.blob();
-        uploadedFiles.push(new File([blob], 'inspiracion-ia.png', { type: blob.type || 'image/png' }));
+        // La imagen llega en JPEG (OpenAI) o PNG (proveedor heredado): la extensión sigue al tipo real.
+        const aiType = /^image\/(png|jpeg|webp)$/.test(blob.type) ? blob.type : 'image/jpeg';
+        const aiExt = aiType === 'image/jpeg' ? 'jpg' : aiType.split('/')[1];
+        uploadedFiles.push(new File([blob], 'inspiracion-ia.' + aiExt, { type: aiType }));
         if (btnEl) {
             btnEl.disabled = true;
             btnEl.textContent = 'Agregada a tu publicación';

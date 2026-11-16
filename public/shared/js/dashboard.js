@@ -3018,9 +3018,13 @@ async function generateAIAvatar() {
 
     const config = window.ConfigManager?.get() || {};
 
-    messageEl.textContent = 'Generando imagen, esto puede tardar unos segundos...';
+    // La generación (OpenAI GPT Image) puede tardar entre medio minuto y dos
+    // minutos: no hay timeout en el navegador y el estado queda a la vista.
+    messageEl.textContent = 'Generando tu imagen… Puede tardar hasta dos minutos. No cierres esta ventana.';
     messageEl.className = 'form-message info';
+    messageEl.setAttribute('role', 'status');
     generateBtn.disabled = true;
+    generateBtn.setAttribute('aria-busy', 'true');
     previewContainer.style.display = 'none';
     useBtn.style.display = 'none';
 
@@ -3028,30 +3032,27 @@ async function generateAIAvatar() {
         const aiSettings = config.aiProfilePicture || {};
         const fullPrompt = `${aiSettings.defaultPrompt || ''}\n\nUser request: ${prompt}`;
 
-        const response = await fetch('/api/gemini/generate-image', {
+        // El servidor decide el modelo, el tamaño y la calidad: del navegador solo
+        // viajan el prompt y la proporción. Con sesión, el servidor identifica la
+        // cuenta ante el proveedor con un hash (nunca el email).
+        const headers = { 'Content-Type': 'application/json' };
+        const token = await getDashboardAccessToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch('/api/ai/generate-image', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt: fullPrompt,
-                model: aiSettings.model || config.gemini?.model,
-                aspectRatio: "1:1",
-                imageSize: aiSettings.resolution || "1K",
-                temperature: aiSettings.temperature || 0.7,
-                maxOutputTokens: aiSettings.maxTokens || 1024,
-                safetySettings: aiSettings.filters === 'High' ? [
-                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_LOW_AND_ABOVE" },
-                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_LOW_AND_ABOVE" },
-                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_LOW_AND_ABOVE" },
-                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_LOW_AND_ABOVE" }
-                ] : undefined
-            })
+            headers,
+            body: JSON.stringify({ prompt: fullPrompt, aspectRatio: '1:1' })
         });
 
-        const data = await response.json();
+        // Si un proxy corta la espera, la respuesta puede no ser JSON.
+        const data = await response.json().catch(() => null);
+        const image = data && data.success && /^data:image\/(png|jpeg|webp);base64,/.test(String(data.image || '')) ? data.image : '';
+        if (!image) {
+            const own = data && (data.code || data.rate_limited) && typeof data.error === 'string' ? data.error : '';
+            throw new Error(own || 'No pudimos generar la imagen. Inténtalo de nuevo en un rato.');
+        }
 
-        if (!data.success) throw new Error(data.error || 'Error al generar imagen');
-
-        previewImg.src = data.image;
+        previewImg.src = image;
         previewContainer.style.display = 'block';
         useBtn.style.display = 'block';
         messageEl.textContent = '¡Imagen generada con éxito!';
@@ -3059,10 +3060,13 @@ async function generateAIAvatar() {
 
     } catch (error) {
         console.error('AI Generation Error:', error);
-        messageEl.textContent = 'Error: ' + error.message;
+        messageEl.textContent = error instanceof TypeError
+            ? 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.'
+            : error.message;
         messageEl.className = 'form-message error';
     } finally {
         generateBtn.disabled = false;
+        generateBtn.removeAttribute('aria-busy');
     }
 }
 
@@ -3084,8 +3088,11 @@ async function useAIAvatar() {
         const res = await fetch(base64Data);
         const blob = await res.blob();
         
-        // Generate unique filename
-        const fileName = `ai-avatar-${Date.now()}.png`;
+        // Generate unique filename. La imagen llega en JPEG (OpenAI) o PNG
+        // (proveedor heredado): extensión y tipo siguen al contenido real.
+        const avatarType = /^image\/(png|jpeg|webp)$/.test(blob.type) ? blob.type : 'image/jpeg';
+        const avatarExt = avatarType === 'image/jpeg' ? 'jpg' : avatarType.split('/')[1];
+        const fileName = `ai-avatar-${Date.now()}.${avatarExt}`;
         const filePath = `${currentUser.id}/${fileName}`;
 
         // Upload to Supabase Storage
@@ -3094,7 +3101,7 @@ async function useAIAvatar() {
             .upload(filePath, blob, {
                 cacheControl: '3600',
                 upsert: true,
-                contentType: 'image/png'
+                contentType: avatarType
             });
 
         if (uploadError) throw uploadError;

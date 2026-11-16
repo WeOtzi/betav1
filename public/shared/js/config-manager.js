@@ -106,13 +106,23 @@ const ConfigManager = (function () {
             serviceAccountJson: ''
         },
 
+        // IA de imágenes. El proveedor es OpenAI (GPT Image 2.6); la clave vive
+        // solo en el servidor. El nombre "gemini" de este bloque es histórico:
+        // enabled lo publica el servidor (= hay IA de imágenes configurada) y
+        // model solo lo usa el backoffice (gpt-image-2.6-flare | -sunburst).
         gemini: {
             apiKey: '',
-            model: 'gemini-3-pro-image-preview', // or gemini-2.5-flash-image
+            model: 'gpt-image-2.6-flare',
             enabled: false,
             maxTokens: 1024,
             defaultStyle: 'Minimalist line art',
             defaultBackgroundColor: 'White'
+        },
+
+        // Lo publica el servidor en /shared/js/app-config.json (sin claves).
+        aiImages: {
+            enabled: false,
+            provider: 'openai'
         },
 
         emailjs: {
@@ -129,7 +139,7 @@ const ConfigManager = (function () {
 
         aiProfilePicture: {
             enabled: true,
-            model: 'gemini-3-pro-image-preview',
+            model: '', // lo define el servidor (AI_IMAGE_MODEL)
             temperature: 0.7,
             maxTokens: 512,
             resolution: '1K',
@@ -1301,7 +1311,12 @@ const ConfigManager = (function () {
             googleMaps: { configured: isGoogleMapsConfigured() },
             googleDrive: { configured: isGoogleDriveConfigured() },
             googleCalendar: { configured: isGoogleCalendarConfigured() },
-            gemini: { configured: !!(getValue('gemini.apiKey')) }
+            // IA de imágenes (OpenAI; "gemini" es la clave histórica del servicio).
+            // La clave nunca llega al navegador: el servidor publica solo la bandera.
+            gemini: {
+                configured: getValue('aiImages.enabled') === true || getValue('gemini.enabled') === true,
+                provider: getValue('aiImages.provider') || 'openai'
+            }
         };
 
         // Try real health check endpoint first
@@ -1326,6 +1341,9 @@ const ConfigManager = (function () {
                             health[healthKey].status = svc.status;
                             health[healthKey].latency_ms = svc.latency_ms;
                             health[healthKey].message = svc.error || svc.metadata?.note || '';
+                            // IA de imágenes: el servidor informa el proveedor activo y su modelo.
+                            if (svc.metadata?.provider) health[healthKey].provider = svc.metadata.provider;
+                            if (svc.metadata?.model) health[healthKey].model = svc.metadata.model;
                         }
                     }
                     health._source = 'real';
