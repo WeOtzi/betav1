@@ -296,7 +296,10 @@
 }
 
 /* ---------------------- página pública /cotizacion/<token> ---------------------- */
-.wqp-body { margin: 0; min-height: 100vh; background: var(--neutral-100); color: var(--neutral-500); font-family: var(--font-body); overflow-x: clip; }
+/* body.wqp-body y no .wqp-body a secas: el diálogo "Registrar pago"
+   (quotation-payments.css) usa esa misma clase para su cuerpo y el expediente
+   carga las dos hojas; el min-height de la página lo estiraba (FE-03). */
+body.wqp-body { margin: 0; min-height: 100vh; background: var(--neutral-100); color: var(--neutral-500); font-family: var(--font-body); overflow-x: clip; }
 .wqp-topbar {
     display: flex;
     align-items: center;

@@ -1037,6 +1037,20 @@ test('estilos: tokens del DS, responsive sin desborde y vista imprimible', () =>
     assert.match(share, /@media \(max-width: 900px\)[\s\S]*\.wqp-main \{ grid-template-columns: minmax\(0, 1fr\);/);
     assert.match(share, /@media \(max-width: 680px\)[\s\S]*\.wqs-grid \{ grid-template-columns: minmax\(0, 1fr\); \}/);
     assert.match(share, /\.wqp-body \{[^}]*overflow-x: clip/);
+    // FE-03: el expediente carga también quotation-payments.css, que usa .wqp-body
+    // para el cuerpo del diálogo "Registrar pago". La regla de la página pública
+    // va atada al <body> y las dos hojas no comparten ninguna otra clase.
+    assert.match(share, /(^|\n)body\.wqp-body \{[^}]*min-height: 100vh/);
+    const rules = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/body\.wqp-body/g, '');
+    assert.doesNotMatch(rules(share), /\.wqp-body\b/);
+    assert.match(read('public/cotizacion/index.html'), /<body class="[^"]*\bwqp-body\b[^"]*">/);
+    const pay = read('public/shared/css/quotation-payments.css');
+    assert.match(pay, /\.wqp-body \{[^}]*display: flex/, 'el diálogo de pagos sigue usando .wqp-body');
+    const classes = (css) => new Set(rules(css).match(/\.wqp-[\w-]+/g) || []);
+    assert.ok(classes(share).size > 5 && classes(pay).size > 5, 'las dos hojas tienen clases .wqp-*');
+    assert.deepEqual([...classes(share)].filter((c) => classes(pay).has(c)), [], 'quote-share.css no comparte clases con el diálogo de pagos');
+    const detailHtml = read('public/my-quotations/detail/index.html');
+    assert.ok(detailHtml.includes('/shared/css/quote-share.css') && detailHtml.includes('/shared/css/quotation-payments.css'), 'el expediente carga las dos hojas');
     // PDF: @media print muestra solo la hoja.
     assert.match(share, /@media print \{[\s\S]*html\.wo-quote-printing body > \*:not\(#wo-quote-print\) \{ display: none !important; \}/);
     assert.match(share, /@media print \{[\s\S]*html\.wo-quote-printing #wo-quote-print \{ display: block !important; \}/);
