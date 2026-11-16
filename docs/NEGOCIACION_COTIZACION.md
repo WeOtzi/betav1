@@ -9,7 +9,7 @@ base de P4-saldo ("aprobada por ambas partes").
 | Momento | Cliente | Artista |
 |---|---|---|
 | Propuesta recibida (`responded`, vigente) | **Aceptar**, **Rechazar** o **Modificar**: propone otro presupuesto y/o cambia zona, tamaño, estilo, color o la descripción de la idea. Puede retirar sus cambios. | Ve "El cliente propone cambios" con el antes → después. **Aceptar cambios** (la cotización queda aprobada por ambas partes), **Hacer otra propuesta** o **Mantener mi propuesta**. |
-| Acuerdo aprobado (`client_approved`, `in_progress`, `artist_completed`) | Propone un cambio de precio, sesiones, seña o condiciones; aprueba o rechaza el que proponga el artista. | Lo mismo, en espejo. |
+| Acuerdo aprobado (`client_approved`, `in_progress`, `artist_completed`) | Propone un cambio de precio, sesiones, anticipo o condiciones; aprueba o rechaza el que proponga el artista. | Lo mismo, en espejo. |
 | Rechazada (`client_rejected`) | La cotización queda finalizada: para retomar la idea hay que iniciar una nueva. El chat queda cerrado. | No puede reabrirla ni escribirle al cliente por el chat. |
 
 Reglas:
@@ -32,7 +32,7 @@ Reglas:
 - Un cambio al acuerdo no puede dejar el precio por debajo de lo ya registrado
   como pagado (misma moneda) ni las sesiones por debajo de las ya agendadas o
   realizadas. La moneda del acuerdo no se negocia.
-- Si cambia el precio y hay seña pactada, el monto de la seña se recalcula
+- Si cambia el precio y hay anticipo pactado, el monto del anticipo se recalcula
   sobre el total nuevo (también en la cotización manual enviada, que es la que
   usa el panel de pagos).
 - Con el vencimiento opcional activo, contraproponer corre `quote_expires_at`
@@ -82,7 +82,7 @@ Con el acuerdo aprobado y el cliente con cuenta (`client_user_id` cargado), el
 artista ya no puede editar directo `final_budget_amount`, `final_budget_currency`, `final_sessions`,
 `final_comment`, `artist_deposit_pct` ni `artist_deposit_amount`: la base
 responde `42501` ("El acuerdo ya está aprobado por ambas partes…"). El enlace
-"editá el acuerdo" del expediente abre el formulario de cambio propuesto.
+"edita el acuerdo" del expediente abre el formulario de cambio propuesto.
 
 ### El artista registra el acuerdo (REQ-13)
 

@@ -159,7 +159,7 @@ Todo el texto vive en `public/shared/js/wo-tour-steps.js`. Cada paso admite:
 | `nextLabel`, `exitLabel`, `exitAssist` | Etiquetas de los botones; con `exitAssist: true` la salida pasa al modo asistido. |
 | `waitFor`, `timeout` | Selector alternativo a esperar y tiempo máximo (ms). |
 
-Copy: rioplatense con voseo, sentence case y sin signos de exclamación (regla 10
+Copy: español neutro con tuteo, sentence case y sin signos de exclamación (regla 10
 del DS). `tests/demo-tour.test.js` verifica que cada selector exista.
 
 ## Archivos

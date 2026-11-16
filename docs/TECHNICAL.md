@@ -314,6 +314,20 @@ Ver [ARTIST_SIGNUP_FLOW.md](./ARTIST_SIGNUP_FLOW.md) para el detalle. Resumen:
 *   `auth.users` se crea solo en `POST /api/register/artist-finalize` cuando el usuario confirma el resumen final.
 *   El trigger SQL `handle_new_user` (migracion `20260513000000_artist_registration_drafts.sql`) vincula la fila de `artists_db` con el nuevo `auth.users` por email, evitando duplicados.
 
+### 6.4 Español neutro: copy y mensajes de la base (`neutral-es.js`)
+
+El producto se escribe en español neutro con tuteo ("quieres", "cuéntanos", "elige"), sin voseo ni regionalismos; el pago para reservar se llama "anticipo" y "turno" se conserva. La norma es la regla 10 de [`public/shared/css/ds/README.md`](../public/shared/css/ds/README.md).
+
+Las funciones de Postgres ya aplicadas todavía levantan sus mensajes en voseo ("Iniciá sesión.", "No tenés acceso a este estudio") y esas migraciones no se editan. [`public/shared/js/neutral-es.js`](../public/shared/js/neutral-es.js) pasa ese texto a tuteo en tiempo de ejecución, justo antes de que llegue a la pantalla:
+
+*   Módulo puro, sin dependencias: `window.WoNeutralEs` en el navegador (lo carga `config-manager.js`) y `require` en Node. API: `neutralize(texto)`, `errorBody(cuerpo)` para el cuerpo de error de PostgREST y `error(objeto)`.
+*   Dónde actúa: `lib/postgrest.js` en el servidor, `WeotziData.run` en el navegador y los avisos (`wo-notify.js` y los `showToast` / `showStatus` más usados). Si no llegó a cargar, el texto se muestra como vino.
+*   No toca inglés, identificadores, `{{variables}}`, nombres propios ni pretéritos en primera persona ("ya subí el comprobante").
+*   Los `raise exception` de una migración nueva se escriben en tuteo. Una regex que reconoce un mensaje de la base acepta las dos formas (`/Ya (?:tenés|tienes)/i`), porque el texto puede llegar sin neutralizar.
+*   Es la fuente de verdad del diccionario voseo → tuteo: una forma nueva se agrega ahí, y `tests/neutral-es.test.js` falla si algún `raise exception` de `supabase/migrations` conserva voseo después de `neutralize()`.
+
+Detalle en [GUIA_CAPA_DATOS.md](./GUIA_CAPA_DATOS.md), sección "Mensajes de la base en español neutro".
+
 ## 7. Seguridad
 
 *   **Credenciales**: Las claves de API (Google, Supabase) se manejan via variables de entorno o se pasan de forma segura desde el cliente autenticado (dependiendo del endpoint).

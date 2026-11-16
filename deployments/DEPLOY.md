@@ -390,7 +390,7 @@ no se rompe.
 
 - Reprogramar una sesión confirmada de una cotización con cuenta de cliente pide
   el acuerdo de la otra parte (sin error crudo).
-- "Editá el acuerdo" del expediente abre el formulario de cambio propuesto.
+- "Edita el acuerdo" del expediente abre el formulario de cambio propuesto.
 - `GET /api/negociacion/quotations/:id` devuelve `available` distinto de `false`.
 - Panel del cliente: al agendar una sesión, la tarjeta de la cotización dice
   "Sesión por confirmar" y "Próxima cita" agrega "· por confirmar"; al mandar
