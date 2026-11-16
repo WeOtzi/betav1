@@ -397,6 +397,9 @@ no se rompe.
   "Modificar", la tarjeta pasa a "Cambios propuestos por ti".
 - Una cotización rechazada por el cliente no deja escribir en el chat a ninguna
   de las dos partes.
+- Panel de soporte (`/support/dashboard#disputas`): la pestaña DISPUTAS lista las
+  disputas de sesión. Al resolver o cerrar una, la cotización deja de figurar
+  "En disputa" y las dos partes reciben el correo con la resolución.
 
 ### Contacto del cliente y verificación (P20, REQ-11) — decisión del dueño antes de publicar
 

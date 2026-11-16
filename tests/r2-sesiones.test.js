@@ -629,7 +629,8 @@ test('payload de email: datos de la sesión, sin claves *_url (withLinks las des
 
 // ───────────────────────────────────────────────────────────── emails
 const NEW_EVENTS = ['session_confirmation_requested', 'session_confirmed_by_client', 'session_change_requested',
-    'session_change_resolved', 'session_dispute_opened', 'session_dispute_support', 'session_feedback_received', 'session_no_show'];
+    'session_change_resolved', 'session_dispute_opened', 'session_dispute_support', 'session_dispute_resolved',
+    'session_feedback_received', 'session_no_show'];
 
 function emailData(extra) {
     return Sesiones.emailPayload(quoteRow(), null, sessionRow(), Object.assign({ app_base_url: BASE }, extra || {}));
@@ -690,9 +691,11 @@ test('emails: cada rol recibe su texto, su enlace y la dirección completa', () 
     const dispute = emailData({ opened_by_role: 'client', dispute_reason_label: 'Cambio o cancelación sin acuerdo', ticket_number: 12 });
     assert.equal(renderEmail('session_dispute_opened', dispute, { role: 'client' }).subject, 'Recibimos tu disputa sobre la sesión');
     assert.equal(renderEmail('session_dispute_opened', dispute, { role: 'artist' }).subject, 'Hay una disputa sobre tu sesión');
-    const support = renderEmail('session_dispute_support', Object.assign({}, dispute, { dispute_description: '<b>Cambió la fecha</b>', queue_url: `${BASE}/support/dashboard` }), { role: 'admin' });
+    const support = renderEmail('session_dispute_support', Object.assign({}, dispute, { dispute_description: '<b>Cambió la fecha</b>', queue_url: `${BASE}/support/dashboard#disputas` }), { role: 'admin' });
     assert.match(support.subject, /ticket N\.º 12 · QN3501$/);
-    assert.equal(support.cta.url, `${BASE}/support/dashboard`);
+    assert.equal(support.cta.url, `${BASE}/support/dashboard#disputas`);
+    assert.equal(support.cta.label, 'Abrir la disputa');
+    assert.match(support.text, /pestaña Disputas del panel de soporte/);
     assert.doesNotMatch(support.html, /<b>Cambió/, 'la descripción del usuario sale escapada');
 
     assert.match(renderEmail('session_no_show', data, { role: 'client' }).text, /registró que no te presentaste[\s\S]*disputa/);
@@ -973,7 +976,7 @@ test('rutas: registro con calificación y disputa a soporte', async () => {
         assert.equal(parties.payload.opened_by_role, 'client');
         assert.equal(parties.payload.ticket_number, 12);
         assert.deepEqual(support.payload.support_emails, ['agente@weotzi.com'], 'sin SUPPORT_EMAIL avisa a los agentes activos');
-        assert.equal(support.payload.queue_url, `${BASE}/support/dashboard`);
+        assert.equal(support.payload.queue_url, `${BASE}/support/dashboard#disputas`);
         assert.equal(support.options.idempotencyKey, `sesion:${SESSION}:dispute:t-1:support`);
     } finally {
         if (saved === undefined) delete process.env.SUPPORT_EMAIL; else process.env.SUPPORT_EMAIL = saved;

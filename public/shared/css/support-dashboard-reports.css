@@ -1,5 +1,7 @@
 /* ============================================================================
    We Ötzi · Support Dashboard · pestaña DENUNCIAS (ronda 2 · frente "denuncias")
+   La pestaña DISPUTAS (support-dashboard-disputes.js, #dsq-panel) reusa estas
+   mismas clases; solo su contador (.dsq-count) es propio.
    Estilos de public/shared/js/support-dashboard-reports.js (#rpq-panel y el
    detalle en el drawer). El panel de soporte tiene modo claro y oscuro con
    body.dark-mode: los colores heredan (currentColor) y cada token del DS lleva
@@ -7,9 +9,9 @@
    ========================================================================== */
 
 .rpq-panel[hidden],.rpq-detail [hidden]{display:none !important}
-.rpq-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 4px;margin-left:4px;
+.rpq-count,.dsq-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 4px;margin-left:4px;
   background:var(--red-300,#E63A1F);color:var(--white,#FCFCFC);font-family:'Space Mono',ui-monospace,monospace;font-size:11px;line-height:1}
-.rpq-count[hidden]{display:none}
+.rpq-count[hidden],.dsq-count[hidden]{display:none}
 .rpq-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
 
 /* ---- Cola ---- */

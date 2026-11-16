@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/shared/css/quotations.css">
     <link rel="stylesheet" href="/shared/css/support-dashboard.css">
     <link rel="stylesheet" href="/shared/css/support-dashboard-store.css">
-    <link rel="stylesheet" href="/shared/css/support-dashboard-reports.css?v=20261116-denuncias">
+    <link rel="stylesheet" href="/shared/css/support-dashboard-reports.css?v=20261116-r2b">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="/shared/js/config-manager.js"></script>
@@ -100,6 +100,16 @@
                     <path d="M5 4h12l-2.5 4.5L17 13H5"/>
                 </svg>
                 DENUNCIAS <span class="rpq-count" hidden></span>
+            </a>
+            <!-- disputas (ronda 2 · P28): tickets de disputa de sesiones (support-dashboard-disputes.js) -->
+            <a href="#" class="nav-item nav-menu-item" data-tab="disputas">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12 3v18"/>
+                    <path d="M5 7h14"/>
+                    <path d="M5 7l-3 7a3 3 0 0 0 6 0z"/>
+                    <path d="M19 7l-3 7a3 3 0 0 0 6 0z"/>
+                </svg>
+                DISPUTAS <span class="dsq-count" hidden></span>
             </a>
             <div class="nav-divider"></div>
             <button class="nav-item nav-logout" onclick="handleLogout()">LOGOUT</button>
@@ -195,6 +205,15 @@
                         <path d="M5 4h12l-2.5 4.5L17 13H5"/>
                     </svg>
                     DENUNCIAS <span class="rpq-count" hidden></span>
+                </button>
+                <button class="tab-btn" data-tab="disputas" type="button">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M12 3v18"/>
+                        <path d="M5 7h14"/>
+                        <path d="M5 7l-3 7a3 3 0 0 0 6 0z"/>
+                        <path d="M19 7l-3 7a3 3 0 0 0 6 0z"/>
+                    </svg>
+                    DISPUTAS <span class="dsq-count" hidden></span>
                 </button>
             </div>
 
@@ -308,5 +327,8 @@
     <!-- Pestaña DENUNCIAS (ronda 2 · denuncias): tickets de denuncia con el expediente, estado y notas internas -->
     <script src="/shared/js/data/support-reports-repo.js?v=20261116-denuncias"></script>
     <script src="/shared/js/support-dashboard-reports.js?v=20261116-denuncias"></script>
+    <!-- Pestaña DISPUTAS (ronda 2 · P28): disputas de sesiones; al resolverlas la cotización deja de figurar en disputa -->
+    <script src="/shared/js/data/support-disputes-repo.js?v=20261116-r2b"></script>
+    <script src="/shared/js/support-dashboard-disputes.js?v=20261116-r2b"></script>
 </body>
 </html>

@@ -65,9 +65,9 @@ test('qué eventos avisan: actividad sí; comprobantes propios, códigos y bajas
     ]) assert.equal(dispatch.isPushEvent(eventId, role), true, `${eventId} → ${role}`);
 
     // Sesiones (P28): sus correos son transaccionales, pero para la otra parte son actividad.
-    assert.equal(dispatch.SESSION_ACTIVITY_EVENTS.size, 7);
+    assert.equal(dispatch.SESSION_ACTIVITY_EVENTS.size, 8);
     for (const eventId of ['session_confirmation_requested', 'session_confirmed_by_client', 'session_change_requested',
-        'session_change_resolved', 'session_dispute_opened', 'session_feedback_received', 'session_no_show']) {
+        'session_change_resolved', 'session_dispute_opened', 'session_dispute_resolved', 'session_feedback_received', 'session_no_show']) {
         assert.equal(emailRender.getSpec(eventId).category, 'transactional', `${eventId}: el correo sale siempre`);
         for (const role of ['client', 'artist']) assert.equal(dispatch.isPushEvent(eventId, role), true, `${eventId} → ${role}`);
         assert.equal(prefs.EMAIL_EVENT_KINDS[eventId], undefined, `${eventId}: el correo no entra en la matriz`);

@@ -14,6 +14,8 @@
 //   session_change_resolved         el cambio se aceptó, se rechazó o se retiró.
 //   session_dispute_opened          una de las partes pidió una disputa a soporte.
 //   session_dispute_support         aviso a soporte de esa disputa.
+//   session_dispute_resolved        soporte resolvió o cerró la disputa (lo dispara
+//                                   lib/routes/soporte-disputas.js).
 //   session_feedback_received       la otra parte calificó y dejó un registro.
 //   session_no_show                 el artista registró que el cliente no vino.
 //
@@ -280,7 +282,7 @@ module.exports = {
             subject: (d) => `Disputa de sesión${d.ticket_number ? ` · ticket N.º ${d.ticket_number}` : ''}${code(d) ? ` · ${code(d)}` : ''}`,
             preheader: (d) => `${d.opened_by_role === 'artist' ? or(d.artist_name, 'El artista') : or(d.client_name, 'El cliente')} pidió una disputa sobre una sesión. Revisa el caso.`,
             headline: () => 'Pidieron una disputa sobre una sesión',
-            intro: (d) => `${d.opened_by_role === 'artist' ? `El artista ${or(d.artist_name, '')}`.trim() : `El cliente ${or(d.client_name, '')}`.trim()} pidió abrir una disputa. El ticket quedó registrado en support_tickets (kind "disputa") y la cotización figura en disputa hasta que lo resuelvas.`,
+            intro: (d) => `${d.opened_by_role === 'artist' ? `El artista ${or(d.artist_name, '')}`.trim() : `El cliente ${or(d.client_name, '')}`.trim()} pidió abrir una disputa. La encuentras en la pestaña Disputas del panel de soporte; la cotización figura en disputa hasta que la resuelvas o la cierres ahí.`,
             quote: (d, ctx) => (d.dispute_description ? { text: ctx.f.text(d.dispute_description, 900) } : null),
             rows: (d, ctx) => [
                 ['Ticket', d.ticket_number ? `N.º ${d.ticket_number}` : ''],
@@ -293,8 +295,46 @@ module.exports = {
                 ['Cotización', code(d)],
                 ['Referencia interna', d.quote_id && d.quote_id !== code(d) ? d.quote_id : ''],
             ],
-            cta: (d, ctx) => ({ label: 'Abrir el panel de soporte', url: ctx.f.url(d.queue_url) || ctx.url('/support/dashboard') }),
+            cta: (d, ctx) => ({ label: 'Abrir la disputa', url: ctx.f.url(d.queue_url) || ctx.url('/support/dashboard#disputas') }),
         },
+    },
+
+    session_dispute_resolved: {
+        name: 'Disputa: resuelta o cerrada por soporte',
+        description: 'Soporte resolvió o cerró una disputa desde su panel. Las dos partes reciben la resolución y la cotización deja de figurar en disputa.',
+        templateHint: 'session-dispute-resolved',
+        serverOnly: true,
+        recipients: both,
+        recipientRoles: clientArtist,
+        attribs: (p) => Object.assign(attribs(p), {
+            dispute_decision: p.dispute_decision === 'closed' ? 'closed' : 'resolved',
+            dispute_outcome: or(p.dispute_outcome_label, ''),
+            dispute_reason: or(p.dispute_reason_label, ''),
+            ticket_number: p.ticket_number != null ? String(p.ticket_number) : '',
+        }),
+        render: base({
+            eyebrow: 'DISPUTA',
+            subject: (d) => `${d.dispute_decision === 'closed' ? 'Soporte cerró la disputa' : 'Soporte resolvió la disputa'}${code(d) ? ` · ${code(d)}` : ''}`,
+            preheader: (d) => (d.dispute_decision === 'closed'
+                ? 'Soporte revisó el caso y cerró la disputa. La cotización ya no figura en disputa.'
+                : 'Soporte revisó el caso y dejó su resolución. La cotización ya no figura en disputa.'),
+            headline: (d) => (d.dispute_decision === 'closed' ? 'Soporte cerró la disputa' : 'Soporte resolvió la disputa'),
+            intro: (d, ctx) => {
+                const about = d.dispute_scope === 'session' && ctx.f.date(d.session_date)
+                    ? `sobre la sesión del ${ctx.f.date(d.session_date)}`
+                    : 'de esta cotización';
+                const decision = d.dispute_decision === 'closed' ? 'la cerró' : 'la dio por resuelta';
+                return `Soporte revisó la disputa ${about} con ${otherName(d, ctx)} y ${decision}. La cotización ya no figura en disputa: pueden seguir con el trabajo desde su cuenta. Si no estás de acuerdo con la decisión, escribe a soporte indicando el número de ticket.`;
+            },
+            quote: (d, ctx) => (d.dispute_resolution ? { label: 'Resolución de soporte', text: ctx.f.text(d.dispute_resolution, 1500) } : null),
+            rows: (d, ctx) => sessionRows(d, ctx, [
+                ['Motivo', d.dispute_reason_label],
+                ['Resultado', d.dispute_outcome_label],
+                ['Ticket', d.ticket_number ? `N.º ${d.ticket_number}` : ''],
+            ]),
+            cta: (d, ctx) => ({ label: d.session_id ? 'Ver la sesión' : 'Ver la cotización', url: roleUrl(d, ctx) }),
+            secondary: () => null,
+        }),
     },
 
     session_feedback_received: {

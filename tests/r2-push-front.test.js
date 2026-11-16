@@ -874,12 +874,12 @@ test('EP-08: una fila de user_notifications se vuelve un ítem con destino inter
     // Las listas: negociación y sesiones, por rol. Nada que ya se derive de otra tabla.
     const { artist, client } = FM.STORED_NOTICE_EVENTS;
     for (const id of ['negotiation_counter_proposed', 'negotiation_amendment_proposed', 'negotiation_amendment_accepted', 'negotiation_amendment_rejected',
-        'negotiation_proposal_withdrawn', 'session_confirmed_by_client', 'session_change_requested', 'session_change_resolved', 'session_dispute_opened', 'session_feedback_received']) {
+        'negotiation_proposal_withdrawn', 'session_confirmed_by_client', 'session_change_requested', 'session_change_resolved', 'session_dispute_opened', 'session_dispute_resolved', 'session_feedback_received']) {
         assert.ok(artist.includes(id), `artista: ${id}`);
     }
     for (const id of ['artist_updated_quotation_proposal', 'negotiation_counter_accepted', 'negotiation_counter_declined', 'negotiation_amendment_proposed',
         'negotiation_amendment_accepted', 'negotiation_amendment_rejected', 'negotiation_proposal_withdrawn', 'session_confirmation_requested',
-        'session_change_requested', 'session_change_resolved', 'session_no_show', 'session_feedback_received']) {
+        'session_change_requested', 'session_change_resolved', 'session_no_show', 'session_dispute_resolved', 'session_feedback_received']) {
         assert.ok(client.includes(id), `cliente: ${id}`);
     }
     for (const id of [...artist, ...client]) {
