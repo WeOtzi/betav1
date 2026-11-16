@@ -59,13 +59,16 @@
         artist_deposit_pct: 'Seña',
         final_comment: 'Condiciones'
     };
-    // Mismos límites que negociacion_propose (migración 20261116140000).
+    // Mismos límites que negociacion_propose (migración 20261116140000). La
+    // zona admite lo que guarda el cotizador (quotation-body-model.js: 255).
+    // Los límites valen para lo que CAMBIA: un dato que queda igual no se
+    // valida (el cotizador guarda más estilos y textos más largos).
     var LIMITS = {
         note: 600,
         amountMax: 9999999999,
         sessionsMin: 1, sessionsMax: 30,
         final_comment: 600,
-        tattoo_body_part: [2, 200],
+        tattoo_body_part: [2, 255],
         tattoo_size: [1, 80],
         tattoo_color_type: [1, 50],
         tattoo_idea_description: [10, 2000],
@@ -78,7 +81,18 @@
         pending: 'Pendiente', accepted: 'Aprobada', rejected: 'Rechazada',
         superseded: 'Reemplazada', withdrawn: 'Retirada'
     };
-    var SIZE_OPTIONS = ['Pequeño · hasta 8 cm', 'Mediano · 8 a 15 cm', 'Grande · 15 a 30 cm', 'Extra grande · más de 30 cm'];
+    // Tamaños: los mismos valores que guarda el cotizador (FIGMA_SIZE_OPTIONS de
+    // script.js → toTitleCase(value); los entiende lib/prequote-estimator.js).
+    // Sin rangos en cm propios: el rango lo muestra el cotizador.
+    var SIZE_OPTIONS = [
+        { value: 'Micro', label: 'Micro' },
+        { value: 'Pequeño', label: 'Pequeño' },
+        { value: 'Mediano', label: 'Mediano' },
+        { value: 'Grande', label: 'Grande' },
+        { value: 'Muy_grande', label: 'XL' },
+        { value: 'Media Manga', label: 'Media manga' },
+        { value: 'Manga Completa', label: 'Manga' }
+    ];
     var COLOR_OPTIONS = ['Blanco y negro', 'Negro y gris', 'Color', 'Solo líneas', 'A definir'];
     var BODY_OPTIONS = ['Antebrazo', 'Brazo', 'Hombro', 'Muñeca', 'Mano', 'Pecho', 'Costillas', 'Abdomen', 'Espalda', 'Cuello', 'Muslo', 'Pantorrilla', 'Tobillo', 'Pie'];
     var STYLE_OPTIONS = ['Blackwork', 'Fine line', 'Realismo', 'Tradicional', 'Neotradicional', 'Japonés', 'Minimalista', 'Dotwork', 'Acuarela', 'Lettering', 'Geométrico', 'Anime'];
@@ -312,13 +326,20 @@
                 .filter(Boolean)
                 .filter(function (item, i, all) { return all.findIndex(function (o) { return sameText(o, item); }) === i; });
             if (!list.length) return fail('Indica al menos un estilo.', key);
+            // Lo que no cambia no se valida: el cotizador no limita la cantidad de estilos.
+            if (sameText(list.join(', '), (current[key] || []).join(', '))) return { ok: true, value: list, changed: false };
             if (list.length > LIMITS.stylesMax) return fail('Elige hasta ' + LIMITS.stylesMax + ' estilos, separados por coma.', key);
             if (list.some(function (item) { return item.length > LIMITS.styleMax; })) return fail('Cada estilo puede tener hasta ' + LIMITS.styleMax + ' caracteres.', key);
-            return { ok: true, value: list, changed: !sameText(list.join(', '), (current[key] || []).join(', ')) };
+            return { ok: true, value: list, changed: true };
         }
         // Texto del pedido: zona, tamaño, color e idea.
         if (typeof raw !== 'string') return fail('El dato no es válido.', key);
         var value = key === 'tattoo_idea_description' ? cleanMultiline(raw) : cleanLine(raw);
+        // Lo que no cambia no se valida (una zona guardada por el cotizador puede
+        // pasar el límite). En una línea no cuentan mayúsculas ni espacios de más.
+        var before = String(current[key] == null ? '' : current[key]);
+        var unchanged = key === 'tattoo_idea_description' ? value === cleanMultiline(before) : sameText(value, before);
+        if (value && unchanged) return { ok: true, value: value, changed: false };
         var range = LIMITS[key];
         if (value.length < range[0] || value.length > range[1]) {
             var messages = {
@@ -329,7 +350,7 @@
             };
             return fail(messages[key], key);
         }
-        return { ok: true, value: value, changed: value !== String(current[key] || '').trim() };
+        return { ok: true, value: value, changed: true };
     }
 
     /**
@@ -385,6 +406,22 @@
         return input;
     }
 
+    // Clave de comparación de una opción de catálogo: sin mayúsculas, tildes ni "_".
+    function optionKey(value) {
+        var s = cleanLine(value).toLowerCase().replace(/_/g, ' ');
+        try { s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { /* sin normalize */ }
+        return s.replace(/\s+/g, ' ').trim();
+    }
+    /** Tamaño guardado → texto para mostrar: "Muy_grande" → "XL", "mediano" → "Mediano". */
+    function sizeLabel(value) {
+        if (!hasValue(value)) return '';
+        var key = optionKey(value);
+        for (var i = 0; i < SIZE_OPTIONS.length; i += 1) {
+            if (optionKey(SIZE_OPTIONS[i].value) === key || optionKey(SIZE_OPTIONS[i].label) === key) return SIZE_OPTIONS[i].label;
+        }
+        return String(value).replace(/_/g, ' ').trim();
+    }
+
     function displayValue(key, value, currency) {
         if (key === 'artist_budget_amount' || key === 'final_budget_amount') return hasValue(value) ? money(value, currency) : 'Sin definir';
         if (key === 'final_sessions') {
@@ -397,6 +434,7 @@
         }
         if (key === 'tattoo_style') return styleText(value) || 'Sin definir';
         if (key === 'final_comment') return hasValue(value) ? String(value).trim() : 'Sin condiciones';
+        if (key === 'tattoo_size') return sizeLabel(value) || 'Sin definir';
         return hasValue(value) ? String(value).trim() : 'Sin definir';
     }
 
@@ -584,12 +622,23 @@
             + '</div>';
     }
 
+    // list: textos o { value, label }. La opción que coincide con lo guardado
+    // conserva el valor guardado tal cual ("mediano", "Manga_completa"): dejarla
+    // como está no es un cambio. Un valor fuera del catálogo queda como opción propia.
     function optionsHtml(list, selected) {
-        var all = list.slice();
-        if (hasValue(selected) && !all.some(function (o) { return sameText(o, selected); })) all.unshift(String(selected));
-        return all.map(function (o) {
-            return '<option value="' + esc(o) + '"' + (sameText(o, selected) ? ' selected' : '') + '>' + esc(o) + '</option>';
+        var has = hasValue(selected);
+        var matched = false;
+        var html = list.map(function (o) {
+            var value = typeof o === 'string' ? o : o.value;
+            var label = typeof o === 'string' ? o : o.label;
+            var isSelected = has && !matched && optionKey(value) === optionKey(selected);
+            if (isSelected) matched = true;
+            return '<option value="' + esc(isSelected ? String(selected) : value) + '"' + (isSelected ? ' selected' : '') + '>' + esc(label) + '</option>';
         }).join('');
+        if (has && !matched) {
+            html = '<option value="' + esc(selected) + '" selected>' + esc(String(selected).replace(/_/g, ' ')) + '</option>' + html;
+        }
+        return html;
     }
     function datalistHtml(id, list) {
         return '<datalist id="' + esc(id) + '">' + list.map(function (o) { return '<option value="' + esc(o) + '"></option>'; }).join('') + '</datalist>';
@@ -613,12 +662,13 @@
             + fieldHtml(id('budget'), 'Presupuesto' + (currency ? ' (' + currency + ')' : ''),
                 '<input class="wo-input" id="' + id('budget') + '" name="artist_budget_amount" inputmode="decimal" autocomplete="off" value="' + esc(cur.artist_budget_amount || '') + '"' + (budgetHelp ? ' aria-describedby="' + id('budget') + '-help"' : '') + '>', budgetHelp)
             + fieldHtml(id('zone'), 'Zona del cuerpo',
-                '<input class="wo-input" id="' + id('zone') + '" name="tattoo_body_part" maxlength="' + LIMITS.tattoo_body_part[1] + '" list="' + id('zones') + '" value="' + esc(cur.tattoo_body_part || '') + '">' + datalistHtml(id('zones'), BODY_OPTIONS))
+                '<input class="wo-input" id="' + id('zone') + '" name="tattoo_body_part" maxlength="' + LIMITS.tattoo_body_part[1] + '" list="' + id('zones') + '" value="' + esc(cur.tattoo_body_part || '') + '" aria-describedby="' + id('zone') + '-help">' + datalistHtml(id('zones'), BODY_OPTIONS),
+                'Si cambias la zona, escribe también el lado (izquierdo, derecho o ambos).')
             + fieldHtml(id('size'), 'Tamaño',
                 '<select class="wo-select" id="' + id('size') + '" name="tattoo_size">' + (hasValue(cur.tattoo_size) ? '' : '<option value="">Elige un tamaño</option>') + optionsHtml(SIZE_OPTIONS, cur.tattoo_size) + '</select>')
             + fieldHtml(id('style'), 'Estilo',
-                '<input class="wo-input" id="' + id('style') + '" name="tattoo_style" maxlength="190" list="' + id('styles') + '" value="' + esc((cur.tattoo_style || []).join(', ')) + '" aria-describedby="' + id('style') + '-help">' + datalistHtml(id('styles'), STYLE_OPTIONS),
-                'Hasta ' + LIMITS.stylesMax + ' estilos, separados por coma.')
+                '<input class="wo-input" id="' + id('style') + '" name="tattoo_style" list="' + id('styles') + '" value="' + esc((cur.tattoo_style || []).join(', ')) + '" aria-describedby="' + id('style') + '-help">' + datalistHtml(id('styles'), STYLE_OPTIONS),
+                'Si los cambias, elige hasta ' + LIMITS.stylesMax + ' estilos separados por coma.')
             + fieldHtml(id('color'), 'Color',
                 '<select class="wo-select" id="' + id('color') + '" name="tattoo_color_type">' + (hasValue(cur.tattoo_color_type) ? '' : '<option value="">Elige una opción</option>') + optionsHtml(COLOR_OPTIONS, cur.tattoo_color_type) + '</select>')
             + fieldHtml(id('idea'), 'Descripción de la idea',
@@ -1239,6 +1289,7 @@
         formInput: formInput,
         partyLabel: partyLabel,
         displayValue: displayValue,
+        sizeLabel: sizeLabel,
         diffRows: diffRows,
         summaryLine: summaryLine,
         proposalActions: proposalActions,

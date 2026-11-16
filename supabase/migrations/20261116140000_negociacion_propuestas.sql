@@ -5,8 +5,8 @@
 --   MODIFICAR: propone otro presupuesto y/o cambios del pedido (zona, tamaño,
 --   estilo, color, idea). El artista ve el antes → después y acepta los cambios
 --   (la cotización queda aprobada por ambas partes) o manda otra propuesta.
---   Rechazar es definitivo: el artista ya no puede reabrir la cotización ni
---   escribirle al cliente por el chat.
+--   Rechazar es definitivo: el artista ya no puede reabrir la cotización y el
+--   chat queda cerrado para las dos partes.
 -- P25. Con el acuerdo aprobado, cualquiera de las dos partes propone cambios
 --   de precio, sesiones, seña o condiciones. No rigen hasta que la otra parte
 --   los aprueba: recién ahí se aplican, de forma atómica, y queda el historial.
@@ -31,8 +31,9 @@
 --            cuando la cotización cambia de estado y, si el artista manda una
 --            propuesta nueva sobre una contrapropuesta, la reemplaza y deja el
 --            pedido con los cambios que pidió el cliente.
---   4. Policy restrictiva en chat_messages: el artista de una cotización
---      client_rejected no puede insertar mensajes (chat cerrado).
+--   4. Policy restrictiva en chat_messages: ni el artista ni el cliente de una
+--      cotización client_rejected pueden insertar mensajes (chat cerrado para
+--      los dos).
 --   5. negociacion_propose / negociacion_resolve: alta y resolución atómicas
 --      (bloquean la cotización, revalidan estado, pagos y sesiones).
 --
@@ -283,6 +284,11 @@ begin
     if found then
       if v_p.changes ? 'tattoo_body_part' and new.tattoo_body_part is not distinct from old.tattoo_body_part then
         new.tattoo_body_part := v_p.changes #>> '{tattoo_body_part,to}';
+        -- La zona nueva la escribió el cliente completa: el lado anterior ya no
+        -- aplica (la hoja de la cotización los muestra juntos).
+        if new.tattoo_body_side is not distinct from old.tattoo_body_side then
+          new.tattoo_body_side := null;
+        end if;
       end if;
       if v_p.changes ? 'tattoo_size' and new.tattoo_size is not distinct from old.tattoo_size then
         new.tattoo_size := v_p.changes #>> '{tattoo_size,to}';
@@ -330,10 +336,12 @@ create trigger trg_quotation_zz_negociacion_sync
 -- ====================================================================
 -- 4. Chat cerrado tras el rechazo del cliente
 -- ====================================================================
--- Restrictiva: se suma (AND) a artists_insert_chat / clients_insert_chat. El
--- artista de una cotización client_rejected no puede insertar mensajes, sea
--- cual sea el sender_type que declare. service_role (avisos del servidor) no
--- pasa por RLS.
+-- Restrictiva: se suma (AND) a artists_insert_chat / clients_insert_chat. Ni
+-- el artista ni el cliente de una cotización client_rejected pueden insertar
+-- mensajes, sea cual sea el sender_type que declaren: el rechazo cierra la
+-- conversación para los dos (si quedara abierta solo del lado del cliente,
+-- sus mensajes llegarían a un artista que no puede responder). service_role
+-- (avisos del servidor) no pasa por RLS.
 drop policy if exists chat_closed_after_client_rejection on public.chat_messages;
 create policy chat_closed_after_client_rejection
   on public.chat_messages
@@ -345,7 +353,7 @@ create policy chat_closed_after_client_rejection
       select 1 from public.quotations_db q
        where q.quote_id::text = chat_messages.quotation_id
          and q.quote_status = 'client_rejected'
-         and q.artist_id = (select auth.uid())
+         and (q.artist_id = (select auth.uid()) or q.client_user_id = (select auth.uid()))
     )
   );
 
@@ -577,7 +585,7 @@ begin
       v_min := case v_key when 'tattoo_idea_description' then 10 when 'tattoo_body_part' then 2 else 1 end;
       v_max := case v_key
         when 'tattoo_idea_description' then 2000
-        when 'tattoo_body_part' then 200
+        when 'tattoo_body_part' then 255
         when 'tattoo_size' then 80
         else 50 end;
       if char_length(v_text) < v_min or char_length(v_text) > v_max then
@@ -728,6 +736,9 @@ begin
        set artist_budget_amount = coalesce(v_budget, q.artist_budget_amount),
            tattoo_body_part = case when v_p.changes ? 'tattoo_body_part'
              then v_p.changes #>> '{tattoo_body_part,to}' else q.tattoo_body_part end,
+           -- Zona nueva escrita por el cliente: el lado anterior deja de aplicar.
+           tattoo_body_side = case when v_p.changes ? 'tattoo_body_part'
+             then null else q.tattoo_body_side end,
            tattoo_size = case when v_p.changes ? 'tattoo_size'
              then v_p.changes #>> '{tattoo_size,to}' else q.tattoo_size end,
            tattoo_color_type = case when v_p.changes ? 'tattoo_color_type'

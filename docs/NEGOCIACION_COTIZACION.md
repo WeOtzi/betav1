@@ -10,7 +10,7 @@ base de P4-saldo ("aprobada por ambas partes").
 |---|---|---|
 | Propuesta recibida (`responded`, vigente) | **Aceptar**, **Rechazar** o **Modificar**: propone otro presupuesto y/o cambia zona, tamaño, estilo, color o la descripción de la idea. Puede retirar sus cambios. | Ve "El cliente propone cambios" con el antes → después. **Aceptar cambios** (la cotización queda aprobada por ambas partes), **Hacer otra propuesta** o **Mantener mi propuesta**. |
 | Acuerdo aprobado (`client_approved`, `in_progress`, `artist_completed`) | Propone un cambio de precio, sesiones, seña o condiciones; aprueba o rechaza el que proponga el artista. | Lo mismo, en espejo. |
-| Rechazada (`client_rejected`) | La cotización queda finalizada: para retomar la idea hay que iniciar una nueva. | No puede reabrirla ni escribirle al cliente por el chat. |
+| Rechazada (`client_rejected`) | La cotización queda finalizada: para retomar la idea hay que iniciar una nueva. El chat queda cerrado. | No puede reabrirla ni escribirle al cliente por el chat. |
 
 Reglas:
 
@@ -37,6 +37,20 @@ Reglas:
   usa el panel de pagos).
 - Con el vencimiento opcional activo, contraproponer corre `quote_expires_at`
   para que el artista tenga el plazo completo para contestar.
+- **Modificar valida solo lo que cambia.** El formulario manda todos los
+  campos; un dato que queda igual no se revisa aunque supere los límites de
+  una contrapropuesta (el cotizador guarda zonas de hasta 255 caracteres y no
+  limita la cantidad de estilos). Lo que sí cambia respeta: zona 2 a 255
+  caracteres, tamaño hasta 80, color hasta 50, idea 10 a 2000 y hasta 3
+  estilos de 60. Mayúsculas y espacios de más no cuentan como cambio.
+- **Tamaño**: el selector ofrece los mismos valores que guarda el cotizador
+  (Micro, Pequeño, Mediano, Grande, XL, Media manga, Manga;
+  `WoQuoteNegotiation.SIZE_OPTIONS`), sin rangos en cm propios. Un valor
+  histórico se conserva tal cual mientras no se cambie. Zona y estilo son
+  texto libre con sugerencias.
+- **Zona nueva, lado nuevo**: si el cliente cambia la zona, el lado anterior
+  (`tattoo_body_side`) se borra al aplicar el cambio; el formulario pide
+  escribir el lado junto con la zona.
 - Con un reclamo abierto (`dispute_status = 'open'`) no se negocia.
 - Los cambios al acuerdo necesitan a las dos partes con cuenta. Si el cliente
   todavía no tiene cuenta (cotización manual o de invitado sin vincular,
@@ -73,12 +87,19 @@ responde `42501` ("El acuerdo ya está aprobado por ambas partes…"). El enlace
 ## Chat cerrado tras el rechazo
 
 Policy **restrictiva** `chat_closed_after_client_rejection` sobre
-`public.chat_messages` (INSERT): el artista de una cotización
-`client_rejected` no puede insertar mensajes, declare el `sender_type` que
-declare. Se suma (AND) a `artists_insert_chat` / `clients_insert_chat` de
-`20261115170000`. El cliente no queda bloqueado en la base; `service_role` no
-pasa por RLS. El frente "inbox" muestra el estado cerrado a partir de
-`quote_status` (ya viene en la vista `chat_threads`).
+`public.chat_messages` (INSERT): ni el artista ni el cliente de una cotización
+`client_rejected` pueden insertar mensajes, declaren el `sender_type` que
+declaren. Se suma (AND) a `artists_insert_chat` / `clients_insert_chat` de
+`20261115170000`. `service_role` no pasa por RLS. El cierre vale para los
+dos: si quedara abierto del lado del cliente, sus mensajes (con correo y push)
+llegarían a un artista que no puede responder.
+
+En pantalla, el estado cerrado sale de `quote_status` (ya viene en la vista
+`chat_threads`): el Inbox del artista deja el hilo en solo lectura, y del lado
+del cliente `/client/chats` y el chat del detalle de `/client/dashboard`
+deshabilitan el redactor con el aviso "Rechazaste esta propuesta y la
+conversación quedó cerrada. Si quieres retomar la idea, inicia una cotización
+nueva."
 
 En el expediente del artista, `quotation-negotiation.js` desactiva el redactor
 (`#qd-compose`) de una cotización rechazada y explica el motivo, por si el

@@ -469,6 +469,110 @@ test('navegador: registra WeotziData.Negotiation y llama al servidor con el toke
     await assert.rejects(() => repo.resolve('WO 7', 'artist', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'reject', ''), (err) => err.status === 409 && err.code === 'not_pending' && /pendiente/.test(err.message));
 });
 
+// ---------------------------------------------------------------- CF-12
+test('CF-12: lo que no cambia no se valida (zona larga del cotizador, más de 3 estilos)', () => {
+    const Body = require('../public/shared/js/quotation-body-model.js');
+    assert.equal(M.LIMITS.tattoo_body_part[1], Body.MAX_BODY_PART_LENGTH, 'la zona admite lo que guarda el cotizador');
+
+    // Zona de 236 caracteres armada por el cotizador; el cliente solo baja el
+    // presupuesto y el formulario manda todos los campos tal como están.
+    const zona = 'Brazo (izq.): Hombro, Bíceps, Tríceps, Codo, Antebrazo, Muñeca + Pierna (der.): Muslo, Rodilla, Espinilla, Pantorrilla, Tobillo + Torso: Pecho, Esternón, Costillas, Abdomen, Clavícula + Espalda: Espalda alta, Espalda media, Espalda baja';
+    assert.ok(zona.length > 200 && zona.length <= 255, String(zona.length));
+    const long = M.currentValues('counter', quote({ tattoo_body_part: zona }));
+    const sent = (current, over) => ({ ...current, tattoo_style: current.tattoo_style.join(', '), ...over });
+    assert.deepEqual(M.normalizeChanges('counter', sent(long, { artist_budget_amount: '1.800' }), long), { ok: true, changes: { artist_budget_amount: '1800' } });
+
+    // Cuatro estilos en la forma que guarda el cotizador (primero en la raíz + styles[]).
+    const mk = (n) => ({ style_id: n, style_slug: 's' + n, style_name: 'Estilo ' + n, substyle_id: null, substyle_slug: null, substyle_name: null });
+    const picked = [1, 2, 3, 4].map(mk);
+    const four = M.currentValues('counter', quote({ tattoo_style: { ...picked[0], styles: picked } }));
+    assert.deepEqual(four.tattoo_style, ['Estilo 1', 'Estilo 2', 'Estilo 3', 'Estilo 4']);
+    assert.deepEqual(M.normalizeChanges('counter', sent(four, { artist_budget_amount: '1800' }), four), { ok: true, changes: { artist_budget_amount: '1800' } });
+
+    // Datos viejos fuera de rango (idea corta, color largo) tampoco bloquean si no se tocan.
+    const old = M.currentValues('counter', quote({ tattoo_idea_description: 'Rosa', tattoo_color_type: 'x'.repeat(60) }));
+    assert.deepEqual(M.normalizeChanges('counter', sent(old, { artist_budget_amount: '1800' }), old).changes, { artist_budget_amount: '1800' });
+    // Mayúsculas, espacios de más o saltos de línea reescritos no son un cambio.
+    const messy = M.currentValues('counter', quote({ tattoo_body_part: 'Brazo:  Antebrazo', tattoo_idea_description: 'Un león realista.\r\n\r\n\r\nMirando de frente.  ' }));
+    const same = M.normalizeChanges('counter', sent(messy, { tattoo_body_part: 'brazo: antebrazo', tattoo_idea_description: 'Un león realista.\n\nMirando de frente.' }), messy);
+    assert.deepEqual([same.ok, same.code], [false, 'no_changes']);
+
+    // Lo que SÍ cambia se sigue validando con los límites de la contrapropuesta.
+    const tooLong = M.normalizeChanges('counter', sent(long, { tattoo_body_part: 'y'.repeat(256) }), long);
+    assert.deepEqual([tooLong.ok, tooLong.field], [false, 'tattoo_body_part']);
+    assert.match(tooLong.error, /hasta 255 caracteres/);
+    assert.deepEqual(M.normalizeChanges('counter', { tattoo_body_part: 'y'.repeat(255) }, long).changes, { tattoo_body_part: 'y'.repeat(255) });
+    const fourNew = M.normalizeChanges('counter', sent(four, { tattoo_style: 'Estilo 1, Estilo 2, Estilo 3, Otro' }), four);
+    assert.deepEqual([fourNew.ok, fourNew.field], [false, 'tattoo_style']);
+    assert.match(fourNew.error, /hasta 3 estilos/);
+    // Sacar un estilo de los cuatro es un cambio válido.
+    assert.deepEqual(M.normalizeChanges('counter', sent(four, { tattoo_style: 'Estilo 1, Estilo 2, Estilo 4' }), four).changes, { tattoo_style: ['Estilo 1', 'Estilo 2', 'Estilo 4'] });
+    // Vaciar un dato que tenía valor sigue siendo un error, no un "sin cambios".
+    assert.equal(M.normalizeChanges('counter', { tattoo_body_part: '   ' }, long).field, 'tattoo_body_part');
+    assert.equal(M.normalizeChanges('counter', { tattoo_style: '' }, four).field, 'tattoo_style');
+});
+
+test('CF-12: el catálogo de tamaños es el del cotizador y la opción elegida conserva el valor guardado', () => {
+    // Lo que guarda el cotizador: toTitleCase(value) de FIGMA_SIZE_OPTIONS (script.js).
+    const block = read('public/shared/js/script.js').match(/const FIGMA_SIZE_OPTIONS = \[([\s\S]*?)\];/)[1];
+    const values = [...block.matchAll(/value: '([^']+)'/g)].map((m) => m[1]);
+    const labels = [...block.matchAll(/label: '([^']+)'/g)].map((m) => m[1]);
+    const titleCase = (s) => s.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    assert.equal(values.length, 7);
+    assert.deepEqual(M.SIZE_OPTIONS.map((o) => o.value), values.map(titleCase));
+    assert.deepEqual(M.SIZE_OPTIONS.map((o) => o.label), labels);
+    assert.doesNotMatch(JSON.stringify(M.SIZE_OPTIONS), /\d\s*cm|·/, 'sin rangos en cm propios');
+    // El estimador de sesiones entiende cada valor.
+    const Estimator = require('../lib/prequote-estimator.js');
+    for (const o of M.SIZE_OPTIONS) {
+        assert.ok(Estimator.SIZE_SESSION_RULES[Estimator.normalizeText(o.value).replace(/ /g, '_')], o.value);
+    }
+
+    const form = (size) => M.panelHtml(state({
+        role: 'client', can: { counter: true, amend: false }, pending: null, proposals: [],
+        current: { counter: M.currentValues('counter', quote({ tattoo_size: size })), amendment: {} },
+    }), { form: 'counter' });
+    const options = (html) => [...html.match(/<select class="wo-select" id="[^"]+" name="tattoo_size">([\s\S]*?)<\/select>/)[1].matchAll(/<option value="([^"]*)"( selected)?>([^<]*)<\/option>/g)].map((m) => [m[1], m[3], Boolean(m[2])]);
+
+    // Valor del cotizador: una sola opción elegida, con su etiqueta.
+    const xl = options(form('Muy_grande'));
+    assert.equal(xl.length, 7);
+    assert.deepEqual(xl.filter((o) => o[2]), [['Muy_grande', 'XL', true]]);
+    // Valores históricos ("mediano", "Manga_completa"): se elige la opción del catálogo
+    // pero se envía el valor guardado tal cual, así dejarla como está no es un cambio.
+    for (const [stored, label] of [['mediano', 'Mediano'], ['Manga_completa', 'Manga'], ['pequeño', 'Pequeño']]) {
+        const list = options(form(stored));
+        assert.equal(list.length, 7, stored);
+        assert.deepEqual(list.filter((o) => o[2]), [[stored, label, true]], stored);
+        const current = M.currentValues('counter', quote({ tattoo_size: stored }));
+        const input = M.formInput({ artist_budget_amount: '1800', tattoo_size: stored }, 'counter', current);
+        assert.deepEqual(M.normalizeChanges('counter', input, current).changes, { artist_budget_amount: '1800' }, stored);
+    }
+    // Fuera del catálogo: queda como opción propia, elegida y legible.
+    const other = options(form('Espalda_completa'));
+    assert.equal(other.length, 8);
+    assert.deepEqual(other[0], ['Espalda_completa', 'Espalda completa', true]);
+    // Sin tamaño cargado: se ofrece elegir.
+    assert.match(form(''), /<option value="">Elige un tamaño<\/option>/);
+
+    // El antes → después muestra la etiqueta, no el valor crudo.
+    assert.equal(M.sizeLabel('Muy_grande'), 'XL');
+    assert.equal(M.sizeLabel('mediano'), 'Mediano');
+    assert.equal(M.sizeLabel('Chico'), 'Chico');
+    assert.equal(M.sizeLabel(''), '');
+    assert.equal(M.displayValue('tattoo_size', 'Muy_grande'), 'XL');
+    assert.equal(M.displayValue('tattoo_size', null), 'Sin definir');
+    assert.equal(M.diffRows(proposal({ changes: { tattoo_size: { from: 'mediano', to: 'Media Manga' } } }))[0].to, 'Media manga');
+
+    // Zona y estilo: texto libre con sugerencias; la zona nueva lleva el lado escrito.
+    const html = form('Mediano');
+    assert.match(html, /name="tattoo_body_part" maxlength="255" list="[^"]+"/);
+    assert.match(html, /Si cambias la zona, escribe también el lado \(izquierdo, derecho o ambos\)\./);
+    assert.match(html, /name="tattoo_style" list="[^"]+"/);
+    assert.doesNotMatch(html, /name="tattoo_style" maxlength/);
+    assert.match(html, /Si los cambias, elige hasta 3 estilos separados por coma\./);
+});
+
 test('textos nuevos en español neutro con tuteo (sin voseo)', () => {
     // Formas propias del voseo (las de tuteo no llevan esa tilde: "cambia", "revisa", "puedes").
     const VOSEO = /(?<![\wáéíóúñ])(querés|podés|tenés|sabés|necesitás|aceptás|rechazás|contanos|contale|escribile|avisale|mandale|elegí|hacé|proponé|mirá|ingresá|indicá|revisá|probá|actualizá|iniciá|confirmá|enviá|cambiá|dejalo|dejálo|vos)(?![\wáéíóúñ])/i;

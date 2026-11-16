@@ -521,7 +521,12 @@ test('migración: tabla, RLS, funciones solo para service_role, triggers propios
     assert.match(sql, /select \* into v_q from public\.quotations_db where id = p_quotation_id for update/);
     // Chat cerrado tras el rechazo (P23), en la base.
     assert.match(sql, /create policy chat_closed_after_client_rejection\s+on public\.chat_messages\s+as restrictive\s+for insert/);
-    assert.match(sql, /q\.quote_status = 'client_rejected'\s+and q\.artist_id = \(select auth\.uid\(\)\)/);
+    // CF-05: cerrado para los dos (si no, el cliente le escribe a un artista que no puede responder).
+    assert.match(sql, /q\.quote_status = 'client_rejected'\s+and \(q\.artist_id = \(select auth\.uid\(\)\) or q\.client_user_id = \(select auth\.uid\(\)\)\)/);
+    // CF-12: una zona nueva escrita por el cliente deja sin efecto el lado anterior,
+    // tanto al aceptar la contrapropuesta como cuando el artista responde con otra propuesta.
+    assert.match(sql, /tattoo_body_side = case when v_p\.changes \? 'tattoo_body_part'\s+then null else q\.tattoo_body_side end,/);
+    assert.match(sql, /new\.tattoo_body_part := v_p\.changes #>> '\{tattoo_body_part,to\}';\s+(?:--[^\n]*\s+)*if new\.tattoo_body_side is not distinct from old\.tattoo_body_side then\s+new\.tattoo_body_side := null;/);
     // Rechazo definitivo y acuerdo bloqueado para el usuario final.
     assert.match(sql, /old\.quote_status = 'client_rejected'/);
     // El servidor (service_role) tampoco la reabre en nombre del artista; soporte y postgres sí.
