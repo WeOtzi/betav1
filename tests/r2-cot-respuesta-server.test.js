@@ -111,6 +111,23 @@ test('P25: una cotización aprobada por ambas partes ya no admite propuesta', as
     assert.equal(archived.code, 'archived');
 });
 
+test('P23: una cotización rechazada por el cliente quedó finalizada — el servidor no la reabre', async () => {
+    const f = fakeDeps({ quote: quoteRow({ quote_status: 'client_rejected', artist_responded_at: '2026-11-10T12:00:00Z' }) });
+    const res = await logic.handleProposal(REQ, 'QT-1', body(), f.deps);
+    assert.equal(res.status, 409);
+    assert.equal(res.code, 'client_rejected');
+    assert.match(res.error, /quedó finalizada/);
+    assert.equal(f.calls.saves.length, 0, 'saveProposal (service-role) no se llama');
+    assert.equal(f.calls.emails.length, 0, 'el cliente no recibe otra propuesta');
+    // Tampoco con validate_only ni por el contexto del diálogo (?modal=responder).
+    const dry = await logic.handleProposal(REQ, 'QT-1', body({ validate_only: true }), f.deps);
+    assert.equal(dry.status, 409);
+    const ctx = await logic.handleContext(REQ, 'QT-1', f.deps);
+    assert.equal(ctx.editable, false);
+    assert.equal(ctx.code, 'client_rejected');
+    assert.equal(f.calls.saves.length, 0);
+});
+
 // ------------------------------------------------------------- primera respuesta
 test('P4: primera respuesta — guarda la propuesta, las fechas y completa el historial', async () => {
     const f = fakeDeps();

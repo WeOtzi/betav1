@@ -42,7 +42,13 @@ test('P25: se puede (re)enviar la propuesta mientras no esté aprobada por ambas
     assert.deepEqual(M.canPropose({ quote_status: 'pending' }), { ok: true, mode: 'respond' });
     assert.deepEqual(M.canPropose({ quote_status: 'responded' }), { ok: true, mode: 'update' });
     assert.equal(M.canPropose({ quote_status: 'expired' }).mode, 'requote');
-    assert.equal(M.canPropose({ quote_status: 'client_rejected' }).mode, 'requote');
+    // P23: el rechazo del cliente es definitivo; el artista no vuelve a cotizar sobre esa cotización.
+    const rejected = M.canPropose({ quote_status: 'client_rejected' });
+    assert.equal(rejected.ok, false);
+    assert.equal(rejected.code, 'client_rejected');
+    assert.match(rejected.reason, /quedó finalizada/);
+    assert.equal(rejected.mode, undefined);
+    assert.equal(M.proposalMode({ quote_status: 'client_rejected' }), 'respond', 'requote queda solo para las vencidas');
     // Un estado nuevo de la negociación no queda afuera (lista de bloqueo).
     assert.equal(M.canPropose({ quote_status: 'client_counter_proposal' }).ok, true);
     for (const status of ['client_approved', 'artist_completed', 'completed']) {

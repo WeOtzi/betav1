@@ -186,7 +186,12 @@ begin
 
   if new.quote_status is distinct from old.quote_status then
     -- Rechazo del cliente = cotización finalizada: el artista no la reabre.
-    if v_restricted and old.quote_status = 'client_rejected' then
+    -- También frena a service_role: el servidor guarda la propuesta del
+    -- artista con service-role (lib/repos/cot-respuesta.js) y no debe poder
+    -- reabrirla en su nombre. Soporte (is_support_user) y postgres sí pueden.
+    if old.quote_status = 'client_rejected'
+       and current_user in ('anon', 'authenticated', 'service_role')
+       and not coalesce(public.is_support_user(), false) then
       raise exception 'El cliente rechazó esta cotización y quedó finalizada. Para retomarla, el cliente tiene que iniciar una nueva.'
         using errcode = '42501';
     end if;

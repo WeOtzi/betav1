@@ -377,3 +377,156 @@ test('el módulo no registra la clave ni lee nada del body', () => {
     assert.doesNotMatch(source, /req\.body|apiKey\s*=\s*process\.env/, 'la clave sale solo del env recibido');
     assert.doesNotMatch(source, /response_format|\bstyle\b/);
 });
+
+// ---------------------------------------------------------------------------
+// Endpoint genérico (lib/routes/ai-image.js)
+// ---------------------------------------------------------------------------
+const express = require('express');
+const endpoint = require('../lib/routes/ai-image');
+const cotFormRoutes = require('../lib/routes/cot-form');
+const { listRegisteredRoutes } = require('../lib/registered-routes');
+
+function fakeRes() {
+    return { statusCode: 200, body: null, headers: {},
+        set(k, v) { this.headers[k] = v; return this; },
+        status(c) { this.statusCode = c; return this; },
+        json(b) { this.body = b; return this; } };
+}
+
+test('endpoint genérico: /api/ai/generate-image y el alias /api/gemini/generate-image comparten guard y handler', () => {
+    assert.deepEqual([...endpoint.PATHS], ['/api/ai/generate-image', '/api/gemini/generate-image']);
+    const calls = [];
+    const guard = [() => {}, () => {}];
+    endpoint.register({ post: (...args) => calls.push(args) }, { guard });
+    assert.deepEqual(calls.map((c) => c[0]), ['/api/ai/generate-image', '/api/gemini/generate-image']);
+    assert.equal(calls[0][1], guard);
+    assert.equal(calls[1][1], guard, 'el mismo guard: comparten el límite por IP y el tope diario');
+    assert.equal(calls[0][2], calls[1][2], 'el mismo handler');
+    assert.equal(typeof calls[0][2], 'function');
+
+    // Sin deps usa el guard real del proceso (el mismo que antes protegía la ruta de Gemini).
+    const real = [];
+    endpoint.register({ post: (...args) => real.push(args) });
+    assert.equal(real[0][1], cotFormRoutes.aiImageGuard());
+    assert.equal(real[1][1], cotFormRoutes.geminiGuard());
+
+    // Las dos rutas quedan en el listado de arranque de Express.
+    const app = express();
+    endpoint.register(app, { guard: [(req, res, next) => next()] });
+    const listed = listRegisteredRoutes(app._router.stack).map((r) => `${r.methods} ${r.path}`);
+    assert.deepEqual(listed, ['POST /api/ai/generate-image', 'POST /api/gemini/generate-image']);
+
+    const server = read('server.js');
+    assert.match(server, /require\('\.\/lib\/routes\/ai-image'\)\.register\(app\);/);
+    assert.doesNotMatch(server, /app\.post\('\/api\/gemini\/generate-image'/, 'el handler ya no vive en server.js');
+    assert.ok(server.indexOf("require('./lib/routes/ai-image').register(app)") > server.indexOf('app.use(express.json('), 'se registra después del parser de JSON');
+    assert.ok(server.indexOf("require('./lib/routes/ai-image').register(app)") > server.indexOf("app.use('/api/', apiLimiter)"), 'y después del límite global de /api/');
+});
+
+test('endpoint genérico: forma de la respuesta que leen el backoffice, el dashboard y el Job Board', async () => {
+    const seen = [];
+    const handler = endpoint.createGenerateHandler({
+        env: ENV,
+        generateImage: async (options) => { seen.push(options); return { mimeType: 'image/jpeg', base64: JPEG, model: 'gpt-image-2.6-flare', provider: 'openai' }; }
+    });
+    const res = fakeRes();
+    await handler({ body: { prompt: '  Un avatar minimalista  ', aspectRatio: '3:4', model: 'gpt-image-2.6-sunburst' }, aiImageUserKey: 'user:u-1' }, res);
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, {
+        success: true,
+        image: `data:image/jpeg;base64,${JPEG}`,
+        mime_type: 'image/jpeg',
+        provider: 'openai',
+        model: 'gpt-image-2.6-flare'
+    });
+    assert.equal(res.headers['Cache-Control'], 'no-store');
+    assert.deepEqual(seen[0], { prompt: 'Un avatar minimalista', model: 'gpt-image-2.6-sunburst', aspectRatio: '3:4', userKey: 'user:u-1', env: ENV });
+
+    // Sin sesión no hay identificador de usuario.
+    await handler({ body: { prompt: 'p' } }, fakeRes());
+    assert.equal(seen[1].userKey, undefined);
+});
+
+test('endpoint genérico: de punta a punta con el guard, el body del navegador no decide modelo, tamaño ni calidad', async () => {
+    const calls = [];
+    const fetchImpl = async (url, opts) => { calls.push({ url, opts, body: JSON.parse(opts.body) }); return okReply(); };
+    const [, sanitize] = cotFormRoutes.createAiImageGuard({
+        rateLimit: { rateLimit: (opts) => opts, ipKeyGenerator: (ip) => ip },
+        resolveUser: async () => null, budget: cotFormRoutes.createDailyBudget(5)
+    });
+    const handler = endpoint.createGenerateHandler({ env: ENV, generateImage: (options) => aiImage.generateImage({ ...options, fetchImpl }) });
+    // Lo que mandaban los consumidores cuando el proveedor era Gemini.
+    const req = { headers: {}, ip: '203.0.113.9', body: {
+        prompt: 'Referencia visual para un tatuaje: un colibrí.', model: 'gemini-3-pro-image-preview', aspectRatio: '1:1', imageSize: '4K',
+        temperature: 0.7, maxOutputTokens: 1024, safetySettings: [{ category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' }],
+        quality: 'high', n: 4, size: '1536x1024', apiKey: 'sk-del-navegador'
+    } };
+    const res = fakeRes();
+    await sanitize(req, fakeRes(), () => {});
+    await handler(req, res);
+    assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+    assert.equal(res.body.success, true);
+    assert.match(res.body.image, /^data:image\/jpeg;base64,/);
+    assert.deepEqual(calls[0].body, {
+        model: 'gpt-image-2.6-flare',
+        prompt: 'Referencia visual para un tatuaje: un colibrí.',
+        n: 1,
+        size: '1024x1024',
+        quality: 'medium',
+        output_format: 'jpeg',
+        output_compression: 85,
+        background: 'opaque',
+        moderation: 'auto'
+    });
+    assert.equal(calls[0].opts.headers.Authorization, `Bearer ${KEY}`, 'la clave es la del servidor, no la del body');
+    assert.doesNotMatch(calls[0].opts.body, /203\.0\.113\.9|sk-del-navegador/);
+});
+
+test('endpoint genérico: cada error responde con su status, un código y un mensaje propio, sin el detalle del proveedor', async () => {
+    const logged = [];
+    const run = async (deps, body = { prompt: 'p' }) => {
+        const res = fakeRes();
+        await endpoint.createGenerateHandler({ env: ENV, log: (...args) => logged.push(args.join(' ')), ...deps })({ body }, res);
+        return res;
+    };
+    const thrower = (props) => async () => { throw Object.assign(new Error('interno'), props); };
+
+    const noPrompt = await run({ generateImage: async () => { throw new Error('no debería generar'); } }, { prompt: '   ' });
+    assert.equal(noPrompt.statusCode, 400);
+    assert.deepEqual(noPrompt.body, { success: false, code: 'ai_invalid', error: 'Escribe una descripción para generar la imagen.' });
+    assert.equal((await run({ generateImage: async () => { throw new Error('x'); } }, null)).statusCode, 400);
+
+    const off = await run({ env: {}, generateImage: async () => { throw new Error('no debería generar'); } });
+    assert.equal(off.statusCode, 503);
+    assert.equal(off.body.code, 'ai_unavailable');
+    assert.equal(logged.length, 0, 'ni el prompt vacío ni la falta de clave ensucian el log');
+
+    const cases = [
+        [{ code: 'blocked', status: 422, detail: 'HTTP 400 moderation_blocked: rejected' }, 422, 'ai_blocked'],
+        [{ code: 'timeout', status: 504 }, 504, 'ai_timeout'],
+        [{ code: 'rate_limited', status: 429, detail: 'HTTP 429 insufficient_quota: You exceeded your current quota.' }, 429, 'ai_busy'],
+        [{ code: 'provider', status: 429 }, 429, 'ai_busy'],
+        [{ code: 'provider', status: 502, detail: 'HTTP 401 invalid_api_key: Incorrect API key provided: [clave]' }, 502, 'ai_error'],
+        [{ code: 'provider', status: 502, detail: 'HTTP 403: Your organization must be verified' }, 502, 'ai_error'],
+        [{}, 502, 'ai_error']
+    ];
+    for (const [props, status, code] of cases) {
+        const res = await run({ generateImage: thrower(props) });
+        assert.equal(res.statusCode, status, JSON.stringify(props));
+        assert.deepEqual(Object.keys(res.body), ['success', 'code', 'error']);
+        assert.equal(res.body.success, false);
+        assert.equal(res.body.code, code);
+        assert.doesNotMatch(res.body.error, /HTTP|quota|invalid_api_key|organization|interno|OpenAI|Gemini/, 'mensaje propio, en español neutro');
+        assert.doesNotMatch(res.body.error, /Probá|Intentá|Escribí|podés|querés/, 'sin voseo');
+        assert.equal(res.headers['Cache-Control'], 'no-store');
+    }
+    assert.match(logged.join('\n'), /insufficient_quota/, 'el detalle queda en el log del servidor');
+    assert.match(logged.join('\n'), /organization must be verified/);
+
+    // Con el proveedor real simulado: un 403 de verificación de la organización no llega al navegador.
+    const forbidden = async () => reply(403, { error: { message: 'Your organization must be verified to use the model.', type: 'invalid_request_error' } });
+    const real = await run({ generateImage: (options) => aiImage.generateImage({ ...options, fetchImpl: forbidden }) });
+    assert.equal(real.statusCode, 502);
+    assert.equal(real.body.code, 'ai_error');
+    assert.doesNotMatch(JSON.stringify(real.body), /organization|verified|sk-/);
+});

@@ -1075,9 +1075,14 @@
         // las respuestas rápidas y los campos de la cotización manual. Sin ese módulo sigue el de abajo.
         if (window.WoQuoteRespond && window.WoQuoteRespond.open(respondContext(prefill))) return;
         const q = state.quote;
+        // P23: el rechazo del cliente es definitivo; el artista no vuelve a cotizar sobre esa cotización.
+        if (q.quote_status === 'client_rejected') {
+            showToast('El cliente rechazó esta cotización y quedó finalizada. Para retomarla, el cliente tiene que iniciar una nueva.', { error: true });
+            return;
+        }
         const budgetInput = document.getElementById('qd-budget');
         const amount = (budgetInput && budgetInput.value.trim()) || (M.numberFrom(q.artist_budget_amount) != null ? M.groupThousands(M.numberFrom(q.artist_budget_amount)) : '');
-        const requote = q.quote_status === 'expired' || q.quote_status === 'client_rejected';
+        const requote = q.quote_status === 'expired';
         openDialog({
             title: requote ? 'Volver a cotizar' : 'Aceptar y enviar presupuesto',
             intro: requote
@@ -1150,7 +1155,7 @@
         if (!q) return;
         if (detail.quoteId != null && String(detail.quoteId) !== String(q.quote_id) && String(detail.quoteId) !== String(q.id)) return;
         // El diálogo anterior (sin el módulo nuevo) solo sabe responder desde estos estados.
-        if (!window.WoQuoteRespond && !['pending', 'responded', 'expired', 'client_rejected'].includes(q.quote_status)) return;
+        if (!window.WoQuoteRespond && !['pending', 'responded', 'expired'].includes(q.quote_status)) return;
         openRespondDialog(detail.prefill && typeof detail.prefill === 'object' ? detail.prefill : {});
     });
 

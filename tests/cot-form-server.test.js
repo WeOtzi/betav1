@@ -105,7 +105,7 @@ test('cotización → job_board_requests: estilos como array, rango del tramo y 
     assert.deepEqual(cotForm.budgetRange(1234), { min: null, max: 1234 });
 });
 
-test('config pública: nunca expone service account, Gemini, PRESET_PASSWORD ni webhook de referencias', () => {
+test('config pública: nunca expone service account, keys de la IA de imágenes, PRESET_PASSWORD ni webhook de referencias', () => {
     const config = {
         supabase: { url: 'u', anonKey: 'anon' },
         googleDrive: { mainFolderId: 'f', serviceAccountJson: '{"private_key":"x"}' },
@@ -113,14 +113,33 @@ test('config pública: nunca expone service account, Gemini, PRESET_PASSWORD ni 
         registration: { presetPassword: 'hunter2' },
         n8n: { webhookUrl: 'https://n8n/secret', driveFolderId: 'abc', events: [{ id: 'e' }] }
     };
-    const out = cotForm.sanitizePublicConfig(config, { GEMINI_API_KEY: 'k', GOOGLE_DRIVE_FOLDER_ID: 'f', GOOGLE_DRIVE_SERVICE_ACCOUNT: '{}' });
+    const out = cotForm.sanitizePublicConfig(config, { OPENAI_API_KEY: 'sk-openai-secret', GEMINI_API_KEY: 'AIza-env-secret', GOOGLE_DRIVE_FOLDER_ID: 'f', GOOGLE_DRIVE_SERVICE_ACCOUNT: '{}' });
     const json = JSON.stringify(out);
-    assert.doesNotMatch(json, /AIza-secret|hunter2|private_key|n8n\/secret|serviceAccountJson|presetPassword|"apiKey"/);
+    assert.doesNotMatch(json, /AIza-secret|AIza-env-secret|sk-openai-secret|hunter2|private_key|n8n\/secret|serviceAccountJson|presetPassword|"apiKey"/);
     assert.equal(out.gemini.enabled, true);
+    assert.deepEqual(out.aiImages, { enabled: true, provider: 'openai' });
     assert.equal(out.googleDrive.enabled, true);
     assert.deepEqual(out.n8n.events, [{ id: 'e' }]);
     assert.equal(out.supabase.anonKey, 'anon');
     assert.equal(config.gemini.apiKey, 'AIza-secret', 'no muta el original');
+});
+
+test('config pública: gemini.enabled y aiImages reflejan la IA de imágenes configurada en el servidor', () => {
+    const flags = (env, config = {}) => {
+        const out = cotForm.sanitizePublicConfig(config, env);
+        return { gemini: out.gemini.enabled, ai: out.aiImages };
+    };
+    // gemini.enabled conserva el nombre que lee el frontend: vale lo mismo que aiImages.enabled.
+    assert.deepEqual(flags({ OPENAI_API_KEY: 'k' }), { gemini: true, ai: { enabled: true, provider: 'openai' } });
+    assert.deepEqual(flags({ GEMINI_API_KEY: 'g' }), { gemini: true, ai: { enabled: true, provider: 'gemini' } }, 'Gemini queda como proveedor heredado');
+    assert.deepEqual(flags({ OPENAI_API_KEY: 'k', GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'gemini' }), { gemini: true, ai: { enabled: true, provider: 'gemini' } });
+    assert.deepEqual(flags({}), { gemini: false, ai: { enabled: false, provider: 'openai' } });
+    assert.deepEqual(flags({ OPENAI_API_KEY: 'k', AI_IMAGE_PROVIDER: 'off' }), { gemini: false, ai: { enabled: false, provider: 'none' } });
+    // Un "enabled" guardado en el archivo no enciende el botón si el servidor no tiene clave.
+    assert.deepEqual(flags({}, { gemini: { enabled: true, apiKey: 'AIza-x' }, aiImages: { enabled: true, provider: 'x', apiKey: 'sk-x' } }),
+        { gemini: false, ai: { enabled: false, provider: 'openai' } });
+    const kept = cotForm.sanitizePublicConfig({ gemini: { defaultStyle: 'Line art' } }, { OPENAI_API_KEY: 'k' });
+    assert.equal(kept.gemini.defaultStyle, 'Line art', 'el resto de la configuración de estilo se conserva');
 });
 
 test('server.js sirve app-config saneado y ya no copia secretos del .env', () => {

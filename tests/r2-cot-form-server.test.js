@@ -1,7 +1,7 @@
 'use strict';
 // Ronda 2 · frente cot-form · servidor del cotizador: referencias con su nota
 // y marca de IA (P7/P13/N11), edad (P15), código corto (P16), vínculo de
-// contacto (P17), sedes (P27), reutilizar (P32) y guard de Gemini.
+// contacto (P17), sedes (P27), reutilizar (P32) y guard del endpoint de imágenes con IA.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -353,8 +353,9 @@ test('P7: el prompt lo arma el servidor y neutraliza el texto del cliente', () =
 test('P7: ruta de IA — exige llave de borrador, respeta el tope diario y no filtra errores del proveedor', async () => {
     const generated = [];
     const budget = routes.createDailyBudget(1);
+    const env = { OPENAI_API_KEY: 'k', AI_REFERENCE_MODEL: 'gpt-image-2.6-sunburst' };
     const handler = routes.createAiReferenceHandler({
-        apiKey: 'k', budget,
+        env, budget,
         generateImage: async (opts) => { generated.push(opts); return { mimeType: 'image/png', base64: 'AAAA' }; }
     });
     const noKey = fakeRes();
@@ -367,14 +368,18 @@ test('P7: ruta de IA — exige llave de borrador, respeta el tope diario y no fi
     assert.equal(ok.body.ai_generated, true);
     assert.equal(ok.body.label, 'Generada con IA · solo referencial');
     assert.equal(ok.headers['Cache-Control'], 'no-store');
-    assert.notEqual(generated[0].model, 'otro-modelo', 'el modelo no lo elige el navegador');
+    assert.equal(generated[0].model, 'gpt-image-2.6-sunburst', 'el modelo sale de AI_REFERENCE_MODEL, no del navegador');
     assert.doesNotMatch(generated[0].prompt, /ignorado/);
+    assert.equal(generated[0].aspectRatio, '1:1');
+    assert.equal(generated[0].userKey, KEY, 'la llave del borrador identifica al usuario final (se hashea en lib/ai-image.js)');
+    assert.equal(generated[0].env, env, 'la clave la lee el módulo desde el entorno');
+    assert.ok(!('apiKey' in generated[0]), 'la ruta no maneja la clave');
     const capped = fakeRes();
     await handler({ body: { submission_key: KEY, idea: 'Una golondrina con rosas' } }, capped);
     assert.equal(capped.statusCode, 429);
     assert.equal(capped.body.code, 'ai_busy');
 
-    const failing = routes.createAiReferenceHandler({ apiKey: 'k', budget: routes.createDailyBudget(5),
+    const failing = routes.createAiReferenceHandler({ env, budget: routes.createDailyBudget(5),
         generateImage: async () => { const e = new Error('API key AIza-secret invalid'); e.detail = 'AIza-secret'; throw e; } });
     const fail = fakeRes();
     const original = console.error;
@@ -383,20 +388,77 @@ test('P7: ruta de IA — exige llave de borrador, respeta el tope diario y no fi
     assert.equal(fail.statusCode, 502);
     assert.doesNotMatch(JSON.stringify(fail.body), /AIza|API key/);
 
-    const blocked = routes.createAiReferenceHandler({ apiKey: 'k', budget: routes.createDailyBudget(5),
+    const blocked = routes.createAiReferenceHandler({ env, budget: routes.createDailyBudget(5),
         generateImage: async () => { const e = new Error('x'); e.code = 'blocked'; e.status = 422; throw e; } });
     const b = fakeRes();
     await blocked({ body: { submission_key: KEY, idea: 'Una golondrina con rosas' } }, b);
     assert.equal(b.statusCode, 422);
     assert.equal(b.body.code, 'ai_blocked');
 
-    const off = routes.createAiReferenceHandler({ apiKey: '', generateImage: async () => { throw new Error('no'); } });
-    const saved = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY;
-    const o = fakeRes();
-    try { await off({ body: { submission_key: KEY, idea: 'Una golondrina con rosas' } }, o); } finally { if (saved) process.env.GEMINI_API_KEY = saved; }
-    assert.equal(o.statusCode, 503);
-    assert.equal(o.body.code, 'ai_unavailable');
+    // Cuota o límite del proveedor (429) y tiempo agotado (504): mensajes propios, sin el detalle.
+    const warn = console.warn;
+    const warned = [];
+    console.warn = (...args) => { warned.push(args.join(' ')); };
+    try {
+        const quotaBudget = routes.createDailyBudget(1);
+        const quota = routes.createAiReferenceHandler({ env, budget: quotaBudget,
+            generateImage: async () => { const e = new Error('x'); e.code = 'rate_limited'; e.status = 429; e.detail = 'HTTP 429 insufficient_quota: You exceeded your current quota.'; throw e; } });
+        const q = fakeRes();
+        await quota({ body: { submission_key: KEY, idea: 'Una golondrina con rosas' } }, q);
+        assert.equal(q.statusCode, 429);
+        assert.equal(q.body.code, 'ai_busy');
+        assert.doesNotMatch(JSON.stringify(q.body), /insufficient_quota|quota/);
+        assert.match(warned.join('\n'), /insufficient_quota/, 'la cuota agotada queda en el log del servidor');
+        assert.equal(quotaBudget.take(), true, 'lo que no generó imagen no consume el tope diario');
+    } finally { console.warn = warn; }
+    const slow = routes.createAiReferenceHandler({ env, budget: routes.createDailyBudget(5),
+        generateImage: async () => { const e = new Error('x'); e.code = 'timeout'; e.status = 504; throw e; } });
+    const t = fakeRes();
+    await slow({ body: { submission_key: KEY, idea: 'Una golondrina con rosas' } }, t);
+    assert.equal(t.statusCode, 504);
+    assert.equal(t.body.code, 'ai_timeout');
+
+    // Sin clave de ningún proveedor (o con la IA apagada): 503 sin llegar a generar.
+    for (const offEnv of [{}, { OPENAI_API_KEY: '' }, { OPENAI_API_KEY: 'k', AI_IMAGE_PROVIDER: 'off' }]) {
+        const off = routes.createAiReferenceHandler({ env: offEnv, generateImage: async () => { throw new Error('no'); } });
+        const o = fakeRes();
+        await off({ body: { submission_key: KEY, idea: 'Una golondrina con rosas' } }, o);
+        assert.equal(o.statusCode, 503, JSON.stringify(offEnv));
+        assert.equal(o.body.code, 'ai_unavailable');
+    }
+    // Gemini queda como proveedor heredado: con solo su clave la ruta sigue generando.
+    const legacy = routes.createAiReferenceHandler({ env: { GEMINI_API_KEY: 'g' }, budget: routes.createDailyBudget(5),
+        generateImage: async () => ({ mimeType: 'image/png', base64: 'AAAA' }) });
+    const l = fakeRes();
+    await legacy({ body: { submission_key: KEY, idea: 'Una golondrina con rosas' } }, l);
+    assert.equal(l.statusCode, 200);
+
+    const source = read('lib', 'routes', 'cot-form.js');
+    assert.match(source, /aiImage\.isConfigured\(env\)/, 'el chequeo de "no configurado" pasa por lib/ai-image.js');
+    assert.doesNotMatch(source, /process\.env\.(GEMINI|OPENAI)_API_KEY/, 'la ruta no lee claves de proveedor');
+});
+
+test('P7: de punta a punta, la referencia sale por OpenAI con el modelo del servidor y el borrador hasheado', async () => {
+    const aiImage = require('../lib/ai-image');
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]).toString('base64');
+    const calls = [];
+    const fetchImpl = async (url, opts) => { calls.push({ url, opts, body: JSON.parse(opts.body) }); return { ok: true, status: 200, json: async () => ({ data: [{ b64_json: jpeg }] }) }; };
+    // AI_REFERENCE_MODEL todavía con un ID de Gemini: cae al default de OpenAI sin romper.
+    const env = { OPENAI_API_KEY: 'sk-test-abc', AI_REFERENCE_MODEL: 'gemini-2.5-flash-image' };
+    const handler = routes.createAiReferenceHandler({ env, budget: routes.createDailyBudget(5),
+        generateImage: (options) => aiImage.generateImage({ ...options, fetchImpl }) });
+    const res = fakeRes();
+    await handler({ body: { submission_key: KEY.toUpperCase(), idea: 'Una golondrina con rosas', model: 'gpt-image-2.6-sunburst' } }, res);
+    assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+    assert.equal(res.body.image, `data:image/jpeg;base64,${jpeg}`);
+    assert.equal(res.body.mime_type, 'image/jpeg');
+    assert.equal(calls[0].url, 'https://api.openai.com/v1/images/generations');
+    assert.equal(calls[0].opts.headers.Authorization, 'Bearer sk-test-abc');
+    assert.equal(calls[0].body.model, 'gpt-image-2.6-flare');
+    assert.equal(calls[0].body.size, '1024x1024');
+    assert.equal(calls[0].body.safety_identifier, require('node:crypto').createHash('sha256').update(KEY).digest('hex'));
+    assert.doesNotMatch(calls[0].opts.body, new RegExp(KEY, 'i'), 'la llave del borrador no viaja en claro');
+    assert.doesNotMatch(JSON.stringify(res.body), /sk-test/);
 });
 
 test('P7: límites propios de la IA (por borrador y por IP) y rutas nuevas fuera del límite global', () => {
@@ -434,37 +496,65 @@ test('P7: Gemini — lista blanca de modelos, URL sin la key y errores con códi
         (e) => e.status === 429);
 });
 
-test('endpoint genérico de Gemini: el guard sanea modelo, tamaño, prompt y filtros; server.js lo usa', async () => {
-    const clean = routes.sanitizeGeminiBody({ prompt: 'x'.repeat(9000), model: 'models/../evil', imageSize: '4K', aspectRatio: '7:1', temperature: 9,
+test('endpoint genérico de imágenes con IA: el guard deja pasar solo prompt y proporción; el modelo lo decide el servidor', async () => {
+    const clean = routes.sanitizeAiImageBody({ prompt: 'x'.repeat(9000), model: 'models/../evil', imageSize: '4K', aspectRatio: '7:1', temperature: 9, maxOutputTokens: 99,
+        apiKey: 'sk-del-navegador', quality: 'high', n: 10,
         safetySettings: [{ category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' }, { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_LOW_AND_ABOVE', extra: 1 }] });
-    assert.equal(clean.model, undefined);
+    assert.deepEqual(Object.keys(clean), ['prompt'], 'tamaño, temperatura, tokens, filtros y cualquier otro campo se descartan');
     assert.equal(clean.prompt.length, 4000);
-    assert.equal(clean.imageSize, '1K');
-    assert.equal(clean.aspectRatio, undefined);
-    assert.equal(clean.temperature, 2);
-    assert.deepEqual(clean.safetySettings, [{ category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_LOW_AND_ABOVE' }], 'los filtros solo pueden ser más estrictos');
-    assert.equal(routes.sanitizeGeminiBody({ imageSize: '4K', model: 'gemini-3-pro-image-preview' }, { admin: true }).imageSize, '4K');
-    assert.equal(routes.sanitizeGeminiBody(null).imageSize, '1K');
+    assert.equal(routes.sanitizeGeminiBody, routes.sanitizeAiImageBody, 'el nombre histórico es el mismo saneador');
+    assert.deepEqual(routes.sanitizeAiImageBody(null), {});
+    assert.deepEqual(routes.sanitizeAiImageBody({ prompt: 42, aspectRatio: '16:9' }), { aspectRatio: '16:9' });
+    for (const aspect of ['1:1', '4:3', '3:2', '16:9', '3:4', '2:3', '9:16']) {
+        assert.equal(routes.sanitizeAiImageBody({ aspectRatio: aspect }).aspectRatio, aspect);
+    }
+    // Ya no se aceptan IDs de modelo de Gemini del cliente, ni siquiera de un superadmin.
+    for (const model of ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image', 'gpt-image-1', 'evil']) {
+        assert.equal(routes.sanitizeAiImageBody({ model }).model, undefined);
+        assert.equal(routes.sanitizeAiImageBody({ model }, { admin: true }).model, undefined);
+    }
+    // Un modelo de la lista blanca solo pasa si lo pide un superadmin.
+    assert.equal(routes.sanitizeAiImageBody({ model: 'gpt-image-2.6-sunburst' }).model, undefined);
+    assert.equal(routes.sanitizeAiImageBody({ model: 'gpt-image-2.6-sunburst' }, { admin: true }).model, 'gpt-image-2.6-sunburst');
+    assert.equal(routes.sanitizeAiImageBody({ model: 'gpt-image-2.6-flare', imageSize: '4K' }, { admin: true }).imageSize, undefined);
 
     const made = [];
-    const [limiter, sanitize] = routes.createGeminiGuard({
+    const [limiter, sanitize] = routes.createAiImageGuard({
         rateLimit: { rateLimit: (opts) => { made.push(opts); return opts; }, ipKeyGenerator: (ip) => `ip(${ip})` },
         resolveUser: async () => null, budget: routes.createDailyBudget(1)
     });
+    assert.equal(routes.createGeminiGuard, routes.createAiImageGuard);
+    assert.equal(routes.geminiGuard, routes.aiImageGuard);
     assert.ok(limiter.max <= 30);
-    const req = { headers: {}, body: { prompt: 'p', model: 'evil', imageSize: '4K' } };
+    const req = { headers: {}, body: { prompt: 'p', model: 'gpt-image-2.6-sunburst', imageSize: '4K' } };
     let passed = 0;
     await sanitize(req, fakeRes(), () => { passed += 1; });
     assert.equal(passed, 1);
-    assert.equal(req.body.model, undefined);
-    assert.equal(req.body.imageSize, '1K');
+    assert.deepEqual(req.body, { prompt: 'p' }, 'sin sesión de superadmin no se elige modelo');
+    assert.equal(req.aiImageUserKey, '', 'sin sesión no se manda identificador (ni la IP)');
     const res = fakeRes();
     await sanitize({ headers: {}, body: { prompt: 'p' } }, res, () => { passed += 1; });
     assert.equal(res.statusCode, 429, 'tope diario');
     assert.equal(passed, 1);
 
+    // Con sesión: el superadmin elige modelo y el id de la cuenta es el identificador (se hashea después).
+    const guardFor = (user, isAdmin) => routes.createAiImageGuard({
+        rateLimit: { rateLimit: (opts) => opts, ipKeyGenerator: (ip) => ip },
+        resolveUser: async () => user, isAdmin: () => isAdmin, budget: routes.createDailyBudget(5)
+    })[1];
+    const adminReq = { headers: { authorization: 'Bearer t' }, body: { prompt: 'p', model: 'gpt-image-2.6-sunburst' } };
+    await guardFor({ id: 'u-1', email: 'admin@example.test' }, true)(adminReq, fakeRes(), () => {});
+    assert.deepEqual(adminReq.body, { prompt: 'p', model: 'gpt-image-2.6-sunburst' });
+    assert.equal(adminReq.aiImageUserKey, 'user:u-1');
+    const artistReq = { headers: { authorization: 'Bearer t' }, body: { prompt: 'p', model: 'gpt-image-2.6-sunburst' } };
+    await guardFor({ id: 'u-2', email: 'artista@example.test' }, false)(artistReq, fakeRes(), () => {});
+    assert.deepEqual(artistReq.body, { prompt: 'p' });
+    assert.equal(artistReq.aiImageUserKey, 'user:u-2');
+    assert.doesNotMatch(artistReq.aiImageUserKey, /@/, 'nunca el email');
+
     const server = read('server.js');
-    assert.match(server, /app\.post\('\/api\/gemini\/generate-image', require\('\.\/lib\/routes\/cot-form'\)\.geminiGuard\(\), async \(req, res\) => \{/);
+    assert.match(server, /require\('\.\/lib\/routes\/ai-image'\)\.register\(app\);/);
+    assert.doesNotMatch(server, /generativelanguage\.googleapis\.com|GEMINI_API_KEY/, 'server.js ya no habla con Gemini ni lee su clave');
 });
 
 // ---------------------------------------------------------------------------

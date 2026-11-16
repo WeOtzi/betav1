@@ -524,6 +524,8 @@ test('migración: tabla, RLS, funciones solo para service_role, triggers propios
     assert.match(sql, /q\.quote_status = 'client_rejected'\s+and q\.artist_id = \(select auth\.uid\(\)\)/);
     // Rechazo definitivo y acuerdo bloqueado para el usuario final.
     assert.match(sql, /old\.quote_status = 'client_rejected'/);
+    // El servidor (service_role) tampoco la reabre en nombre del artista; soporte y postgres sí.
+    assert.match(sql, /if old\.quote_status = 'client_rejected'\s+and current_user in \('anon', 'authenticated', 'service_role'\)\s+and not coalesce\(public\.is_support_user\(\), false\) then/);
     assert.match(sql, /El acuerdo ya está aprobado por ambas partes/);
     assert.match(sql, /and old\.agreement_approved_at is not null\s+and old\.client_user_id is not null/, 'sin cuenta del cliente no se bloquea la edición del artista');
     assert.match(sql, /if v_q\.client_user_id is null or v_q\.artist_id is null then\s+raise exception 'NEG_NO_COUNTERPARTY'/);

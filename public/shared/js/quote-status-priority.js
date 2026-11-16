@@ -73,7 +73,8 @@
         if (model && model.approvedByBoth(quote)) return 'Aprobada por ambas partes: el saldo acordado ya está activo.';
         if (quote.quote_status === 'responded') return 'Puedes modificar la propuesta mientras no esté aprobada por ambas partes. El saldo acordado se activa recién cuando el cliente la aprueba.';
         if (quote.quote_status === 'pending') return 'Responde con tu presupuesto y las fechas que ofreces para que el cliente pueda aprobar la propuesta.';
-        if (quote.quote_status === 'client_rejected') return 'El cliente rechazó la propuesta. Puedes enviarle una nueva.';
+        // P23: el rechazo del cliente es definitivo, no se ofrece volver a cotizar.
+        if (quote.quote_status === 'client_rejected') return 'El cliente rechazó la propuesta y la cotización quedó finalizada.';
         return '';
     }
 
@@ -83,7 +84,6 @@
         if (!model || detail.readOnly || !model.canPropose(quote).ok || quote.is_archived) return '';
         // Pendiente y vencida ya tienen su botón en la barra de comandos.
         if (quote.quote_status === 'responded') return 'Modificar propuesta';
-        if (quote.quote_status === 'client_rejected') return 'Volver a cotizar';
         return '';
     }
 

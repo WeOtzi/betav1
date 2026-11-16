@@ -139,13 +139,16 @@
     function agreementActive(q) { return approvedByBoth(q); }
 
     // 'respond' primera respuesta · 'update' reenvía una propuesta abierta ·
-    // 'requote' vuelve a cotizar una vencida o rechazada por el cliente.
+    // 'requote' vuelve a cotizar una vencida. Una rechazada por el cliente no
+    // se vuelve a cotizar: el rechazo la da por finalizada (P23).
     function proposalMode(q) {
         var s = q && q.quote_status;
         if (s === 'responded') return 'update';
-        if (s === 'expired' || s === 'client_rejected') return 'requote';
+        if (s === 'expired') return 'requote';
         return 'respond';
     }
+
+    var CLIENT_REJECTED_REASON = 'El cliente rechazó esta cotización y quedó finalizada. Para retomarla, el cliente tiene que iniciar una nueva.';
 
     // ¿El artista puede enviar o modificar la propuesta? Lista de bloqueo: todo
     // estado que no sea "aprobada por ambos" o cerrado admite propuesta, así un
@@ -154,6 +157,8 @@
         if (!q) return { ok: false, code: 'not_found', reason: 'No encontramos la cotización.' };
         if (isDraftQuote(q)) return { ok: false, code: 'draft', reason: 'Esta solicitud todavía es un borrador del cliente.' };
         if (q.quote_status === 'cancelled') return { ok: false, code: 'cancelled', reason: 'La cotización está cancelada: ya no admite propuestas.' };
+        // P23: el rechazo del cliente es definitivo; el artista no la reabre.
+        if (q.quote_status === 'client_rejected') return { ok: false, code: 'client_rejected', reason: CLIENT_REJECTED_REASON };
         if (approvedByBoth(q)) {
             return { ok: false, code: 'approved', reason: 'La cotización ya está aprobada por ambas partes. Los cambios posteriores se acuerdan con el cliente.' };
         }

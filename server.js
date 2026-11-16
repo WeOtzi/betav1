@@ -327,109 +327,13 @@ app.post('/api/account/mode', accountModes.activate);
 app.post('/api/register/test-client', authLimiter, accountModes.registerTestClient);
 
 // ============================================
-// GEMINI API INTEGRATION
+// IA DE IMÁGENES (OpenAI GPT Image 2.6; Gemini solo como proveedor heredado)
 // ============================================
-
-/**
- * Generate image using Gemini API
- * POST /api/gemini/generate-image
- * Body: { prompt, model, aspectRatio, imageSize }
- * API key read from process.env (NEVER from frontend)
- */
-// Ronda 2 (cot-form · P7): geminiGuard limita por IP y por día y sanea modelo
-// (va en la URL), tamaño, prompt y filtros antes de gastar la API key.
-app.post('/api/gemini/generate-image', require('./lib/routes/cot-form').geminiGuard(), async (req, res) => {
-    const {
-        prompt,
-        model,
-        aspectRatio,
-        imageSize,
-        temperature,
-        maxOutputTokens,
-        safetySettings
-    } = req.body;
-
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!prompt) {
-        return res.status(400).json({ success: false, error: 'Prompt is required' });
-    }
-
-    if (!apiKey) {
-        return res.status(500).json({ success: false, error: 'Server missing GEMINI_API_KEY environment variable' });
-    }
-
-    try {
-        const targetModel = model || 'gemini-3-pro-image-preview';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
-
-        // Note: maxOutputTokens should NOT be set for image generation
-        // Images are returned as base64 which requires many tokens
-        // Setting a low limit causes finishReason: MAX_TOKENS with empty content
-        const requestBody = {
-            contents: [{
-                parts: [{ text: prompt }]
-            }],
-            generationConfig: {
-                responseModalities: ["IMAGE"],
-                temperature: temperature !== undefined ? temperature : 0.7,
-                // Removed maxOutputTokens - not applicable for image generation
-                imageConfig: {
-                    aspectRatio: aspectRatio || "1:1",
-                    imageSize: imageSize || "1K" // "1K", "2K", "4K" allowed for Gemini 3 Pro
-                }
-            }
-        };
-
-        // Add safety settings if provided
-        if (safetySettings) {
-            requestBody.safetySettings = safetySettings;
-        }
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error?.message || 'Failed to generate image');
-        }
-
-        // Extract image data
-        // Response format: candidates[0].content.parts[0].inlineData.data (base64)
-        const candidates = data.candidates;
-        if (!candidates || candidates.length === 0) {
-            throw new Error('No image candidates returned');
-        }
-
-        // Handle case where parts might be undefined (API returned different structure)
-        if (!candidates[0].content?.parts) {
-            throw new Error('API response missing image parts. The model may not support image generation or returned text instead.');
-        }
-
-        const part = candidates[0].content.parts.find(p => p.inlineData);
-        if (!part) {
-            throw new Error('No image data found in response');
-        }
-
-        const base64Image = part.inlineData.data;
-        const mimeType = part.inlineData.mimeType;
-
-        return res.json({
-            success: true,
-            image: `data:${mimeType};base64,${base64Image}`
-        });
-
-    } catch (error) {
-        console.error('Gemini API Error:', error.message);
-        return res.status(500).json({ success: false, error: error.message });
-    }
-});
+// POST /api/ai/generate-image y su alias histórico POST /api/gemini/generate-image:
+// mismo guard (límite por IP, tope diario y saneo del body) y mismo handler, en
+// lib/routes/ai-image.js. Genera con lib/ai-image.js; la clave se lee solo de
+// process.env (OPENAI_API_KEY), nunca del navegador.
+require('./lib/routes/ai-image').register(app);
 
 // ============================================
 // SUPPORT CHAT AGENT (OpenAI GPT + handoff humano)
@@ -2892,8 +2796,9 @@ app.get('/shared/js/app-config.json', async (req, res) => {
             config.emailjs.publicKey = process.env.EMAILJS_PUBLIC_KEY;
         }
         
-        // Gemini AI: la key vive solo en el servidor (/api/gemini/*); el
-        // navegador recibe gemini.enabled (sanitizePublicConfig).
+        // IA de imágenes (OpenAI; Gemini heredado): la key vive solo en el
+        // servidor (/api/ai/*). El navegador recibe aiImages { enabled, provider }
+        // y gemini.enabled con el mismo valor (sanitizePublicConfig).
         
         // WeOtzi configuration
         if (process.env.WHATSAPP_NUMBER) {
@@ -3300,7 +3205,6 @@ function getHealthConfig() {
         storageBucket: process.env.SUPABASE_STORAGE_BUCKET || config.supabase?.storageBucket || 'quotation-references',
         googleMapsKey: process.env.GOOGLE_MAPS_API_KEY || config.googleMaps?.apiKey || '',
         n8nWebhookUrl: process.env.N8N_WEBHOOK_URL || config.n8n?.webhookUrl || '',
-        geminiApiKey: process.env.GEMINI_API_KEY || config.gemini?.apiKey || '',
         emailjsServiceId: process.env.EMAILJS_SERVICE_ID || config.emailjs?.serviceId || '',
         emailjsPublicKey: process.env.EMAILJS_PUBLIC_KEY || config.emailjs?.publicKey || '',
         gdriveCredentials: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT || config.googleDrive?.serviceAccountJson || '',
@@ -3381,17 +3285,15 @@ async function checkServiceHealth(serviceName, cfg) {
             }
 
             case 'gemini': {
-                if (!cfg.geminiApiKey) break;
-                // List models endpoint — lightweight, no token consumption
-                const geminiRes = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models?key=${cfg.geminiApiKey}&pageSize=1`,
-                    { signal: AbortSignal.timeout(10000) }
-                );
-                if (!geminiRes.ok) {
-                    const errData = await geminiRes.json().catch(() => ({}));
-                    throw new Error(errData.error?.message || `HTTP ${geminiRes.status}`);
-                }
-                status = 'healthy';
+                // 'gemini' es la clave histórica del servicio (historial y paneles):
+                // hoy chequea el proveedor ACTIVO de imágenes con IA (OpenAI por
+                // defecto; lib/ai-image.js). Consulta el modelo sin generar nada ni
+                // gastar cuota; metadata dice qué proveedor y modelo, nunca la clave.
+                const aiImage = require('./lib/ai-image');
+                const aiInfo = aiImage.providerInfo();
+                metadata.provider = aiInfo.provider;
+                if (aiInfo.model) metadata.model = aiInfo.model;
+                status = (await aiImage.checkHealth()).status;
                 break;
             }
 

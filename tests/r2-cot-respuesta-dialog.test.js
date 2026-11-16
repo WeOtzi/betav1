@@ -654,6 +654,14 @@ test('P5: la franja muestra el estado con las transiciones del artista y la prio
     assert.doesNotMatch(strip.box().html, /data-qsp-propose/);
     assert.match(strip.box().html, /Aprobada por ambas partes: el saldo acordado ya está activo\./);
     assert.match(strip.box().html, /<option value="in_progress">En progreso · iniciar trabajo<\/option>/);
+    // P23: rechazada por el cliente = finalizada. Sin "Volver a cotizar" y sin transiciones.
+    const rejectedDetail = { quote: { id: 7, quote_id: 'QT-7', quote_status: 'client_rejected', priority: 'medium' }, stage: 'rejected', readOnly: false };
+    strip.render(rejectedDetail);
+    assert.doesNotMatch(strip.box().html, /data-qsp-propose|Volver a cotizar|Puedes enviarle una nueva/);
+    assert.match(strip.box().html, /El cliente rechazó la propuesta y la cotización quedó finalizada\./);
+    assert.match(strip.box().html, /id="qsp-status" aria-describedby="qsp-note" disabled>/);
+    assert.equal(strip.env.window.WoQuoteStatusPriority.proposeLabel(rejectedDetail), '');
+    assert.match(strip.env.window.WoQuoteStatusPriority.noteFor(rejectedDetail), /quedó finalizada/);
     // Vista simulada o en disputa: todo deshabilitado.
     strip.render({ quote: { id: 7, quote_status: 'pending' }, stage: 'pending', readOnly: true });
     assert.match(strip.box().html, /id="qsp-status" aria-describedby="qsp-note" disabled>/);
