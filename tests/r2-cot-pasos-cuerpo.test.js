@@ -521,6 +521,14 @@ test('CSS propio: tokens del DS, foco visible en la silueta y tres anchos', () =
     assert.match(css, /@media \(max-width: 480px\)/);
     assert.match(css, /\.qp-body-layout \{ grid-template-columns: minmax\(0, 1fr\); \}/, 'una columna en móvil');
     assert.match(css, /--qp-fig-h: clamp\(260px, min\(calc\(100vh - 414px\), 38vw\), 540px\);/, 'la silueta se adapta al alto y al ancho de la ventana');
+    // FE-04: en PC y tablet el resumen bajo la silueta tiene tope de alto y se desplaza
+    // por dentro; el tope usa el mismo descuento (414) y el mismo máximo (540) de la silueta.
+    const capAt = css.indexOf('.qp-body-aside .qp-sum-list {');
+    assert.ok(capAt > -1, 'hay tope para el listado del resumen');
+    assert.match(css.slice(css.lastIndexOf('@media', capAt), capAt), /^@media \(min-width: 768px\) \{\s*$/, 'solo desde 768 px: en móvil va entero');
+    assert.match(css, /\.qp-body-aside \.qp-sum-list \{[^}]*max-height: max\(62px, calc\(100vh - 414px - 540px \+ 62px\)\);[^}]*overflow-y: auto;[^}]*overscroll-behavior: contain;/);
+    assert.match(css, /\.qp-body-aside \.qp-sum-item \{ flex: none; \}/, 'las filas no se achican: se desplazan');
+    assert.doesNotMatch(css.slice(css.indexOf('.qp-body-summary {'), css.indexOf('.qp-sum-title {')), /overflow|max-height/, '"Quitar todo" queda fuera de la zona que se desplaza');
     assert.match(css, /\.qp-panel-body \{\n\s*display: grid;\n\s*grid-template-columns: minmax\(0, 1\.15fr\) minmax\(0, 1fr\);/);
     assert.match(css, /\.qp-choice input:focus-visible \+ \.qp-choice-chip \{ box-shadow: var\(--shadow-focus\); \}/);
     assert.match(css, /prefers-reduced-motion/);

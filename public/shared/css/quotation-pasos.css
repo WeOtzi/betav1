@@ -318,6 +318,24 @@
   gap: var(--space-1);
 }
 
+/* PC y tablet: con varias zonas el listado se desplaza por dentro en vez de
+   estirar la página (el paso se arma para 720 px de alto). Quedan a la vista
+   unas dos filas y "Quitar todo" no se mueve. El tope crece solo cuando la
+   silueta ya llegó a su máximo (540 px, o sea 100vh - 414px - 540px de sobra).
+   El relleno deja lugar al anillo de foco, que el overflow recortaría. En móvil
+   la página ya hace scroll y el listado va entero. */
+@media (min-width: 768px) {
+  .qp-body-aside .qp-sum-list {
+    max-height: max(62px, calc(100vh - 414px - 540px + 62px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: -3px;
+    padding: 3px;
+  }
+
+  .qp-body-aside .qp-sum-item { flex: none; }
+}
+
 .qp-sum-item {
   display: flex;
   align-items: stretch;
