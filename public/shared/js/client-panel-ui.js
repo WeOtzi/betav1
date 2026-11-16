@@ -261,7 +261,7 @@
 
     // Favoritos: wo-favorites.js necesita wo-favorites-model.js cargado ANTES.
     // El panel pinta los corazones y llama a ensureModules() en la misma tarea,
-    // antes de que el MutationObserver del cargador llegue a verlos: si acá se
+    // antes de que el MutationObserver del cargador llegue a verlos: si aquí se
     // insertara wo-favorites.js, el cargador lo daría por presente y pondría el
     // modelo detrás (el módulo arranca sin modelo y los corazones no aparecen).
     function ensureFavorites() {

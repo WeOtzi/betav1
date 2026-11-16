@@ -6,7 +6,7 @@
 -- chatear, habilitar soporte y responder la propuesta.
 --
 -- 1. public.quotation_share_links: un enlace por fila. El token (32 bytes
---    aleatorios, base64url) viaja SOLO en el enlace; acá se guarda su SHA-256
+--    aleatorios, base64url) viaja SOLO en el enlace; aquí se guarda su SHA-256
 --    en hex (igual que studio_invite_links / studio_claim_links). Tiene
 --    vencimiento obligatorio (máx. 366 días), revocación, contador de vistas
 --    y quién vinculó la cotización a su cuenta desde el enlace.
@@ -53,7 +53,7 @@ create index if not exists quotation_share_links_artist_idx
   on public.quotation_share_links (artist_id);
 
 comment on table public.quotation_share_links is
-  'Enlaces públicos de una cotización (/cotizacion/<token>). El token viaja solo en el enlace; acá se guarda su SHA-256. Solo service_role.';
+  'Enlaces públicos de una cotización (/cotizacion/<token>). El token viaja solo en el enlace; aquí se guarda su SHA-256. Solo service_role.';
 comment on column public.quotation_share_links.claimed_by is
   'Usuario (cliente) que vinculó la cotización a su cuenta desde este enlace.';
 

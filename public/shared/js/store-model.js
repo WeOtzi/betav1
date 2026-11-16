@@ -122,8 +122,8 @@
             summary: 'Para tatuarte el diseño una vez, en tu cuerpo o en el de la persona a quien se lo regales.',
             bullets: [
                 'Un tatuaje, una sola vez, en el cuerpo del titular.',
-                'Elegís el tatuador que quieras.',
-                'Podés compartir el stencil con el tatuador que te va a tatuar, solo para esa sesión.',
+                'Eliges el tatuador que quieras.',
+                'Puedes compartir el stencil con el tatuador que te va a tatuar, solo para esa sesión.',
                 'Sin reventa, merch ni uso comercial.'
             ]
         },
@@ -133,11 +133,11 @@
             priceField: 'license_artist_price',
             requiresArtist: true,
             holderEditable: false,
-            summary: 'Para tatuadores: tatuás el diseño una vez a un cliente y cobrás esa sesión.',
+            summary: 'Para tatuadores: tatúas el diseño una vez a un cliente y cobras esa sesión.',
             bullets: [
                 'Un tatuaje, una sola vez, a un cliente tuyo.',
-                'Cobrás la sesión como cualquier trabajo.',
-                'Publicás el resultado dando crédito al autor.',
+                'Cobras la sesión como cualquier trabajo.',
+                'Publicas el resultado dando crédito al autor.',
                 'No es exclusiva: el autor puede seguir vendiendo el diseño.',
                 'Solo para cuentas de artista con el registro completo.'
             ]
@@ -151,8 +151,8 @@
             summary: 'Venta única: cuando se confirma tu pago, el diseño se retira para siempre y nadie más lo puede comprar.',
             bullets: [
                 'Venta única: el diseño se retira para siempre.',
-                'Un tatuaje, una sola vez, al titular o, si comprás como artista, a tu cliente.',
-                'Podés compartir el stencil con el tatuador que te va a tatuar, solo para esa sesión.',
+                'Un tatuaje, una sola vez, al titular o, si compras como artista, a tu cliente.',
+                'Puedes compartir el stencil con el tatuador que te va a tatuar, solo para esa sesión.',
                 'El autor conserva la autoría y puede mostrarlo en su portafolio.'
             ]
         }
@@ -165,14 +165,14 @@
             version: '2026-10',
             title: 'Licencias de uso de diseños · v2026-10',
             legalReviewPending: true,
-            intro: 'Al comprar un diseño en la Store de un artista de We Ötzi no comprás el diseño: comprás un permiso de uso con las condiciones de tu nivel de licencia. El autor sigue siendo el dueño de su obra.',
+            intro: 'Al comprar un diseño en la Store de un artista de We Ötzi no compras el diseño: compras un permiso de uso con las condiciones de tu nivel de licencia. El autor sigue siendo el dueño de su obra.',
             personal: {
                 title: 'Licencia Personal',
                 clauses: [
                     'Esta licencia te permite tatuar el diseño una sola vez, en el cuerpo de la persona titular.',
-                    'La persona titular es quien se tatúa. Por defecto es quien compra, pero la podés regalar: en ese caso, el titular es la persona que recibe el regalo y su nombre figura en el certificado.',
+                    'La persona titular es quien se tatúa. Por defecto es quien compra, pero la puedes regalar: en ese caso, el titular es la persona que recibe el regalo y su nombre figura en el certificado.',
                     'El titular elige libremente al tatuador o la tatuadora que va a hacer el trabajo.',
-                    'Podés compartir el stencil con el tatuador que te va a tatuar, solo para esa sesión. Ese tatuador no puede guardar, reutilizar ni volver a compartir los archivos.',
+                    'Puedes compartir el stencil con el tatuador que te va a tatuar, solo para esa sesión. Ese tatuador no puede guardar, reutilizar ni volver a compartir los archivos.',
                     'No permite reventa, merch, impresiones para vender ni ningún otro uso comercial del diseño.',
                     'La licencia no se puede transferir a otra persona después de emitida.'
                 ]
@@ -182,8 +182,8 @@
                 clauses: [
                     'Esta licencia es solo para cuentas de artista con el registro completo en We Ötzi. El titular es el artista que compra, con el nombre de su perfil, y no se puede cambiar ni transferir.',
                     'Te permite tatuar el diseño una sola vez a un cliente y cobrar esa sesión como cualquier trabajo.',
-                    'Podés publicar fotos del tatuaje terminado en tu portafolio y en tus redes, siempre dando crédito al autor del diseño.',
-                    'El original y el stencil son para preparar esa sesión. No podés compartirlos con otros tatuadores ni usarlos con otro cliente.',
+                    'Puedes publicar fotos del tatuaje terminado en tu portafolio y en tus redes, siempre dando crédito al autor del diseño.',
+                    'El original y el stencil son para preparar esa sesión. No puedes compartirlos con otros tatuadores ni usarlos con otro cliente.',
                     'No es exclusiva: el autor puede seguir vendiendo el diseño a otras personas.',
                     'No permite reventa, merch ni otros usos comerciales del diseño fuera de esa sesión.'
                 ]
@@ -193,8 +193,8 @@
                 clauses: [
                     'Es una venta única. Solo se ofrece mientras el diseño no tenga licencias vigentes ni pedidos pendientes. Cuando se confirma el pago, el diseño se retira de la Store para siempre y no se vuelve a vender.',
                     'El titular es la persona que figura en la licencia. Por defecto es quien compra, y se puede cambiar al hacer el pedido.',
-                    'Te permite tatuar el diseño una sola vez: en el cuerpo del titular o, si comprás con una cuenta de artista, a tu cliente. En ese caso podés cobrar esa sesión.',
-                    'Podés compartir el stencil con el tatuador que te va a tatuar, solo para esa sesión. Ese tatuador no puede guardar, reutilizar ni volver a compartir los archivos.',
+                    'Te permite tatuar el diseño una sola vez: en el cuerpo del titular o, si compras con una cuenta de artista, a tu cliente. En ese caso puedes cobrar esa sesión.',
+                    'Puedes compartir el stencil con el tatuador que te va a tatuar, solo para esa sesión. Ese tatuador no puede guardar, reutilizar ni volver a compartir los archivos.',
                     'Exclusiva quiere decir que el autor no vuelve a vender el diseño. El autor conserva la autoría y puede seguir mostrándolo en su portafolio.',
                     'No permite reventa, merch ni ningún otro uso comercial del diseño más allá de esa sesión.'
                 ]
@@ -204,11 +204,11 @@
                 clauses: [
                     'La autoría y los derechos morales del diseño son del artista que lo creó. La licencia es un permiso de uso: no transfiere la propiedad intelectual.',
                     'El autor puede seguir mostrando el diseño en su portafolio y en sus redes.',
-                    'Uso único: cada licencia cubre un solo tatuaje. Cuando lo hagas, marcá la licencia como usada; la verificación pública va a mostrar la fecha de uso.',
-                    'Si publicás fotos del tatuaje, dale crédito al autor del diseño, por ejemplo con su usuario de We Ötzi.',
+                    'Uso único: cada licencia cubre un solo tatuaje. Cuando lo hagas, marca la licencia como usada; la verificación pública va a mostrar la fecha de uso.',
+                    'Si publicas fotos del tatuaje, dale crédito al autor del diseño, por ejemplo con su usuario de We Ötzi.',
                     'Está prohibido revender, sublicenciar o redistribuir los archivos (original y stencil), compartirlos más allá de lo que permite tu nivel y usarlos para entrenar o alimentar modelos de inteligencia artificial.',
                     'Cada licencia tiene un código WOL-XXXX-XXXX que cualquiera puede verificar en We Ötzi. Si el pedido se reembolsa, la licencia se revoca y deja de ser válida.',
-                    'Los archivos se descargan desde tu cuenta con enlaces temporales. Guardalos en un lugar seguro: son para tu uso, no para publicarlos.'
+                    'Los archivos se descargan desde tu cuenta con enlaces temporales. Guárdalos en un lugar seguro: son para tu uso, no para publicarlos.'
                 ]
             }
         }
@@ -217,7 +217,7 @@
     // Lo que trae cada compra de diseño (§3).
     var DESIGN_INCLUDES = [
         { key: 'original', label: 'Original', detail: 'El archivo del diseño a calidad completa.' },
-        { key: 'stencil', label: 'Stencil', detail: 'Listo para imprimir. Si el diseño tiene medidas, lo podés imprimir a escala real.' },
+        { key: 'stencil', label: 'Stencil', detail: 'Listo para imprimir. Si el diseño tiene medidas, lo puedes imprimir a escala real.' },
         { key: 'certificate', label: 'Certificado', detail: 'Imprimible, con el código de verificación de la licencia.' }
     ];
 
@@ -270,47 +270,47 @@
 
     // Un copy por cada código `store:<código>` de la §4.
     var ERROR_COPY = {
-        not_authenticated: 'Ingresá a tu cuenta para continuar.',
-        forbidden: 'No tenés permiso para hacer esto.',
-        not_found: 'No encontramos lo que buscás. Puede que ya no exista.',
+        not_authenticated: 'Ingresa a tu cuenta para continuar.',
+        forbidden: 'No tienes permiso para hacer esto.',
+        not_found: 'No encontramos lo que buscas. Puede que ya no exista.',
         product_unavailable: 'Este producto ya no está disponible.',
-        product_reserved: 'Este diseño está reservado por un pedido de exclusiva en curso. Volvé a mirarlo más tarde.',
+        product_reserved: 'Este diseño está reservado por un pedido de exclusiva en curso. Vuelve a mirarlo más tarde.',
         exclusive_unavailable: 'La licencia exclusiva ya no está disponible para este diseño.',
         tier_unavailable: 'Este nivel de licencia no está disponible para este diseño.',
         artist_tier_requires_artist: 'La licencia Artista es solo para cuentas de artista con el registro completo.',
-        own_product: 'No podés comprar tus propios productos.',
+        own_product: 'No puedes comprar tus propios productos.',
         design_no_longer_available: 'Este diseño ya no está disponible: se vendió con licencia exclusiva.',
-        email_unconfirmed: 'Confirmá tu email antes de comprar. Revisá tu bandeja de entrada.',
-        too_many_pending: 'Tenés demasiados pedidos esperando pago. Pagá o cancelá alguno antes de crear otro.',
-        pending_order_exists: 'Ya tenés un pedido de este producto esperando pago. Lo encontrás en Mis compras.',
+        email_unconfirmed: 'Confirma tu email antes de comprar. Revisa tu bandeja de entrada.',
+        too_many_pending: 'Tienes demasiados pedidos esperando pago. Paga o cancela alguno antes de crear otro.',
+        pending_order_exists: 'Ya tienes un pedido de este producto esperando pago. Lo encuentras en Mis compras.',
         exclusive_cooldown: 'Hace poco dejaste vencer o cancelaste una reserva de este diseño. Vas a poder reservarlo de nuevo en unos días.',
-        variant_required: 'Elegí una variante: talle, color o modelo.',
+        variant_required: 'Elige una variante: talle, color o modelo.',
         variant_unavailable: 'Esa variante ya no está disponible.',
         out_of_stock: 'No hay stock suficiente para esa cantidad.',
-        invalid_quantity: 'Elegí una cantidad entre 1 y 20.',
+        invalid_quantity: 'Elige una cantidad entre 1 y 20.',
         pickup_unavailable: 'Este producto no se puede retirar en el estudio.',
-        shipping_address_invalid: 'Revisá la dirección de envío: faltan datos o el país no es válido.',
+        shipping_address_invalid: 'Revisa la dirección de envío: faltan datos o el país no es válido.',
         ships_to_unsupported: 'El vendedor no hace envíos a ese país.',
-        seller_not_ready: 'El vendedor todavía no terminó de configurar su Store. Probá más tarde.',
-        terms_version_mismatch: 'Los términos de la licencia se actualizaron. Recargá la página y volvé a aceptarlos.',
-        invalid_status: 'El pedido cambió de estado. Recargá la página para ver la información actualizada.',
+        seller_not_ready: 'El vendedor todavía no terminó de configurar su Store. Prueba más tarde.',
+        terms_version_mismatch: 'Los términos de la licencia se actualizaron. Recarga la página y vuelve a aceptarlos.',
+        invalid_status: 'El pedido cambió de estado. Recarga la página para ver la información actualizada.',
         order_not_payable: 'Este pedido ya no se puede pagar: venció o se canceló.',
-        collector_mismatch: 'Este pago lo tiene que confirmar quien lo cobra. Revisá quién cobra el pedido.',
-        payment_reported: 'Ya hay un pago informado para este pedido. Para cancelarlo, escribile a soporte.',
+        collector_mismatch: 'Este pago lo tiene que confirmar quien lo cobra. Revisa quién cobra el pedido.',
+        payment_reported: 'Ya hay un pago informado para este pedido. Para cancelarlo, escríbele a soporte.',
         cannot_reopen: 'No se puede reabrir el pedido: el stock o la reserva ya no están disponibles.',
-        tracking_required: 'Cargá el código de seguimiento para marcar el pedido como enviado.',
+        tracking_required: 'Carga el código de seguimiento para marcar el pedido como enviado.',
         invalid_tracking_url: 'El link de seguimiento tiene que empezar con https://.',
-        stock_changed: 'El stock cambió mientras lo editabas. Recargá y volvé a intentarlo.',
-        checklist_incomplete: 'Completá el checklist de publicación antes de publicar.',
-        asset_licensed: 'No podés borrar este archivo: el diseño ya tiene licencias vendidas.',
-        asset_missing: 'No encontramos el archivo subido. Volvé a subirlo.',
-        invalid_image_path: 'Una de las imágenes no es válida. Volvé a subirla.',
-        download_limit: 'Llegaste al límite de descargas de hoy para esta licencia. Probá de nuevo mañana.',
+        stock_changed: 'El stock cambió mientras lo editabas. Recarga y vuelve a intentarlo.',
+        checklist_incomplete: 'Completa el checklist de publicación antes de publicar.',
+        asset_licensed: 'No puedes borrar este archivo: el diseño ya tiene licencias vendidas.',
+        asset_missing: 'No encontramos el archivo subido. Vuelve a subirlo.',
+        invalid_image_path: 'Una de las imágenes no es válida. Vuelve a subirla.',
+        download_limit: 'Llegaste al límite de descargas de hoy para esta licencia. Prueba de nuevo mañana.',
         license_revoked: 'Esta licencia fue revocada y ya no es válida.',
         license_used: 'Esta licencia ya se marcó como usada.'
     };
     var ERROR_CODES = Object.keys(ERROR_COPY);
-    var DEFAULT_ERROR = 'No pudimos completar la acción. Probá de nuevo en unos minutos.';
+    var DEFAULT_ERROR = 'No pudimos completar la acción. Prueba de nuevo en unos minutos.';
 
     /* ------------------------------------------------------------------ */
     /* Utilidades                                                          */
@@ -764,7 +764,7 @@
     }
 
     // Checklist de publicación. ESPEJO del guard store_products_guard: si
-    // cambia una regla en SQL, cambia acá (y en el test).
+    // cambia una regla en SQL, cambia aquí (y en el test).
     function publishChecklist(product, ctx) {
         ctx = ctx || {};
         var p = product || {};
@@ -800,7 +800,7 @@
             if (p.pickup_available === true) {
                 list.push({
                     key: 'pickup_address', ok: hasText(settings.pickup_address), label: 'Dirección de retiro en Ajustes',
-                    scope: 'pickup', hint: 'Ofrecés retiro en el estudio: cargá la dirección en Ajustes o desactivá el retiro.'
+                    scope: 'pickup', hint: 'Ofreces retiro en el estudio: carga la dirección en Ajustes o desactiva el retiro.'
                 });
             }
         }
@@ -876,20 +876,20 @@
         var errors = {};
         var value = {};
         var kind = f.kind === 'design' || f.kind === 'merch' ? f.kind : null;
-        if (!kind) errors.kind = 'Elegí si es un diseño o un producto de merch.';
+        if (!kind) errors.kind = 'Elige si es un diseño o un producto de merch.';
         value.kind = kind;
 
         function str(key, max, opts) {
             var s = text(f[key]);
             if (opts && opts.required && s.length < (opts.min || 1)) errors[key] = opts.message;
-            else if (s.length > max) errors[key] = 'Usá hasta ' + max + ' caracteres.';
+            else if (s.length > max) errors[key] = 'Usa hasta ' + max + ' caracteres.';
             value[key] = s || null;
         }
         function money(key, opts) {
             var raw = f[key];
             if (raw === null || raw === undefined || raw === '') { value[key] = null; if (opts.required) errors[key] = opts.message; return; }
             var n = parseAmount(raw);
-            if (!isFinite(n)) { errors[key] = 'Ingresá un monto válido.'; value[key] = null; return; }
+            if (!isFinite(n)) { errors[key] = 'Ingresa un monto válido.'; value[key] = null; return; }
             if (opts.allowZero ? n < 0 : n <= 0) errors[key] = opts.allowZero ? 'El monto no puede ser negativo.' : 'El precio tiene que ser mayor a cero.';
             else if (n > LIMITS.MAX_PRICE) errors[key] = 'El monto es demasiado alto.';
             value[key] = n;
@@ -906,18 +906,18 @@
             var tag = text(t).replace(/^#+/, '');
             if (tag && tags.indexOf(tag) === -1) tags.push(tag);
         });
-        if (tags.length > LIMITS.MAX_TAGS) errors.tags = 'Usá hasta ' + LIMITS.MAX_TAGS + ' etiquetas.';
+        if (tags.length > LIMITS.MAX_TAGS) errors.tags = 'Usa hasta ' + LIMITS.MAX_TAGS + ' etiquetas.';
         else if (tags.some(function (t) { return t.length > 40; })) errors.tags = 'Cada etiqueta puede tener hasta 40 caracteres.';
         value.tags = tags;
 
         var currency = upper(f.currency);
-        if (!/^[A-Z]{3}$/.test(currency)) errors.currency = 'Elegí una moneda.';
+        if (!/^[A-Z]{3}$/.test(currency)) errors.currency = 'Elige una moneda.';
         value.currency = currency;
 
         var images = asArray(f.images).filter(function (img) { return img && hasText(img.path); }).map(function (img) {
             return { path: text(img.path), alt: text(img.alt) };
         });
-        if (images.length > LIMITS.MAX_IMAGES) errors.images = 'Podés subir hasta ' + LIMITS.MAX_IMAGES + ' imágenes.';
+        if (images.length > LIMITS.MAX_IMAGES) errors.images = 'Puedes subir hasta ' + LIMITS.MAX_IMAGES + ' imágenes.';
         else if (images.some(function (img) { return img.alt.length > 200; })) errors.images = 'El texto alternativo puede tener hasta 200 caracteres.';
         value.images = images;
 
@@ -927,7 +927,7 @@
                 var raw = f[key];
                 if (raw === null || raw === undefined || raw === '') { value[key] = null; return; }
                 var n = parseAmount(raw);
-                if (!isFinite(n) || n < 1 || n > 200) { errors[key] = 'Ingresá una medida entre 1 y 200 cm.'; value[key] = null; return; }
+                if (!isFinite(n) || n < 1 || n > 200) { errors[key] = 'Ingresa una medida entre 1 y 200 cm.'; value[key] = null; return; }
                 value[key] = Math.round(n * 10) / 10;
             });
             str('design_style', 60);
@@ -944,7 +944,7 @@
             money('shipping_price_amount', { allowZero: true });
             if (value.shipping_price_amount == null) value.shipping_price_amount = 0;
             var countries = normalizeCountries(f.ships_to_countries);
-            if (countries.some(function (c) { return !/^[A-Z]{2}$/.test(c); })) errors.ships_to_countries = 'Usá códigos de país de 2 letras, por ejemplo AR, MX o ES.';
+            if (countries.some(function (c) { return !/^[A-Z]{2}$/.test(c); })) errors.ships_to_countries = 'Usa códigos de país de 2 letras, por ejemplo AR, MX o ES.';
             value.ships_to_countries = countries;
             str('ships_to_note', 200);
             value.pickup_available = !!f.pickup_available;
@@ -966,10 +966,10 @@
         var errors = {};
         var value = {};
         var fields = [
-            ['recipient', 120, 'Ingresá quién recibe el envío.'],
-            ['line1', 200, 'Ingresá la calle y el número.'],
+            ['recipient', 120, 'Ingresa quién recibe el envío.'],
+            ['line1', 200, 'Ingresa la calle y el número.'],
             ['line2', 200, null],
-            ['city', 120, 'Ingresá la ciudad.'],
+            ['city', 120, 'Ingresa la ciudad.'],
             ['region', 120, null],
             ['postal_code', 20, null],
             ['phone', 40, null]
@@ -977,13 +977,13 @@
         fields.forEach(function (row) {
             var s = text(a[row[0]]);
             if (!s && row[2]) errors[row[0]] = row[2];
-            else if (s.length > row[1]) errors[row[0]] = 'Usá hasta ' + row[1] + ' caracteres.';
+            else if (s.length > row[1]) errors[row[0]] = 'Usa hasta ' + row[1] + ' caracteres.';
             value[row[0]] = s || null;
         });
         var country = text(a.country).toUpperCase();
         value.country = country || null;
         var code = null;
-        if (!/^[A-Z]{2}$/.test(country)) errors.country = 'Elegí el país.';
+        if (!/^[A-Z]{2}$/.test(country)) errors.country = 'Elige el país.';
         else {
             var allowed = normalizeCountries(product && product.ships_to_countries);
             if (allowed.length && allowed.indexOf(country) === -1) {
@@ -1002,8 +1002,8 @@
         var t = input || {};
         var errors = {};
         var value = { tracking_carrier: text(t.carrier || t.tracking_carrier) || null, tracking_code: text(t.code || t.tracking_code) || null, tracking_url: text(t.url || t.tracking_url) || null };
-        if (value.tracking_carrier && value.tracking_carrier.length > 60) errors.carrier = 'Usá hasta 60 caracteres.';
-        if (value.tracking_code && value.tracking_code.length > 80) errors.code = 'Usá hasta 80 caracteres.';
+        if (value.tracking_carrier && value.tracking_carrier.length > 60) errors.carrier = 'Usa hasta 60 caracteres.';
+        if (value.tracking_code && value.tracking_code.length > 80) errors.code = 'Usa hasta 80 caracteres.';
         if (value.tracking_url && !isHttpsUrl(value.tracking_url)) errors.url = ERROR_COPY.invalid_tracking_url;
         if (opts && opts.required && !value.tracking_code && !value.tracking_url) errors.code = ERROR_COPY.tracking_required;
         return { ok: Object.keys(errors).length === 0, errors: errors, value: value };
@@ -1153,7 +1153,7 @@
             expiresAt: o.expires_at || null,
             expiresLabel: o.expires_at ? formatDateTime(o.expires_at) : '',
             overdue: pending && expiresAt != null && expiresAt < now,
-            deadlineLabel: pending && o.expires_at ? 'Tenés hasta el ' + formatDateTime(o.expires_at) + ' para pagar.' : '',
+            deadlineLabel: pending && o.expires_at ? 'Tienes hasta el ' + formatDateTime(o.expires_at) + ' para pagar.' : '',
             needsSupport: !!(o.metadata_json && o.metadata_json.needs_support),
             fundsHold: !!o.funds_hold,
             tracking: (o.tracking_code || o.tracking_url || o.tracking_carrier) ? { carrier: o.tracking_carrier || null, code: o.tracking_code || null, url: isHttpsUrl(o.tracking_url) ? o.tracking_url : null } : null,
@@ -1201,7 +1201,7 @@
             var refundable = o.status === 'paid' || o.status === 'fulfilled';
             if (refundable && role === 'support') actions.push(action('refund', 'Reembolsar', { tone: 'danger' }));
             if (refundable && role === 'seller' && o.payment_collected_by === 'seller' && (method === 'digital' || fulfillment === 'unfulfilled' || fulfillment === 'preparing')) {
-                actions.push(action('refund', 'Reembolsar', { tone: 'danger', confirm: 'Confirmá que ya le devolviste el dinero.' }));
+                actions.push(action('refund', 'Reembolsar', { tone: 'danger', confirm: 'Confirma que ya le devolviste el dinero.' }));
             }
             if (role === 'support' && wallet && refundable && !o.funds_released_at) {
                 actions.push(action('funds_hold', o.funds_hold ? 'Liberar retención' : 'Retener fondos', { tone: 'ghost', hold: !o.funds_hold }));
@@ -1305,9 +1305,9 @@
 
     var FILE_RULES = {
         preview: { mime: FILES.PREVIEW_MIME, max: FILES.PREVIEW_MAX_BYTES, size: '3 MB', typeError: 'La imagen tiene que ser JPG, PNG o WebP.' },
-        original: { mime: FILES.ORIGINAL_MIME, max: FILES.ORIGINAL_MAX_BYTES, size: '50 MB', typeError: 'Formato no admitido. Subí PNG, JPG, WebP, TIFF, PDF, PSD, AI, EPS o Procreate.' },
+        original: { mime: FILES.ORIGINAL_MIME, max: FILES.ORIGINAL_MAX_BYTES, size: '50 MB', typeError: 'Formato no admitido. Sube PNG, JPG, WebP, TIFF, PDF, PSD, AI, EPS o Procreate.' },
         stencil: { mime: FILES.STENCIL_MIME, max: FILES.STENCIL_MAX_BYTES, size: '20 MB', typeError: 'El stencil tiene que ser PNG, JPG, WebP o PDF.' },
-        source: { mime: FILES.SOURCE_MIME, max: FILES.SOURCE_MAX_BYTES, size: '25 MB', typeError: 'Subí una imagen JPG, PNG, WebP o HEIC.' }
+        source: { mime: FILES.SOURCE_MIME, max: FILES.SOURCE_MAX_BYTES, size: '25 MB', typeError: 'Sube una imagen JPG, PNG, WebP o HEIC.' }
     };
 
     // kind: preview (blob final a store-previews) | original | stencil |
@@ -1315,7 +1315,7 @@
     function validateFile(kind, file) {
         var rule = FILE_RULES[kind];
         if (!rule) return { ok: false, code: 'invalid_kind', error: 'Tipo de archivo desconocido.', contentType: null };
-        if (!file) return { ok: false, code: 'empty', error: 'Elegí un archivo.', contentType: null };
+        if (!file) return { ok: false, code: 'empty', error: 'Elige un archivo.', contentType: null };
         var contentType = contentTypeFor(file.name, file.type);
         var size = num(file.size);
         if (!(size > 0)) return { ok: false, code: 'empty', error: 'El archivo está vacío.', contentType: contentType };

@@ -82,14 +82,14 @@ test('wallet: montos con números europeos y validaciones de retiro y destino', 
     assert.ok(Number.isNaN(W.parseAmount('abc')));
 
     const verified = { verification_status: 'verified' };
-    assert.equal(W.validateWithdrawal(100, 1240, null), 'Agregá un destino de retiro.');
+    assert.equal(W.validateWithdrawal(100, 1240, null), 'Agrega un destino de retiro.');
     assert.equal(W.validateWithdrawal(100, 1240, { verification_status: 'pending' }), 'El destino todavía no está verificado.');
-    assert.equal(W.validateWithdrawal(0, 1240, verified), 'Ingresá un monto mayor a cero.');
+    assert.equal(W.validateWithdrawal(0, 1240, verified), 'Ingresa un monto mayor a cero.');
     assert.equal(W.validateWithdrawal(2000, 1240, verified), 'El monto supera tu saldo disponible.');
     assert.equal(W.validateWithdrawal(1240, 1240, verified), null);
 
     assert.equal(W.validateDestination({ method: 'lemon', holderName: 'Ana', currency: 'USD', accountIdentifier: 'lemon.ana' }).ok, true);
-    assert.equal(W.validateDestination({ method: 'paypal', holderName: 'Ana', currency: 'USD', accountIdentifier: 'ana@x.com' }).errors.method, 'Elegí un método disponible.');
+    assert.equal(W.validateDestination({ method: 'paypal', holderName: 'Ana', currency: 'USD', accountIdentifier: 'ana@x.com' }).errors.method, 'Elige un método disponible.');
     assert.ok(W.validateDestination({ method: 'bank_usd', holderName: '', currency: 'USD', accountIdentifier: '12' }).errors.holderName);
     assert.equal(W.maskIdentifier('ES91 0049 0001 5123 4567 7734'), '···· 7734');
 });

@@ -90,23 +90,23 @@
         if (amount == null) return 'A definir';
         return currencySymbol(currency) + groupThousands(amount);
     }
-    // COT-A-09: seña opcional de la respuesta/acuerdo. Vacío o 0 → sin seña
+    // COT-A-09: anticipo opcional de la respuesta/acuerdo. Vacío o 0 → sin anticipo
     // (columnas en null). { ok, patch } o { ok: false, error }.
     function depositPatch(rawPct, total) {
         var raw = rawPct == null ? '' : String(rawPct).trim();
         if (!raw) return { ok: true, patch: { artist_deposit_pct: null, artist_deposit_amount: null } };
         var pct = numberFrom(raw);
-        if (pct == null || pct < 0 || pct > 100) return { ok: false, error: 'La seña tiene que ser un porcentaje entre 0 y 100.' };
+        if (pct == null || pct < 0 || pct > 100) return { ok: false, error: 'El anticipo tiene que ser un porcentaje entre 0 y 100.' };
         if (pct === 0) return { ok: true, patch: { artist_deposit_pct: null, artist_deposit_amount: null } };
         var base = numberFrom(total);
         var amount = base != null && base > 0 ? Math.round(base * pct) / 100 : null;
         return { ok: true, patch: { artist_deposit_pct: Math.round(pct * 100) / 100, artist_deposit_amount: amount } };
     }
-    // "30 % · $150" · "Sin seña".
+    // "30 % · $150" · "Sin anticipo".
     function depositText(pct, amount, currency) {
         var p = numberFrom(pct);
         var a = numberFrom(amount);
-        if ((p == null || p <= 0) && (a == null || a <= 0)) return 'Sin seña';
+        if ((p == null || p <= 0) && (a == null || a <= 0)) return 'Sin anticipo';
         var parts = [];
         if (p != null && p > 0) parts.push(String(p).replace('.', ',') + ' %');
         if (a != null && a > 0) parts.push(money(a, currency));
@@ -209,7 +209,7 @@
         completed: { tag: 'Completado', tone: 'completed' },
         dispute: { tag: 'En disputa', tone: 'dispute' },
         rejected: { tag: 'Rechazada', tone: 'rejected' },
-        cancelled: { tag: 'Rechazada por vos', tone: 'rejected' },
+        cancelled: { tag: 'Rechazada por ti', tone: 'rejected' },
         expired: { tag: 'Vencida', tone: 'expired' },
         draft: { tag: 'Borrador', tone: 'expired' }
     };
@@ -459,7 +459,7 @@
         var dur = durationShort(q.artist_session_minutes);
         if (dur) parts.push(dur);
         var depositPct = numberFrom(q.artist_deposit_pct);
-        if (depositPct != null && depositPct > 0) parts.push('seña ' + String(depositPct).replace('.', ',') + ' %');
+        if (depositPct != null && depositPct > 0) parts.push('anticipo ' + String(depositPct).replace('.', ',') + ' %');
         return parts.length ? 'Respuesta enviada: ' + parts.join(' · ') + '.' : 'Respuesta enviada al cliente.';
     }
     function agreementSummary(quote, sessions) {
@@ -487,7 +487,7 @@
         artist_completed: 'Entrega enviada al cliente para su aprobación.',
         completed: 'Cliente aprobó la entrega. Cotización completada.',
         client_rejected: 'El cliente rechazó la propuesta.',
-        cancelled: 'Solicitud rechazada por vos.',
+        cancelled: 'Solicitud rechazada por ti.',
         expired: 'La cotización venció sin respuesta.'
     };
 
@@ -527,7 +527,7 @@
             : 'Solicitud creada por el cliente desde el cotizador.', 'created');
         if (q.artist_viewed_at) {
             var priority = PRIORITY[String(q.priority || '').toLowerCase()];
-            push(q.artist_viewed_at, 'Vista por vos.' + (priority ? ' Prioridad asignada: ' + priority + '.' : ''), 'viewed');
+            push(q.artist_viewed_at, 'Vista por ti.' + (priority ? ' Prioridad asignada: ' + priority + '.' : ''), 'viewed');
         }
 
         var rows = (Array.isArray(history) ? history : []).filter(function (h) { return h && h.new_status && h.new_status !== 'pending' && h.new_status !== 'in_progress_draft'; });
@@ -905,7 +905,7 @@
     }
     // Filas de contacto con su enlace (mailto / wa.me / instagram). El contacto
     // llega del servidor (GET /api/cot-detalle/quotations/:id/info), que decide
-    // si corresponde mostrarlo; acá solo se da formato.
+    // si corresponde mostrarlo; aquí solo se da formato.
     function contactRows(contact) {
         var c = contact || {};
         var rows = [];

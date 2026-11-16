@@ -66,8 +66,8 @@
         $('tg-atlas-title').textContent = selectedCity ? `Tatuadores en ${selectedCity}` : 'Explorar tatuadores';
         const matches = (window.__exploreGlobe?.artistsGeo || []).filter(artist => model.matchesCity(artist, selectedCity));
         $('tg-atlas-status').textContent = directoryFailed
-            ? 'No se pudo cargar el directorio. Cerrá el explorador y recargá la página para volver a intentar.' : selectedCity && !matches.length
-            ? `No hay tatuadores disponibles en ${selectedCity}. Probá otra ciudad o limpiá los filtros.` : '';
+            ? 'No se pudo cargar el directorio. Cierra el explorador y recarga la página para volver a intentar.' : selectedCity && !matches.length
+            ? `No hay tatuadores disponibles en ${selectedCity}. Prueba otra ciudad o limpia los filtros.` : '';
     }
     function renderDestination() {
         const detail = model.destinationDetail(selectedDestination, { preview, artists: directoryArtists });
@@ -82,7 +82,7 @@
             return item;
         }));
         $('tg-detail-status').hidden = directoryStatus === 'ready';
-        $('tg-detail-status').textContent = directoryStatus === 'loading' ? 'Cargando destino…' : 'No se pudo cargar el directorio. Podés volver a intentar desde Explore Artists.';
+        $('tg-detail-status').textContent = directoryStatus === 'loading' ? 'Cargando destino…' : 'No se pudo cargar el directorio. Puedes volver a intentar desde Explore Artists.';
         $('tg-detail-explore').dataset.exploreCity = detail.city;
     }
     function selectDestination(city) {
@@ -122,7 +122,7 @@
             await atlasImport;
         } catch (_) {
             atlasImport = null;
-            $('tg-atlas-status').textContent = 'No se pudo cargar el atlas. Cerrá el explorador y volvé a intentar.';
+            $('tg-atlas-status').textContent = 'No se pudo cargar el atlas. Cierra el explorador y vuelve a intentar.';
         }
     }
     async function loadSessionAndDirectory() {
@@ -151,7 +151,7 @@
         } catch (_) {
             if (!preview) directoryStatus = 'error';
             if (selectedDestination) renderDestination();
-            $('tg-feedback').textContent = 'No se pudo cargar el directorio de destinos. Podés volver a intentarlo desde el globo.';
+            $('tg-feedback').textContent = 'No se pudo cargar el directorio de destinos. Puedes volver a intentarlo desde el globo.';
         }
     }
     render();
@@ -185,7 +185,7 @@
     document.addEventListener('tattoo-globe:ready', () => { atlasReady = true; filterAtlas(); });
     document.addEventListener('tattoo-globe:error', () => {
         directoryFailed = true;
-        $('tg-atlas-status').textContent = 'No se pudo cargar el directorio. Cerrá el explorador y recargá la página para volver a intentar.';
+        $('tg-atlas-status').textContent = 'No se pudo cargar el directorio. Cierra el explorador y recarga la página para volver a intentar.';
     });
     $('tattoo-globe-logout').addEventListener('click', async () => {
         const button = $('tattoo-globe-logout');
@@ -198,7 +198,7 @@
             location.href = `${window.WEOTZI_BASE_PATH || ''}/client/login/`;
         } catch (_) {
             button.disabled = false;
-            $('tg-feedback').textContent = 'No se pudo cerrar la sesión. Volvé a intentar.';
+            $('tg-feedback').textContent = 'No se pudo cerrar la sesión. Vuelve a intentar.';
         }
     });
     // Reuse the shared menu markup; keep client destinations on this client page.

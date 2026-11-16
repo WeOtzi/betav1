@@ -163,7 +163,7 @@ test('GET client-contacts: exige sesión y entrega el contacto según el artista
     assert.equal(shown.body.contacts.find((c) => c.client_full_name === 'Lucía Fernández').client_whatsapp, '+57 300 111 2233');
     assert.equal(shown.body.contacts.find((c) => c.client_full_name === 'Rita Rechazo').client_email, null);
 
-    // Otro artista solo ve lo suyo (acá, nada).
+    // Otro artista solo ve lo suyo (aquí, nada).
     const other = await call(verified.handlers.clientContacts, { headers: { authorization: 'Bearer otro' } });
     assert.deepEqual(other.body.contacts, []);
     // Un fallo de la base no devuelve el error crudo.
@@ -317,7 +317,7 @@ test('hoja: lista blanca; nunca salud, contacto, notas privadas ni correos', () 
     assert.deepEqual(sheet.claim, { linked: false });
 });
 
-test('hoja: cotización manual con desglose, términos y seña; sin propuesta queda "a definir"', () => {
+test('hoja: cotización manual con desglose, términos y anticipo; sin propuesta queda "a definir"', () => {
     const manualQuote = quoteRow({
         quote_id: 'COT-MAN001', source: 'manual', quotation_medium: 'manual', quote_status: 'responded',
         project_description: 'Manga japonesa', artist_budget_amount: '900', artist_budget_currency: 'USD', tattoo_estimated_sessions: '3'
@@ -338,7 +338,7 @@ test('hoja: cotización manual con desglose, términos y seña; sin propuesta qu
     assert.equal(sheet.proposal.session_minutes, 240);
     assert.equal(sheet.proposal.location, 'Estudio Norte, Chapinero');
     assert.deepEqual(sheet.terms, { validity_days: null, policy: 'no-reembolsable-48', client_notes: 'Trae ropa cómoda.', extra_terms: 'Retoque incluido.' });
-    // Política "sin seña": no se inventa una seña.
+    // Política "sin anticipo": no se inventa un anticipo.
     const noDeposit = logic.buildSheet({ quote: manualQuote, manual: { ...MANUAL_DETAILS, cancellation_policy: 'sin-sena' }, now: NOW });
     assert.equal(noDeposit.proposal.deposit_pct, null);
     assert.equal(noDeposit.proposal.deposit_amount, null);

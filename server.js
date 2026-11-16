@@ -236,7 +236,7 @@ const storeWebhookLimiter = rateLimit({
     max: 120,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, error: 'Demasiados avisos de pago. Probá de nuevo en un minuto.' }
+    message: { success: false, error: 'Demasiados avisos de pago. Prueba de nuevo en un minuto.' }
 });
 
 // Rate limiting: Sensitive endpoints that create or modify auth credentials.
@@ -259,7 +259,7 @@ const storeDownloadLimiter = rateLimit({
     max: 60,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, error: 'Demasiadas descargas seguidas. Probá de nuevo en unos minutos.' }
+    message: { success: false, error: 'Demasiadas descargas seguidas. Prueba de nuevo en unos minutos.' }
 });
 
 // Apply rate limits
@@ -1181,7 +1181,7 @@ app.post('/api/google-drive/test', async (req, res) => {
         
         let errorMessage = 'Failed to access folder';
         if (error.code === 404) {
-            errorMessage = 'Carpeta no encontrada. Asegurate que la carpeta existe y esta compartida con el email de la cuenta de servicio.';
+            errorMessage = 'Carpeta no encontrada. Asegúrate que la carpeta existe y esta compartida con el email de la cuenta de servicio.';
         } else if (error.code === 403) {
             errorMessage = 'Acceso denegado. Comparte la carpeta con el email de la cuenta de servicio (permisos de Editor).';
         } else if (error.message.includes('invalid_grant')) {
@@ -2452,7 +2452,7 @@ app.get('/api/admin/artists', async (req, res) => {
 // Columns the studio edit form may write. id / user_id / primary_location_id /
 // timestamps / computed columns are intentionally excluded so the editor can
 // never corrupt ownership or relational pointers.
-// is_verified NO va acá: la verificación se decide en la cola de
+// is_verified NO va aquí: la verificación se decide en la cola de
 // verificaciones (lib/routes/verif-estudio.js), que sincroniza
 // verification_status, verified_at y la solicitud.
 const STUDIO_EDITABLE_COLUMNS = new Set([
@@ -4310,7 +4310,7 @@ app.post('/api/studio/notify', require('./lib/routes/emails').dispatchLimiter, a
                     : `Actualización de tu postulación a ${studio.name}`,
                 body_text: decision === 'accepted'
                     ? `Hola${artist.name ? ' ' + artist.name : ''},\n\n${studio.name} aceptó tu postulación al spot "${spot.title}" y te envió una invitación para sumarte como ${roleFromKind(spot.kind)}.\n\nAceptala en ${mailBase}/artist/invitations para quedar en el equipo del estudio. Mucha suerte y buena tinta.`
-                    : `Hola${artist.name ? ' ' + artist.name : ''},\n\nGracias por postularte al spot "${spot.title}" en ${studio.name}. En esta oportunidad eligieron a otro artista, pero seguí atento al directorio para nuevas oportunidades: ${mailBase}/studio-spots`,
+                    : `Hola${artist.name ? ' ' + artist.name : ''},\n\nGracias por postularte al spot "${spot.title}" en ${studio.name}. En esta oportunidad eligieron a otro artista, pero sigue atento al directorio para nuevas oportunidades: ${mailBase}/studio-spots`,
                 links: {
                     studio_profile:   `${mailBase}/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`,
                     invitations:      `${mailBase}/artist/invitations`,
@@ -4362,7 +4362,7 @@ app.post('/api/studio/notify', require('./lib/routes/emails').dispatchLimiter, a
                 body_text:
                     `Hola${artist.name ? ' ' + artist.name : ''},\n\n`
                     + `${studio.name} te invitó como ${roleFromKind(m.role)} a su roster en We Ötzi.\n\n`
-                    + `Para aceptar o rechazar la invitación, ingresá a ${mailBase}/artist/invitations.`,
+                    + `Para aceptar o rechazar la invitación, ingresa a ${mailBase}/artist/invitations.`,
                 links: {
                     invitations: `${mailBase}/artist/invitations`,
                     studio_profile: `${mailBase}/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`
@@ -5621,7 +5621,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
     if (password.length < 6) return res.status(400).json({ success: false, error: 'La contrasena debe tener al menos 6 caracteres' });
     // ── cotizaciones · P3: sin aceptar los Términos no se crea la cuenta.
     if (!termsAcceptance.hasAcceptedTerms(formData)) {
-        return res.status(400).json({ success: false, error: 'Para crear tu perfil, aceptá los Términos y la Política de Privacidad.', code: 'TERMS_REQUIRED' });
+        return res.status(400).json({ success: false, error: 'Para crear tu perfil, acepta los Términos y la Política de Privacidad.', code: 'TERMS_REQUIRED' });
     }
 
     // Estado del intento para la compensacion (ver lib/registration-finalize.js).
@@ -5801,7 +5801,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
         const already = /already|registered/i.test(error.message) && !/duplicate key|23505|42P10/i.test(error.message);
         return res.status(already ? 409 : 500).json({
             success: false,
-            error: already ? 'Ya existe una cuenta con ese email.' : 'No se pudo finalizar el registro. Probá de nuevo en unos minutos.'
+            error: already ? 'Ya existe una cuenta con ese email.' : 'No se pudo finalizar el registro. Prueba de nuevo en unos minutos.'
         });
     }
 });
@@ -5843,7 +5843,7 @@ app.get('/api/studio-claim/:token', async (req, res) => {
 async function resolveArtistCreatedStudio(req, res) {
     const caller = await resolveBearerUser(req);
     if (!caller) {
-        res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' });
+        res.status(401).json({ success: false, error: 'Inicia sesión para continuar.' });
         return null;
     }
     const studioId = req.body?.studio_id || req.query?.studio_id || null;
@@ -5904,7 +5904,7 @@ app.post('/api/artist/studio-claim-link', async (req, res) => {
 app.post('/api/artist/profile/bio', async (req, res) => {
     try {
         const caller = await resolveBearerUser(req);
-        if (!caller) return res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' });
+        if (!caller) return res.status(401).json({ success: false, error: 'Inicia sesión para continuar.' });
         const raw = req.body && typeof req.body.bio === 'string' ? req.body.bio : '';
         if (raw.length > 100000) return res.status(413).json({ success: false, error: 'La presentación es demasiado larga.' });
         const bio = sanitizeBio(raw, MAX_BIO_TEXT_LENGTH);
@@ -6246,7 +6246,7 @@ const igVerifyLimiter = rateLimit({
     max: 5,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, code: 'IG_VERIFY_RATE_LIMITED', error: 'Pediste varios códigos seguidos. Esperá un rato y probá de nuevo.' }
+    message: { success: false, code: 'IG_VERIFY_RATE_LIMITED', error: 'Pediste varios códigos seguidos. Espera un rato y prueba de nuevo.' }
 });
 
 app.get('/api/artist/onboarding', artistOnboarding.getOnboarding);
@@ -6488,7 +6488,7 @@ async function gcalCaller(req, res) {
     res.set('Cache-Control', 'no-store');
     if (!gcalCfg.configured) { gcalNotConfigured(res); return null; }
     const userId = await resolveCallerUserId(req);
-    if (!userId) { res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' }); return null; }
+    if (!userId) { res.status(401).json({ success: false, error: 'Inicia sesión para continuar.' }); return null; }
     return userId;
 }
 
@@ -6601,7 +6601,7 @@ app.post('/api/account-deletion/notify', async (req, res) => {
         if (!row) return res.status(404).json({ success: false, error: 'No encontramos esa solicitud.' });
         if (row.user_id !== user.id) {
             const agent = await _getActiveSupportAgent(req);
-            if (!agent.ok) return res.status(403).json({ success: false, error: 'No podés avisar sobre esta solicitud.' });
+            if (!agent.ok) return res.status(403).json({ success: false, error: 'No puedes avisar sobre esta solicitud.' });
         }
         // 'completed' lo avisa solo la ejecución.
         if (row.status === 'completed') return res.json({ success: true, sent: false, skipped: 'completed_by_execute' });
@@ -6624,7 +6624,7 @@ app.post('/api/support/account-deletions/:id/execute', authLimiter, async (req, 
     const id = String(req.params.id || '');
     if (!accountDeletion.isUuid(id)) return res.status(400).json({ success: false, error: 'Solicitud no válida.' });
     if (!accountDeletion.isConfirmText(req.body && req.body.confirm)) {
-        return res.status(400).json({ success: false, error: `Escribí ${accountDeletion.CONFIRM_WORD} para confirmar.` });
+        return res.status(400).json({ success: false, error: `Escribe ${accountDeletion.CONFIRM_WORD} para confirmar.` });
     }
     const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
     if (!supabaseUrl || !serviceRoleKey) return res.status(500).json({ success: false, error: 'Server missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' });
@@ -6714,7 +6714,7 @@ if (!dataCrypto.configured) {
 async function payoutCaller(req, res) {
     res.set('Cache-Control', 'no-store');
     const userId = await resolveCallerUserId(req);
-    if (!userId) { res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' }); return null; }
+    if (!userId) { res.status(401).json({ success: false, error: 'Inicia sesión para continuar.' }); return null; }
     return userId;
 }
 
@@ -6768,7 +6768,7 @@ app.delete('/api/payout-destinations/:id', async (req, res) => {
 app.post('/api/payout-destinations/:id/reveal', async (req, res) => {
     const userId = await payoutCaller(req, res);
     if (!userId) return;
-    if (!payoutRevealAllowed('owner:' + userId)) return res.status(429).json({ success: false, error: 'Demasiados pedidos. Probá en unos minutos.' });
+    if (!payoutRevealAllowed('owner:' + userId)) return res.status(429).json({ success: false, error: 'Demasiados pedidos. Prueba en unos minutos.' });
     try {
         return res.json({ success: true, ...(await payoutService.revealForOwner(userId, req.params.id, { purpose: 'owner_view' })) });
     } catch (err) {
@@ -6781,7 +6781,7 @@ app.post('/api/support/payout-destinations/:id/reveal', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const agent = await _getActiveSupportAgent(req);
     if (!agent.ok) return res.status(agent.status).json({ success: false, error: agent.error });
-    if (!payoutRevealAllowed('support:' + agent.supportUserId)) return res.status(429).json({ success: false, error: 'Demasiados pedidos. Probá en unos minutos.' });
+    if (!payoutRevealAllowed('support:' + agent.supportUserId)) return res.status(429).json({ success: false, error: 'Demasiados pedidos. Prueba en unos minutos.' });
     try {
         const purpose = req.body && typeof req.body.purpose === 'string' ? req.body.purpose : '';
         return res.json({ success: true, ...(await payoutService.revealForSupport(agent.supportUserId, req.params.id, { purpose })) });

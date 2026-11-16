@@ -2,7 +2,7 @@
 // WE ÖTZI - Support Dashboard · pestaña VALIDACIONES IG
 // Cola de validaciones de Instagram del modo asistido: el artista pide un
 // código WO-XXXXXX y lo manda por mensaje directo a @weotzi. Si la
-// automatización de DMs no lo valida, soporte lo hace desde acá.
+// automatización de DMs no lo valida, soporte lo hace desde aquí.
 // Módulo aparte de support-dashboard.js (no se edita): envuelve
 // window.switchTab, pinta su propio panel (#igq-panel), cuenta los pendientes
 // en la pestaña y usa el drawer del dashboard para el detalle.
@@ -50,19 +50,19 @@
         emptyAll: 'Todavía no hay solicitudes de validación.',
         emptySearch: 'Ninguna validación coincide con la búsqueda.',
         unavailable: 'La validación de Instagram todavía no está disponible en este entorno: falta aplicar la migración.',
-        session: 'Tu sesión de soporte venció. Volvé a iniciar sesión.',
+        session: 'Tu sesión de soporte venció. Vuelve a iniciar sesión.',
         forbidden: 'Tu usuario no tiene acceso de soporte para validar Instagram.',
-        notFound: 'No encontramos esta solicitud. Refrescá la lista.',
-        conflict: 'Esta solicitud ya no está pendiente. Refrescá la lista.',
-        rate: 'Hiciste muchos intentos seguidos. Esperá un momento y probá de nuevo.',
-        network: 'No pudimos conectar con el servidor. Revisá tu conexión y probá de nuevo.',
-        generic: 'No pudimos completar la acción. Probá de nuevo.',
-        codeInvalid: 'Ingresá el código con el formato WO-XXXXXX.',
-        noteForce: 'Escribí una nota para validar sin código.',
-        noteReject: 'Escribí una nota con el motivo del rechazo.',
+        notFound: 'No encontramos esta solicitud. Refresca la lista.',
+        conflict: 'Esta solicitud ya no está pendiente. Refresca la lista.',
+        rate: 'Hiciste muchos intentos seguidos. Espera un momento y prueba de nuevo.',
+        network: 'No pudimos conectar con el servidor. Revisa tu conexión y prueba de nuevo.',
+        generic: 'No pudimos completar la acción. Prueba de nuevo.',
+        codeInvalid: 'Ingresa el código con el formato WO-XXXXXX.',
+        noteForce: 'Escribe una nota para validar sin código.',
+        noteReject: 'Escribe una nota con el motivo del rechazo.',
         notPending: 'Esta solicitud ya no está pendiente.',
-        expiredHint: 'El código venció. Pedile al artista que genere uno nuevo desde su cuenta, o validá sin código y dejá una nota.',
-        codeExpired: 'El código venció y ya no sirve para validar. Validá sin código y dejá una nota, o rechazá la solicitud.'
+        expiredHint: 'El código venció. Pídele al artista que genere uno nuevo desde su cuenta, o valida sin código y deja una nota.',
+        codeExpired: 'El código venció y ya no sirve para validar. Valida sin código y deja una nota, o rechaza la solicitud.'
     };
 
     // ---------------- helpers puros (testeados en Node) ----------------
@@ -356,7 +356,7 @@ textarea.igq-input{min-height:88px;resize:vertical}
                 </select>
                 <button type="button" id="igq-refresh" class="action-btn igq-btn">REFRESCAR</button>
             </div>
-            <p class="igq-intro">Cada artista manda su código WO-XXXXXX por mensaje directo a @weotzi. Si la automatización no lo validó, revisalo acá.</p>
+            <p class="igq-intro">Cada artista manda su código WO-XXXXXX por mensaje directo a @weotzi. Si la automatización no lo validó, revísalo aquí.</p>
             <div class="table-container igq-table" style="--table-columns:${COLUMNS}">
                 <div class="table-header">${HEADERS.map((label) => `<div class="header-cell"><span>${label}</span></div>`).join('')}</div>
                 <div id="igq-body" aria-live="polite" aria-busy="true"><div class="igq-empty">${MSG.loading}</div></div>
@@ -455,7 +455,7 @@ textarea.igq-input{min-height:88px;resize:vertical}
     function switchTab(tabName) {
         if (tabName === TAB) {
             // La pestaña Tickets (otro módulo) también pinta su panel propio:
-            // como esta pestaña no delega en el switchTab anterior, se oculta acá.
+            // como esta pestaña no delega en el switchTab anterior, se oculta aquí.
             const tickets = root.SupportDashboardTickets;
             if (tickets && typeof tickets.hide === 'function') tickets.hide();
             enter();
@@ -465,7 +465,7 @@ textarea.igq-input{min-height:88px;resize:vertical}
         return previousSwitch ? previousSwitch.apply(this, arguments) : undefined;
     }
 
-    // Los botones de esta pestaña no llevan onclick inline: se escuchan acá.
+    // Los botones de esta pestaña no llevan onclick inline: se escuchan aquí.
     // En captura, para salir del panel antes de que otra pestaña (que quizás
     // envolvió switchTab antes que este módulo) pinte el suyo.
     function onTabClick(e) {
@@ -661,14 +661,14 @@ textarea.igq-input{min-height:88px;resize:vertical}
                 <div class="igq-field">
                     <label for="igq-code">Código del mensaje</label>
                     <input id="igq-code" name="code" type="text" class="igq-input igq-input--code" placeholder="WO-XXXXXX" pattern="[Ww][Oo]-?[A-HJ-NP-Za-hj-np-z2-9]{6}" maxlength="64" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="igq-code-help">
-                    <p id="igq-code-help" class="igq-help">Formato WO-XXXXXX. Podés pegar el mensaje entero: tomamos el código.</p>
+                    <p id="igq-code-help" class="igq-help">Formato WO-XXXXXX. Puedes pegar el mensaje entero: tomamos el código.</p>
                 </div>` : '';
         const codeButton = canCode
             ? '<button type="submit" id="igq-act-code" class="action-btn igq-btn igq-btn--accent" data-igq-action="code">VALIDAR CON CÓDIGO</button>'
             : '';
         const howTo = status === 'expired'
-            ? 'Si el mensaje llegó desde la cuenta del artista, validá sin código y dejá una nota con lo que viste.'
-            : 'Pegalo abajo y tocá VALIDAR CON CÓDIGO. Si el artista no puede mandar el mensaje, validá sin código y dejá una nota.';
+            ? 'Si el mensaje llegó desde la cuenta del artista, valida sin código y deja una nota con lo que viste.'
+            : 'Pégalo abajo y toca VALIDAR CON CÓDIGO. Si el artista no puede mandar el mensaje, valida sin código y deja una nota.';
 
         const form = actions.length ? `
             <form id="igq-form" class="drawer-section igq-section" data-igq-form="${esc(item.id)}" novalidate>
@@ -701,7 +701,7 @@ textarea.igq-input{min-height:88px;resize:vertical}
 
                 <div class="drawer-section igq-section">
                     <p class="igq-section-title">Cómo validar</p>
-                    <p class="igq-text">Abrí los mensajes directos de @weotzi, buscá el mensaje de ${esc(handle || 'la cuenta del artista')}${status === 'expired' ? '.' : ' y copiá el código.'}</p>
+                    <p class="igq-text">Abre los mensajes directos de @weotzi, busca el mensaje de ${esc(handle || 'la cuenta del artista')}${status === 'expired' ? '.' : ' y copia el código.'}</p>
                     <p class="igq-text">${esc(howTo)}</p>
                     <p class="igq-links">
                         <a class="igq-link" href="https://www.instagram.com/direct/inbox/" target="_blank" rel="noopener noreferrer">Abrir mensajes directos →</a>

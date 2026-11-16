@@ -221,8 +221,8 @@
                 // Turnos: 23P01 (CALENDAR_OVERLAP / SLOT_TAKEN) con un mensaje legible.
                 const overlap = error && (error.code === '23P01' || /CALENDAR_OVERLAP|SLOT_TAKEN/.test(String(error.message || '')));
                 errorEl.textContent = error && error.userMessage ? error.userMessage
-                    : overlap ? 'Ese horario se superpone con otra sesión, un evento que bloquea o una cita de estudio. Elegí otro horario.'
-                    : (error && error.message && !/^\[/.test(error.message) ? error.message : 'No pudimos guardar. Probá nuevamente.');
+                    : overlap ? 'Ese horario se superpone con otra sesión, un evento que bloquea o una cita de estudio. Elige otro horario.'
+                    : (error && error.message && !/^\[/.test(error.message) ? error.message : 'No pudimos guardar. Prueba nuevamente.');
                 errorEl.hidden = false;
                 setBusy(submit, false);
             }
@@ -274,14 +274,14 @@
     }
     function readAmount(value) {
         const amount = M.numberFrom(value);
-        if (amount == null || amount <= 0) throw userError('Ingresá un monto válido.');
+        if (amount == null || amount <= 0) throw userError('Ingresa un monto válido.');
         return amount;
     }
-    // COT-A-09: seña opcional en la respuesta y en el acuerdo (0–100 %). Vacío
-    // o 0 = sin seña. El monto se calcula sobre el presupuesto del diálogo.
+    // COT-A-09: anticipo opcional en la respuesta y en el acuerdo (0–100 %). Vacío
+    // o 0 = sin anticipo. El monto se calcula sobre el presupuesto del diálogo.
     function depositField(q) {
         const pct = q && q.artist_deposit_pct != null && q.artist_deposit_pct !== '' ? M.numberFrom(q.artist_deposit_pct) : null;
-        return field('Seña (%)', `<input class="wo-input" name="deposit_pct" type="number" inputmode="decimal" min="0" max="100" step="1" value="${esc(pct != null ? pct : '')}" placeholder="Sin seña" aria-describedby="qd-deposit-help"><small class="qd-field-help" id="qd-deposit-help">Opcional. Porcentaje del presupuesto que pedís para reservar.</small>`);
+        return field('Anticipo (%)', `<input class="wo-input" name="deposit_pct" type="number" inputmode="decimal" min="0" max="100" step="1" value="${esc(pct != null ? pct : '')}" placeholder="Sin anticipo" aria-describedby="qd-deposit-help"><small class="qd-field-help" id="qd-deposit-help">Opcional. Porcentaje del presupuesto que pides para reservar.</small>`);
     }
     function readDeposit(raw, total) {
         const result = M.depositPatch(raw, total);
@@ -298,7 +298,7 @@
 
     function readDateTime(value, required) {
         if (!value) {
-            if (required) throw userError('Elegí fecha y hora.');
+            if (required) throw userError('Elige fecha y hora.');
             return null;
         }
         const date = new Date(value);
@@ -331,7 +331,7 @@
     }
     function guardWrite() {
         if (!state.scenario) return true;
-        showToast('Vista de estado simulada: las acciones están deshabilitadas. Abrí la cotización sin ?estado= para operar.', { error: true });
+        showToast('Vista de estado simulada: las acciones están deshabilitadas. Abre la cotización sin ?estado= para operar.', { error: true });
         return false;
     }
 
@@ -547,9 +547,9 @@
                     <div class="qd-eval-fact"><span class="qd-label">Fecha deseada</span><span class="qd-eval-copy">${esc(M.preferredDateLabel(q))}</span></div>
                 </div>
                 <div class="qd-private">
-                    <label class="qd-label" for="qd-private-notes">Notas privadas · solo vos</label>
+                    <label class="qd-label" for="qd-private-notes">Notas privadas · solo tú</label>
                     <button class="qd-open-notes" type="button" data-action="open-notes">Abrir notas</button>
-                    <textarea id="qd-private-notes" placeholder="Agregá contexto privado para esta cotización" ${v.readOnly ? 'readonly' : ''}>${esc(q.notes || '')}</textarea>
+                    <textarea id="qd-private-notes" placeholder="Agrega contexto privado para esta cotización" ${v.readOnly ? 'readonly' : ''}>${esc(q.notes || '')}</textarea>
                     <p class="qd-private-status" id="qd-private-status" aria-live="polite"></p>
                 </div>
             </div>`;
@@ -692,7 +692,7 @@
                     </div>
                 </div>
                 <div class="qd-session-list">${slots.map((slot) => sessionRowHtml(v, slot)).join('') || '<p class="qd-empty">Todavía no hay sesiones.</p>'}</div>
-                <p class="qd-sessions-note">No podés agendar más de ${esc(M.sessionsLabel(agreed) || '0 sesiones')}: es la cantidad aprobada en el acuerdo. Para cambiarla, ${editable ? '<button class="qd-inline-link" type="button" data-action="edit-agreement">editá el acuerdo</button>' : 'editá el acuerdo'}.</p>
+                <p class="qd-sessions-note">No puedes agendar más de ${esc(M.sessionsLabel(agreed) || '0 sesiones')}: es la cantidad aprobada en el acuerdo. Para cambiarla, ${editable ? '<button class="qd-inline-link" type="button" data-action="edit-agreement">edita el acuerdo</button>' : 'edita el acuerdo'}.</p>
             </section>`;
     }
 
@@ -792,13 +792,13 @@
     function messagesListHtml(q) {
         if (!state.messages.length) {
             return q.client_user_id
-                ? '<p class="qd-empty">Todavía no hay mensajes. Iniciá la conversación con el cliente.</p>'
+                ? '<p class="qd-empty">Todavía no hay mensajes. Inicia la conversación con el cliente.</p>'
                 : '<p class="qd-empty">El chat se habilita cuando el cliente crea su cuenta.</p>';
         }
         return state.messages.slice(-6).map((message) => {
             const artist = message.sender_type === 'artist';
             // Ronda 2 (inbox): auto_kind = saludo o ausencia que envió la base por el artista.
-            const author = artist ? (message.auto_kind ? 'Mensaje automático' : 'Vos') : (q.client_full_name || 'Cliente');
+            const author = artist ? (message.auto_kind ? 'Mensaje automático' : 'Tú') : (q.client_full_name || 'Cliente');
             return `
                 <article class="qd-message${artist ? ' qd-message--artist' : ''}">
                     <span class="qd-message-meta">${esc(author)} · ${esc(M.chatStamp(message.created_at))}</span>
@@ -815,7 +815,7 @@
                 <div class="qd-message-list" id="qd-message-list">${messagesListHtml(q)}</div>
                 ${q.client_user_id ? `
                     <form class="qd-compose" id="qd-compose">
-                        <input id="qd-message" autocomplete="off" placeholder="Escribí un mensaje..." aria-label="Mensaje al cliente" maxlength="2000">
+                        <input id="qd-message" autocomplete="off" placeholder="Escribe un mensaje..." aria-label="Mensaje al cliente" maxlength="2000">
                         <button type="submit">Enviar ${icon('send', 18)}</button>
                     </form>` : ''}
                 <a class="qd-chat-link" href="${esc(inboxUrl())}">Ver chat completo ${icon('arrow-right', 18)}</a>
@@ -921,7 +921,7 @@
         const input = document.getElementById('qd-budget');
         const raw = input ? input.value.trim() : '';
         const amount = raw ? M.numberFrom(raw) : null;
-        if (raw && (amount == null || amount <= 0)) { showToast('Ingresá un monto válido.', { error: true }); return; }
+        if (raw && (amount == null || amount <= 0)) { showToast('Ingresa un monto válido.', { error: true }); return; }
         setBusy(button, true);
         try {
             await updateQuote({
@@ -971,7 +971,7 @@
     // P10 · Vencimiento opcional por cotización (decisión del dueño 13 nov 2026):
     // toggle + días (1–365). Apagado por defecto: nada vence si el artista no
     // lo activa. El trigger de 20261113100000 calcula quote_expires_at.
-    const EXPIRY_HELP_OFF = 'Apagado: la propuesta no vence. Activalo para que venza si el cliente no responde.';
+    const EXPIRY_HELP_OFF = 'Apagado: la propuesta no vence. Actívalo para que venza si el cliente no responde.';
     const EXPIRY_HELP_ON = 'Si el cliente no responde en ese plazo, la cotización vence y le avisamos.';
     function VM() { return window.WoQuotationsViewModel || null; }
     function expiryDefaults(q) {
@@ -1030,7 +1030,7 @@
         if (!toggle) return;
         let patch;
         try { patch = readExpiry(toggle.checked, days && days.value); }
-        catch (error) { showToast(error.userMessage || 'Revisá los días de vencimiento.', { error: true }); if (days) days.focus(); return; }
+        catch (error) { showToast(error.userMessage || 'Revisa los días de vencimiento.', { error: true }); if (days) days.focus(); return; }
         setBusy(button, true);
         try {
             const result = await updateQuote(patch);
@@ -1086,8 +1086,8 @@
         openDialog({
             title: requote ? 'Volver a cotizar' : 'Aceptar y enviar presupuesto',
             intro: requote
-                ? 'Mandale al cliente una propuesta nueva: presupuesto, sesiones, seña y duración estimada.'
-                : 'El cliente recibe tu presupuesto, las sesiones, la seña y la duración estimada. Podés ajustarlo antes del acuerdo final.',
+                ? 'Mándale al cliente una propuesta nueva: presupuesto, sesiones, anticipo y duración estimada.'
+                : 'El cliente recibe tu presupuesto, las sesiones, el anticipo y la duración estimada. Puedes ajustarlo antes del acuerdo final.',
             submitLabel: 'Enviar respuesta',
             submitClass: 'wo-btn--accent',
             body: `<div class="qd-dialog-grid">
@@ -1099,12 +1099,12 @@
                 <div class="wo-field is-wide">${expiryControl(q, 'qd-dialog')}</div>
                 ${window.WoSlotHold ? window.WoSlotHold.respondFieldHtml(q) : ''}
                 ${field('Disponibilidad', `<input class="wo-input" name="availability" maxlength="140" value="${esc(q.artist_availability || '')}" placeholder="Fines de semana, desde agosto">`, true)}
-                ${q.client_user_id ? field('Mensaje para el cliente (opcional)', '<textarea class="wo-textarea" name="message" maxlength="2000" placeholder="Contale cómo vas a encarar el diseño."></textarea>', true) : ''}
+                ${q.client_user_id ? field('Mensaje para el cliente (opcional)', '<textarea class="wo-textarea" name="message" maxlength="2000" placeholder="Cuéntale cómo vas a encarar el diseño."></textarea>', true) : ''}
             </div>`,
             onSubmit: async (form, data) => {
                 const value = readAmount(data.amount);
                 const sessions = M.intFrom(data.sessions);
-                if (!sessions) throw userError('Indicá cuántas sesiones estimás.');
+                if (!sessions) throw userError('Indica cuántas sesiones estimas.');
                 const minutes = readMinutes(data);
                 if (minutes < 15) throw userError('La duración por sesión tiene que ser de al menos 15 minutos.');
                 const deposit = readDeposit(data.deposit_pct, value);
@@ -1116,7 +1116,7 @@
                     artist_session_minutes: minutes,
                     artist_availability: (data.availability || '').trim() || null,
                     artist_responded_at: nowIso(),
-                    // COT-A-09: seña opcional (porcentaje y monto en la moneda del presupuesto).
+                    // COT-A-09: anticipo opcional (porcentaje y monto en la moneda del presupuesto).
                     ...deposit,
                     // P10: vencimiento opcional (apagado por defecto); el trigger calcula quote_expires_at.
                     ...readExpiry(data.expiry_enabled === '1', data.expiry_days),
@@ -1183,7 +1183,7 @@
     // REQ-13 (P4 / P23): con una contrapropuesta del cliente pendiente, el artista primero la
     // resuelve (aceptar, otra propuesta o mantener la suya). Registrar el acuerdo por su cuenta
     // la descartaba y la cotización quedaba "aprobada por ambas partes" sin que el cliente
-    // hubiera aceptado. La base también lo rechaza (negociacion_quotation_guard); acá se avisa
+    // hubiera aceptado. La base también lo rechaza (negociacion_quotation_guard); aquí se avisa
     // antes de abrir el diálogo y antes de reservar el turno.
     const COUNTER_PENDING_MESSAGE = 'El cliente propuso cambios: acéptalos, envía otra propuesta o mantén la tuya antes de registrar el acuerdo.';
     async function clientCounterPending(q) {
@@ -1231,8 +1231,8 @@
         const overlay = openDialog({
             title: edit ? 'Editar acuerdo' : 'Confirmar acuerdo y agendar',
             intro: edit
-                ? 'Ajustá lo que acordaste con el cliente. No podés acordar menos sesiones de las que ya agendaste.'
-                : 'Registrá lo que acordaste con el cliente. Se agenda la primera sesión y se habilita la gestión del proyecto.',
+                ? 'Ajusta lo que acordaste con el cliente. No puedes acordar menos sesiones de las que ya agendaste.'
+                : 'Registra lo que acordaste con el cliente. Se agenda la primera sesión y se habilita la gestión del proyecto.',
             submitLabel: edit ? 'Guardar acuerdo' : 'Confirmar acuerdo',
             submitClass: 'wo-btn--accent',
             body: `<div class="qd-dialog-grid">
@@ -1248,8 +1248,8 @@
             onSubmit: async (form, data) => {
                 const value = readAmount(data.amount);
                 const count = M.intFrom(data.sessions);
-                if (!count) throw userError('Indicá cuántas sesiones acordaron.');
-                if (count < existing) throw userError(`Ya hay ${existing} sesiones cargadas: no podés acordar menos.`);
+                if (!count) throw userError('Indica cuántas sesiones acordaron.');
+                if (count < existing) throw userError(`Ya hay ${existing} sesiones cargadas: no puedes acordar menos.`);
                 const minutes = readMinutes(data);
                 if (minutes < 15) throw userError('La duración por sesión tiene que ser de al menos 15 minutos.');
                 const first = edit ? null : holdSession ? holdSession.session_date : readDateTime(data.first, true);
@@ -1259,7 +1259,7 @@
                     final_sessions: count,
                     final_comment: (data.comment || '').trim() || null,
                     artist_session_minutes: minutes,
-                    // COT-A-09: la seña acordada se recalcula sobre el presupuesto final.
+                    // COT-A-09: el anticipo acordado se recalcula sobre el presupuesto final.
                     ...readDeposit(data.deposit_pct, value),
                 };
                 if (!edit) patch.quote_status = 'client_approved';
@@ -1318,7 +1318,7 @@
         if (askPlace) place = flow.mountLocation(overlay.querySelector('[data-ws-location-slot]'), { quoteId: q.quote_id });
     }
 
-    // Ronda 2 · cot-respuesta: tras el acuerdo, la seña de la fila de la cotización manual
+    // Ronda 2 · cot-respuesta: tras el acuerdo, el anticipo de la fila de la cotización manual
     // (artist_manual_quotes) sigue a la acordada; el panel de pagos prioriza esa fila. Silencioso.
     function syncAgreementExtras() {
         const repo = D().QuoteRespond;
@@ -1415,7 +1415,7 @@
             // Sin ?quote=: con la cotización el calendario abre el editor de un turno
             // nuevo, y el acuerdo ya no admite más sesiones.
             const last = slots.map((s) => s.session && s.session.session_date).filter(Boolean).sort().pop();
-            showToast(`Ya agendaste ${M.sessionsLabel(M.agreedSessions(q))} del acuerdo. Para sumar otra, editá el acuerdo.`, { error: true, link: { href: calendarUrl(last || null), label: 'Abrir calendario →' } });
+            showToast(`Ya agendaste ${M.sessionsLabel(M.agreedSessions(q))} del acuerdo. Para sumar otra, edita el acuerdo.`, { error: true, link: { href: calendarUrl(last || null), label: 'Abrir calendario →' } });
             return;
         }
         const slot = opts.correction ? null : (slots.find((s) => s.number === Number(slotNumber) && s.state === 'unscheduled') || pending[0]);
@@ -1471,7 +1471,7 @@
         if (!session) return;
         const number = slotNumber || session.session_number || '';
         // ── sesiones (ronda 2) ── edición directa: solo mientras el cliente no la
-        // confirmó (la base rechaza el resto y acá se explica por qué). El
+        // confirmó (la base rechaza el resto y aquí se explica por qué). El
         // cliente recibe la propuesta nueva para confirmarla.
         const flow = sessionFlow();
         const awaitsClient = !!(flow && flow.available() && state.quote.client_user_id);
@@ -1522,8 +1522,8 @@
         openDialog({
             title: `Marcar sesión ${number} como realizada`.replace(/\s+/g, ' '),
             intro: ahead
-                ? `Estaba agendada para el ${M.dateTime(session.session_date)}: queda registrada con la fecha y hora de ahora. Registrá cuánto duró y sumá fotos del avance. Solo vos y soporte ven las fotos.`
-                : 'Registrá cuánto duró y sumá fotos del avance. Solo vos y soporte ven las fotos.',
+                ? `Estaba agendada para el ${M.dateTime(session.session_date)}: queda registrada con la fecha y hora de ahora. Registra cuánto duró y suma fotos del avance. Solo tú y soporte ven las fotos.`
+                : 'Registra cuánto duró y suma fotos del avance. Solo tú y soporte ven las fotos.',
             submitLabel: 'Marcar realizada',
             submitClass: 'wo-btn--accent',
             body: `<div class="qd-dialog-grid">
@@ -1533,7 +1533,7 @@
             </div>`,
             onSubmit: async (form, data) => {
                 const duration = M.numberFrom(data.duration);
-                if (!duration || duration <= 0) throw userError('Indicá la duración de la sesión.');
+                if (!duration || duration <= 0) throw userError('Indica la duración de la sesión.');
                 const files = Array.from((form.querySelector('[name="photos"]') || {}).files || []).slice(0, 12);
                 const paths = [];
                 let failed = 0;
@@ -1560,7 +1560,7 @@
                 if (failed) {
                     showToast(`Sesión registrada. No pudimos subir ${failed} ${failed === 1 ? 'foto' : 'fotos'}.`, { error: true });
                 } else if (stageBefore === 'dispute') {
-                    showToast('Corrección registrada. Contale al cliente y a soporte desde "Ver disputa → Responder a la disputa".');
+                    showToast('Corrección registrada. Cuéntale al cliente y a soporte desde "Ver disputa → Responder a la disputa".');
                 } else {
                     showToast('Sesión registrada como realizada.');
                 }
@@ -1604,7 +1604,7 @@
         const number = slotNumber || session.session_number || '';
         const ok = await confirmDialog({
             title: `¿El cliente no se presentó a la sesión ${number}?`.replace(/\s+\?/, '?'),
-            message: 'La sesión queda registrada como "No se presentó" en el historial y podés agendar otra fecha para ese lugar del acuerdo.',
+            message: 'La sesión queda registrada como "No se presentó" en el historial y puedes agendar otra fecha para ese lugar del acuerdo.',
             confirmLabel: 'Registrar ausencia',
         });
         if (!ok) return;
@@ -1663,17 +1663,17 @@
         if (!guardWrite()) return;
         const dispute = M.openDispute(state.quote, state.disputes);
         if (!dispute || dispute.synthetic || !state.disputesAvailable) {
-            showToast('La disputa todavía no se puede responder desde acá. Escribile al cliente desde el inbox.', { error: true, link: { href: inboxUrl(), label: 'Abrir inbox →' } });
+            showToast('La disputa todavía no se puede responder desde aquí. Escríbele al cliente desde el inbox.', { error: true, link: { href: inboxUrl(), label: 'Abrir inbox →' } });
             return;
         }
         openDialog({
             title: 'Responder a la disputa',
-            intro: 'Tu respuesta la ven el cliente y soporte. Contá qué pasó y qué proponés para resolverlo.',
+            intro: 'Tu respuesta la ven el cliente y soporte. Cuenta qué pasó y qué propones para resolverlo.',
             submitLabel: 'Enviar respuesta',
             body: field('Tu respuesta', `<textarea class="wo-textarea" name="response" maxlength="4000" required>${esc(dispute.artist_response || '')}</textarea>`, true),
             onSubmit: async (form, data) => {
                 const response = (data.response || '').trim();
-                if (response.length < 10) throw userError('Escribí al menos 10 caracteres.');
+                if (response.length < 10) throw userError('Escribe al menos 10 caracteres.');
                 await D().QuotationDetail.respondDispute(dispute.id, response);
                 noticeClient('dispute', dispute.id);
                 await reloadAll();
@@ -1913,7 +1913,7 @@
             state.user = session.user;
             state.quote = await findQuote();
             if (!state.quote) {
-                renderError(state.identifier ? 'No encontramos esta cotización o no pertenece a tu cuenta.' : 'Todavía no tenés cotizaciones para mostrar.');
+                renderError(state.identifier ? 'No encontramos esta cotización o no pertenece a tu cuenta.' : 'Todavía no tienes cotizaciones para mostrar.');
                 return;
             }
             await refreshSecondaryData();
@@ -1928,7 +1928,7 @@
             openFromParams();
         } catch (error) {
             console.error('[quotation-detail] initialization', error);
-            renderError('No pudimos cargar el expediente. Probá nuevamente.');
+            renderError('No pudimos cargar el expediente. Prueba nuevamente.');
         }
     }
 

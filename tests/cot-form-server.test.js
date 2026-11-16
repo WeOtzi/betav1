@@ -194,7 +194,7 @@ test('rate limit: por borrador (submission_key) y techo amplio por IP', () => {
     assert.equal(limiters.intakeDraft.keyGenerator({ body: { submission_key: KEY.toUpperCase() }, ip: '1.1.1.1' }), `draft:${KEY}`);
     assert.equal(limiters.intakeDraft.keyGenerator({ body: { submission_key: 'x' }, ip: '1.1.1.1' }), 'ip:ip(1.1.1.1)');
     assert.equal(limiters.intakeIp.keyGenerator({ ip: '2.2.2.2' }), 'ip(2.2.2.2)');
-    assert.match(limiters.intakeDraft.message.error, /Esperá un minuto/);
+    assert.match(limiters.intakeDraft.message.error, /Espera un minuto/);
 });
 
 // ---------------------------------------------------------------------------

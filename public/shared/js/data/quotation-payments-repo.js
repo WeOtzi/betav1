@@ -42,7 +42,7 @@
         if (isMissing(err)) return 'El registro de pagos todavía no está activo en tu cuenta.';
         if (/JWT|not authenticated|Iniciá sesión/i.test(msg)) return 'Tu sesión venció. Volvé a iniciar sesión.';
         if (msg && /[áéíóúñ¿]|Elegí|Ingresá|Usá|Subilo|No encontramos|Solo podés|no puede|demasiados/i.test(msg)) return msg;
-        return fallback || 'No pudimos guardar el pago. Probá de nuevo.';
+        return fallback || 'No pudimos guardar el pago. Prueba de nuevo.';
     }
 
     function newId() {
@@ -115,7 +115,7 @@
             return res.data || null;
         },
 
-        // Seña de la cotización manual (801:556): artist_manual_quotes enviadas.
+        // Anticipo de la cotización manual (801:556): artist_manual_quotes enviadas.
         async manualQuotesFor(quoteIds) {
             var ids = (quoteIds || []).filter(Boolean).map(String);
             if (!ids.length) return [];
@@ -170,7 +170,7 @@
                 var msg = String(result.error.message || '');
                 throw new Error(/no simulad/i.test(msg)
                     ? 'La subida de comprobantes no está disponible en esta vista previa.'
-                    : 'No pudimos subir el comprobante. Probá de nuevo o guardá el pago sin él.');
+                    : 'No pudimos subir el comprobante. Prueba de nuevo o guarda el pago sin él.');
             }
             return { path: path, name: String(file.name || 'comprobante').slice(0, 180), mime: file.type || null, size: file.size || null };
         },

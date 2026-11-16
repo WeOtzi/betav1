@@ -299,7 +299,7 @@
     async function init() {
         const client = await resolveClient();
         if (!client) {
-            root.innerHTML = emptyBlock('alert-triangle', 'No pudimos cargar tus solicitudes', 'Recargá la página en unos segundos.');
+            root.innerHTML = emptyBlock('alert-triangle', 'No pudimos cargar tus solicitudes', 'Recarga la página en unos segundos.');
             return;
         }
 
@@ -338,7 +338,7 @@
         } catch (err) {
             console.error('[client-requests] listForClient:', err);
             requests = [];
-            notice('error', 'No pudimos cargar tus solicitudes. Probá recargar la página.');
+            notice('error', 'No pudimos cargar tus solicitudes. Prueba recargar la página.');
         }
         await Promise.all([enrichArtists(), loadPendingOffers()]);
     }
@@ -575,7 +575,7 @@
             return;
         }
 
-        html += '<p class="crq-index-sub">' + list.length + (list.length === 1 ? ' publicación' : ' publicaciones') + ' · seguí las postulaciones y elegí a tu artista.</p>';
+        html += '<p class="crq-index-sub">' + list.length + (list.length === 1 ? ' publicación' : ' publicaciones') + ' · sigue las postulaciones y elige a tu artista.</p>';
         // Buscador por código, idea, estilo o zona (útil desde la segunda solicitud).
         if (Panel && list.length > 1) {
             html += '<div class="cpn-toolbar">'
@@ -691,7 +691,7 @@
         html += '<div class="crq-state-inline"><span class="wo-tag ' + tag.cls + '">' + (closed ? 'Cerrada' : expired ? 'Vencida' : 'Publicada · recibiendo postulaciones') + '</span></div>';
 
         html += '<p class="crq-lede">' + (closed
-            ? 'Cerraste esta publicación: los tatuadores ya no la ven y no vas a recibir postulaciones nuevas. Las propuestas recibidas quedan acá como referencia.'
+            ? 'Cerraste esta publicación: los tatuadores ya no la ven y no vas a recibir postulaciones nuevas. Las propuestas recibidas quedan aquí como referencia.'
             : expired
             ? 'Esta publicación venció: los artistas ya no la ven y no recibirás postulaciones nuevas. Puedes publicar tu idea otra vez cuando quieras.'
             : 'Tu publicación ya está visible para los tatuadores. Cuando recibas propuestas vas a poder compararlas y elegir al artista indicado.') + '</p>';
@@ -738,7 +738,7 @@
             html += '<div class="wo-card wo-card--inverse crq-banner">'
                 + '<div>'
                 + '<h2 class="crq-banner-title">Ya recibiste ' + apps.length + (apps.length === 1 ? ' postulación' : ' postulaciones') + '</h2>'
-                + '<p>Los artistas están respondiendo a tu idea. Revisalos y comparalos.</p>'
+                + '<p>Los artistas están respondiendo a tu idea. Revísalos y compáralos.</p>'
                 + '</div>'
                 + goLink(qsBase + '&view=postulaciones', 'wo-btn wo-btn--accent wo-btn--hard', 'Ver postulaciones <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>')
                 + '</div>';
@@ -746,7 +746,7 @@
             html += '<section class="crq-section">' + emptyBlock(
                 'inbox',
                 'Todavía no hay postulaciones',
-                'Los tatuadores están viendo tu idea. Te avisamos acá cuando alguien responda.'
+                'Los tatuadores están viendo tu idea. Te avisamos aquí cuando alguien responda.'
             ) + '</section>';
         }
 
@@ -805,7 +805,7 @@
 
         if (!apps.length) {
             html += '<p class="crq-lede">Todavía nadie respondió a tu idea.</p>';
-            html += emptyBlock('inbox', 'Todavía no hay postulaciones', 'Los tatuadores están viendo tu idea. Te avisamos acá cuando alguien responda.');
+            html += emptyBlock('inbox', 'Todavía no hay postulaciones', 'Los tatuadores están viendo tu idea. Te avisamos aquí cuando alguien responda.');
             root.innerHTML = html;
             updateCompareBar(req);
             return;
@@ -813,7 +813,7 @@
 
         const selectable = apps.filter((a) => a.status === 'pending' || a.status === 'viewed');
         html += '<p class="crq-lede">' + apps.length + (apps.length === 1 ? ' tatuador respondió' : ' tatuadores respondieron') + ' a tu idea.'
-            + (selectable.length > 1 ? ' Seleccioná hasta 3 para comparar.' : '') + '</p>';
+            + (selectable.length > 1 ? ' Selecciona hasta 3 para comparar.' : '') + '</p>';
 
         html += '<div class="crq-apps">';
         apps.forEach((app) => {
@@ -855,7 +855,7 @@
             cb.addEventListener('change', () => {
                 const id = cb.getAttribute('data-compare');
                 if (cb.checked) {
-                    if (compareSel.size >= 3) { cb.checked = false; notice('warning', 'Podés comparar hasta 3 propuestas a la vez.'); return; }
+                    if (compareSel.size >= 3) { cb.checked = false; notice('warning', 'Puedes comparar hasta 3 propuestas a la vez.'); return; }
                     compareSel.add(id);
                 } else {
                     compareSel.delete(id);
@@ -899,7 +899,7 @@
             + '</header>';
 
         // Trabajos relacionados (portfolio_links de la postulacion o galeria del artista)
-        // portfolio_links trae el perfil público y el sitio del artista: acá solo
+        // portfolio_links trae el perfil público y el sitio del artista: aquí solo
         // se muestran las URLs de imagen; si no hay, la galería del artista.
         const works = parseList(app.portfolio_links)
             .filter((u) => /\.(jpe?g|png|webp|gif|avif)(\?|#|$)/i.test(u)).slice(0, 3);
@@ -983,7 +983,7 @@
         html += '<div class="crq-chosen">'
             + '<div class="crq-chosen-tile"><i data-wo-icon="check" aria-hidden="true"></i></div>'
             + '<h1 class="wo-h1">Elegiste a ' + esc(name) + '</h1>'
-            + '<p class="crq-chosen-sub">Ya podés coordinar los detalles finales y reservar tu sesión.</p>';
+            + '<p class="crq-chosen-sub">Ya puedes coordinar los detalles finales y reservar tu sesión.</p>';
 
         if (app) {
             html += '<article class="wo-card wo-card--flat crq-chosen-card">'
@@ -1003,7 +1003,7 @@
             ? '/client/dashboard?quote=' + encodeURIComponent(req.resulting_quote_id)
             : '/client/dashboard';
         html += '<a class="wo-btn wo-btn--block crq-chosen-cta" href="' + esc(quoteHref) + '">Continuar con la reserva <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></a>'
-            + '<p class="wo-meta-s crq-fineprint">Vas a poder chatear, confirmar la cotización final y dejar una seña para reservar tu turno.</p>'
+            + '<p class="wo-meta-s crq-fineprint">Vas a poder chatear, confirmar la cotización final y dejar un anticipo para reservar tu turno.</p>'
             + '<p class="wo-body-s">' + goLink(qsBase + '&view=seguimiento', 'wo-meta', 'Ver el seguimiento de esta solicitud →') + '</p>'
             + '</div>';
 
@@ -1021,7 +1021,7 @@
 
         if (!app) {
             root.innerHTML = shellHtml(req, { step: 3, back: { qs: location.pathname, label: 'Volver a mis solicitudes' } })
-                + emptyBlock('inbox', 'Todavía no hay nada para seguir', 'Cuando recibas postulaciones vas a poder negociarlas desde acá.');
+                + emptyBlock('inbox', 'Todavía no hay nada para seguir', 'Cuando recibas postulaciones vas a poder negociarlas desde aquí.');
             return;
         }
 
@@ -1236,7 +1236,7 @@
                 route();
             } catch (err) {
                 console.error('[client-requests] close:', err);
-                notice('error', 'No pudimos cerrar la publicación. Probá de nuevo.');
+                notice('error', 'No pudimos cerrar la publicación. Prueba de nuevo.');
             }
         };
         openModal('crq-modal-close');
@@ -1245,7 +1245,7 @@
     function openRejectModal(req, appId) {
         const app = (req.job_board_applications || []).find((x) => x.id === appId);
         const body = document.getElementById('crq-reject-body');
-        if (body && app) body.textContent = 'Rechazás la propuesta de ' + artistName(app) + '. El artista va a ver su postulación como rechazada.';
+        if (body && app) body.textContent = 'Rechazas la propuesta de ' + artistName(app) + '. El artista va a ver su postulación como rechazada.';
         pendingAction = async () => {
             try {
                 await WeotziData.JobBoard.Applications.reject(appId);
@@ -1255,7 +1255,7 @@
                 go('?id=' + encodeURIComponent(req.id) + '&view=postulaciones');
             } catch (err) {
                 console.error('[client-requests] reject:', err);
-                notice('error', 'No pudimos rechazar la postulación. Probá de nuevo.');
+                notice('error', 'No pudimos rechazar la postulación. Prueba de nuevo.');
             }
         };
         openModal('crq-modal-reject');
@@ -1267,10 +1267,10 @@
         const body = document.getElementById('crq-accept-body');
         const name = artistName(app);
         const price = money(app.estimated_price);
-        let inner = '<p>Elegís a <strong>' + esc(name) + '</strong> para tu tatuaje'
+        let inner = '<p>Eliges a <strong>' + esc(name) + '</strong> para tu tatuaje'
             + (price ? ' por un precio estimado de <strong class="wo-mono-num">' + price + '</strong>' : '') + '.</p>';
         if (coId) {
-            inner = '<p>Aceptás la propuesta de cambios de <strong>' + esc(name) + '</strong> y lo elegís para tu tatuaje.</p>';
+            inner = '<p>Aceptas la propuesta de cambios de <strong>' + esc(name) + '</strong> y lo eliges para tu tatuaje.</p>';
         }
         inner += '<p class="wo-body-s wo-muted">Se crea una cotización con el artista para coordinar la reserva y las demás postulaciones se rechazan.</p>';
         if (body) body.innerHTML = inner;
@@ -1304,7 +1304,7 @@
         const client = window.WeotziData.getClient();
         const { data: { session } } = await client.auth.getSession();
         if (!session || !session.access_token) {
-            throw new Error('Tu sesión expiró. Recargá la página e ingresá de nuevo.');
+            throw new Error('Tu sesión expiró. Recarga la página e ingresa de nuevo.');
         }
 
         const response = await fetch('/api/job-board/accept-application', {
@@ -1329,7 +1329,7 @@
             route();
         } catch (err) {
             console.error('[client-requests] reject-co:', err);
-            notice('error', 'No pudimos rechazar los cambios. Probá de nuevo.');
+            notice('error', 'No pudimos rechazar los cambios. Prueba de nuevo.');
         }
     }
 
@@ -1352,7 +1352,7 @@
             const date = document.getElementById('crq-co-date').value.trim();
             const note = document.getElementById('crq-co-note').value.trim();
             if (!price && !date && !note) {
-                notice('warning', 'Completá al menos un cambio para enviarle al artista.');
+                notice('warning', 'Completa al menos un cambio para enviarle al artista.');
                 return;
             }
             const btn = document.getElementById('crq-co-submit');
@@ -1374,7 +1374,7 @@
                 route();
             } catch (err) {
                 console.error('[client-requests] counter-offer:', err);
-                notice('error', 'No pudimos enviar la propuesta. Probá de nuevo.');
+                notice('error', 'No pudimos enviar la propuesta. Prueba de nuevo.');
             } finally {
                 btn.disabled = false;
             }

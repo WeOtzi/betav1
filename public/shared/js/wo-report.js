@@ -212,7 +212,7 @@
     }
 
     // ---------------------------------------------------------------
-    // HTML del modal (puro: todo dato de la persona o del servidor se escapa acá)
+    // HTML del modal (puro: todo dato de la persona o del servidor se escapa aquí)
     // ---------------------------------------------------------------
     function triggerHtml() {
         return FLAG_ICON + '<span>' + esc(MSG.trigger) + '</span>';

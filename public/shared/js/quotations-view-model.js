@@ -383,7 +383,7 @@
     function expirySettingsPatch(enabled, days) {
         if (!enabled) return { ok: true, patch: { quote_expiry_enabled: false, quote_expiry_days: null } };
         var n = normalizeExpiryDays(days);
-        if (n == null) return { ok: false, error: 'Indicá entre ' + EXPIRY_MIN_DAYS + ' y ' + EXPIRY_MAX_DAYS + ' días de vencimiento.' };
+        if (n == null) return { ok: false, error: 'Indica entre ' + EXPIRY_MIN_DAYS + ' y ' + EXPIRY_MAX_DAYS + ' días de vencimiento.' };
         return { ok: true, patch: { quote_expiry_enabled: true, quote_expiry_days: n } };
     }
 
@@ -410,12 +410,12 @@
     }
 
     // Texto corto para el detalle: "Sin vencimiento", "Vence el 27 nov",
-    // "14 días desde que respondés" (todavía sin responder).
+    // "14 días desde que respondes" (todavía sin responder).
     function expirySummary(quote, now) {
         if (!expiryEnabled(quote)) return 'Sin vencimiento';
         var days = normalizeExpiryDays(quote.quote_expiry_days);
         var at = offerExpiresAt(quote);
-        if (!at) return days + (days === 1 ? ' día' : ' días') + ' desde que respondés';
+        if (!at) return days + (days === 1 ? ' día' : ' días') + ' desde que respondes';
         var past = at.getTime() <= new Date(now || Date.now()).getTime();
         return (past ? 'Venció el ' : 'Vence el ') + shortDate(at.toISOString());
     }
@@ -439,7 +439,7 @@
     }
 
     // Estados que no se aplican con un patch suelto: piden datos en un diálogo
-    // del detalle. responded → presupuesto, sesiones y seña; client_approved →
+    // del detalle. responded → presupuesto, sesiones y anticipo; client_approved →
     // presupuesto final, sesiones y primera sesión (y avisa al cliente).
     function dialogUrlFor(quote, status) {
         if (status === 'responded') return respondUrl(quote);

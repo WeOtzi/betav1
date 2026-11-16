@@ -455,7 +455,7 @@
             // formato y tope: los valida wo-voice.js antes de subir.
             const extras = window.WeotziInboxExtras;
             const isVoice = !!(file && extras && extras.isVoiceMime(file.type) && file.size <= extras.VOICE_MAX_BYTES);
-            const check = isVoice ? { ok: true } : (model ? model.validateAttachment(file) : { ok: !!file, error: 'Elegí un archivo.' });
+            const check = isVoice ? { ok: true } : (model ? model.validateAttachment(file) : { ok: !!file, error: 'Elige un archivo.' });
             if (!check.ok) throw new Error(check.error);
             const path = model
                 ? model.chatAttachmentPath(quoteId, userId, file.name, Date.now())

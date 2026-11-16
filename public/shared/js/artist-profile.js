@@ -42,12 +42,12 @@ const PROFILE_ERROR_CONTENT = {
     not_found: {
         eyebrow: 'Perfil público · No encontrado',
         title: 'Artista no encontrado, pero hay muchos más',
-        message: 'Explorá más perfiles dentro del marketplace.'
+        message: 'Explora más perfiles dentro del marketplace.'
     },
     technical: {
         eyebrow: 'Perfil público · Error de carga',
         title: 'No pudimos cargar este perfil',
-        message: 'Podés intentarlo de nuevo o explorar otros artistas en el marketplace.'
+        message: 'Puedes intentarlo de nuevo o explorar otros artistas en el marketplace.'
     }
 };
 
@@ -669,7 +669,7 @@ function populateProfile() {
     const location = getLocationParts(artistData);
 
     // Los meta para compartir ya vienen escritos por el servidor
-    // (lib/profile-meta.js); acá solo se sincronizan para la pestaña y por si
+    // (lib/profile-meta.js); aquí solo se sincronizan para la pestaña y por si
     // la página se sirvió sin pasar por él.
     const pageTitle = `${artisticName} · Tatuador en We Ötzi`;
     document.title = pageTitle;
@@ -678,7 +678,7 @@ function populateProfile() {
         : String(artistData.bio_description || '')).replace(/\s+/g, ' ').trim();
     const pageDescription = ogBio
         ? (ogBio.length > 160 ? `${ogBio.slice(0, 159).trim()}…` : ogBio)
-        : `Mirá el portafolio de ${artisticName} y pedile una cotización en We Ötzi.`;
+        : `Mira el portafolio de ${artisticName} y pídele una cotización en We Ötzi.`;
     setMetaContent(['og-title', 'twitter-title'], pageTitle);
     setMetaContent(['og-description', 'twitter-description', 'profile-description'], pageDescription);
 
@@ -782,7 +782,7 @@ function isOwnerView() {
  * Quién mira (nota N9 / bug T2-5). El modo dueño sale SOLO de la sesión real:
  * el id de la sesión tiene que ser el del artista de ESTE perfil.
  *
- * El bug: acá se preguntaba `ConfigManager.isDemoMode()`, que es otro flag
+ * El bug: aquí se preguntaba `ConfigManager.isDemoMode()`, que es otro flag
  * (features.demoMode, artistas de ejemplo del cotizador) y vale `true` por
  * defecto hasta que termina de cargar app-config.json. Al volver con Atrás la
  * página se rearma desde la caché, los datos del artista llegan antes que esa
@@ -938,7 +938,7 @@ function applyViewerChrome() {
 
 /**
  * Los botones [data-wo-favorite] y [data-wo-report] los activan los módulos de
- * otros frentes (wo-favorites.js / wo-report.js). Acá solo se dejan con sus
+ * otros frentes (wo-favorites.js / wo-report.js). Aquí solo se dejan con sus
  * datos y se intenta cargar el módulo: si no existe en este deploy, los
  * botones quedan ocultos (nunca un botón que no hace nada).
  */
@@ -959,7 +959,7 @@ function ensureOptionalModule(name) {
     };
     optionalModuleState[name] = new Promise((resolve) => {
         // Favoritos: wo-favorites.js necesita su modelo cargado antes. El cargador de
-        // config-manager.js pide los dos en orden; si acá se insertara solo el módulo,
+        // config-manager.js pide los dos en orden; si aquí se insertara solo el módulo,
         // el cargador lo daría por presente y dejaría el modelo detrás.
         const favLoader = name === 'favorites' ? window.WoFavoritesLoader : null;
         if (favLoader && typeof favLoader.load === 'function') favLoader.load();
@@ -1043,7 +1043,7 @@ function profileDisplayName() {
 }
 
 /**
- * Paso "Compartí tu perfil" del onboarding (auditoría PP-07): solo cuando el
+ * Paso "Comparte tu perfil" del onboarding (auditoría PP-07): solo cuando el
  * dueño comparte su propio perfil. Una vez por id en la página.
  */
 const onboardingAcks = new Set();
@@ -1122,7 +1122,7 @@ function openShareSheet(trigger, opts = {}) {
     window.WoShareSheet.open({
         url: getPublicProfileUrl(),
         title: `${name} · We Ötzi`,
-        text: owner ? 'Mirá mi perfil de artista en We Ötzi' : `Mirá el perfil de ${name} en We Ötzi`,
+        text: owner ? 'Mira mi perfil de artista en We Ötzi' : `Mira el perfil de ${name} en We Ötzi`,
         name,
         image: artistData.profile_picture || '',
         fileName: String(artistData.username).replace(/\.wo$/i, ''),
@@ -1260,7 +1260,7 @@ function renderBio() {
     if (!String(plain || '').trim()) {
         if (isOwnerView()) {
             bioTextEl.hidden = false;
-            bioTextEl.innerHTML = '<p>Todavía no escribiste tu presentación. <a href="/artist/account#perfil">Sumala desde Editar perfil →</a></p>';
+            bioTextEl.innerHTML = '<p>Todavía no escribiste tu presentación. <a href="/artist/account#perfil">Súmala desde Editar perfil →</a></p>';
         } else {
             bioTextEl.hidden = true;
             bioTextEl.textContent = '';
@@ -1937,7 +1937,7 @@ function renderCtaMonths() {
 
     const copy = document.getElementById('cta-copy');
     if (copy && publicProfileMetrics.responseTimeLabel === 'Menos de 24 h') {
-        copy.textContent = 'Estoy tomando reservas para los próximos dos meses. Contame tu idea y te paso un presupuesto en menos de 24 horas.';
+        copy.textContent = 'Estoy tomando reservas para los próximos dos meses. Cuéntame tu idea y te paso un presupuesto en menos de 24 horas.';
     }
 }
 

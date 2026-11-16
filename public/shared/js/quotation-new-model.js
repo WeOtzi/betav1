@@ -34,10 +34,10 @@
         { value: 'low', label: 'Baja' }
     ];
     var POLICIES = [
-        { value: 'no-reembolsable-48', label: 'Seña no reembolsable · 48 h de aviso', sentence: 'La seña no es reembolsable. Reprogramaciones con 48 h de aviso.' },
-        { value: 'no-reembolsable-24', label: 'Seña no reembolsable · 24 h de aviso', sentence: 'La seña no es reembolsable. Reprogramaciones con 24 h de aviso.' },
-        { value: 'reembolsable-72', label: 'Seña reembolsable · 72 h de aviso', sentence: 'La seña se devuelve si cancelás con 72 h de aviso.' },
-        { value: 'sin-sena', label: 'Sin seña · cancelación sin costo', sentence: 'No se pide seña. Podés cancelar sin costo.' }
+        { value: 'no-reembolsable-48', label: 'Anticipo no reembolsable · 48 h de aviso', sentence: 'El anticipo no es reembolsable. Reprogramaciones con 48 h de aviso.' },
+        { value: 'no-reembolsable-24', label: 'Anticipo no reembolsable · 24 h de aviso', sentence: 'El anticipo no es reembolsable. Reprogramaciones con 24 h de aviso.' },
+        { value: 'reembolsable-72', label: 'Anticipo reembolsable · 72 h de aviso', sentence: 'El anticipo se devuelve si cancelas con 72 h de aviso.' },
+        { value: 'sin-sena', label: 'Sin anticipo · cancelación sin costo', sentence: 'No se pide anticipo. Puedes cancelar sin costo.' }
     ];
     var ORIGINS = ['manual', 'cliente', 'cita'];
 
@@ -98,9 +98,9 @@
         var draft = ' Guardamos un borrador en este navegador.';
         var code = String((err && (err.code || (err.cause && err.cause.code))) || '');
         var detail = String((err && err.cause && err.cause.message) || '').trim();
-        if (code === '23514') return 'No pudimos crear la cotización por un problema de configuración. Avisá a soporte.' + draft;
-        if (code === '23505') return 'Esa referencia ya está en uso. Volvé a abrir la cotización para generar otra.' + draft;
-        if (code === '28000' || code === '42501') return 'Iniciá sesión con tu cuenta de artista para crear cotizaciones.' + draft;
+        if (code === '23514') return 'No pudimos crear la cotización por un problema de configuración. Avisa a soporte.' + draft;
+        if (code === '23505') return 'Esa referencia ya está en uso. Vuelve a abrir la cotización para generar otra.' + draft;
+        if (code === '28000' || code === '42501') return 'Inicia sesión con tu cuenta de artista para crear cotizaciones.' + draft;
         // Validaciones propias de la RPC (22023): ya vienen en español.
         if (code === '22023' && detail && /^[A-ZÁÉÍÓÚÑ¿¡]/.test(detail) && detail.length <= 140) {
             return 'No pudimos crear la cotización: ' + detail.replace(/\.?$/, '.') + draft;
@@ -405,7 +405,7 @@
             ],
             items: items,
             total: money(totals.total),
-            depositLine: 'Seña ' + money(totals.deposit) + ' · Saldo ' + money(totals.balance),
+            depositLine: 'Anticipo ' + money(totals.deposit) + ' · Saldo ' + money(totals.balance),
             conditions: conditionsSentence(state.validityDays, state.policy, !!state.expiryEnabled),
             notes: clean(state.clientNotes),
             terms: clean(state.extraTerms),
@@ -484,7 +484,7 @@
     function validateNewClient(input) {
         var name = clean(input && input.name);
         var email = clean(input && input.email);
-        if (name.length < 2) return 'Ingresá el nombre del cliente.';
+        if (name.length < 2) return 'Ingresa el nombre del cliente.';
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'El correo no parece válido.';
         return '';
     }

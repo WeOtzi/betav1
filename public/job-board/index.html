@@ -6,7 +6,7 @@
     <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
     <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
     <title>We Ötzi · Job board</title>
-    <meta name="description" content="Explorá solicitudes de tatuaje abiertas y postulate como artista en We Ötzi.">
+    <meta name="description" content="Explora solicitudes de tatuaje abiertas y postúlate como artista en We Ötzi.">
 
     <!-- Design system Bauhaus -->
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
@@ -53,7 +53,7 @@
         profile-id="auth-nav-btn"
         profile-class="jbf-auth jbf-o-tile"
         profile-label-id="auth-nav-label"
-        profile-label="Ingresá"
+        profile-label="Ingresa"
         logout-id="auth-logout"
         logout-class="jbf-logout hidden">
     </weotzi-product-nav>
@@ -72,11 +72,11 @@
             <div class="jbf-sidebar-body" id="jbf-sidebar-body">
                 <div class="jbf-search">
                     <img src="/shared/assets/figma/job-board-screen15/search.svg" width="18" height="18" alt="">
-                    <input type="text" id="smart-search" class="wo-input" placeholder="Buscá estilo, ciudad..." autocomplete="off" aria-label="Buscar solicitudes">
+                    <input type="text" id="smart-search" class="wo-input" placeholder="Busca estilo, ciudad..." autocomplete="off" aria-label="Buscar solicitudes">
                 </div>
 
                 <div class="jbf-side-section">
-                    <span class="jbf-side-label wo-meta-s">Para vos</span>
+                    <span class="jbf-side-label wo-meta-s">Para ti</span>
                     <div class="jbf-quick" id="quick-filters">
                         <button type="button" class="jbf-quick-item" data-quick="recommended">
                             <i data-wo-icon="star" class="wo-icon-18" aria-hidden="true"></i>
@@ -84,7 +84,7 @@
                         </button>
                         <button type="button" class="jbf-quick-item" data-quick="near">
                             <i data-wo-icon="map-pin" class="wo-icon-18" aria-hidden="true"></i>
-                            <span>Cerca tuyo</span>
+                            <span>Cerca de ti</span>
                         </button>
                         <button type="button" class="jbf-quick-item" data-quick="newest">
                             <i data-wo-icon="zap" class="wo-icon-18" aria-hidden="true"></i>
@@ -146,7 +146,7 @@
                 <header class="jbf-head">
                     <a href="/artist/applications?tab=jobboard" class="jbf-applications">Mis postulaciones <img src="/shared/assets/figma/job-board-screen15/applications-arrow.svg" width="14" height="14" alt=""></a>
                     <span class="wo-eyebrow">Job board</span>
-                    <h1 class="jbf-title">Explorá solicitudes abiertas</h1>
+                    <h1 class="jbf-title">Explora solicitudes abiertas</h1>
                     <p class="jbf-sub">Curado según tu perfil y tus estilos favoritos.</p>
                 </header>
 
@@ -160,7 +160,7 @@
                 <div id="empty-state" class="wo-empty hidden">
                     <i data-wo-icon="inbox" aria-hidden="true"></i>
                     <span class="wo-empty-title">No hay solicitudes con esos criterios</span>
-                    <p>Probá con otros filtros o volvé más tarde para ver nuevas solicitudes.</p>
+                    <p>Prueba con otros filtros o vuelve más tarde para ver nuevas solicitudes.</p>
                     <button class="wo-btn wo-btn--ghost wo-btn--s" id="btn-clear-filters">Ver todas las solicitudes</button>
                 </div>
             </div>
@@ -184,8 +184,8 @@
             </button>
             <div class="jbf-login-body">
                 <i data-wo-icon="lock" aria-hidden="true"></i>
-                <h2 class="wo-modal-title" style="margin:0;">Ingresá como artista para postularte</h2>
-                <p class="wo-body-s wo-muted">Necesitás una cuenta de artista verificada para enviar propuestas.</p>
+                <h2 class="wo-modal-title" style="margin:0;">Ingresa como artista para postularte</h2>
+                <p class="wo-body-s wo-muted">Necesitas una cuenta de artista verificada para enviar propuestas.</p>
                 <div class="wo-modal-actions" style="justify-content:center;">
                     <a href="/registerclosedbeta?returnTo=%2Fjob-board" class="wo-btn wo-btn--direct">Ingresar</a>
                     <a href="/register-artist?returnTo=%2Fjob-board" class="wo-btn wo-btn--ghost">Registrarme como artista</a>

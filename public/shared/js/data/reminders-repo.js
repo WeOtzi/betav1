@@ -153,7 +153,7 @@
         var out = {};
         if (!partial || 'title' in src) {
             var title = String(src.title == null ? '' : src.title).replace(/\s+/g, ' ').trim();
-            if (!title) throw validationError('Escribí un título para el recordatorio.');
+            if (!title) throw validationError('Escribe un título para el recordatorio.');
             if (title.length > 140) throw validationError('El título puede tener hasta 140 caracteres.');
             out.title = title;
         }
@@ -164,7 +164,7 @@
         }
         if (!partial || 'icon' in src) out.icon = ICONS.indexOf(src.icon) !== -1 ? src.icon : 'bell';
         if (!partial || 'due_date' in src) {
-            if (src.due_date && !cleanDate(src.due_date)) throw validationError('Elegí una fecha válida.');
+            if (src.due_date && !cleanDate(src.due_date)) throw validationError('Elige una fecha válida.');
             out.due_date = cleanDate(src.due_date);
         }
         if (!partial || 'priority' in src) out.priority = PRIORITIES.indexOf(src.priority) !== -1 ? src.priority : 'normal';
@@ -175,12 +175,12 @@
         // entrada: así el dashboard sigue funcionando sin la migración
         // 20261112190000 aplicada.
         if ('due_at' in src) {
-            if (src.due_at && !cleanTimestamp(src.due_at)) throw validationError('Elegí una hora válida.');
+            if (src.due_at && !cleanTimestamp(src.due_at)) throw validationError('Elige una hora válida.');
             out.due_at = cleanTimestamp(src.due_at);
         }
         if ('recurrence_rule' in src) out.recurrence_rule = src.recurrence_rule === 'weekly' ? 'weekly' : 'none';
         if ('recurrence_until' in src) {
-            if (src.recurrence_until && !cleanDate(src.recurrence_until)) throw validationError('Elegí una fecha de fin válida.');
+            if (src.recurrence_until && !cleanDate(src.recurrence_until)) throw validationError('Elige una fecha de fin válida.');
             out.recurrence_until = cleanDate(src.recurrence_until);
         }
         return out;
@@ -203,7 +203,7 @@
     }
 
     function validateFile(file) {
-        if (!file) throw validationError('Elegí un archivo.');
+        if (!file) throw validationError('Elige un archivo.');
         if (file.size > MAX_FILE_BYTES) throw validationError('Cada archivo puede pesar hasta 10 MB.');
         var mime = String(file.type || '').toLowerCase();
         var name = String(file.name || '').toLowerCase();
@@ -377,7 +377,7 @@
                 var msg = String(result.error.message || '');
                 throw new Error(/no simulad/i.test(msg)
                     ? 'La subida de archivos no está disponible en esta vista previa.'
-                    : 'No pudimos subir ' + (file.name || 'el archivo') + '. Probá de nuevo.');
+                    : 'No pudimos subir ' + (file.name || 'el archivo') + '. Prueba de nuevo.');
             }
             return { name: String(file.name || 'archivo').slice(0, 180), path: path, size: file.size || 0, mime: file.type || null };
         },

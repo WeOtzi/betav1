@@ -350,7 +350,7 @@
       '<h2>Ingresos</h2><div class="wo-org-income-stats__grid">' +
         '<p><strong>' + d.month + '</strong><span>FACTURACIÓN MENSUAL</span></p>' +
         '<p><strong>' + d.week + '</strong><span>FACTURACIÓN SEMANAL</span></p>' +
-        '<p class="is-success"><strong>' + d.sessions + '</strong><span>SEÑAS RECIBIDAS</span></p>' +
+        '<p class="is-success"><strong>' + d.sessions + '</strong><span>ANTICIPOS RECIBIDOS</span></p>' +
         '<p class="is-error"><strong>' + d.pending + '</strong><span>SALDO PENDIENTE</span></p>' +
       '</div><div class="wo-org-goal"><p><span>META MENSUAL · ' + d.goal + '</span><b>' + d.progress + '%</b></p><div><i style="width:' + d.progress + '%"></i></div></div>' +
     '</section>';
@@ -377,7 +377,7 @@
 
   function renderAgendaBoard() {
     return '<section class="wo-org wo-org-agenda-board" data-figma-node="34:138" aria-label="Agenda del lunes 30 de junio">' +
-      '<header><div><p class="wo-org-kicker">LUNES 30 JUN</p><h2>Hola, Laura — hoy tenés 4 sesiones</h2></div><span>6H 45M</span></header>' +
+      '<header><div><p class="wo-org-kicker">LUNES 30 JUN</p><h2>Hola, Laura — hoy tienes 4 sesiones</h2></div><span>6H 45M</span></header>' +
       '<ol>' + agendaRows(true) + '</ol>' +
     '</section>';
   }
@@ -414,7 +414,7 @@
       '<a class="wo-org-job-board__back" href="/job-board">← EXPLORAR</a><p class="wo-org-kicker">JOB BOARD</p>' +
       '<header><div><h2>6 solicitudes encontradas</h2><p>Resultados para Fine Line + Black &amp; Grey + Blackwork.</p></div><div class="wo-org-job-board__tools"><button type="button">Más recientes⌄</button><span><button class="is-active" type="button" aria-label="Vista grilla">' + icon('grid') + '</button><button type="button" aria-label="Vista lista">' + icon('menu') + '</button></span></div></header>' +
       '<div class="wo-org-job-board__query"><span>FINE LINE ×</span><span>BLACK &amp; GREY ×</span><span>BLACKWORK ×</span></div>' +
-      '<div class="wo-org-job-board__section-head"><h3>Recomendado para vos</h3><a href="#todos">VER TODO →</a></div>' +
+      '<div class="wo-org-job-board__section-head"><h3>Recomendado para ti</h3><a href="#todos">VER TODO →</a></div>' +
       '<div class="wo-org-job-carousel" role="list" aria-label="Solicitudes recomendadas">' + DATA.jobs.map(function (job) {
         return '<article class="wo-org-job-card" role="listitem"><div class="wo-org-job-card__media is-' + job.tone + ' is-flag-' + job.flag + '">' +
           '<span>' + job.id + '</span><div>' + (job.isNew ? '<b>NUEVO</b>' : '') + '<button type="button" aria-label="Guardar solicitud" aria-pressed="false">' + icon('heart') + '</button></div><i aria-hidden="true"></i></div>' +
@@ -432,9 +432,9 @@
     variant = variant === 'compact' ? 'compact' : 'expanded';
     return '<aside class="wo-org wo-org-job-filters is-' + variant + '" data-figma-node="' + (variant === 'compact' ? '34:527' : '34:526') + '" aria-label="Filtros de Job Board">' +
       '<header><span>FILTROS</span><button type="button" data-filter-toggle aria-label="' + (variant === 'compact' ? 'Expandir filtros' : 'Comprimir filtros') + '">' + (variant === 'compact' ? '›' : '‹') + '</button></header>' +
-      '<label class="wo-org-filter-search">' + icon('search') + '<input type="search" placeholder="Buscá estilo, ciudad..." aria-label="Buscar estilo o ciudad"></label>' +
-      '<section><p class="wo-org-kicker">PARA VOS</p><div class="wo-org-filter-options">' +
-        filterIconItem('star', 'Recomendado') + filterIconItem('map-pin', 'Cerca tuyo') + filterIconItem('zap', 'Recién publicados') + filterIconItem('heart', 'Guardados') +
+      '<label class="wo-org-filter-search">' + icon('search') + '<input type="search" placeholder="Busca estilo, ciudad..." aria-label="Buscar estilo o ciudad"></label>' +
+      '<section><p class="wo-org-kicker">PARA TI</p><div class="wo-org-filter-options">' +
+        filterIconItem('star', 'Recomendado') + filterIconItem('map-pin', 'Cerca de ti') + filterIconItem('zap', 'Recién publicados') + filterIconItem('heart', 'Guardados') +
       '</div></section>' +
       '<section><div class="wo-org-filter-title"><p class="wo-org-kicker">ESTILOS</p><b>3</b></div><div class="wo-org-filter-groups">' +
         '<button type="button"><span>TÉCNICA</span><b>⌃</b></button><ul><li class="is-active">Fine Line <span>12</span></li><li class="is-active">Blackwork <span>11</span></li><li class="is-active">Black &amp; Grey <span>8</span></li><li>Microrrealismo <span>8</span></li></ul><small>+ 3 MÁS</small>' +
@@ -465,8 +465,8 @@
       '<label class="is-wide">NOMBRE COMPLETO *<input type="text" placeholder="Tu nombre" autocomplete="name" required></label>' +
       '<label>EMAIL *<input type="email" placeholder="tu@email.com" autocomplete="email" required></label>' +
       '<label>CIUDAD<input type="text" value="Buenos Aires" autocomplete="address-level2"></label>' +
-      '<label class="is-wide">ESTILO *<select required><option>Seleccioná un estilo</option><option>Fine Line</option><option>Blackwork</option></select></label>' +
-      '<label class="is-wide">DESCRIPCIÓN *<textarea placeholder="Describí tu idea..." required></textarea></label>' +
+      '<label class="is-wide">ESTILO *<select required><option>Selecciona un estilo</option><option>Fine Line</option><option>Blackwork</option></select></label>' +
+      '<label class="is-wide">DESCRIPCIÓN *<textarea placeholder="Describe tu idea..." required></textarea></label>' +
       '<p class="wo-org-quote-form__budget">PRESUPUESTO: <strong>USD 1750</strong></p>' +
       '<label class="wo-org-quote-form__terms"><input type="checkbox" required><span>Acepto los <u>términos y condiciones</u></span></label>' +
       '<button class="wo-org-quote-form__submit" type="submit">ENVIAR COTIZACIÓN →</button>' +
@@ -476,13 +476,13 @@
   function renderAuthForm() {
     return '<form class="wo-org wo-org-auth-form" data-figma-node="34:529" action="#" method="post">' +
       '<a class="wo-org-auth-form__brand" href="/"><span aria-hidden="true"><i></i><i></i><i></i></span>WE ÖTZI</a>' +
-      '<h2>Bienvenida de nuevo</h2><p>Ingresá para gestionar tus spots y cotizaciones.</p>' +
-      '<label>EMAIL<div>' + icon('mail') + '<input type="email" placeholder="vos@email.com" autocomplete="email" required></div></label>' +
+      '<h2>Bienvenida de nuevo</h2><p>Ingresa para gestionar tus spots y cotizaciones.</p>' +
+      '<label>EMAIL<div>' + icon('mail') + '<input type="email" placeholder="tu@email.com" autocomplete="email" required></div></label>' +
       '<label>CONTRASEÑA<div>' + icon('lock') + '<input type="password" value="12345678" autocomplete="current-password" required></div></label>' +
       '<button class="wo-org-auth-form__submit" type="submit">ENTRAR&nbsp; →</button>' +
-      '<div class="wo-org-auth-form__divider"><span>O CONTINUÁ CON</span></div>' +
+      '<div class="wo-org-auth-form__divider"><span>O CONTINÚA CON</span></div>' +
       '<div class="wo-org-auth-form__social"><button type="button">' + icon('instagram') + 'INSTAGRAM</button><button type="button">' + icon('mail') + 'EMAIL</button><button type="button">FACEBOOK</button></div>' +
-      '<p class="wo-org-auth-form__register">¿SIN CUENTA? <a href="/registerclosedbeta">REGISTRATE</a></p>' +
+      '<p class="wo-org-auth-form__register">¿SIN CUENTA? <a href="/registerclosedbeta">REGÍSTRATE</a></p>' +
     '</form>';
   }
 
@@ -501,16 +501,16 @@
     if (variant === 'full') {
       return '<section class="wo-org wo-org-portfolio is-full" data-figma-node="34:522">' +
         '<p class="wo-org-preview-label">VISTA PREVIA</p><div class="wo-org-portfolio__light"><header><div><p>GALERÍA DE TRABAJOS</p><h2>Tu portfolio</h2></div><span>12 TRABAJOS</span></header>' +
-        '<div class="wo-org-portfolio__rules"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><span>ARRASTRÁ PARA REORDENAR</span></div>' +
-        '<div class="wo-org-portfolio__grid">' + DATA.portfolio.map(portfolioMedia).join('') + '<button class="wo-org-portfolio__add" type="button">＋<span>AGREGÁ MÁS TRABAJOS</span></button></div></div>' +
-        '<div class="wo-org-portfolio__empty">' + icon('grid') + '<h3>Empezá tu portfolio</h3><p>Subí trabajos uno por uno o importá tu feed completo.</p><div><button type="button">＋ SUBIR FOTOS/VIDEOS</button><button type="button">' + icon('instagram') + 'IMPORTAR INSTAGRAM</button></div></div>' +
+        '<div class="wo-org-portfolio__rules"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><span>ARRASTRA PARA REORDENAR</span></div>' +
+        '<div class="wo-org-portfolio__grid">' + DATA.portfolio.map(portfolioMedia).join('') + '<button class="wo-org-portfolio__add" type="button">＋<span>AGREGA MÁS TRABAJOS</span></button></div></div>' +
+        '<div class="wo-org-portfolio__empty">' + icon('grid') + '<h3>Empieza tu portfolio</h3><p>Sube trabajos uno por uno o importa tu feed completo.</p><div><button type="button">＋ SUBIR FOTOS/VIDEOS</button><button type="button">' + icon('instagram') + 'IMPORTAR INSTAGRAM</button></div></div>' +
       '</section>';
     }
     return '<section class="wo-org wo-org-portfolio is-compact" data-figma-node="34:521">' +
       '<p class="wo-org-preview-label">VISTA PREVIA</p><header class="wo-org-portfolio__compact-head"><h2>Galería de trabajos <span>— 12</span></h2><button type="button">' + icon('instagram') + 'IMPORTAR INSTAGRAM</button></header>' +
-      '<div class="wo-org-portfolio__editor"><div class="wo-org-portfolio__editor-note"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>▲ ARRASTRÁ PARA REORDENAR</b></div>' +
+      '<div class="wo-org-portfolio__editor"><div class="wo-org-portfolio__editor-note"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>▲ ARRASTRA PARA REORDENAR</b></div>' +
         '<div class="wo-org-portfolio__editor-grid"><article class="is-main"><i>★</i>' + icon('image') + '<p>Manga floral — destacado</p><span>' + icon('star') + icon('edit') + icon('trash-2') + '</span></article><article class="is-hover">' + icon('image') + '<small>HOVER</small></article><article class="is-progress"><progress value="38" max="100"></progress><span>38%</span></article><button type="button">' + icon('image') + '<span>SUBIR MÁS</span></button></div>' +
-        '<div class="wo-org-portfolio__editor-empty">' + icon('edit-3') + '<h3>Mostrá tu mejor trabajo</h3><p>Un portfolio con fotos de calidad genera más cotizaciones.</p><button type="button">＋ SUBIR FOTOS/VIDEOS</button></div>' +
+        '<div class="wo-org-portfolio__editor-empty">' + icon('edit-3') + '<h3>Muestra tu mejor trabajo</h3><p>Un portfolio con fotos de calidad genera más cotizaciones.</p><button type="button">＋ SUBIR FOTOS/VIDEOS</button></div>' +
       '</div></section>';
   }
 
@@ -536,7 +536,7 @@
   function renderDashboard(active) {
     return '<main class="wo-org wo-org-dashboard" data-figma-node="34:533">' +
       renderProductNav(active || 'quotations') +
-      '<div class="wo-org-dashboard__body"><header class="wo-org-dashboard__hero"><p class="wo-org-kicker">LUNES, 30 JUN · 09:12</p><h1>Buen día, Laura.<br>Hoy <mark>tenés 4 sesiones</mark> programadas.</h1></header>' +
+      '<div class="wo-org-dashboard__body"><header class="wo-org-dashboard__hero"><p class="wo-org-kicker">LUNES, 30 JUN · 09:12</p><h1>Buen día, Laura.<br>Hoy <mark>tienes 4 sesiones</mark> programadas.</h1></header>' +
       '<div class="wo-org-dashboard__layout"><div class="wo-org-dashboard__main"><weotzi-agenda-designs></weotzi-agenda-designs><weotzi-quotes-activity></weotzi-quotes-activity></div>' +
       '<aside class="wo-org-dashboard__rail"><weotzi-profile-panel></weotzi-profile-panel><weotzi-dashboard-sidebar></weotzi-dashboard-sidebar></aside></div>' +
       '<weotzi-portfolio-gallery variant="compact"></weotzi-portfolio-gallery></div>' +

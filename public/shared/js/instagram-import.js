@@ -87,7 +87,7 @@
         } catch (_) {
             return {
                 success: false,
-                error: `Respuesta inválida del servidor (${res.status}). Verificá que la API de Instagram esté activa en ${apiUrl('/api/instagram/preview')}.`
+                error: `Respuesta inválida del servidor (${res.status}). Verifica que la API de Instagram esté activa en ${apiUrl('/api/instagram/preview')}.`
             };
         }
     }
@@ -213,17 +213,17 @@
             const free = this.freeSlots();
             const isSignup = this.opts.mode === 'signup';
             this.body.innerHTML =
-                '<h2 class="igi-title" id="igi-title">Importá tus trabajos de Instagram</h2>' +
-                '<p class="igi-sub">Elegí las publicaciones que querés sumar a tu galería.</p>' +
+                '<h2 class="igi-title" id="igi-title">Importa tus trabajos de Instagram</h2>' +
+                '<p class="igi-sub">Elige las publicaciones que quieres sumar a tu galería.</p>' +
                 '<div class="igi-fields">' +
                     '<div class="igi-field"><label class="igi-label" for="igi-handle">USUARIO DE INSTAGRAM</label>' +
                         '<div class="igi-input-wrap"><span class="igi-at" aria-hidden="true">@</span>' +
                         '<input id="igi-handle" class="igi-input" type="text" maxlength="31" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="tu.usuario" value="' + escapeHtml(this.handle) + '"></div>' +
-                        '<p class="igi-help">Podés escribirlo con o sin @.</p></div>' +
+                        '<p class="igi-help">Puedes escribirlo con o sin @.</p></div>' +
                     '<div class="igi-field">' +
                         '<div class="igi-facts">' +
                             '<div><p class="igi-fact-l">VAMOS A REVISAR</p><p class="igi-fact-v" data-review>Hasta ' + this.limit + ' publicaciones</p></div>' +
-                            '<div><p class="igi-fact-l">' + (isSignup ? 'PODÉS IMPORTAR' : 'ESPACIOS LIBRES EN TU GALERÍA') + '</p><p class="igi-fact-v" data-free>' +
+                            '<div><p class="igi-fact-l">' + (isSignup ? 'PUEDES IMPORTAR' : 'ESPACIOS LIBRES EN TU GALERÍA') + '</p><p class="igi-fact-v" data-free>' +
                                 (isSignup ? 'Hasta ' + g.max : free + ' de ' + g.max) + '</p></div>' +
                         '</div></div>' +
                     '<p class="igi-note">' + icon('info') + '<span>Solo podemos importar contenido de cuentas públicas.</span></p>' +
@@ -273,12 +273,12 @@
             this.handle = handle;
             this.confirmed = Boolean(this.body.querySelector('#igi-confirm')?.checked);
             if (!/^[A-Za-z0-9._]{1,30}$/.test(handle)) {
-                this.showInlineError('Revisá el usuario: solo letras, números, puntos y guiones bajos.');
+                this.showInlineError('Revisa el usuario: solo letras, números, puntos y guiones bajos.');
                 if (input) input.focus();
                 return;
             }
             if (!this.confirmed) {
-                this.showInlineError('Confirmá que la cuenta es tuya para seguir.');
+                this.showInlineError('Confirma que la cuenta es tuya para seguir.');
                 return;
             }
             // Ronda 2 (N2): se revisan hasta 50 publicaciones, tarda un poco más.
@@ -418,9 +418,9 @@
                     '<small>Cuenta pública · ' + total + ' ' + plural(total, 'publicación encontrada', 'publicaciones encontradas') + '</small></span>' +
                     '<button type="button" class="igi-link" data-change>CAMBIAR CUENTA</button>' +
                 '</div>' +
-                '<h2 class="igi-title igi-title--s" id="igi-title">Elegí qué sumar</h2>' +
-                '<p class="igi-sub">Tocá una publicación para seleccionarla. Las que no cumplen los requisitos aparecen bloqueadas.' +
-                    (this.opts.mode === 'signup' ? ' Podés elegir hasta ' + g.max + '.' : '') + '</p>' +
+                '<h2 class="igi-title igi-title--s" id="igi-title">Elige qué sumar</h2>' +
+                '<p class="igi-sub">Toca una publicación para seleccionarla. Las que no cumplen los requisitos aparecen bloqueadas.' +
+                    (this.opts.mode === 'signup' ? ' Puedes elegir hasta ' + g.max + '.' : '') + '</p>' +
                 '<div class="igi-status" role="status">' +
                     '<div class="is-on"><strong>' + usedUnits + '</strong><span>' + plural(usedUnits, 'SELECCIONADA', 'SELECCIONADAS') + '</span></div>' +
                     '<div><strong>' + free + '</strong><span>' + plural(free, 'ESPACIO LIBRE', 'ESPACIOS LIBRES') + '</span></div>' +
@@ -591,13 +591,13 @@
             const errs = result.errors || [];
             const lines = [];
             if (result.skipped) lines.push(result.skipped + ' ' + plural(result.skipped, 'publicación ya estaba', 'publicaciones ya estaban') + ' en tu galería.');
-            if (errs.length) lines.push(errs.length + ' ' + plural(errs.length, 'publicación no se pudo', 'publicaciones no se pudieron') + ' descargar. Probá de nuevo en unos minutos.');
+            if (errs.length) lines.push(errs.length + ' ' + plural(errs.length, 'publicación no se pudo', 'publicaciones no se pudieron') + ' descargar. Prueba de nuevo en unos minutos.');
             this.body.innerHTML =
                 '<div class="igi-done">' +
                     '<span class="igi-done-ic">' + icon('check') + '</span>' +
                     '<h2 class="igi-title" id="igi-title">' + (isSignup ? 'Tus trabajos ya están en tu portafolio' : 'Tus trabajos ya están en la galería') + '</h2>' +
                     '<p class="igi-sub">Sumamos ' + n + ' ' + plural(n, 'publicación', 'publicaciones') + ' desde @' + escapeHtml(result.handle) + '.' +
-                    (isSignup ? ' Si querés cambiar la selección, podés volver a importar desde «Tus trabajos».' : ' Te ' + plural(free, 'queda', 'quedan') + ' ' + free + ' ' + plural(free, 'espacio libre', 'espacios libres') + '.') + '</p>' +
+                    (isSignup ? ' Si quieres cambiar la selección, puedes volver a importar desde «Tus trabajos».' : ' Te ' + plural(free, 'queda', 'quedan') + ' ' + free + ' ' + plural(free, 'espacio libre', 'espacios libres') + '.') + '</p>' +
                     (isSignup ? '<p class="igi-note igi-note--verify">' + icon('alert-triangle') + '<span>' + escapeHtml(SIGNUP_VISIBILITY_NOTE) + '</span></p>' : '') +
                     (lines.length ? '<p class="igi-warn">' + icon('alert-triangle') + '<span>' + lines.map(escapeHtml).join(' ') + '</span></p>' : '') +
                 '</div>';
@@ -633,22 +633,22 @@
         humanizeError(data, httpStatus) {
             const code = data && data.code;
             const map = {
-                APIFY_NOT_CONFIGURED: 'La integración con Instagram no está configurada. Avisá a soporte.',
-                APIFY_TOKEN_REJECTED: 'La integración con Instagram no está disponible. Avisá a soporte.',
-                APIFY_RATE_LIMITED: 'Hubo muchas importaciones seguidas. Probá de nuevo en unos minutos.',
-                PROFILE_PRIVATE: 'La cuenta es privada. Hacela pública unos minutos para importar.',
+                APIFY_NOT_CONFIGURED: 'La integración con Instagram no está configurada. Avisa a soporte.',
+                APIFY_TOKEN_REJECTED: 'La integración con Instagram no está disponible. Avisa a soporte.',
+                APIFY_RATE_LIMITED: 'Hubo muchas importaciones seguidas. Prueba de nuevo en unos minutos.',
+                PROFILE_PRIVATE: 'La cuenta es privada. Hazla pública unos minutos para importar.',
                 PROFILE_NOT_FOUND: 'No encontramos ese usuario en Instagram. ¿Está bien escrito?',
-                PAYLOAD_EXPIRED: 'La búsqueda venció (15 min). Volvé a buscar el perfil.',
-                INVALID_HANDLE: 'Revisá el usuario de Instagram.',
-                INVALID_LIMIT: 'Elegí cuántas publicaciones buscar.',
+                PAYLOAD_EXPIRED: 'La búsqueda venció (15 min). Vuelve a buscar el perfil.',
+                INVALID_HANDLE: 'Revisa el usuario de Instagram.',
+                INVALID_LIMIT: 'Elige cuántas publicaciones buscar.',
                 INVALID_TARGET: 'Tipo de cuenta inválido.',
                 INVALID_TARGET_USER: 'Usuario de destino inválido.'
             };
             if (code && map[code]) return map[code];
             if (data && data.preview) return 'La importación de Instagram no está disponible en esta vista previa.';
-            if (httpStatus === 401) return 'Iniciá sesión para importar.';
-            if (httpStatus === 403) return 'No tenés permiso para esta acción.';
-            if (httpStatus === 429) return 'Hubo muchas importaciones seguidas. Probá de nuevo en unos minutos.';
+            if (httpStatus === 401) return 'Inicia sesión para importar.';
+            if (httpStatus === 403) return 'No tienes permiso para esta acción.';
+            if (httpStatus === 429) return 'Hubo muchas importaciones seguidas. Prueba de nuevo en unos minutos.';
             return (data && data.error) || 'Error desconocido.';
         }
     }

@@ -4,7 +4,7 @@
  *
  * Migración 20261113106000: artists_db tiene privilegios por columna y las
  * columnas privadas (email, fecha de nacimiento, WhatsApp, dirección exacta…)
- * se leen por dos RPC security definer. Acá se emulan:
+ * se leen por dos RPC security definer. Aquí se emulan:
  *   - get_my_artist_profile(): fila completa del usuario con sesión
  *     (ctx.userId); sin sesión → []. Los filtros/select de la consulta los
  *     aplica el emulador sobre el array devuelto.
@@ -50,7 +50,7 @@
             'birth_date', 'subscribed_newsletter', 'years_experience', 'registration_step'];
         ctx.rpcs.upsert_my_artist_profile = function (args, store, rpcCtx) {
             var uid = rpcCtx && rpcCtx.userId;
-            if (!uid) throw Object.assign(new Error('Necesitás iniciar sesión para guardar tu perfil.'), { code: '42501' });
+            if (!uid) throw Object.assign(new Error('Necesitas iniciar sesión para guardar tu perfil.'), { code: '42501' });
             var input = (args && args.p_profile) || {};
             if (typeof input === 'string') { try { input = JSON.parse(input); } catch (e) { input = {}; } }
             var patch = {};

@@ -257,7 +257,7 @@
 
     function validateMessage(body) {
         var value = text(body);
-        if (!value) return 'Escribí un mensaje.';
+        if (!value) return 'Escribe un mensaje.';
         if (value.length > MESSAGE_MAX) return 'El mensaje puede tener hasta ' + MESSAGE_MAX + ' caracteres.';
         return null;
     }
@@ -309,15 +309,15 @@
 
     function validateResponse(decision, reply, changes, request, today) {
         var r = text(reply);
-        if (decision !== 'accepted' && decision !== 'declined') return 'Elegí si actualizás la invitación o mantenés las condiciones.';
+        if (decision !== 'accepted' && decision !== 'declined') return 'Elige si actualizas la invitación o mantienes las condiciones.';
         if (r.length > MESSAGE_MAX) return 'La respuesta puede tener hasta ' + MESSAGE_MAX + ' caracteres.';
         if (decision === 'declined') {
-            if (r.length < REPLY_MIN_DECLINE) return 'Contale al artista por qué mantenés las condiciones (mínimo ' + REPLY_MIN_DECLINE + ' caracteres).';
+            if (r.length < REPLY_MIN_DECLINE) return 'Cuéntale al artista por qué mantienes las condiciones (mínimo ' + REPLY_MIN_DECLINE + ' caracteres).';
             return null;
         }
         var c = changes || {};
-        if (!Object.keys(c).length) return 'No hay cambios: si mantenés las condiciones, respondé sin actualizar.';
-        if ('role' in c && !ROLE_LABELS[c.role]) return 'Elegí un rol válido.';
+        if (!Object.keys(c).length) return 'No hay cambios: si mantienes las condiciones, responde sin actualizar.';
+        if ('role' in c && !ROLE_LABELS[c.role]) return 'Elige un rol válido.';
         if ('revenue_split_pct' in c && c.revenue_split_pct != null && (Number.isNaN(c.revenue_split_pct) || c.revenue_split_pct < 0 || c.revenue_split_pct > 100)) return 'El reparto debe estar entre 0 y 100.';
         var membership = (request && request.membership) || {};
         if (membership.has_contract && ('role' in c || 'revenue_split_pct' in c)) return 'El rol y el reparto se editan con una nueva versión del contrato.';
@@ -336,15 +336,15 @@
     function friendlyError(error) {
         var source = error && error.cause && error.cause.message ? error.cause : error;
         var msg = text(source && (source.message || source.details || source)).replace(/^\[[^\]]+\]\s*/, '');
-        if (/authentication required/i.test(msg)) return 'Tu sesión venció. Volvé a ingresar.';
+        if (/authentication required/i.test(msg)) return 'Tu sesión venció. Vuelve a ingresar.';
         if (/thread not found|No tenés acceso/i.test(msg)) return 'No encontramos esa conversación en tu estudio.';
-        if (/message content is required/i.test(msg)) return 'Escribí un mensaje.';
+        if (/message content is required/i.test(msg)) return 'Escribe un mensaje.';
         if (/attachment is too large/i.test(msg)) return 'El archivo supera el límite de 15 MB.';
         // Los errores propios de las RPC del estudio ya vienen en español.
         var spanish = /[áéíóúñ¿¡]|\b(la|el|de|no|ya|tu|por|para|una)\b/i.test(msg);
         var technical = /\b(the|is|must|violates|permission|denied|function|relation|column|duplicate|syntax|null)\b/i.test(msg);
         if (spanish && !technical && msg.length < 200) return msg;
-        return 'No pudimos completar la acción. Intentá nuevamente.';
+        return 'No pudimos completar la acción. Intenta nuevamente.';
     }
 
     function changeRequestSummary(request) {

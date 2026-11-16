@@ -320,7 +320,7 @@ test('instagram verification template shows the code and renders intro tokens pe
     const local = buildEmailHtml('instagram-verification', { mode: 'local' });
     assert.match(local, /font-size:30px[^>]*>\{\{verification_code\}\}</);
     assert.match(local, /<a href="\{\{dm_url\}\}"/);
-    assert.match(local, /Desde \{\{instagram_handle\}\}, seguí a \{\{weotzi_instagram\}\}/);
+    assert.match(local, /Desde \{\{instagram_handle\}\}, sigue a \{\{weotzi_instagram\}\}/);
     assert.match(local, /Vence en \{\{expires_label\}\}/);
     const spec = emailSpecs['instagram-verification'];
     for (const copy of [spec.eyebrow, spec.headline, spec.intro, spec.ctaLabel, spec.highlightLabel]) assert.doesNotMatch(copy, /[!¡]/);

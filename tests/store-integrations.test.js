@@ -341,11 +341,11 @@ test('menú Ö: fuente store con pagos informados, merch sin despachar y la fila
     assert.match(menu, /state\.storeOn && D && D\.Store && typeof D\.Store\.listSellerOrders === 'function'/);
     assert.match(menu, /D\.Store\.listSellerOrders\('artist', uid\)/);
     assert.match(menu, /o\.status === 'pending_payment' && o\.buyer_payment_reported_at/);
-    // «Confirmalo antes del…» solo si cobra el vendedor: los de We Ötzi o proveedor no los puede confirmar.
+    // «Confírmalo antes del…» solo si cobra el vendedor: los de We Ötzi o proveedor no los puede confirmar.
     assert.match(menu, /o\.buyer_payment_reported_at\s*\n\s*&& \(o\.expected_collector \|\| 'seller'\) === 'seller'/);
     assert.match(menu, /o\.status === 'paid' && o\.fulfillment_method !== 'digital'/);
     assert.match(menu, /title: 'Pago informado'/);
-    assert.match(menu, /'Pedido #' \+ storeOrderNumber\(o\) \+ ' · ' \+ \(due \? 'Confirmalo antes del ' \+ due/);
+    assert.match(menu, /'Pedido #' \+ storeOrderNumber\(o\) \+ ' · ' \+ \(due \? 'Confírmalo antes del ' \+ due/);
     assert.match(menu, /title: 'Pedido por preparar'/);
     assert.match(menu, /state\.counts\.store = reported\.length \+ toShip\.length;/);
     assert.match(menu, /activityRow\('wo-oam-store', 'shopping-bag', 'Pedidos de la Store', state\.counts\.store, false, '\/artist\/store\?tab=pedidos'\)/);
@@ -373,7 +373,7 @@ test('soporte: la página carga el plugin STORE después del dashboard y la capa
     // Cancelar con motivo obligatorio y window.confirm, igual que reembolsar.
     assert.match(js, /data-sds-form="cancel"/);
     assert.match(js, /kind === 'cancel' && can\.cancel/);
-    assert.match(js, /if \(!cancelReason\) \{ feedback\('Contá el motivo de la cancelación\.', 'error'\); return; \}/);
+    assert.match(js, /if \(!cancelReason\) \{ feedback\('Cuenta el motivo de la cancelación\.', 'error'\); return; \}/);
     assert.match(js, /window\.confirm\('¿Cancelar el pedido '/);
     assert.match(js, /S\.cancelOrder\(o\.id, cancelReason\)/);
     assert.match(js, / STORE </);
@@ -567,7 +567,7 @@ test('soporte: el drawer muestra las notas internas (listSupportNotes) y no lee 
     assert.ok(html.indexOf('Error del mantenimiento') < html.indexOf('Retención de fondos'), 'la más reciente primero');
     assert.match(html, /40P01 deadlock &lt;detectado&gt;/, 'escapado');
     assert.match(html, /Contracargo en revisión/);
-    assert.match(html, /Retención de fondos<\/span> · [^<]+ · Vos<\/p>/, 'la nota propia dice «Vos»');
+    assert.match(html, /Retención de fondos<\/span> · [^<]+ · Tú<\/p>/, 'la nota propia dice «Tú»');
     assert.match(html, /Reembolso<\/span> · [^<]+ · Soporte<\/p>/);
     assert.match(html, /Error del mantenimiento<\/span> · [^<]+ · Automático<\/p>/);
     assert.equal(page.dom.els['sds-notes'].getAttribute('aria-busy'), 'false');
@@ -653,7 +653,7 @@ test('soporte: un pendiente con pago informado vencido no ofrece «Marcar como r
     await page.open('o5');
     const drawer = page.drawer();
     assert.doesNotMatch(drawer, /data-sds-form="resolve"/);
-    assert.match(drawer, /Confirmá el pago o cancelá el pedido: cualquiera de las dos lo saca de la cola\./);
+    assert.match(drawer, /Confirma el pago o cancela el pedido: cualquiera de las dos lo saca de la cola\./);
     assert.match(drawer, /data-sds-form="confirm"/);
     assert.match(drawer, /data-sds-form="cancel"/);
     // Aunque llegue un submit forzado, sin la capacidad no se llama al repo.

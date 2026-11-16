@@ -51,7 +51,7 @@ test('cada correo de usuario final tiene un CTA absoluto (también en Outlook y 
         const href = fmt.escapeHtml(out.cta.url);
         assert.ok(out.html.includes(`<a href="${href}"`), `${tag}: falta el <a> del CTA`);
         assert.ok(out.html.includes(`v:roundrect`) && out.html.includes(`href="${href}" style="height:50px`), `${tag}: falta el botón VML`);
-        assert.match(out.html, /Si el botón no funciona, copiá este enlace/, `${tag}: falta el enlace de respaldo`);
+        assert.match(out.html, /Si el botón no funciona, copia este enlace/, `${tag}: falta el enlace de respaldo`);
         assert.ok(out.text.includes(out.cta.url), `${tag}: el texto plano no trae el link`);
     });
 });
@@ -191,10 +191,10 @@ test('plantillas regeneradas: base común, sin placeholders rotos y Supabase en 
     const magic = fs.readFileSync(path.join(dir, 'supabase-magic-link.html'), 'utf8');
     assert.match(magic, /href="\{\{ \.ConfirmationURL \}\}"/);
     assert.match(magic, /\{\{ \.Token \}\}/);
-    assert.match(magic, /Entrá a We Ötzi/);
+    assert.match(magic, /Entra a We Ötzi/);
     const change = fs.readFileSync(path.join(dir, 'supabase-email-change.html'), 'utf8');
     for (const v of ['{{ .ConfirmationURL }}', '{{ .Email }}', '{{ .NewEmail }}']) assert.ok(change.includes(v), `email-change: ${v}`);
-    assert.match(change, /Confirmá tu nuevo email/);
+    assert.match(change, /Confirma tu nuevo email/);
     for (const name of ['supabase-confirm-signup', 'supabase-recovery', 'supabase-password-changed', 'supabase-magic-link', 'supabase-email-change']) {
         assert.match(fs.readFileSync(path.join(dir, `${name}.html`), 'utf8'), /\{\{ \.SiteURL \}\}\/legal\/privacy/, `${name}: privacidad`);
     }

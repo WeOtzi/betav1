@@ -289,7 +289,7 @@
                 application_id: costaApp ? costaApp.id : null, spot_id: costaSpot ? costaSpot.id : null,
                 application_status: 'accepted', dates: null, city: null, spot_title: costaSpot ? costaSpot.title : null, reply_status: 'replied'
             });
-            costa.last_message = 'Perfecto, mandanos tus fechas confirmadas';
+            costa.last_message = 'Perfecto, mándanos tus fechas confirmadas';
             costa.last_message_at = at(-4, '18:20');
             costa.unread_count = 0;
             costa.is_priority = false;
@@ -297,7 +297,7 @@
             costaMessages.forEach(function (m) { messages.splice(messages.indexOf(m), 1); });
             messages.push(
                 { id: id('e8', 1), thread_id: costa.id, sender_user_id: artistId, sender_role: 'artist', body: 'Confirmo mi interés en la próxima residencia de ' + costaMonth + '.', message_kind: 'text', attachment_path: null, attachment_name: null, attachment_mime: null, attachment_size: null, client_nonce: null, created_at: at(-4, '17:55') },
-                { id: id('e8', 2), thread_id: costa.id, sender_user_id: null, sender_role: 'studio', body: 'Perfecto, mandanos tus fechas confirmadas', message_kind: 'text', attachment_path: null, attachment_name: null, attachment_mime: null, attachment_size: null, client_nonce: null, created_at: at(-4, '18:20') }
+                { id: id('e8', 2), thread_id: costa.id, sender_user_id: null, sender_role: 'studio', body: 'Perfecto, mándanos tus fechas confirmadas', message_kind: 'text', attachment_path: null, attachment_name: null, attachment_mime: null, attachment_size: null, client_nonce: null, created_at: at(-4, '18:20') }
             );
         }
 
@@ -307,19 +307,19 @@
             ['clients', 'Camila R.', 'CR', 'Sesión de fine line', { client: 'Camila R.', reply_status: 'waiting' }, '¿Podemos mover la sesión al sábado?', minutesAgo(35), 2, false, 'open', false, 'client',
                 [['artist', 'Te confirmo el turno del viernes a las 15.'], ['counterparty', '¿Podemos mover la sesión al sábado?']]],
             ['clients', 'Rodrigo A.', 'RA', 'Retoque de brazo', { client: 'Rodrigo A.', reply_status: 'replied' }, 'Genial, ¡nos vemos el 12!', minutesAgo(240), 0, false, 'open', false, 'client',
-                [['counterparty', '¿Tenés lugar el 12 para el retoque?'], ['artist', 'Sí, te anoto a las 11.'], ['counterparty', 'Genial, ¡nos vemos el 12!']]],
+                [['counterparty', '¿Tienes lugar el 12 para el retoque?'], ['artist', 'Sí, te anoto a las 11.'], ['counterparty', 'Genial, ¡nos vemos el 12!']]],
             ['clients', 'Valentina Cruz', 'VC', 'Tatuaje de antebrazo', { client: 'Valentina Cruz', reply_status: 'replied' }, 'Mil gracias, ¡quedó hermoso el tatuaje!', at(-3, '12:10'), 0, false, 'open', false, 'client',
-                [['counterparty', 'Mil gracias, ¡quedó hermoso el tatuaje!'], ['artist', 'Gracias a vos. Acordate de la crema dos veces por día.']]],
+                [['counterparty', 'Mil gracias, ¡quedó hermoso el tatuaje!'], ['artist', 'Gracias a ti. Acuérdate de la crema dos veces por día.']]],
             ['quotations', 'Bruno T.', 'BT', 'Cotización · espalda completa', { budget: '$480.000', style: 'Blackwork', reply_status: 'waiting' }, '¿Podrías bajar un poco el precio?', at(-1, '19:40'), 0, true, 'open', false, 'quotation',
                 [['artist', 'Te paso la cotización: $480.000 en tres sesiones.'], ['counterparty', '¿Podrías bajar un poco el precio?']]],
             ['quotations', 'Sofía L.', 'SL', 'Cotización · mandala', { budget: '$150.000', style: 'Dotwork' }, 'Voy a seguir buscando, gracias', at(-3, '10:05'), 0, false, 'closed', false, 'quotation',
                 [['artist', 'La pieza queda en $150.000 en una sesión.'], ['counterparty', 'Voy a seguir buscando, gracias']]],
             ['invitations', 'Fierro Negro Tattoo', 'FN', 'Invitación · guest de verano', { studio: 'Fierro Negro Tattoo', invitation_status: 'pending_acceptance', reply_status: 'waiting' }, 'Esperamos tu respuesta a la invitación.', minutesAgo(15), 1, false, 'open', false, 'studio_membership',
                 [['counterparty', 'Esperamos tu respuesta a la invitación.']]],
-            ['studios', 'Estudio Cactus', 'EC', 'Residencia en Ciudad de México', { studio: 'Estudio Cactus', city: 'Ciudad de México', reply_status: 'replied' }, 'Cualquier cosa avisanos', at(-5, '16:00'), 0, false, 'open', false, 'studio',
-                [['artist', 'Gracias por la info de la residencia.'], ['counterparty', 'Cualquier cosa avisanos']]],
-            ['trips', 'Marta Vidal — Costa Ink', 'MV', 'Guest spot Barcelona', { studio: 'Costa Ink Barcelona', city: 'Barcelona', country: 'España', start_date: barcelonaTrip ? barcelonaTrip.start_date : null, end_date: barcelonaTrip ? barcelonaTrip.end_date : null, reply_status: 'replied' }, 'Te esperamos el 15 en el estudio, cualquier cosa por acá', at(-2, '20:30'), 0, false, 'open', false, 'artist_trip',
-                [['artist', 'Llego a Barcelona el 14 a la noche.'], ['counterparty', 'Te esperamos el 15 en el estudio, cualquier cosa por acá']]],
+            ['studios', 'Estudio Cactus', 'EC', 'Residencia en Ciudad de México', { studio: 'Estudio Cactus', city: 'Ciudad de México', reply_status: 'replied' }, 'Cualquier cosa avísanos', at(-5, '16:00'), 0, false, 'open', false, 'studio',
+                [['artist', 'Gracias por la info de la residencia.'], ['counterparty', 'Cualquier cosa avísanos']]],
+            ['trips', 'Marta Vidal — Costa Ink', 'MV', 'Guest spot Barcelona', { studio: 'Costa Ink Barcelona', city: 'Barcelona', country: 'España', start_date: barcelonaTrip ? barcelonaTrip.start_date : null, end_date: barcelonaTrip ? barcelonaTrip.end_date : null, reply_status: 'replied' }, 'Te esperamos el 15 en el estudio, cualquier cosa por aquí', at(-2, '20:30'), 0, false, 'open', false, 'artist_trip',
+                [['artist', 'Llego a Barcelona el 14 a la noche.'], ['counterparty', 'Te esperamos el 15 en el estudio, cualquier cosa por aquí']]],
             ['clients', 'Julián P.', 'JP', 'Consulta cerrada', { client: 'Julián P.', reply_status: 'replied' }, 'Perfecto, quedamos así.', daysAgo(30), 0, false, 'closed', true, 'client',
                 [['counterparty', 'Perfecto, quedamos así.']]]
         ];
@@ -372,16 +372,16 @@
         }
 
         // Postulaciones sin hilo: el trigger real (inbox_from_job_board_application /
-        // inbox_from_spot_application) crea uno por postulación. Se replica acá para que
+        // inbox_from_spot_application) crea uno por postulación. Se replica aquí para que
         // "Ver conversación" de Postulaciones abra siempre la conversación.
         var JB_MESSAGES = {
-            accepted: 'Tu propuesta fue aceptada. Podés coordinar los próximos pasos por acá.',
+            accepted: 'Tu propuesta fue aceptada. Puedes coordinar los próximos pasos por aquí.',
             rejected: 'La solicitud eligió otra propuesta.',
             shortlisted: 'Tu propuesta quedó preseleccionada.',
             viewed: 'Nos encantó tu propuesta, ¿podemos coordinar una llamada?'
         };
         var SPOT_MESSAGES = {
-            accepted: 'Tu postulación fue aceptada. Coordinemos las fechas confirmadas por acá.',
+            accepted: 'Tu postulación fue aceptada. Coordinemos las fechas confirmadas por aquí.',
             rejected: 'El estudio cerró esta postulación.',
             shortlisted: 'Tu postulación quedó preseleccionada.'
         };

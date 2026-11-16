@@ -2,7 +2,7 @@
 // We Ötzi — Verificación del estudio (/studio/dashboard#verificacion)
 //
 // Figma de estudios 91wYIpURj0xn0kzqhybOOt · 05 Verificación del estudio:
-//   E-VER-01 (2012:307)  Verificá tu estudio · datos para la revisión
+//   E-VER-01 (2012:307)  Verifica tu estudio · datos para la revisión
 //   E-VER-02 (2012:308)  Verificación en revisión
 //   E-VER-02-DOCUMENTS (2014:5245) Documentación enviada
 //   E-VER-03 (2012:309)  Necesitamos una corrección
@@ -78,11 +78,11 @@
     }
     function headingFor(view) {
         return {
-            form: 'Verificá tu estudio',
+            form: 'Verifica tu estudio',
             pending: 'Verificación en revisión',
             correction: 'Necesitamos una corrección',
             approved: 'Tu estudio está verificado'
-        }[view] || 'Verificá tu estudio';
+        }[view] || 'Verifica tu estudio';
     }
     function selectedLocation(state) {
         const locations = (state && state.locations) || [];
@@ -103,13 +103,13 @@
     function validateForm(values) {
         const v = values || {};
         const len = s => String(s || '').trim().length;
-        if (len(v.legal_name) < 2) return { field: 'sv-legal', error: 'Escribí el nombre legal o comercial del estudio.' };
-        if (len(v.responsible_name) < 2) return { field: 'sv-resp', error: 'Escribí el nombre del responsable del estudio.' };
-        if (len(v.responsible_role) < 2) return { field: 'sv-role', error: 'Contanos el cargo del responsable.' };
-        if (len(v.responsible_contact) < 5) return { field: 'sv-contact', error: 'Dejanos un email o teléfono del responsable.' };
-        if (!v.location_id) return { field: 'sv-location', error: 'Elegí la sede a verificar.' };
-        if (!v.hasRepresentation) return { field: 'sv-rep-file', error: 'Subí el documento que acredita la representación del estudio.' };
-        if (!v.hasSpace) return { field: 'sv-space-file', error: 'Subí al menos una foto del espacio.' };
+        if (len(v.legal_name) < 2) return { field: 'sv-legal', error: 'Escribe el nombre legal o comercial del estudio.' };
+        if (len(v.responsible_name) < 2) return { field: 'sv-resp', error: 'Escribe el nombre del responsable del estudio.' };
+        if (len(v.responsible_role) < 2) return { field: 'sv-role', error: 'Cuéntanos el cargo del responsable.' };
+        if (len(v.responsible_contact) < 5) return { field: 'sv-contact', error: 'Déjanos un email o teléfono del responsable.' };
+        if (!v.location_id) return { field: 'sv-location', error: 'Elige la sede a verificar.' };
+        if (!v.hasRepresentation) return { field: 'sv-rep-file', error: 'Sube el documento que acredita la representación del estudio.' };
+        if (!v.hasSpace) return { field: 'sv-space-file', error: 'Sube al menos una foto del espacio.' };
         if (len(v.note) > 2000) return { field: 'sv-note', error: 'El comentario admite hasta 2000 caracteres.' };
         return null;
     }
@@ -138,7 +138,7 @@
         if (!studio.verification_required || studio.is_verified) return '';
         const reasons = (request.reasons || []).filter(r => REASONS[r] && r !== 'owner_request');
         return '<div class="sv-alert" role="note"><strong>Verificación adicional requerida</strong>'
-            + '<p>Tu estudio se parece a otro que ya está en We Ötzi. Mandanos los datos y los documentos para confirmar que es un estudio distinto y que la sede es propia.</p>'
+            + '<p>Tu estudio se parece a otro que ya está en We Ötzi. Mándanos los datos y los documentos para confirmar que es un estudio distinto y que la sede es propia.</p>'
             + (reasons.length ? '<ul>' + reasons.map(r => '<li>' + esc(REASONS[r]) + '</li>').join('') + '</ul>' : '')
             + '</div>';
     }
@@ -160,9 +160,9 @@
         const loc = d.location_id || (selectedLocation(state) || {}).id || '';
         const val = (key, fallback) => esc(d[key] != null ? d[key] : (fallback || ''));
         const locationOptions = locations.length
-            ? '<option value="">Elegí una sede</option>' + locations.map(l => '<option value="' + esc(l.id) + '"' + (l.id === loc ? ' selected' : '') + '>'
+            ? '<option value="">Elige una sede</option>' + locations.map(l => '<option value="' + esc(l.id) + '"' + (l.id === loc ? ' selected' : '') + '>'
                 + esc(locationName(l) + (l.is_primary ? ' (principal)' : '')) + '</option>').join('')
-            : '<option value="">Primero cargá una sede</option>';
+            : '<option value="">Primero carga una sede</option>';
         const rep = (d.files && d.files.representation) || [];
         const space = (d.files && d.files.space) || [];
         return '<form class="sv-form" data-sv-form novalidate aria-describedby="sv-form-help">'
@@ -175,7 +175,7 @@
             + field('sv-role', 'Cargo del responsable', '<input id="sv-role" name="responsible_role" class="wo-input" maxlength="120" required placeholder="Ej. Propietaria" value="' + val('responsible_role', request.responsible_role) + '">')
             + field('sv-contact', 'Email/teléfono del responsable', '<input id="sv-contact" name="responsible_contact" class="wo-input" maxlength="160" autocomplete="email" required value="' + val('responsible_contact', request.responsible_contact) + '">')
             + field('sv-location', 'Sede a verificar', '<select id="sv-location" name="location_id" class="wo-input wo-select" required' + (locations.length ? '' : ' disabled') + '>' + locationOptions + '</select>'
-                + (locations.length ? '' : '<span class="studio-help">Agregá una sede en <a href="#sedes">Sedes</a> para poder verificarla.</span>'))
+                + (locations.length ? '' : '<span class="studio-help">Agrega una sede en <a href="#sedes">Sedes</a> para poder verificarla.</span>'))
             + field('sv-rep-file', 'Documento que acredita representación',
                 '<label class="sv-file" for="sv-rep-file"><span data-wo-icon="file-text" aria-hidden="true"></span><span>Seleccionar archivo</span></label>'
                 + '<input id="sv-rep-file" class="sv-file-input" type="file" data-sv-kind="representation" accept="application/pdf,image/jpeg,image/png,image/webp">'
@@ -270,14 +270,14 @@
         if (ig.status === 'verified') {
             body = '<p><span class="sv-tag sv-tag--ok">Validado</span> La cuenta <strong>@' + esc(studio.instagram_verified_handle || handle) + '</strong> es del estudio.</p>';
         } else if (!handle) {
-            body = '<p class="studio-help">Cargá el Instagram del estudio en <a href="#perfil">Perfil</a> para validarlo.</p>';
+            body = '<p class="studio-help">Carga el Instagram del estudio en <a href="#perfil">Perfil</a> para validarlo.</p>';
         } else {
             const pending = ig.status === 'pending'
                 ? '<div class="sv-steps"><p><strong>Te mandamos un código</strong>' + (ig.email_masked ? ' a ' + esc(ig.email_masked) : '') + (ig.expires_at ? ' (vence el ' + esc(fmtDate(ig.expires_at)) + ')' : '') + '.</p>'
-                    + '<ol><li>Abrí Instagram con la cuenta <strong>@' + esc(handle) + '</strong>.</li><li>Mandá el código por mensaje directo a <strong>@weotzi</strong>.</li><li>Lo validamos automáticamente.</li></ol>'
+                    + '<ol><li>Abre Instagram con la cuenta <strong>@' + esc(handle) + '</strong>.</li><li>Manda el código por mensaje directo a <strong>@weotzi</strong>.</li><li>Lo validamos automáticamente.</li></ol>'
                     + '<a class="wo-btn wo-btn--secondary" href="' + esc(dm) + '" target="_blank" rel="noopener noreferrer">Abrir el chat con @weotzi</a></div>'
                 : '';
-            body = '<p>Validá que <strong>@' + esc(handle) + '</strong> es la cuenta del estudio. Soporte también puede confirmarla al revisar tu solicitud.</p>'
+            body = '<p>Valida que <strong>@' + esc(handle) + '</strong> es la cuenta del estudio. Soporte también puede confirmarla al revisar tu solicitud.</p>'
                 + pending
                 + '<div class="sv-actions"><button type="button" class="wo-btn wo-btn--secondary" data-sv-action="ig-code">' + (pending ? 'Enviar un código nuevo' : 'Enviar código a mi email') + '</button></div>';
         }
@@ -293,16 +293,16 @@
         let side;
         if (view === 'approved') {
             main = approvedHtml(state, u.docs);
-            side = aside('Información para vos', 'La insignia corresponde a la información y a la sede revisadas. Si cambia el responsable o la ubicación, actualizá los datos del estudio.');
+            side = aside('Información para ti', 'La insignia corresponde a la información y a la sede revisadas. Si cambia el responsable o la ubicación, actualiza los datos del estudio.');
         } else if (view === 'pending') {
             main = pendingHtml(state, u.docs);
             side = u.docs
-                ? aside('Información para vos', 'Podés consultar los archivos de tu solicitud. Si necesitamos una corrección, te indicaremos qué documento actualizar.')
-                : aside('Estamos revisando tu solicitud', 'Te avisaremos por email si necesitamos información adicional. Mientras tanto podés seguir configurando el estudio.');
+                ? aside('Información para ti', 'Puedes consultar los archivos de tu solicitud. Si necesitamos una corrección, te indicaremos qué documento actualizar.')
+                : aside('Estamos revisando tu solicitud', 'Te avisaremos por email si necesitamos información adicional. Mientras tanto puedes seguir configurando el estudio.');
         } else if (view === 'correction') {
-            const note = (state.request && state.request.decision_note) || 'Revisá los datos y los documentos de tu solicitud.';
+            const note = (state.request && state.request.decision_note) || 'Revisa los datos y los documentos de tu solicitud.';
             main = formHtml(state, u.draft, { title: 'Documento observado', correctionNote: note, submitLabel: 'Reenviar documentación' });
-            side = aside('Revisá lo que te pedimos', 'El nombre del responsable y el documento completo deben verse con claridad. Podés conservar los archivos que no te observamos.');
+            side = aside('Revisa lo que te pedimos', 'El nombre del responsable y el documento completo deben verse con claridad. Puedes conservar los archivos que no te observamos.');
         } else {
             const editingPending = u.editing && state.request && state.request.status === 'pending';
             main = requiredAlertHtml(state) + formHtml(state, u.draft, editingPending ? { submitLabel: 'Actualizar la solicitud', cancelLabel: 'Atrás' } : {});
@@ -349,7 +349,7 @@
             const data = await res.json().catch(() => ({}));
             return { ok: res.ok && data.success !== false, status: res.status, data };
         } catch (_) {
-            return { ok: false, status: 0, data: { error: 'No pudimos conectarnos. Revisá tu conexión e intentá de nuevo.' } };
+            return { ok: false, status: 0, data: { error: 'No pudimos conectarnos. Revisa tu conexión e intenta de nuevo.' } };
         }
     }
 
@@ -388,7 +388,7 @@
             return;
         }
         if (!res.ok) {
-            el.innerHTML = '<p class="studio-status studio-status-error" role="alert">' + esc((res.data && res.data.error) || 'No pudimos cargar la verificación. Recargá la página para intentar de nuevo.') + '</p>'
+            el.innerHTML = '<p class="studio-status studio-status-error" role="alert">' + esc((res.data && res.data.error) || 'No pudimos cargar la verificación. Recarga la página para intentar de nuevo.') + '</p>'
                 + '<div class="sv-actions"><button type="button" class="wo-btn wo-btn--secondary" data-sv-action="refresh">Reintentar</button></div>';
             return;
         }
@@ -432,7 +432,7 @@
         const list = ui.draft.files[kind];
         const room = kind === 'space' ? MAX_SPACE_FILES - list.length : 3 - list.length;
         if (room <= 0) {
-            showFormError(form, { field: input.id, error: kind === 'space' ? 'Ya sumaste ' + MAX_SPACE_FILES + ' fotos. Quitá alguna para agregar otra.' : 'Quitá el documento anterior para subir otro.' });
+            showFormError(form, { field: input.id, error: kind === 'space' ? 'Ya sumaste ' + MAX_SPACE_FILES + ' fotos. Quita alguna para agregar otra.' : 'Quita el documento anterior para subir otro.' });
             input.value = '';
             return;
         }
@@ -468,7 +468,7 @@
         const problem = validateForm(values);
         if (problem) { showFormError(form, problem); return; }
         const repo = root.WeotziData && root.WeotziData.StudioVerification;
-        if (!repo) { showFormError(form, { error: 'No pudimos cargar la verificación. Recargá la página.' }); return; }
+        if (!repo) { showFormError(form, { error: 'No pudimos cargar la verificación. Recarga la página.' }); return; }
         const submit = form.querySelector('[type="submit"]');
         submit.disabled = true;
         submit.setAttribute('aria-busy', 'true');
@@ -486,7 +486,7 @@
         if (error) {
             submit.disabled = false;
             submit.removeAttribute('aria-busy');
-            showFormError(form, { error: error.message || 'No pudimos enviar la solicitud. Probá de nuevo.' });
+            showFormError(form, { error: error.message || 'No pudimos enviar la solicitud. Prueba de nuevo.' });
             return;
         }
         setStatus('success', 'Enviamos tu solicitud a soporte. Te avisamos por email cuando la revisemos.');
@@ -522,11 +522,11 @@
             const res = await api('/api/studio/verification/instagram', { method: 'POST', body: {} });
             if (res.ok) {
                 setStatus(res.data.email_sent === false ? 'error' : 'success', res.data.email_sent === false
-                    ? 'Generamos el código pero no pudimos mandar el email. Probá de nuevo en un rato.'
+                    ? 'Generamos el código pero no pudimos mandar el email. Prueba de nuevo en un rato.'
                     : 'Te mandamos el código a ' + (res.data.email_masked || 'tu email') + '.');
                 await load({ keepStatus: true });
             } else {
-                setStatus('error', (res.data && res.data.error) || 'No pudimos enviar el código. Probá de nuevo en un rato.');
+                setStatus('error', (res.data && res.data.error) || 'No pudimos enviar el código. Prueba de nuevo en un rato.');
                 button.disabled = false;
                 button.textContent = label;
             }

@@ -586,8 +586,8 @@ test('inbox del cliente: voz, rápidos y marca de automático sin innerHTML', ()
 
 test('otras vistas del chat de cotización muestran la marca de mensaje automático', () => {
     assert.match(read('public/shared/js/client-dashboard.js'), /if \(msg\.auto_kind\) time\.appendChild\(document\.createTextNode\(' · Mensaje automático'\)\)/);
-    assert.match(read('public/shared/js/quotation-detail-figma.js'), /artist \? \(message\.auto_kind \? 'Mensaje automático' : 'Vos'\)/);
-    assert.match(read('public/shared/js/quotations-summary.js'), /mine \? \(m\.auto_kind \? 'Mensaje automático' : 'Vos'\) : 'Cliente'/);
+    assert.match(read('public/shared/js/quotation-detail-figma.js'), /artist \? \(message\.auto_kind \? 'Mensaje automático' : 'Tú'\)/);
+    assert.match(read('public/shared/js/quotations-summary.js'), /mine \? \(m\.auto_kind \? 'Mensaje automático' : 'Tú'\) : 'Cliente'/);
 });
 
 /* ------------------------------ módulos nuevos ------------------------------ */
@@ -639,7 +639,7 @@ test('P9 módulos de mensajes rápidos y automáticos: gestión completa y diál
     assert.match(auto, /input\.setAttribute\('role', 'switch'\)/);
     assert.match(auto, /dialog\.setAttribute\('aria-modal', 'true'\)/);
     assert.doesNotMatch(auto, /\.innerHTML/);
-    // Los automáticos los envía la base: el navegador no manda mensajes desde acá.
+    // Los automáticos los envía la base: el navegador no manda mensajes desde aquí.
     assert.doesNotMatch(auto, /sendMessage|send_inbox_message/);
 });
 

@@ -23,10 +23,10 @@
 
     // Políticas de la cotización manual (artist_manual_quotes.cancellation_policy).
     var POLICY_TEXT = {
-        'no-reembolsable-48': 'La seña no es reembolsable. Reprogramaciones con 48 h de aviso.',
-        'no-reembolsable-24': 'La seña no es reembolsable. Reprogramaciones con 24 h de aviso.',
-        'reembolsable-72': 'La seña se devuelve si cancelas con 72 h de aviso.',
-        'sin-sena': 'No se pide seña. Puedes cancelar sin costo.'
+        'no-reembolsable-48': 'El anticipo no es reembolsable. Reprogramaciones con 48 h de aviso.',
+        'no-reembolsable-24': 'El anticipo no es reembolsable. Reprogramaciones con 24 h de aviso.',
+        'reembolsable-72': 'El anticipo se devuelve si cancelas con 72 h de aviso.',
+        'sin-sena': 'No se pide anticipo. Puedes cancelar sin costo.'
     };
     // Estado → tono visual de la etiqueta.
     var STATUS_TONE = {
@@ -144,10 +144,10 @@
             var depositParts = [];
             if (p.deposit_amount != null) depositParts.push(money(p.deposit_amount, currency));
             if (p.deposit_pct != null) depositParts.push(percent(p.deposit_pct));
-            proposalRows.push(['Seña para reservar', depositParts.join(' · ')]);
+            proposalRows.push(['Anticipo para reservar', depositParts.join(' · ')]);
             if (p.balance != null) proposalRows.push(['Saldo', money(p.balance, currency)]);
         } else if (p.has_proposal) {
-            proposalRows.push(['Seña para reservar', 'Sin seña']);
+            proposalRows.push(['Anticipo para reservar', 'Sin anticipo']);
         }
         if (clean(p.availability)) proposalRows.push(['Disponibilidad', clean(p.availability)]);
         if (clean(p.location)) proposalRows.push(['Lugar', clean(p.location)]);

@@ -3,7 +3,7 @@
 // Intake del cotizador web (/quotation y pre-cotizador).
 // ---------------------------------------------------------------------------
 // El navegador nunca escribe quotations_db: autosave (mode=draft) y envío
-// (mode=submit) pasan por acá con service role. La "llave" del borrador es
+// (mode=submit) pasan por aquí con service role. La "llave" del borrador es
 // submission_key (UUID v4 secreto del navegador): el quote_id se deriva con
 // sha256 y no se puede adivinar ni reutilizar desde afuera.
 //
@@ -58,15 +58,15 @@ function normalizeIntake(body, user, artist) {
     q.client_full_name = String(q.client_full_name || '').trim();
     if (JSON.stringify(q).length > 40000) invalid('La solicitud es demasiado extensa.');
     if (body.mode === 'submit') {
-        if (!q.client_full_name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.client_email)) invalid('Completá nombre y correo válidos.');
-        if (!q.tattoo_idea_description || !q.tattoo_style || !q.tattoo_body_part || !q.tattoo_size) invalid('Completá la idea, estilo, zona y tamaño.');
+        if (!q.client_full_name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.client_email)) invalid('Completa nombre y correo válidos.');
+        if (!q.tattoo_idea_description || !q.tattoo_style || !q.tattoo_body_part || !q.tattoo_size) invalid('Completa la idea, estilo, zona y tamaño.');
         // Nunca una cotización enviada sin destino: sin artista el wizard ofrece
         // artistas sugeridos o el Job Board (POST /api/quotations/intake/job-board).
-        if (!artist) invalid('Elegí un artista o publicá tu idea en el Job Board.', 409, { needs_destination: true });
+        if (!artist) invalid('Elige un artista o publica tu idea en el Job Board.', 409, { needs_destination: true });
     }
     if (q.client_budget_amount != null && (!Number.isFinite(Number(q.client_budget_amount)) || Number(q.client_budget_amount) < 0)) invalid('El presupuesto no es válido.');
     if (q.client_birth_date != null && !/^\d{4}-\d{2}-\d{2}$/.test(String(q.client_birth_date))) q.client_birth_date = null;
-    // Ronda 2 (P15): la edad se valida también acá. Menos de 14 no se envía;
+    // Ronda 2 (P15): la edad se valida también aquí. Menos de 14 no se envía;
     // entre 14 y 17 la base marca client_is_minor (trigger sobre client_birth_date).
     const ageInfo = cotForm.ageStatus(q.client_birth_date);
     q.client_age = ageInfo.age == null ? null : String(ageInfo.age);
@@ -149,7 +149,7 @@ async function callSaveRpc(q, extras) {
         return await pgrest.raw('rpc/save_web_quotation', { method: 'POST', body: { p_quote: q, p_extras: extras } });
     } catch (error) {
         console.error('[quotation-intake] save_web_quotation:', error.status, String(error.message || '').slice(0, 300));
-        invalid('No pudimos guardar la cotización. Intentá nuevamente.', 502);
+        invalid('No pudimos guardar la cotización. Intenta nuevamente.', 502);
     }
 }
 

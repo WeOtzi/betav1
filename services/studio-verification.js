@@ -64,10 +64,10 @@ const INSTRUCTIONS = Object.freeze({
 
 const UNAVAILABLE_CODE = 'STUDIO_VERIFICATION_UNAVAILABLE';
 const UNAVAILABLE_ERROR = 'La verificación de estudios se habilita pronto.';
-const GENERIC_ERROR = 'No pudimos completar la verificación del estudio. Probá de nuevo en un rato.';
-const MISSING_HANDLE_ERROR = 'Cargá el Instagram del estudio en el perfil antes de validarlo.';
-const INVALID_HANDLE_ERROR = 'Ese usuario de Instagram no es válido. Usá solo letras, números, puntos y guiones bajos.';
-const NO_SESSION_ERROR = 'Iniciá sesión para ver la verificación de tu estudio.';
+const GENERIC_ERROR = 'No pudimos completar la verificación del estudio. Prueba de nuevo en un rato.';
+const MISSING_HANDLE_ERROR = 'Carga el Instagram del estudio en el perfil antes de validarlo.';
+const INVALID_HANDLE_ERROR = 'Ese usuario de Instagram no es válido. Usa solo letras, números, puntos y guiones bajos.';
+const NO_SESSION_ERROR = 'Inicia sesión para ver la verificación de tu estudio.';
 const NO_STUDIO_ERROR = 'No encontramos un estudio asociado a tu cuenta.';
 
 // Dependencias reemplazables desde los tests (_internal.setDeps).
@@ -488,7 +488,7 @@ function parseDecisionInput(params, body) {
         return { ok: false, status: 400, error: `La nota admite hasta ${NOTE_MAX} caracteres.` };
     }
     if (b.decision === 'reject' && (!note || note.length < REASON_MIN)) {
-        return { ok: false, status: 400, error: 'Contale al estudio qué tiene que corregir (al menos 3 caracteres).' };
+        return { ok: false, status: 400, error: 'Cuéntale al estudio qué tiene que corregir (al menos 3 caracteres).' };
     }
     return {
         ok: true,
@@ -506,7 +506,7 @@ function parseRevokeInput(params, body) {
     const b = body && typeof body === 'object' ? body : {};
     const note = b.note == null ? '' : String(b.note).trim();
     if (note.length < REASON_MIN || note.length > NOTE_MAX) {
-        return { ok: false, status: 400, error: `Escribí el motivo (entre ${REASON_MIN} y ${NOTE_MAX} caracteres).` };
+        return { ok: false, status: 400, error: `Escribe el motivo (entre ${REASON_MIN} y ${NOTE_MAX} caracteres).` };
     }
     return { ok: true, studioId, note };
 }

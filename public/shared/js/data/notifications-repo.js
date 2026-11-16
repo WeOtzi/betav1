@@ -2,7 +2,7 @@
  * WE OTZI - Repositorio de avisos del usuario (frente push · P24)
  * ----------------------------------------------------------------
  * Tabla user_notifications (migración 20261116170000): el servidor inserta un
- * aviso por cada novedad (lib/push-dispatch.js); acá solo se LEE, se marca
+ * aviso por cada novedad (lib/push-dispatch.js); aquí solo se LEE, se marca
  * leído y se escucha por Realtime (RLS de dueño). También envuelve los
  * endpoints /api/push/* (suscripción Web Push y aviso de prueba).
  *

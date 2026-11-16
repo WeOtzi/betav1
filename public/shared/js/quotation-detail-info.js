@@ -12,7 +12,7 @@
  *                          · Contacto: email, WhatsApp, Instagram y preferencia.
  *                            Lo entrega el servidor solo si el artista está
  *                            verificado y el cliente no rechazó la cotización
- *                            (las manuales siempre) [P20/P23]. Acá NO se lee de
+ *                            (las manuales siempre) [P20/P23]. Aquí NO se lee de
  *                            la fila: se pide a GET /api/cot-detalle/.../info.
  *                          · Mismo contacto: otras cotizaciones que el artista
  *                            recibió del mismo correo o teléfono [P17], vía

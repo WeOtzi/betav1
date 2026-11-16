@@ -79,7 +79,7 @@
         return hash ? url + '#' + hash : url;
     }
 
-    /* ------------------- onboarding: paso "Compartí tu perfil" ------------------- */
+    /* ------------------- onboarding: paso "Comparte tu perfil" ------------------- */
     // Auditoría PP-07: copiar marca 'compartir.enlace'; compartir por una red,
     // el menú nativo o descargar la tarjeta marca 'compartir'. Una vez por id.
     var acked = {};
@@ -243,10 +243,10 @@
     }
     function prettyUrl(url) { return String(url || '').replace(/^https?:\/\//, ''); }
     function shareText(dest) {
-        if (dest === 'turnos') return 'Elegí uno de mis turnos disponibles y pedime tu cotización en We Ötzi';
+        if (dest === 'turnos') return 'Elige uno de mis turnos disponibles y pídeme tu cotización en We Ötzi';
         return dest === 'gallery'
-            ? 'Mirá mi galería de trabajos en We Ötzi'
-            : 'Mirá mi perfil de artista en We Ötzi';
+            ? 'Mira mi galería de trabajos en We Ötzi'
+            : 'Mira mi perfil de artista en We Ötzi';
     }
 
     /* ------------------------------ copiar ------------------------------ */
@@ -285,7 +285,7 @@
                 label.textContent = okLabel;
                 setTimeout(function () { label.textContent = original.trim(); btn.classList.remove('is-done'); }, 2000);
             }
-        }).catch(function () { toast('No pudimos copiar el enlace. Copialo a mano.', 'error'); });
+        }).catch(function () { toast('No pudimos copiar el enlace. Cópialo a mano.', 'error'); });
     }
 
     function nativeShare(withCard) {
@@ -423,7 +423,7 @@
 
     /* ------------------------------ render ------------------------------ */
     function tabsHtml() {
-        return '<p class="wod-label">QUÉ QUERÉS COMPARTIR</p>' +
+        return '<p class="wod-label">QUÉ QUIERES COMPARTIR</p>' +
             '<div class="wod-seg wod-seg--3 wod-share-tabs" role="tablist">' +
                 ['profile', 'gallery', 'turnos'].map(function (d) {
                     var on = state.dest === d;
@@ -536,7 +536,7 @@
         var canvas = els.panel.querySelector('.wod-qr-canvas');
         var qr = buildQr(shareUrl(state.dest));
         if (!canvas || !qr) {
-            if (canvas) canvas.replaceWith(Object.assign(document.createElement('p'), { className: 'wod-view-empty', textContent: 'Completá tu usuario para generar el QR.' }));
+            if (canvas) canvas.replaceWith(Object.assign(document.createElement('p'), { className: 'wod-view-empty', textContent: 'Completa tu usuario para generar el QR.' }));
             return;
         }
         drawQr(canvas, qr, 560);
@@ -584,7 +584,7 @@
         ensureShell();
         state.artist = window.artistData || state.artist;
         if (!username()) {
-            toast('Completá tu usuario en el perfil para compartirlo.', 'error');
+            toast('Completa tu usuario en el perfil para compartirlo.', 'error');
             return;
         }
         if (trigger) els.trigger = trigger;

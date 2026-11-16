@@ -19,7 +19,7 @@
 (function () {
     'use strict';
     const $ = id => document.getElementById(id);
-    const titles = ['Cuenta', 'Identidad', 'Sedes', 'Fotos', 'Confirmá tu estudio'];
+    const titles = ['Cuenta', 'Identidad', 'Sedes', 'Fotos', 'Confirma tu estudio'];
     const textFields = ['reg-name', 'reg-email', 'reg-tagline', 'reg-bio', 'reg-founded', 'reg-languages', 'reg-instagram', 'reg-website', 'reg-whatsapp', 'reg-cover', 'reg-logo', 'reg-photos'];
     const base = window.WEOTZI_BASE_PATH || (location.pathname.startsWith('/beta/') ? '/beta' : '');
     const draftKey = 'weotzi:studio-registration:' + base;
@@ -129,7 +129,7 @@
             + '<button type="button" class="wo-btn wo-btn--secondary" data-match-action="branch" data-id="' + esc(match.id) + '">Registrar una sede</button>'
             + (target ? '<a class="sr-link-btn" href="' + esc(url('/studio/profile/?studio=') + encodeURIComponent(target)) + '" target="_blank" rel="noopener">Ver perfil ↗</a>' : '');
         const linkHint = !match.owned && match.artist_created
-            ? '<small class="sr-match-hint">Lo sumó un tatuador de We Ötzi: pedile el link de alta y completás el registro al instante, sin esperar la revisión.</small>'
+            ? '<small class="sr-match-hint">Lo sumó un tatuador de We Ötzi: pídele el link de alta y completas el registro al instante, sin esperar la revisión.</small>'
             : '';
         return '<li class="sr-match-card">'
             + '<span class="sr-match-logo" aria-hidden="true">' + (logo ? '<img src="' + esc(logo) + '" alt="" loading="lazy">' : esc(name.trim().charAt(0) || '·')) + '</span>'
@@ -146,7 +146,7 @@
         return [
             `Soporte no aprobó tu reclamo de ${name}.`,
             note ? 'Motivo: ' + (/[.!?…]$/.test(note) ? note : note + '.') : '',
-            'Podés reclamar otro estudio o registrar uno nuevo.'
+            'Puedes reclamar otro estudio o registrar uno nuevo.'
         ].filter(Boolean).join(' ');
     }
     // Texto de la cuenta con la que se registra el estudio (ER-11).
@@ -191,11 +191,11 @@
             loadMaps();
             if (claimToken) await loadClaimPreview();
             if (new URLSearchParams(location.search).get('complete') === '1' && !studio) {
-                showStatus('info', 'Tu cuenta de acceso ya está creada. Completá el perfil y al menos una sede para continuar.');
+                showStatus('info', 'Tu cuenta de acceso ya está creada. Completa el perfil y al menos una sede para continuar.');
             }
             if (typeof window.WeOtziStudioAuth.whenChecked === 'function') applyAuthState(await window.WeOtziStudioAuth.whenChecked());
         } catch (err) {
-            showStatus('error', 'No pudimos preparar el registro. Recargá la página para intentar de nuevo.');
+            showStatus('error', 'No pudimos preparar el registro. Recarga la página para intentar de nuevo.');
             return;
         } finally {
             busy = !initialized;
@@ -214,12 +214,12 @@
         const params = new URLSearchParams(location.search);
         const fromUrl = params.get('alta') || params.get('claim') || '';
         if (CLAIM_TOKEN_RE.test(fromUrl)) claimToken = fromUrl;
-        else if (fromUrl) showStatus('error', 'El link de alta no es válido. Pedile al tatuador que te comparta uno nuevo.');
+        else if (fromUrl) showStatus('error', 'El link de alta no es válido. Pídele al tatuador que te comparta uno nuevo.');
     }
     function claimMessage(status) {
-        if (status === 'used' || status === 'claimed') return 'Este link de alta ya se usó. Si sos del estudio y no completaste el alta, pedile al tatuador que genere uno nuevo.';
-        if (status === 'expired' || status === 'revoked') return 'Este link de alta venció. Pedile al tatuador que genere uno nuevo desde su panel.';
-        return 'El link de alta no es válido. Pedile al tatuador que te comparta uno nuevo.';
+        if (status === 'used' || status === 'claimed') return 'Este link de alta ya se usó. Si eres del estudio y no completaste el alta, pídele al tatuador que genere uno nuevo.';
+        if (status === 'expired' || status === 'revoked') return 'Este link de alta venció. Pídele al tatuador que genere uno nuevo desde su panel.';
+        return 'El link de alta no es válido. Pídele al tatuador que te comparta uno nuevo.';
     }
     async function loadClaimPreview() {
         try {
@@ -250,11 +250,11 @@
                 renderAddress(first);
             }
             $('claim-notice-title').textContent = 'Alta de ' + (name || 'tu estudio');
-            $('claim-notice-text').textContent = 'Un tatuador sumó este estudio a We Ötzi y te compartió este link. Revisá el nombre y la ubicación: si los corregís, el cambio se verá en los perfiles de los tatuadores vinculados. Cuando termines el alta, la ubicación queda verificada.';
+            $('claim-notice-text').textContent = 'Un tatuador sumó este estudio a We Ötzi y te compartió este link. Revisa el nombre y la ubicación: si los corriges, el cambio se verá en los perfiles de los tatuadores vinculados. Cuando termines el alta, la ubicación queda verificada.';
             $('claim-notice').hidden = false;
             saveDraft();
         } catch (_) {
-            showStatus('error', 'No pudimos validar el link de alta. Revisá tu conexión y recargá la página.');
+            showStatus('error', 'No pudimos validar el link de alta. Revisa tu conexión y recarga la página.');
         }
     }
     function showAccountCard(user) {
@@ -332,7 +332,7 @@
             goStep(currentStep - 1);
         });
         document.addEventListener('click', event => { const button = event.target.closest('[data-go-step]'); if (button) goStep(Number(button.dataset.goStep)); });
-        $('add-location-btn').addEventListener('click', () => { if (locations.length >= 30) return showStatus('error', 'Podés registrar hasta 30 sedes.'); const entry = addLocation(); entry.row.querySelector('[data-field="label"]').focus(); saveDraft(); });
+        $('add-location-btn').addEventListener('click', () => { if (locations.length >= 30) return showStatus('error', 'Puedes registrar hasta 30 sedes.'); const entry = addLocation(); entry.row.querySelector('[data-field="label"]').focus(); saveDraft(); });
         $('studio-register-form').addEventListener('input', event => {
             event.target.removeAttribute('aria-invalid'); event.target.removeAttribute('aria-describedby');
             if (event.target.classList?.contains('wo-input')) event.target.classList.toggle('has-value', !!event.target.value.trim());
@@ -372,7 +372,7 @@
             location.href = location.pathname + (keep.toString() ? '?' + keep.toString() : '');
         } catch (err) {
             button.disabled = false;
-            showStatus('error', 'No pudimos cerrar la sesión: ' + (err.message || 'intentá de nuevo.'));
+            showStatus('error', 'No pudimos cerrar la sesión: ' + (err.message || 'intenta de nuevo.'));
         }
     }
     function bootPickers() {
@@ -389,27 +389,27 @@
     }
     function validateStep(step) {
         if (step === 1) {
-            if (value('reg-name').length < 2 || value('reg-name').length > 160) return showStatus('error', 'Escribí un nombre de estudio de entre 2 y 160 caracteres.', $('reg-name'));
+            if (value('reg-name').length < 2 || value('reg-name').length > 160) return showStatus('error', 'Escribe un nombre de estudio de entre 2 y 160 caracteres.', $('reg-name'));
             if (!$('reg-email').validity.valid || !/^\S+@\S+\.\S+$/.test(value('reg-email'))) return showStatus('error', 'El email no parece válido.', $('reg-email'));
             if (!existingSession && $('reg-password').value.length < 8) return showStatus('error', 'La contraseña debe tener al menos 8 caracteres.', $('reg-password'));
             if (!existingSession && $('reg-password').value !== $('reg-password-confirm').value) return showStatus('error', 'Las contraseñas no coinciden.', $('reg-password-confirm'));
         }
         if (step === 2) {
             const year = Number(value('reg-founded'));
-            if (value('reg-founded') && (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear())) return showStatus('error', 'Revisá el año de fundación.', $('reg-founded-trigger') || null);
+            if (value('reg-founded') && (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear())) return showStatus('error', 'Revisa el año de fundación.', $('reg-founded-trigger') || null);
             if (value('reg-website') && !validUrl(value('reg-website'))) return showStatus('error', 'El sitio web debe tener una URL http o https válida.', $('reg-website'));
-            if (value('reg-instagram') && !/^@?[A-Za-z0-9._]{1,30}$/.test(value('reg-instagram').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/\/.*$/, ''))) return showStatus('error', 'Revisá el usuario de Instagram: solo letras, números, puntos y guiones bajos.', $('reg-instagram'));
+            if (value('reg-instagram') && !/^@?[A-Za-z0-9._]{1,30}$/.test(value('reg-instagram').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/\/.*$/, ''))) return showStatus('error', 'Revisa el usuario de Instagram: solo letras, números, puntos y guiones bajos.', $('reg-instagram'));
         }
         if (step === 3) {
             for (const entry of locations) {
                 const input = entry.row.querySelector('[data-field="address"]');
-                if (!entry.address.formatted_address || input.value.trim() !== entry.address.formatted_address.trim()) return showStatus('error', 'Completá la dirección de cada sede y seleccionala de los resultados, o usá el ingreso manual.', input);
+                if (!entry.address.formatted_address || input.value.trim() !== entry.address.formatted_address.trim()) return showStatus('error', 'Completa la dirección de cada sede y selecciónala de los resultados, o usa el ingreso manual.', input);
             }
-            if (!locations.some(entry => entry.primary && entry.active)) return showStatus('error', 'Elegí una sede principal activa.');
+            if (!locations.some(entry => entry.primary && entry.active)) return showStatus('error', 'Elige una sede principal activa.');
             const conflict = locationConflicts(locations, activeMatches());
             if (conflict) {
                 const label = conflict.entry.row.querySelector('[data-field="label"]').value.trim() || 'tu sede';
-                return showStatus('error', 'La dirección de ' + label + ' coincide con «' + conflict.match.name + '», que ya está en We Ötzi. Si es una sede de ese estudio, sumala desde su panel; si no, revisá la dirección y el pin.', conflict.entry.row.querySelector('[data-field="address"]'));
+                return showStatus('error', 'La dirección de ' + label + ' coincide con «' + conflict.match.name + '», que ya está en We Ötzi. Si es una sede de ese estudio, súmala desde su panel; si no, revisa la dirección y el pin.', conflict.entry.row.querySelector('[data-field="address"]'));
             }
         }
         if (step === 4) {
@@ -479,10 +479,10 @@
         const ownedExact = exact.some(m => m.owned);
         panel.innerHTML = '<h3 id="match-title" tabindex="-1">' + (exact.length ? 'Ese estudio ya está en We Ötzi' : 'Encontramos estudios parecidos') + '</h3>'
             + '<p class="sr-help">' + esc(message || (ownedExact
-                ? '«' + value('reg-name') + '» ya tiene cuenta en We Ötzi. Si es tu estudio, iniciá sesión; si es otro, elegí un nombre que lo distinga.'
+                ? '«' + value('reg-name') + '» ya tiene cuenta en We Ötzi. Si es tu estudio, inicia sesión; si es otro, elige un nombre que lo distinga.'
                 : exact.length
-                    ? '«' + value('reg-name') + '» coincide con un estudio del catálogo. Revisá si es el tuyo antes de seguir.'
-                    : 'Revisá si alguno es tu estudio antes de crear uno nuevo.')) + '</p>'
+                    ? '«' + value('reg-name') + '» coincide con un estudio del catálogo. Revisa si es el tuyo antes de seguir.'
+                    : 'Revisa si alguno es tu estudio antes de crear uno nuevo.')) + '</p>'
             + '<ul class="sr-match-list">' + matchState.matches.map(matchCardHtml).join('') + '</ul>'
             + '<div id="match-branch" class="sr-warning" hidden></div>'
             + '<div class="sr-match-options"><p class="sr-kicker">¿No es tu estudio?</p><div class="sr-actions">'
@@ -490,7 +490,7 @@
             + '<button type="button" class="wo-btn wo-btn--secondary" data-match-action="continue" aria-expanded="false" aria-controls="match-continue">Es otro estudio: continuar</button></div></div>'
             + '<div id="match-continue" class="sr-match-continue" hidden>'
             + (exact.length ? '<div class="studio-field"><label for="match-new-name">Nombre que lo distinga</label><input class="wo-input" id="match-new-name" maxlength="160" value="' + esc(value('reg-name') + ' ') + '">'
-                + '<span class="sr-help">Ya existe «' + esc(exact[0].name) + '». Sumá el barrio, la ciudad o algo propio de tu estudio.</span></div>' : '')
+                + '<span class="sr-help">Ya existe «' + esc(exact[0].name) + '». Suma el barrio, la ciudad o algo propio de tu estudio.</span></div>' : '')
             + '<label class="sr-check-row"><input type="checkbox" id="match-ack"><span>Confirmo que mi estudio es otro y que ninguna de sus sedes está en la dirección de estos estudios. Sé que We Ötzi va a pedir una verificación adicional antes de marcarlo como verificado.</span></label>'
             + '<button type="button" class="wo-btn" data-match-action="confirm-continue">Confirmar y continuar</button></div>';
         panel.hidden = false;
@@ -519,9 +519,9 @@
     function showBranchHelp(match) {
         const box = $('match-branch');
         box.innerHTML = match.owned
-            ? '<p><strong>Las sedes se suman desde el panel del estudio.</strong> Iniciá sesión con la cuenta de «' + esc(match.name) + '» y agregá la sede en Sedes. Si no tenés acceso, pedíselo a quien administra el estudio.</p>'
+            ? '<p><strong>Las sedes se suman desde el panel del estudio.</strong> Inicia sesión con la cuenta de «' + esc(match.name) + '» y agrega la sede en Sedes. Si no tienes acceso, pídeselo a quien administra el estudio.</p>'
                 + '<div class="sr-actions"><a class="wo-btn" href="' + esc(url('/studio/login/')) + '">Iniciar sesión y agregar la sede</a></div>'
-            : '<p><strong>«' + esc(match.name) + '» todavía no tiene dueño en We Ötzi.</strong> Primero reclamá el estudio; cuando soporte lo apruebe vas a poder sumar la sede desde el panel.</p>'
+            : '<p><strong>«' + esc(match.name) + '» todavía no tiene dueño en We Ötzi.</strong> Primero reclama el estudio; cuando soporte lo apruebe vas a poder sumar la sede desde el panel.</p>'
                 + '<div class="sr-actions"><button type="button" class="wo-btn" data-match-action="claim" data-id="' + esc(match.id) + '">Reclamar este estudio</button></div>';
         box.hidden = false;
         box.querySelector('a, button')?.focus();
@@ -531,11 +531,11 @@
         const input = $('match-new-name');
         if (exact.length) {
             const next = input.value.replace(/\s+/g, ' ').trim();
-            if (next.length < 2 || next.length > 160) return showStatus('error', 'Escribí un nombre de entre 2 y 160 caracteres.', input);
-            if (exact.some(m => normName(m.name) === normName(next))) return showStatus('error', 'Ese nombre sigue siendo igual al de «' + exact[0].name + '». Sumale algo que lo distinga.', input);
+            if (next.length < 2 || next.length > 160) return showStatus('error', 'Escribe un nombre de entre 2 y 160 caracteres.', input);
+            if (exact.some(m => normName(m.name) === normName(next))) return showStatus('error', 'Ese nombre sigue siendo igual al de «' + exact[0].name + '». Súmale algo que lo distinga.', input);
             $('reg-name').value = next;
         }
-        if (!$('match-ack').checked) return showStatus('error', 'Confirmá que tu estudio es otro y que no comparte dirección para seguir.', $('match-ack'));
+        if (!$('match-ack').checked) return showStatus('error', 'Confirma que tu estudio es otro y que no comparte dirección para seguir.', $('match-ack'));
         matchState = { key: normName(value('reg-name')), matches: matchState.matches.map(m => ({ ...m, match: m.match === 'exact' ? 'similar' : m.match })), decision: 'continue' };
         hideMatchPanel(false);
         clearStatus();
@@ -566,10 +566,10 @@
     async function submitClaim() {
         const studio = claimTarget;
         const evidence = value('claim-evidence');
-        if (evidence.length < 10) return showStatus('error', 'Contanos con un poco más de detalle cómo verificamos que el estudio es tuyo (mínimo 10 caracteres).', $('claim-evidence'));
+        if (evidence.length < 10) return showStatus('error', 'Cuéntanos con un poco más de detalle cómo verificamos que el estudio es tuyo (mínimo 10 caracteres).', $('claim-evidence'));
         if (evidence.length > 1000) return showStatus('error', 'La evidencia admite hasta 1000 caracteres.', $('claim-evidence'));
         if (!existingSession && !validateStep(1)) return;
-        if (!$('claim-terms').checked) return showStatus('error', 'Aceptá los Términos y la Política de Privacidad para enviar el reclamo.', $('claim-terms'));
+        if (!$('claim-terms').checked) return showStatus('error', 'Acepta los Términos y la Política de Privacidad para enviar el reclamo.', $('claim-terms'));
         busy = true;
         setBusyButton('Enviando reclamo…');
         $('wizard-prev').disabled = true;
@@ -580,7 +580,7 @@
                 email: existingSession ? null : value('reg-email'), password: existingSession ? null : $('reg-password').value
             });
             if (result?.confirmationRequired) {
-                showStatus('success', 'Revisá ' + result.email + ' y confirmá tu correo. Al abrir el enlace enviamos tu reclamo de ' + (studio.name || 'tu estudio') + ' a revisión.');
+                showStatus('success', 'Revisa ' + result.email + ' y confirma tu correo. Al abrir el enlace enviamos tu reclamo de ' + (studio.name || 'tu estudio') + ' a revisión.');
                 $('wizard-next').textContent = 'Esperando confirmación del correo';
                 return;
             }
@@ -588,7 +588,7 @@
         } catch (err) {
             const msg = String(err?.message || err);
             setBusyButton(null);
-            showStatus('error', /already|registered/i.test(msg) ? 'Ya existe una cuenta con ese email. Iniciá sesión y volvé a reclamar el estudio.' : 'No pudimos enviar el reclamo: ' + msg);
+            showStatus('error', /already|registered/i.test(msg) ? 'Ya existe una cuenta con ese email. Inicia sesión y vuelve a reclamar el estudio.' : 'No pudimos enviar el reclamo: ' + msg);
         } finally {
             busy = false;
             $('wizard-prev').disabled = false;
@@ -600,19 +600,19 @@
             if (!value('reg-name')) $('reg-name').value = state.name || '';
             currentStep = 1; renderStep();
             matchState = { key: '', matches: [], decision: null };
-            resolveMatches({ force: true }).then(() => showStatus('error', '«' + (state.name || 'Ese estudio') + '» ya figura en We Ötzi, así que no pudimos crear el estudio. Si es tuyo, reclamalo; si no, cambiá el nombre.'));
+            resolveMatches({ force: true }).then(() => showStatus('error', '«' + (state.name || 'Ese estudio') + '» ya figura en We Ötzi, así que no pudimos crear el estudio. Si es tuyo, reclamalo; si no, cambia el nombre.'));
         } else if (state.kind === 'registration_conflict') {
             if (state.code === 'terms') {
                 currentStep = 5; maxStep = 5; renderStep();
-                showStatus('error', 'Para terminar el alta aceptá los Términos y la Política de Privacidad y tocá Crear estudio.', $('reg-terms'));
+                showStatus('error', 'Para terminar el alta acepta los Términos y la Política de Privacidad y toca Crear estudio.', $('reg-terms'));
             } else if (state.code === '23P01') { currentStep = 3; renderStep(); showStatus('error', state.error); }
             else { currentStep = 1; renderStep(); resolveMatches({ force: true }).then(() => showStatus('error', state.error)); }
         } else if (state.kind === 'claim_rejected') {
             showStatus('info', rejectedClaimNotice(state.claim));
         } else if (state.kind === 'claim_failed') {
-            showStatus('error', 'No pudimos enviar tu reclamo: ' + (state.error || 'el estudio ya no se puede reclamar.') + ' Podés registrar un estudio nuevo.');
+            showStatus('error', 'No pudimos enviar tu reclamo: ' + (state.error || 'el estudio ya no se puede reclamar.') + ' Puedes registrar un estudio nuevo.');
         } else if (existingSession && state.kind === 'none' && !$('wizard-status').textContent) {
-            showStatus('info', 'Completá los datos del estudio para asociarlo a tu cuenta.');
+            showStatus('info', 'Completa los datos del estudio para asociarlo a tu cuenta.');
         }
     }
 
@@ -629,7 +629,7 @@
     }
     function instagramMessage(handle, matches) {
         const names = matches.map(m => '«' + m.name + '»' + (placeOf(m) ? ' (' + placeOf(m) + ')' : '')).join(', ');
-        return '@' + igKey(handle) + ' ya figura como el Instagram de ' + names + ' en We Ötzi. Si la cuenta es de tu estudio podés seguir: vamos a pedir verificarla antes de publicar sus fotos.';
+        return '@' + igKey(handle) + ' ya figura como el Instagram de ' + names + ' en We Ötzi. Si la cuenta es de tu estudio puedes seguir: vamos a pedir verificarla antes de publicar sus fotos.';
     }
     async function resolveInstagram() {
         const handle = value('reg-instagram');
@@ -639,7 +639,7 @@
         if (igState.key === key && igState.matches.length) {
             if ($('instagram-ack')?.checked) { igState.acknowledged = true; $('instagram-warning').hidden = true; saveDraft(); return true; }
             if (!$('instagram-ack') || $('instagram-warning').hidden) { renderInstagramWarning(handle, igState.matches); return false; }
-            return showStatus('error', 'Confirmá que la cuenta de Instagram es de tu estudio o corregí el usuario.', $('instagram-ack'));
+            return showStatus('error', 'Confirma que la cuenta de Instagram es de tu estudio o corrige el usuario.', $('instagram-ack'));
         }
         setBusyButton('Revisando Instagram…');
         let matches = null;
@@ -676,12 +676,12 @@
         entry.row.className = 'sr-location';
         entry.row.setAttribute('aria-labelledby', 'location-' + id + '-title');
         entry.row.innerHTML = '<div class="sr-location-head"><strong id="location-' + id + '-title">Sede</strong><span class="sr-badge" data-kind-badge>Principal</span><button type="button" class="wo-btn wo-btn--secondary" data-remove>Quitar sede</button></div><div class="sr-grid">' +
-            label('label', 'Etiqueta de la sede', 'Sede principal') + label('address', 'Dirección', 'Buscá la dirección…') +
-            '<div class="studio-field"><span class="sr-field-label">País / provincia / ciudad / localidad</span><div class="sr-address-details" data-region>Seleccioná una dirección</div></div>' +
-            '<div class="studio-field"><span class="sr-field-label">Calle / número / unidad / código postal</span><div class="sr-address-details" data-street>Seleccioná una dirección</div></div>' +
-            '<div class="studio-field sr-full"><span class="sr-field-label" id="location-' + id + '-pin-label">Pin en el mapa</span><div class="sr-map" data-map role="application" aria-labelledby="location-' + id + '-pin-label" aria-describedby="location-' + id + '-pin-help" hidden></div><div class="sr-address-details" data-pin id="location-' + id + '-pin-help" aria-live="polite">Comprobá la ubicación</div></div>' +
+            label('label', 'Etiqueta de la sede', 'Sede principal') + label('address', 'Dirección', 'Busca la dirección…') +
+            '<div class="studio-field"><span class="sr-field-label">País / provincia / ciudad / localidad</span><div class="sr-address-details" data-region>Selecciona una dirección</div></div>' +
+            '<div class="studio-field"><span class="sr-field-label">Calle / número / unidad / código postal</span><div class="sr-address-details" data-street>Selecciona una dirección</div></div>' +
+            '<div class="studio-field sr-full"><span class="sr-field-label" id="location-' + id + '-pin-label">Pin en el mapa</span><div class="sr-map" data-map role="application" aria-labelledby="location-' + id + '-pin-label" aria-describedby="location-' + id + '-pin-help" hidden></div><div class="sr-address-details" data-pin id="location-' + id + '-pin-help" aria-live="polite">Comprueba la ubicación</div></div>' +
             '<label class="sr-switch"><input type="checkbox" data-primary role="switch">Sede principal</label><label class="sr-switch"><input type="checkbox" data-active role="switch">Sede activa</label></div>' +
-            '<details class="sr-address-manual"><summary>Ingresar dirección manualmente</summary><p class="sr-help">Si el buscador no está disponible, completá la dirección de arriba, ciudad y país. Si el mapa está disponible, el pin se ubica solo y podés ajustarlo; si no, queda como pin pendiente y lo ubicás después desde Sedes.</p><div class="sr-grid">' +
+            '<details class="sr-address-manual"><summary>Ingresar dirección manualmente</summary><p class="sr-help">Si el buscador no está disponible, completa la dirección de arriba, ciudad y país. Si el mapa está disponible, el pin se ubica solo y puedes ajustarlo; si no, queda como pin pendiente y lo ubicas después desde Sedes.</p><div class="sr-grid">' +
             label('country', 'País') + label('state_province', 'Provincia / estado') + label('city', 'Ciudad') + label('locality', 'Localidad / barrio') + label('street', 'Calle') + label('street_number', 'Número') + label('unit', 'Unidad / piso') + label('postal_code', 'Código postal') +
             '</div><button type="button" class="wo-btn wo-btn--secondary" data-manual>Usar esta dirección</button></details>';
         $('locations-list').appendChild(entry.row);
@@ -692,8 +692,8 @@
         field('address').autocomplete = 'off';
         for (const name of ['country', 'state_province', 'city', 'locality', 'street', 'street_number', 'unit', 'postal_code']) field(name).value = entry.address[name] || '';
         entry.row.querySelector('[data-manual]').addEventListener('click', async () => {
-            if (!field('address').value.trim()) return showStatus('error', 'Completá la dirección de la sede.', field('address'));
-            for (const name of ['city', 'country']) if (!field(name).value.trim()) return showStatus('error', 'Para ingresar una sede manualmente completá dirección, ciudad y país.', field(name));
+            if (!field('address').value.trim()) return showStatus('error', 'Completa la dirección de la sede.', field('address'));
+            for (const name of ['city', 'country']) if (!field(name).value.trim()) return showStatus('error', 'Para ingresar una sede manualmente completa dirección, ciudad y país.', field(name));
             entry.address = { formatted_address: field('address').value.trim(), latitude: null, longitude: null };
             for (const name of ['country', 'state_province', 'city', 'locality', 'street', 'street_number', 'unit', 'postal_code']) entry.address[name] = field(name).value.trim() || null;
             renderAddress(entry); clearStatus(); saveDraft();
@@ -717,11 +717,11 @@
             refreshLocations(); saveDraft();
         });
         entry.row.querySelector('[data-primary]').addEventListener('change', event => {
-            if (!event.target.checked) { event.target.checked = true; showStatus('info', 'Siempre hay una sede principal. Para cambiarla, marcá otra sede como principal.'); return; }
+            if (!event.target.checked) { event.target.checked = true; showStatus('info', 'Siempre hay una sede principal. Para cambiarla, marca otra sede como principal.'); return; }
             locations.forEach(item => { item.primary = item === entry; }); entry.active = true; refreshLocations(); saveDraft();
         });
         entry.row.querySelector('[data-active]').addEventListener('change', event => {
-            if (entry.primary && !event.target.checked) { event.target.checked = true; showStatus('error', 'La sede principal debe estar activa. Elegí otra sede principal antes de desactivarla.'); return; }
+            if (entry.primary && !event.target.checked) { event.target.checked = true; showStatus('error', 'La sede principal debe estar activa. Elige otra sede principal antes de desactivarla.'); return; }
             entry.active = event.target.checked; refreshLocations(); saveDraft();
         });
         if (window.WeOtziAddressPicker) entry.picker = window.WeOtziAddressPicker.attach(field('address'), { onChange(address) {
@@ -733,9 +733,9 @@
                 latitude: Number.isFinite(entry.address.latitude) ? entry.address.latitude : undefined,
                 longitude: Number.isFinite(entry.address.longitude) ? entry.address.longitude : undefined,
                 timeoutMs: 30000,
-                pinTitle: 'Arrastrá el pin hasta la puerta del estudio',
+                pinTitle: 'Arrastra el pin hasta la puerta del estudio',
                 onPending() { entry.row.querySelector('[data-pin]').textContent = 'Buscando la dirección del pin en Google Maps…'; },
-                onError() { showStatus('error', 'No pudimos traer la dirección de ese punto. Probá moverlo un poco o buscala arriba.'); },
+                onError() { showStatus('error', 'No pudimos traer la dirección de ese punto. Prueba moverlo un poco o búscala arriba.'); },
                 onPick(address) {
                     // El pin manda: coordenadas exactas; la dirección viene de Google Maps.
                     entry.address = { ...entry.address, ...address };
@@ -765,14 +765,14 @@
     }
     function renderAddress(entry, mapReady = entry.map?.isReady) {
         const addr = entry.address;
-        entry.row.querySelector('[data-region]').textContent = [addr.country, addr.state_province, addr.city, addr.locality].filter((part, i, all) => part && all.indexOf(part) === i).join(' · ') || 'Seleccioná una dirección';
-        entry.row.querySelector('[data-street]').textContent = [addr.street, addr.street_number, addr.unit, addr.postal_code].filter(Boolean).join(' · ') || addr.formatted_address || 'Seleccioná una dirección';
+        entry.row.querySelector('[data-region]').textContent = [addr.country, addr.state_province, addr.city, addr.locality].filter((part, i, all) => part && all.indexOf(part) === i).join(' · ') || 'Selecciona una dirección';
+        entry.row.querySelector('[data-street]').textContent = [addr.street, addr.street_number, addr.unit, addr.postal_code].filter(Boolean).join(' · ') || addr.formatted_address || 'Selecciona una dirección';
         const pin = entry.row.querySelector('[data-pin]');
         const located = Number.isFinite(addr.latitude) && Number.isFinite(addr.longitude);
         const mapsHref = located ? 'https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(addr.latitude + ',' + addr.longitude) : '';
-        if (mapReady) pin.innerHTML = (located ? 'Pin ubicado. Arrastralo o tocá el mapa si la puerta del estudio está en otro punto.' : 'Tocá el mapa o buscá la dirección para ubicar el pin.') + (located ? ' <a class="sr-map-link" target="_blank" rel="noopener" href="' + mapsHref + '">Abrir en Google Maps ↗</a>' : '');
+        if (mapReady) pin.innerHTML = (located ? 'Pin ubicado. Arrástralo o toca el mapa si la puerta del estudio está en otro punto.' : 'Toca el mapa o busca la dirección para ubicar el pin.') + (located ? ' <a class="sr-map-link" target="_blank" rel="noopener" href="' + mapsHref + '">Abrir en Google Maps ↗</a>' : '');
         else if (located) pin.innerHTML = '<a class="sr-map-link" target="_blank" rel="noopener" href="' + mapsHref + '">Comprobar ubicación en el mapa ↗</a>';
-        else pin.textContent = addr.formatted_address ? 'Dirección manual · pin pendiente' : 'Comprobá la ubicación';
+        else pin.textContent = addr.formatted_address ? 'Dirección manual · pin pendiente' : 'Comprueba la ubicación';
     }
 
     // ------------------------------------------------------------------
@@ -780,7 +780,7 @@
     // ------------------------------------------------------------------
     function bootMedia() {
         const names = { cover: 'Imagen de portada', logo: 'Logo', gallery: 'Galería del estudio' };
-        $('media-fields').innerHTML = Object.entries(names).map(([key, title]) => '<div class="sr-media-field"><label class="sr-media-label" for="file-' + key + '">' + title + '</label><div class="sr-media-box"><strong id="media-name-' + key + '">Sin archivos seleccionados</strong><p>JPG, PNG o WebP · hasta 5 MB por imagen.' + (key === 'gallery' ? ' Hasta 8 fotos; podés cambiar el orden.' : ' Revisá la imagen antes de continuar.') + '</p><div class="sr-media-previews" id="media-preview-' + key + '"></div><input class="sr-file-input" type="file" id="file-' + key + '" accept="image/jpeg,image/png,image/webp"' + (key === 'gallery' ? ' multiple' : '') + '><button type="button" class="wo-btn wo-btn--secondary" data-pick="' + key + '">Elegir archivo</button></div></div>').join('');
+        $('media-fields').innerHTML = Object.entries(names).map(([key, title]) => '<div class="sr-media-field"><label class="sr-media-label" for="file-' + key + '">' + title + '</label><div class="sr-media-box"><strong id="media-name-' + key + '">Sin archivos seleccionados</strong><p>JPG, PNG o WebP · hasta 5 MB por imagen.' + (key === 'gallery' ? ' Hasta 8 fotos; puedes cambiar el orden.' : ' Revisa la imagen antes de continuar.') + '</p><div class="sr-media-previews" id="media-preview-' + key + '"></div><input class="sr-file-input" type="file" id="file-' + key + '" accept="image/jpeg,image/png,image/webp"' + (key === 'gallery' ? ' multiple' : '') + '><button type="button" class="wo-btn wo-btn--secondary" data-pick="' + key + '">Elegir archivo</button></div></div>').join('');
         document.querySelectorAll('[data-pick]').forEach(button => button.addEventListener('click', () => $('file-' + button.dataset.pick).click()));
         Object.keys(names).forEach(key => $('file-' + key).addEventListener('change', event => {
             const selected = [...(event.target.files || [])];
@@ -835,8 +835,8 @@
     // ------------------------------------------------------------------
     const EDITABLE = [
         { bind: 'reg-name', label: 'Nombre del estudio', max: 160, required: true },
-        { bind: 'reg-tagline', label: 'Tagline', max: 120, placeholder: 'Sumá una frase corta' },
-        { bind: 'reg-bio', label: 'Descripción del estudio', max: 2000, multiline: true, placeholder: 'Contá la historia del estudio, su estilo y cómo trabajan.' },
+        { bind: 'reg-tagline', label: 'Tagline', max: 120, placeholder: 'Suma una frase corta' },
+        { bind: 'reg-bio', label: 'Descripción del estudio', max: 2000, multiline: true, placeholder: 'Cuenta la historia del estudio, su estilo y cómo trabajan.' },
         { bind: 'reg-instagram', label: 'Instagram', max: 100, placeholder: '@tustudio' },
         { bind: 'reg-website', label: 'Sitio web', max: 2000, placeholder: 'https://tustudio.com', url: true },
         { bind: 'reg-whatsapp', label: 'WhatsApp', max: 40, placeholder: '+54 · Teléfono' }
@@ -872,7 +872,7 @@
         const pickers = window.WeOtziStudioPickers;
         if (pickers) {
             pickers.yearPicker($('reg-founded'), host.querySelector('[data-preview-year]'), { triggerId: 'preview-founded-trigger', labelledBy: 'preview-founded-label', placeholder: 'Sin año', max: new Date().getFullYear() });
-            pickers.languagePicker($('reg-languages'), host.querySelector('[data-preview-languages]'), { inputId: 'preview-languages-input', labelledBy: 'preview-languages-label', placeholder: 'Sumá un idioma' });
+            pickers.languagePicker($('reg-languages'), host.querySelector('[data-preview-languages]'), { inputId: 'preview-languages-input', labelledBy: 'preview-languages-label', placeholder: 'Suma un idioma' });
         }
         host.addEventListener('input', onPreviewInput);
         host.addEventListener('focusout', onPreviewBlur);
@@ -937,7 +937,7 @@
         logo.insertAdjacentHTML('afterbegin', logoSrc ? '<img src="' + esc(logoSrc) + '" alt="Logo">' : '<span class="sr-preview-initial" aria-hidden="true">' + esc((value('reg-name').charAt(0) || '·').toUpperCase()) + '</span>');
         host.querySelector('[data-preview-verification]').textContent = activeMatches().length
             ? 'Verificación adicional pendiente · encontramos estudios parecidos'
-            : 'Sin verificar · podés pedir el sello desde el panel';
+            : 'Sin verificar · puedes pedir el sello desde el panel';
         host.querySelector('[data-preview-locations]').innerHTML = locations.map((entry, i) => {
             const labelText = entry.row.querySelector('[data-field="label"]').value.trim() || 'Sede';
             return '<li><strong class="sr-editable" contenteditable="' + CE_MODE + '" role="textbox" tabindex="0" aria-label="Nombre de la sede ' + (i + 1) + ' (editable)" data-placeholder="Sede" data-location-label="' + i + '">' + esc(labelText) + '</strong>'
@@ -954,13 +954,13 @@
     function renderSummary() {
         const verification = activeMatches().length
             ? ['Verificación adicional', 'Encontramos estudios parecidos. Después del registro vas a enviar información para que soporte verifique tu estudio. Mientras tanto el perfil se publica sin el sello de verificado.']
-            : ['Verificación', 'Después del registro podés pedir el sello de estudio verificado desde el panel.'];
+            : ['Verificación', 'Después del registro puedes pedir el sello de estudio verificado desde el panel.'];
         const identity = [value('reg-tagline'), value('reg-founded') ? 'Fundado en ' + value('reg-founded') : '', value('reg-languages'), value('reg-instagram'), value('reg-website'), value('reg-whatsapp')].filter(Boolean).join(' · ');
         const sedes = locations.map(entry => (entry.row.querySelector('[data-field="label"]').value.trim() || 'Sede') + (entry.primary ? ' (principal)' : '')).join(' · ');
         $('confirm-summary').innerHTML = summaryRows([
             ['Cuenta de acceso', value('reg-email'), existingSession ? null : 1],
-            ...(claimPreview ? [['Alta con link', 'Completás el alta de un estudio que sumó un tatuador · la ubicación queda verificada']] : []),
-            ['Identidad', identity || 'Podés completarla después', 2],
+            ...(claimPreview ? [['Alta con link', 'Completas el alta de un estudio que sumó un tatuador · la ubicación queda verificada']] : []),
+            ['Identidad', identity || 'Puedes completarla después', 2],
             ['Sedes', sedes || 'Sin sedes', 3],
             ['Imágenes', [files.cover ? files.cover.name : value('reg-cover') ? 'Portada por enlace' : 'Sin portada', files.logo ? files.logo.name : value('reg-logo') ? 'Logo por enlace' : 'Sin logo', (files.gallery.length + parsePhotos().length) + ' fotos de galería'].join(' · '), 4],
             verification
@@ -1024,7 +1024,7 @@
     // ------------------------------------------------------------------
     async function submit() {
         for (let step = 1; step < 5; step++) if (!validateStep(step)) { currentStep = step; renderStep(); return; }
-        if (!$('reg-terms').checked) return showStatus('error', 'Aceptá los Términos y la Política de Privacidad para crear el estudio.', $('reg-terms'));
+        if (!$('reg-terms').checked) return showStatus('error', 'Acepta los Términos y la Política de Privacidad para crear el estudio.', $('reg-terms'));
         // El nombre pudo cambiar en la vista previa: se vuelve a revisar.
         if (!(await resolveMatches())) { currentStep = 1; renderStep(); renderMatchPanel(); return; }
         if (!(await resolveInstagram())) { currentStep = 2; renderStep(); $('instagram-warning').hidden = false; return; }
@@ -1052,19 +1052,19 @@
         } catch (err) {
             const { data } = await window.WeOtziStudioAuth.getSupabase().auth.getSession().catch(() => ({ data: {} }));
             existingSession = data?.session || existingSession;
-            const message = String(err?.message || 'Intentá nuevamente.');
+            const message = String(err?.message || 'Intenta nuevamente.');
             const code = String(err?.code || '');
             if (window.WeOtziStudioAuth.isClaimableError?.(err) || code === '23505') {
                 currentStep = 1; renderStep();
                 matchState = { key: '', matches: [], decision: null };
                 await resolveMatches({ force: true });
-                showStatus('error', code === '23505' ? message : '«' + value('reg-name') + '» ya figura en We Ötzi, así que no pudimos crear el estudio. Si es tuyo, reclamalo; si no, cambiá el nombre.');
+                showStatus('error', code === '23505' ? message : '«' + value('reg-name') + '» ya figura en We Ötzi, así que no pudimos crear el estudio. Si es tuyo, reclamalo; si no, cambia el nombre.');
             } else if (code === '23P01') {
                 currentStep = 3; renderStep(); showStatus('error', message);
             } else if (window.WeOtziStudioAuth.isTermsError?.(err)) {
                 showStatus('error', message, $('reg-terms'));
             } else {
-                showStatus('error', /already|registered/i.test(message) ? 'Ya existe una cuenta con ese email. Iniciá sesión desde Ya tengo cuenta.' : 'No pudimos completar el registro: ' + message);
+                showStatus('error', /already|registered/i.test(message) ? 'Ya existe una cuenta con ese email. Inicia sesión desde Ya tengo cuenta.' : 'No pudimos completar el registro: ' + message);
             }
         } finally {
             busy = false; $('studio-register-form').setAttribute('aria-busy', 'false');
@@ -1083,9 +1083,9 @@
     }
     function showConfirmation(email) {
         confirmationEmail = email; resultMode = false; saveDraft();
-        result('Confirmá tu email', '<h2>Revisá tu correo</h2>' + summaryRows([[email, 'Abrí el enlace de confirmación para completar tu registro.']]) + '<p class="sr-help">Si elegiste archivos, volvé a este navegador después de confirmar el correo para completar la subida de imágenes.</p><div class="sr-actions"><button type="button" class="wo-btn" id="check-confirmation">Ya confirmé mi email</button><button type="button" class="wo-btn wo-btn--secondary" id="change-email">Cambiar email</button><button type="button" class="wo-btn wo-btn--secondary" id="resend-confirmation">Reenviar correo</button></div>');
+        result('Confirma tu email', '<h2>Revisa tu correo</h2>' + summaryRows([[email, 'Abre el enlace de confirmación para completar tu registro.']]) + '<p class="sr-help">Si elegiste archivos, vuelve a este navegador después de confirmar el correo para completar la subida de imágenes.</p><div class="sr-actions"><button type="button" class="wo-btn" id="check-confirmation">Ya confirmé mi email</button><button type="button" class="wo-btn wo-btn--secondary" id="change-email">Cambiar email</button><button type="button" class="wo-btn wo-btn--secondary" id="resend-confirmation">Reenviar correo</button></div>');
         $('check-confirmation').addEventListener('click', () => { location.href = url('/studio/login?confirmed=1'); });
-        $('change-email').addEventListener('click', () => { confirmationEmail = ''; currentStep = 1; renderStep(); showStatus('info', 'Podés registrar otro correo. La cuenta anterior seguirá pendiente de confirmación.'); $('reg-email').focus(); });
+        $('change-email').addEventListener('click', () => { confirmationEmail = ''; currentStep = 1; renderStep(); showStatus('info', 'Puedes registrar otro correo. La cuenta anterior seguirá pendiente de confirmación.'); $('reg-email').focus(); });
         $('resend-confirmation').addEventListener('click', async event => {
             const button = event.currentTarget; button.disabled = true;
             try {
@@ -1093,9 +1093,9 @@
                 if (typeof auth.resend !== 'function') throw new Error('El reenvío de correo no está disponible en este entorno de prueba.');
                 const { error } = await auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin + url('/studio/login?confirmed=1') } });
                 if (error) throw error;
-                showStatus('success', 'Solicitamos un nuevo correo de confirmación. Revisá también la carpeta de spam.');
+                showStatus('success', 'Solicitamos un nuevo correo de confirmación. Revisa también la carpeta de spam.');
             }
-            catch (err) { showStatus('error', err.message || 'No pudimos reenviar el correo. Intentá nuevamente.'); }
+            catch (err) { showStatus('error', err.message || 'No pudimos reenviar el correo. Intenta nuevamente.'); }
             finally { button.disabled = false; }
         });
     }
@@ -1105,8 +1105,8 @@
         const pending = !!studio.mediaPending;
         const extra = !!studio.verification_required;
         const verification = extra
-            ? ['Verificación adicional requerida', 'Encontramos estudios parecidos. Enviá la información de tu estudio para que soporte lo verifique.']
-            : ['Verificación', 'Pedí el sello de estudio verificado desde el panel.'];
+            ? ['Verificación adicional requerida', 'Encontramos estudios parecidos. Envía la información de tu estudio para que soporte lo verifique.']
+            : ['Verificación', 'Pide el sello de estudio verificado desde el panel.'];
         const rows = pending
             ? [['Cuenta de acceso', 'Creada · ' + (studio.email || value('reg-email'))], ['Perfil del estudio', 'Nombre, identidad y sedes guardados'], ['Imágenes pendientes', studio.mediaError || 'No pudimos terminar de subir las imágenes. Tus archivos siguen guardados en este navegador.']]
             : [['Tu perfil', 'Nombre, identidad y sedes guardados'], ['Tu equipo', 'Todavía no invitaste artistas'], verification];
@@ -1122,7 +1122,7 @@
         $('retry-media')?.addEventListener('click', async event => {
             const button = event.currentTarget; button.disabled = true; button.textContent = 'Subiendo imágenes…';
             try { const updated = await window.WeOtziStudioMedia.finish(completedStudio, existingSession?.user.email || studio.email || value('reg-email')); showComplete({ ...updated, mediaPending: false, mediaError: null }); }
-            catch (err) { showStatus('error', err.message || 'No pudimos terminar de subir las imágenes. Podés reintentar.'); button.disabled = false; button.textContent = 'Continuar configuración'; }
+            catch (err) { showStatus('error', err.message || 'No pudimos terminar de subir las imágenes. Puedes reintentar.'); button.disabled = false; button.textContent = 'Continuar configuración'; }
         });
     }
     function clearDraft() { claimToken = ''; try { sessionStorage.removeItem(draftKey); } catch (_) { /* Optional browser draft. */ } }

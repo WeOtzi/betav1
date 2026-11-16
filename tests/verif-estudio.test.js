@@ -361,7 +361,7 @@ test('panel #verificacion: vistas del Figma, validación y escape', () => {
 
     const html = ui.panelHtml(base, { draft: { files: { representation: [], space: [] } } });
     assert.doesNotMatch(html, /<img src=x/);
-    assert.match(html, /Verificá tu estudio/);
+    assert.match(html, /Verifica tu estudio/);
     assert.match(html, /Documento que acredita representación/);
     assert.match(html, /Evidencia del espacio/);
     assert.match(html, /Sede a verificar/);
@@ -409,7 +409,7 @@ test('backoffice: sección, script y cola con escape y URLs seguras', () => {
     assert.match(card, /Pedir corrección/);
     assert.match(card, /Confirmar también el Instagram/);
     assert.match(card, /Nombre parecido a otro estudio/);
-    assert.equal(bo.validateDecision('reject', 'ok'), 'Contale al estudio qué tiene que corregir (al menos 3 caracteres).');
+    assert.equal(bo.validateDecision('reject', 'ok'), 'Cuéntale al estudio qué tiene que corregir (al menos 3 caracteres).');
     assert.equal(bo.validateDecision('approve', ''), null);
     assert.equal(bo.normalizeStatus('zzz'), 'pending');
     const approvedCard = bo.cardHtml({ id: REQUEST_ID, studio_id: STUDIO_ID, status: 'approved', studio: { name: 'Hz', is_verified: true }, documents: [] });

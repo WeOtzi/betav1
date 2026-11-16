@@ -31,7 +31,7 @@
 
     function storage() {
         const client = D.getClient();
-        if (!client || !client.storage) throw new Error('No pudimos conectar con el almacenamiento. Recargá la página.');
+        if (!client || !client.storage) throw new Error('No pudimos conectar con el almacenamiento. Recarga la página.');
         return client.storage.from(BUCKET);
     }
 
@@ -46,9 +46,9 @@
 
     function validate(file, kind) {
         const rule = KINDS[kind] || KINDS.representation;
-        if (!file) return 'Elegí un archivo.';
+        if (!file) return 'Elige un archivo.';
         const typeOk = file.type ? rule.types.indexOf(file.type) !== -1 : rule.ext.test(file.name || '');
-        if (!typeOk) return 'Formato no admitido. Subí ' + rule.label + '.';
+        if (!typeOk) return 'Formato no admitido. Sube ' + rule.label + '.';
         if (file.size > MAX_BYTES) return 'El archivo pesa más de 10 MB.';
         if (file.size === 0) return 'El archivo está vacío.';
         return null;
@@ -65,7 +65,7 @@
         async upload(file, { studioId, kind }) {
             const problem = validate(file, kind);
             if (problem) throw new Error(problem);
-            if (!studioId) throw new Error('No encontramos tu estudio. Recargá la página.');
+            if (!studioId) throw new Error('No encontramos tu estudio. Recarga la página.');
             const path = studioId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + safeName(file.name);
             const { error } = await storage().upload(path, file, {
                 cacheControl: '3600', upsert: false, contentType: file.type || undefined

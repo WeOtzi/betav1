@@ -92,11 +92,11 @@
             return 'Ese artista ya tiene un vínculo abierto con ese rol en tu estudio.';
         }
         if (code === '42501' || /permission|row-level security|42501/i.test(raw)) {
-            return 'No tenés permiso para hacer esto. Solo el dueño del estudio puede.';
+            return 'No tienes permiso para hacer esto. Solo el dueño del estudio puede.';
         }
         if (/contrato/i.test(raw)) return raw;
         if (/[áéíóúñ]/.test(raw) && raw.length < 200) return raw;
-        return fallback || 'No pudimos completar la acción. Probá de nuevo.';
+        return fallback || 'No pudimos completar la acción. Prueba de nuevo.';
     }
     function statusBadge(st) {
         const cls = st === 'active' ? 'wo-badge--success' : (st === 'paused' ? 'wo-badge--outline' : 'wo-badge--accent');
@@ -348,7 +348,7 @@
         if (counter) counter.textContent = String(state.members.filter(m => m.status === 'active').length);
         if (!state.members.length) {
             container.innerHTML = `<div class="wo-empty steam-empty"><p class="steam-empty__title">Todavía no hay artistas en tu equipo</p>
-                <p class="wo-help">Invitá a un artista de We Ötzi, mandá una invitación por email o compartí tu enlace de invitación.</p></div>`;
+                <p class="wo-help">Invita a un artista de We Ötzi, manda una invitación por email o comparte tu enlace de invitación.</p></div>`;
             return;
         }
         const rows = visibleMembers();
@@ -607,7 +607,7 @@
         if (!layer.isConnected) return;
         const open = (rows || []).filter(r => !/cancel|complet|done/i.test(String(r.status || '')));
         if (error || !open.length) { host.innerHTML = '<p class="wo-help">No tiene sesiones futuras agendadas en tu estudio.</p>'; return; }
-        host.innerHTML = `<div class="wo-alert--warning steam-warning" role="note"><p><strong>${open.length} ${open.length === 1 ? 'sesión futura' : 'sesiones futuras'}</strong> de este artista en tu estudio. Reasignalas o cancelalas desde Operaciones → Agenda.</p>
+        host.innerHTML = `<div class="wo-alert--warning steam-warning" role="note"><p><strong>${open.length} ${open.length === 1 ? 'sesión futura' : 'sesiones futuras'}</strong> de este artista en tu estudio. Reasígnalas o cancélalas desde Operaciones → Agenda.</p>
             <ul>${open.slice(0, 5).map(r => `<li>${esc(fmtDate(r.starts_at))}${r.client_name ? ' · ' + esc(r.client_name) : ''}</li>`).join('')}</ul></div>`;
     }
 
@@ -626,7 +626,7 @@
         closeLayer();
         status('success', `Finalizaste la colaboración con ${artistName(m.artists_db)}.`);
         const artistUserId = m.artist_user_id || (m.artists_db || {}).user_id;
-        if (artistUserId && window.WeOtziReviews && window.confirm('¿Querés calificar al artista ahora?')) {
+        if (artistUserId && window.WeOtziReviews && window.confirm('¿Quieres calificar al artista ahora?')) {
             window.WeOtziReviews.openReviewModal({
                 title: 'Calificar artista',
                 reviewerType: 'studio',
@@ -657,7 +657,7 @@
             timer = setTimeout(async () => {
                 const { data: rows, error } = await data().Artists.searchByUsernameOrName(q.replace(/^@/, ''));
                 if (q !== input.value.trim()) return;
-                if (error) { status('error', 'No pudimos buscar artistas. Probá de nuevo.'); return; }
+                if (error) { status('error', 'No pudimos buscar artistas. Prueba de nuevo.'); return; }
                 const openIds = new Set(state.members.concat(state.requests).map(m => m.artist_user_id || (m.artists_db || {}).user_id));
                 state.inviteHits = rows || [];
                 sugg.innerHTML = state.inviteHits.length
@@ -668,7 +668,7 @@
                             ${inTeam ? '<span class="wo-badge wo-badge--s wo-badge--outline">Ya en tu equipo</span>' : ''}
                         </button>`;
                     }).join('')
-                    : `<p class="wo-help steam-noresult">No encontramos artistas con "${esc(q)}". Si no tiene cuenta, invitalo por email más abajo.</p>`;
+                    : `<p class="wo-help steam-noresult">No encontramos artistas con "${esc(q)}". Si no tiene cuenta, invítalo por email más abajo.</p>`;
                 sugg.hidden = false;
                 input.setAttribute('aria-expanded', 'true');
                 if (!state.inviteHits.length) $('team-email-invite')?.removeAttribute('hidden');
@@ -707,7 +707,7 @@
     async function onInviteSubmit(event) {
         event.preventDefault();
         const chosen = state.inviteChosen;
-        if (!chosen) { status('error', 'Elegí un artista de las sugerencias (o invitalo por email si no tiene cuenta).'); $('invite-search')?.focus(); return; }
+        if (!chosen) { status('error', 'Elige un artista de las sugerencias (o invítalo por email si no tiene cuenta).'); $('invite-search')?.focus(); return; }
         const splitRaw = $('invite-split')?.value || '';
         const split = splitRaw === '' ? null : Number(splitRaw);
         if (split !== null && (!Number.isFinite(split) || split < 0 || split > 100)) { status('error', 'El reparto va de 0 a 100.'); return; }
@@ -716,7 +716,7 @@
             status('error', 'La fecha de fin tiene que ser igual o posterior al inicio.'); return;
         }
         if (details.contact_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(details.contact_email)) {
-            status('error', 'Revisá el email de contacto.'); return;
+            status('error', 'Revisa el email de contacto.'); return;
         }
         const button = $('invite-send');
         setBusy(button, true, 'Enviando…');
@@ -761,7 +761,7 @@
     async function onEmailInviteSubmit(event) {
         event.preventDefault();
         const email = ($('email-invite-email')?.value || '').trim();
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { status('error', 'Escribí un email válido.'); $('email-invite-email')?.focus(); return; }
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { status('error', 'Escribe un email válido.'); $('email-invite-email')?.focus(); return; }
         const button = $('email-invite-send');
         setBusy(button, true, 'Enviando…');
         try {
@@ -864,7 +864,7 @@
         const box = $('link-result');
         if (!box || !link || !link.url) return;
         const text = `${studio().name || 'Nuestro estudio'} te invita a sumarte a su equipo en We Ötzi: ${link.url}`;
-        box.innerHTML = `<label class="studio-label wo-label" for="link-result-url">Tu enlace (se muestra una sola vez: copialo ahora)</label>
+        box.innerHTML = `<label class="studio-label wo-label" for="link-result-url">Tu enlace (se muestra una sola vez: cópialo ahora)</label>
             <div class="steam-copyrow">
                 <input id="link-result-url" class="wo-input" type="text" readonly value="${esc(link.url)}">
                 <button type="button" class="wo-btn wo-btn--accent wo-btn--s" data-copy>Copiar</button>
@@ -881,7 +881,7 @@
         box.querySelector('[data-copy]').addEventListener('click', async () => {
             const done = box.querySelector('.steam-copied');
             try { await navigator.clipboard.writeText(link.url); done.textContent = 'Copiado.'; }
-            catch (_) { input.select(); done.textContent = 'Seleccionalo y copialo con Ctrl+C.'; }
+            catch (_) { input.select(); done.textContent = 'Selecciónalo y cópialo con Ctrl+C.'; }
         });
         box.querySelector('[data-share]')?.addEventListener('click', () => {
             navigator.share({ title: 'Invitación a ' + (studio().name || 'nuestro estudio'), text, url: link.url }).catch(() => {});

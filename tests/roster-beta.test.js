@@ -235,7 +235,7 @@ test('ROSTER-06: invitación por email responde igual con o sin cuenta (anti-enu
     const withAccount = fakeRepo({ findArtistByEmail: async () => ({ user_id: ARTIST, email: 'ana@x.com', name: 'Ana' }) });
     const r1 = await roster.createRosterService({ repo: withAccount, sendEmail }).inviteByEmail({
         studio: { id: STUDIO, name: 'La Aguja' }, createdBy: OWNER, appBase: 'https://b.w',
-        input: { email: 'ana@x.com', role: 'guest', locationId: LOC, message: 'Vení' }
+        input: { email: 'ana@x.com', role: 'guest', locationId: LOC, message: 'Ven' }
     });
     const inserted = withAccount.calls.find(([k]) => k === 'insertMembership')[1];
     assert.deepEqual([inserted.status, inserted.initiated_by, inserted.role], ['pending_acceptance', 'studio', 'guest']);

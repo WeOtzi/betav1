@@ -114,7 +114,7 @@ test('P4: variables de las respuestas rápidas y mensaje resuelto', () => {
 
     // Sin datos: nada de "undefined" ni huecos antes de la puntuación.
     const empty = M.resolveTemplate('Hola {{cliente}}, te ofrezco {{fechas}} con {{seña}} en {{estudio}}.', M.templateVars({}));
-    assert.equal(empty.text, 'Hola, te ofrezco a coordinar con sin seña en a confirmar.');
+    assert.equal(empty.text, 'Hola, te ofrezco a coordinar con sin anticipo en a confirmar.');
     assert.deepEqual(empty.empty, ['cliente']);
     assert.equal(M.templateVars({ sessions: 1, minutes: 60 }).sesiones, '1 sesión');
     assert.equal(M.templateVars({ minutes: 45 }).duracion, '45 min');
@@ -138,7 +138,7 @@ test('P4: insertar una variable en el cursor y validar una respuesta rápida', (
     assert.equal(M.validateTemplate({ title: '', body: 'x' }).errors.title, 'Ponle un nombre a la respuesta rápida.');
     assert.equal(M.validateTemplate({ title: 'a', body: ' ' }).errors.body, 'Escribe el mensaje antes de guardarlo.');
     assert.equal(M.validateTemplate({ title: 'x'.repeat(81), body: 'ok' }).ok, false);
-    assert.deepEqual(M.validateTemplate({ title: ' Seña ', body: ' Hola {{cliente}} ' }).value, { title: 'Seña', body: 'Hola {{cliente}}' });
+    assert.deepEqual(M.validateTemplate({ title: ' Anticipo ', body: ' Hola {{cliente}} ' }).value, { title: 'Anticipo', body: 'Hola {{cliente}}' });
 });
 
 // ----------------------------------------------------------- P4 · fechas ofrecidas
@@ -439,7 +439,7 @@ test('P29: fila de artist_manual_quotes para una solicitud de cliente', () => {
     assert.deepEqual(patch.patch.line_items, []);
 });
 
-test('P29: la seña de la fila manual sigue al acuerdo', () => {
+test('P29: el anticipo de la fila manual sigue al acuerdo', () => {
     assert.equal(M.agreementManualPatch({ artist_deposit_pct: 30, artist_deposit_amount: 60 }, null), null);
     assert.equal(M.agreementManualPatch({ artist_deposit_pct: 30, artist_deposit_amount: 60 }, { deposit_pct: 30, deposit_amount: 60 }), null);
     assert.deepEqual(M.agreementManualPatch({ artist_deposit_pct: 50, artist_deposit_amount: 400 }, { deposit_pct: 30, deposit_amount: 300 }), { deposit_pct: 50, deposit_amount: 400 });
@@ -509,7 +509,7 @@ test('expediente: openRespondDialog delega en el diálogo ancho y conserva el an
     assert.match(js, /notifyResponded: \(extra\) => notify\('artist_responded_quotation'/);
     // Respaldo intacto (lo siguen probando los tests de la beta).
     assert.match(js, /title: requote \? 'Volver a cotizar' : 'Aceptar y enviar presupuesto'/);
-    // Tras el acuerdo se alinea la seña de la fila manual.
+    // Tras el acuerdo se alinea el anticipo de la fila manual.
     assert.match(js, /await updateQuote\(patch\);\n\s*syncAgreementExtras\(\);/);
 });
 

@@ -113,7 +113,7 @@
   }
 
   /* ===================================================================== *
-   *  HERO — "Buen día, {nombre}. Hoy tenés {n} sesiones programadas."      *
+   *  HERO — "Buen día, {nombre}. Hoy tienes {n} sesiones programadas."      *
    * ===================================================================== */
   function greetingByHour(h) {
     if (h < 12) return 'Buen día';
@@ -137,11 +137,11 @@
     if (todaySessions === null) {
       agendaBit = 'Este es tu panel en We Ötzi.';
     } else if (todaySessions === 0) {
-      agendaBit = 'Hoy tenés <span class="wo-highlight">agenda libre</span>.';
+      agendaBit = 'Hoy tienes <span class="wo-highlight">agenda libre</span>.';
     } else if (todaySessions === 1) {
-      agendaBit = 'Hoy <span class="wo-highlight">tenés 1 sesión</span> programada.';
+      agendaBit = 'Hoy <span class="wo-highlight">tienes 1 sesión</span> programada.';
     } else {
-      agendaBit = 'Hoy <span class="wo-highlight">tenés ' + todaySessions + ' sesiones</span> programadas.';
+      agendaBit = 'Hoy <span class="wo-highlight">tienes ' + todaySessions + ' sesiones</span> programadas.';
     }
     title.innerHTML = hello + '<br>' + agendaBit;
   }
@@ -172,14 +172,14 @@
     }
 
     // La verificación y el nivel los pinta dashboard.js (updateVerificationUI /
-    // updateLevelBadge) sobre los mismos ids; acá solo garantizamos visibilidad.
+    // updateLevelBadge) sobre los mismos ids; aquí solo garantizamos visibilidad.
     var vbadge = $('verification-badge'); if (vbadge) vbadge.style.display = 'inline-flex';
     if (String(artist.embajador || '').toLowerCase() === 'si' || artist.embajador === true) {
       var eb = $('embajador-badge'); if (eb) eb.style.display = 'inline-flex';
     }
 
     // Línea meta "$X / SESIÓN · N ESTILOS · Y AÑOS": dashboard.js llena
-    // #stat-price / #stat-styles / #stat-experience; fallback defensivo acá.
+    // #stat-price / #stat-styles / #stat-experience; fallback defensivo aquí.
     var styles = styleList(artist.styles_array || artist.styles || artist.estilos);
     var ss = $('stat-styles'); if (ss && (ss.textContent === '—' || ss.textContent === '')) ss.textContent = styles.length || '—';
     var se = $('stat-experience'); if (se && (se.textContent === '—' || se.textContent === '')) se.textContent = artist.years_experience || '—';
@@ -187,7 +187,7 @@
   }
 
   /* Figma: "1 ESTILO" en singular. dashboard.js escribe el número en
-     #stat-styles; acá solo concordamos la palabra que lo acompaña. */
+     #stat-styles; aquí solo concordamos la palabra que lo acompaña. */
   function applyStylesWord() {
     var n = $('stat-styles'), w = $('wod-styles-word');
     if (!n || !w) return;
@@ -748,7 +748,7 @@
    *  GALERÍA — la grilla del Figma 2003:862 (nombre + papelera por celda,  *
    *  insignias VIDEO / NUEVO · IG, dropzone SUBIR MÁS · N LIBRES, ★ para   *
    *  destacar y arrastrar para reordenar) la pinta dashboard-gallery.js    *
-   *  desde renderGalleryAdmin(). Acá solo queda el contador "— N" como     *
+   *  desde renderGalleryAdmin(). Aquí solo queda el contador "— N" como     *
    *  respaldo si la grilla cambia por otra vía.                            *
    * ===================================================================== */
   var galleryWatched = false;
@@ -785,7 +785,7 @@
   /* ===================================================================== *
    *  ACTIVIDAD COMPLEMENTARIA + LINKS DEL RAIL (Figma 24:1425)             *
    *  Los recordatorios ahora los maneja dashboard-reminders.js (tabla      *
-   *  artist_reminders). Acá solo queda la actividad extra que vive en      *
+   *  artist_reminders). Aquí solo queda la actividad extra que vive en      *
    *  user_preferences.app_settings.dashboard_activity.                     *
    * ===================================================================== */
   function loadActivityPrefs() {

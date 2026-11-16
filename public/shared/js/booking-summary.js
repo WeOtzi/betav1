@@ -82,7 +82,7 @@
             return;
         }
         if (data.reason === 'no_schedule') {
-            host.innerHTML = head + '<p class="bk-note">Configurá tu horario semanal y te mostramos los turnos libres de la semana, el mes, los próximos 3 meses y el año.</p>' +
+            host.innerHTML = head + '<p class="bk-note">Configura tu horario semanal y te mostramos los turnos libres de la semana, el mes, los próximos 3 meses y el año.</p>' +
                 '<div class="bk-btn-row"><a class="wo-btn wo-btn--accent wo-btn--hard wo-btn--s" href="' + esc(configUrl) + '">Configurar horario</a></div>';
             return;
         }
@@ -90,7 +90,7 @@
         var next = data.next_slot && data.next_slot.label
             ? '<p class="bk-next">Próximo turno libre: <strong>' + esc(data.next_slot.label) + '</strong></p>'
             : '<p class="bk-next">No quedan turnos libres en el horizonte configurado.</p>';
-        var off = data.enabled ? '' : '<p class="bk-note">Tus clientes todavía no pueden reservar estos turnos. Activá las reservas online para compartir tu enlace.</p>';
+        var off = data.enabled ? '' : '<p class="bk-note">Tus clientes todavía no pueden reservar estos turnos. Activa las reservas online para compartir tu enlace.</p>';
         var actions = data.enabled
             ? '<button type="button" class="wo-btn wo-btn--accent wo-btn--hard wo-btn--s" data-bk-share><i data-wo-icon="share-2" aria-hidden="true"></i> Compartir turnos</button>' +
               '<a class="wo-btn wo-btn--secondary wo-btn--s" href="' + esc(configUrl) + '">Configurar</a>'
@@ -111,10 +111,10 @@
         }
         var url = window.WeotziData && window.WeotziData.Booking ? window.WeotziData.Booking.publicUrl(username) : '';
         var status = host.querySelector('[data-bk-status]');
-        if (!url) { if (status) status.textContent = 'Completá tu usuario en el perfil para compartir tus turnos.'; return; }
+        if (!url) { if (status) status.textContent = 'Completa tu usuario en el perfil para compartir tus turnos.'; return; }
         var done = function (msg) { if (status) { status.textContent = msg; status.className = 'bk-status is-ok'; } };
         if (navigator.share) {
-            navigator.share({ title: 'Mis turnos disponibles · We Ötzi', text: 'Elegí un turno y pedime tu cotización', url: url })
+            navigator.share({ title: 'Mis turnos disponibles · We Ötzi', text: 'Elige un turno y pídeme tu cotización', url: url })
                 .then(function () { done('Enlace compartido.'); }).catch(function () { /* cancelado */ });
             return;
         }

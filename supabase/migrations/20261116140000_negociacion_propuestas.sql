@@ -8,7 +8,7 @@
 --   Rechazar es definitivo: el artista ya no puede reabrir la cotización y el
 --   chat queda cerrado para las dos partes.
 -- P25. Con el acuerdo aprobado, cualquiera de las dos partes propone cambios
---   de precio, sesiones, seña o condiciones. No rigen hasta que la otra parte
+--   de precio, sesiones, anticipo o condiciones. No rigen hasta que la otra parte
 --   los aprueba: recién ahí se aplican, de forma atómica, y queda el historial.
 -- P4-saldo. "Aprobada por ambas partes" queda inequívoco en la base:
 --   quotations_db.agreement_approved_at IS NOT NULL (y agreement_version ≥ 1).
@@ -220,7 +220,7 @@ begin
     -- ambas partes sin que el cliente hubiera aceptado. Primero la resuelve:
     -- la acepta, envía otra propuesta o mantiene la suya (negociacion_resolve
     -- corre con service_role y cierra la propuesta antes de tocar la
-    -- cotización, así que no pasa por acá). El cliente acepta la propuesta
+    -- cotización, así que no pasa por aquí). El cliente acepta la propuesta
     -- original por el servidor (lib/routes/cot-cliente.js), también con
     -- service_role: puede hacerlo con su contrapropuesta pendiente.
     -- IF anidados a propósito: auth.uid() y la tabla de propuestas solo se
@@ -252,7 +252,7 @@ begin
     end if;
   end if;
 
-  -- Acuerdo aprobado: precio, sesiones, seña y condiciones no se editan
+  -- Acuerdo aprobado: precio, sesiones, anticipo y condiciones no se editan
   -- directo; se proponen (quotation_proposals) y rigen al aprobarlos. Solo
   -- cuando hay contraparte que pueda aprobar: si el cliente no tiene cuenta
   -- (cotización manual o de invitado), el artista edita como siempre.
@@ -387,8 +387,8 @@ create policy chat_closed_after_client_rejection
 -- 5. Alta y resolución atómicas (solo service_role)
 -- ====================================================================
 
--- Seña vigente de una cotización: la de quotations_db o, si viene de una
--- cotización manual enviada, la de esa fila. NULL = sin seña.
+-- Anticipo vigente de una cotización: la de quotations_db o, si viene de una
+-- cotización manual enviada, la de esa fila. NULL = sin anticipo.
 create or replace function public.negociacion_deposit_pct(p_quote public.quotations_db)
 returns numeric
 language sql
@@ -748,7 +748,7 @@ begin
 
     v_budget := v_p.changes #>> '{artist_budget_amount,to}';
 
-    -- Si cambia el presupuesto, la seña pedida (de la respuesta o de la
+    -- Si cambia el presupuesto, el anticipo pedido (de la respuesta o de la
     -- cotización manual) se recalcula sobre el total nuevo.
     v_pct := public.negociacion_deposit_pct(v_q);
     v_touch_deposit := v_budget is not null and v_pct is not null;
@@ -834,8 +834,8 @@ begin
       end if;
     end if;
 
-    -- Seña: cambia si se propuso otro porcentaje o si cambia el total sobre
-    -- el que se calcula (la seña acordada sigue al presupuesto final).
+    -- Anticipo: cambia si se propuso otro porcentaje o si cambia el total sobre
+    -- el que se calcula (el anticipo acordado sigue al presupuesto final).
     if v_p.changes ? 'artist_deposit_pct' then
       v_pct := nullif((v_p.changes #>> '{artist_deposit_pct,to}')::numeric, 0);
       v_touch_deposit := true;
@@ -874,7 +874,7 @@ begin
            agreement_version = greatest(coalesce(q.agreement_version, 0), 1) + 1
      where q.id = v_q.id;
 
-    -- La cotización manual enviada guarda su propia seña y el panel de pagos
+    -- La cotización manual enviada guarda su propia anticipo y el panel de pagos
     -- la prefiere: se mantiene alineada con el acuerdo.
     if v_touch_deposit then
       update public.artist_manual_quotes m

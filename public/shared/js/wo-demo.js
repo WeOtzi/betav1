@@ -500,7 +500,7 @@
     function demoUnavailable() {
         return jsonResponse(503, {
             code: 'DEMO_UNAVAILABLE', details: null, hint: null,
-            message: 'Modo demo: los datos de ejemplo no están disponibles y nada se guardó. Recargá la página para reintentar.'
+            message: 'Modo demo: los datos de ejemplo no están disponibles y nada se guardó. Recarga la página para reintentar.'
         });
     }
 
@@ -516,7 +516,7 @@
                 if (m !== 'GET' && m !== 'HEAD') {
                     return Promise.resolve(jsonResponse(400, {
                         statusCode: '400', error: 'DemoMode',
-                        message: 'Modo demo: nada se guarda. Salí del demo para subir archivos.'
+                        message: 'Modo demo: nada se guarda. Sal del demo para subir archivos.'
                     }));
                 }
             }
@@ -763,7 +763,7 @@
     }
 
     /* ------------------- UI: sugerencia del demo (dashboard) ------------------- */
-    // Reemplaza a la invitación "¿Primera vez acá?" de una sola vez: aparece en
+    // Reemplaza a la invitación "¿Primera vez aquí?" de una sola vez: aparece en
     // cada visita con el demo apagado, salvo que el artista la apague desde el
     // menú Ö (servidor + espejo) o toque "AHORA NO" en esta sesión.
     function suggestionAllowed() {
@@ -784,9 +784,9 @@
             card.setAttribute('aria-labelledby', 'wo-demo-suggest-title');
             card.innerHTML =
                 '<p class="wo-eyebrow wo-demo-suggest__eyebrow">Modo demo</p>' +
-                '<h2 class="wo-demo-suggest__title" id="wo-demo-suggest-title">Probá We Ötzi con datos de ejemplo</h2>' +
+                '<h2 class="wo-demo-suggest__title" id="wo-demo-suggest-title">Prueba We Ötzi con datos de ejemplo</h2>' +
                 '<p class="wo-demo-suggest__copy">Cotizaciones, agenda y mensajes ficticios, con un recorrido guiado por cada sección. Nada se guarda en tu cuenta.</p>' +
-                '<p class="wo-demo-suggest__note">Podés desactivar esta sugerencia desde el menú Ö.</p>' +
+                '<p class="wo-demo-suggest__note">Puedes desactivar esta sugerencia desde el menú Ö.</p>' +
                 '<div class="wo-demo-suggest__actions">' +
                 '<button type="button" class="wo-btn wo-btn--s wo-btn--ink wo-btn--hard wo-demo-suggest__go">ACTIVAR MODO DEMO →</button>' +
                 '<button type="button" class="wo-btn wo-btn--s wo-btn--ghost wo-demo-suggest__later">AHORA NO</button>' +

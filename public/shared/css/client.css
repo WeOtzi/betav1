@@ -7,7 +7,7 @@
 /* ---------- Shell ---------- */
 /* --fg/--bg: alias que consume reviews.css (no es nuestro) — mapeados al DS */
 /* --client-hero-*: escala del hero del Figma (72 / 52). El paso de 52px no existe
-   en la escala tipográfica del DS, así que vive acá como único punto de verdad. */
+   en la escala tipográfica del DS, así que vive aquí como único punto de verdad. */
 .client-page{margin:0;min-height:100vh;display:flex;flex-direction:column;--fg:var(--neutral-500);--bg:var(--neutral-100);
   --client-hero-size:var(--display-size);--client-hero-sub-size:52px}
 .client-main{flex:1;display:flex;flex-direction:column}
@@ -118,7 +118,7 @@
 .unread-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 var(--space-1);background:var(--blue-300);color:var(--white);font-family:var(--font-mono);font-size:10px;font-weight:var(--weight-bold);border-radius:var(--radius-pill)}
 .wo-btn .unread-badge{background:var(--yellow-300);color:var(--neutral-500)}
 
-/* ---------- ¿Tenés una idea? ---------- */
+/* ---------- ¿Tienes una idea? ---------- */
 .client-idea{padding:var(--space-12) 0;border-top:var(--border-hairline) solid var(--border-strong);margin-top:var(--space-8);display:grid;grid-template-columns:5fr 7fr;gap:var(--space-10);align-items:center}
 .client-idea-title{font-family:var(--font-display);font-size:var(--title-md-size);line-height:1.1;color:var(--text-heading);margin:var(--space-3) 0 0}
 .client-idea-copy{font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-muted);margin:var(--space-4) 0 0;max-width:52ch}
@@ -139,7 +139,7 @@
 .client-globe-title{font-family:var(--font-display);font-size:var(--title-lg-size);line-height:1.05;color:var(--neutral-100);margin:var(--space-4) 0 0}
 .client-globe-text{font-size:var(--body-m-size);line-height:var(--body-m-lh);color:var(--text-on-dark);margin:var(--space-5) 0 var(--space-8);max-width:48ch}
 
-/* ---------- Artistas para vos ---------- */
+/* ---------- Artistas para ti ---------- */
 .client-suggested{padding:var(--space-16) 0 var(--space-12)}
 .client-suggested-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-8)}
 .client-suggested-card{display:flex;flex-direction:column;gap:var(--space-2);text-decoration:none;color:inherit}

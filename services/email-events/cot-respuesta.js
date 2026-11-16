@@ -7,7 +7,7 @@
 //
 //   artist_updated_quotation_proposal   al cliente, cuando el artista reenvía
 //       su propuesta mientras la cotización todavía no está aprobada por
-//       ambas partes (P25): presupuesto, seña, sesiones, duración, fechas
+//       ambas partes (P25): presupuesto, anticipo, sesiones, duración, fechas
 //       ofrecidas y el mensaje ya resuelto.
 //
 // Server-only: lo dispara lib/cot-respuesta.js después de guardar, con el
@@ -41,7 +41,7 @@ const EVENTS = {
             client_name: text(p.client_name),
             artist_name: text(p.artist_name, 'Tu artista'),
             budget_text: text(p.budget_text, 'A confirmar'),
-            deposit_text: text(p.deposit_text, 'Sin seña'),
+            deposit_text: text(p.deposit_text, 'Sin anticipo'),
             sessions_text: text(p.sessions_text),
             duration_text: text(p.duration_text),
             offered_text: text(p.offered_text),
@@ -65,7 +65,7 @@ const EVENTS = {
                 : null),
             rows: d => [
                 ['Presupuesto', text(d.budget_text, 'A confirmar')],
-                ['Seña', text(d.deposit_text, 'Sin seña')],
+                ['Anticipo', text(d.deposit_text, 'Sin anticipo')],
                 ['Sesiones', text(d.sessions_text)],
                 ['Duración por sesión', text(d.duration_text)],
                 ['Fechas ofrecidas', text(d.offered_text)],

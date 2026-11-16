@@ -786,7 +786,7 @@ function mountInstagramImportInDashboard() {
             // Refresh local state and rerender the gallery so imported items appear.
             const before = new Set(normalizeDashboardGalleryFeedItems().map((item) => item.url));
             await loadArtistData().catch(() => {});
-            // El servidor no sella la fecha de importación: la marcamos acá para
+            // El servidor no sella la fecha de importación: la marcamos aquí para
             // la insignia NUEVO · IG (Figma 2003:2583).
             try {
                 const feed = normalizeDashboardGalleryFeedItems();
@@ -854,7 +854,7 @@ function loadInstagramValidationStateOnce() {
     const visibility = window.WoGalleryVisibility;
     if (typeof visibility?.stateFrom !== 'function' || typeof visibility.isInstagramItem !== 'function') return;
     // Sin fotos de IG no hace falta preguntar; si después se importan, el
-    // render que sigue a la importación vuelve a pasar por acá.
+    // render que sigue a la importación vuelve a pasar por aquí.
     if (!parseJsonArraySafe(artistData?.gallery_feed_items).some((item) => visibility.isInstagramItem(item))) return;
     _igValidationStateRequested = true;
     fetchInstagramValidationState()
@@ -2266,7 +2266,7 @@ function getDashboardGeolocation() {
                 hint.textContent = 'Ubicacion detectada!';
                 hint.style.color = '#4CAF50';
             } else {
-                hint.textContent = 'No se pudo determinar la direccion. Ingresala manualmente.';
+                hint.textContent = 'No se pudo determinar la direccion. Ingrésala manualmente.';
                 hint.style.color = 'var(--primary-red, #e53935)';
             }
         } catch (err) {
@@ -2281,7 +2281,7 @@ function getDashboardGeolocation() {
     // IP del navegador. Si el GPS no responde, se pide la ubicación a mano.
     async function tryIPGeolocation() {
         btn.classList.remove('loading');
-        hint.textContent = 'No se pudo obtener la ubicacion. Ingresala manualmente.';
+        hint.textContent = 'No se pudo obtener la ubicacion. Ingrésala manualmente.';
         hint.style.color = 'var(--primary-red, #e53935)';
     }
 
@@ -2295,7 +2295,7 @@ function getDashboardGeolocation() {
                 // PERMISSION_DENIED: user explicitly said no — don't fallback, show message
                 if (error.code === error.PERMISSION_DENIED) {
                     btn.classList.remove('loading');
-                    hint.textContent = 'Permiso de ubicacion denegado. Ingresala manualmente.';
+                    hint.textContent = 'Permiso de ubicacion denegado. Ingrésala manualmente.';
                     hint.style.color = 'var(--primary-red, #e53935)';
                     return;
                 }
@@ -2574,7 +2574,7 @@ function refreshDashboardAddressEditor(workType) {
 
     if (label) {
         label.textContent = (workType === 'independent')
-            ? 'Dirección donde recibís clientes'
+            ? 'Dirección donde recibes clientes'
             : 'Dirección del estudio';
     }
 
@@ -3322,11 +3322,11 @@ async function uploadDashboardGalleryFile(file, kind) {
 
 // Mensaje de cierre de una subida: éxito total, parcial o fallo completo.
 function galleryUploadOutcomeMessage(uploaded, total, ephemeral) {
-    if (!uploaded) return { text: 'No pudimos subir los archivos. Probá de nuevo en unos minutos.', type: 'error' };
+    if (!uploaded) return { text: 'No pudimos subir los archivos. Prueba de nuevo en unos minutos.', type: 'error' };
     const done = uploaded === 1 ? '1 archivo subido a tu galería.' : `${uploaded} archivos subidos a tu galería.`;
     if (uploaded < total) {
         const failed = total - uploaded;
-        return { text: `${done} ${failed === 1 ? 'Uno no se pudo subir' : failed + ' no se pudieron subir'}; probá de nuevo con ese archivo.`, type: 'warning' };
+        return { text: `${done} ${failed === 1 ? 'Uno no se pudo subir' : failed + ' no se pudieron subir'}; prueba de nuevo con ese archivo.`, type: 'warning' };
     }
     if (ephemeral) return { text: `${done} Vista previa: el video se ve hasta que recargues la página.`, type: 'warning' };
     return { text: done, type: 'success' };
@@ -3615,8 +3615,8 @@ async function handleGalleryUpload(e) {
 
     if (files.length > remainingSlots) {
         showStatusMessage(remainingSlots > 0
-            ? `Podés subir ${remainingSlots === 1 ? '1 archivo más' : remainingSlots + ' archivos más'} (máximo ${MAX_GALLERY_IMAGES}).`
-            : `Tu galería ya tiene ${MAX_GALLERY_IMAGES} archivos. Borrá alguno para subir otro.`, 'error');
+            ? `Puedes subir ${remainingSlots === 1 ? '1 archivo más' : remainingSlots + ' archivos más'} (máximo ${MAX_GALLERY_IMAGES}).`
+            : `Tu galería ya tiene ${MAX_GALLERY_IMAGES} archivos. Borra alguno para subir otro.`, 'error');
         e.target.value = '';
         return;
     }
@@ -3643,8 +3643,8 @@ async function handleGalleryUpload(e) {
     if (currentVideoCount + videoFiles.length > MAX_GALLERY_VIDEOS) {
         const free = Math.max(0, MAX_GALLERY_VIDEOS - currentVideoCount);
         showStatusMessage(free
-            ? `Podés sumar ${free === 1 ? '1 video más' : free + ' videos más'} (máximo ${MAX_GALLERY_VIDEOS}).`
-            : `Ya tenés el máximo de ${MAX_GALLERY_VIDEOS} videos en tu galería.`, 'error');
+            ? `Puedes sumar ${free === 1 ? '1 video más' : free + ' videos más'} (máximo ${MAX_GALLERY_VIDEOS}).`
+            : `Ya tienes el máximo de ${MAX_GALLERY_VIDEOS} videos en tu galería.`, 'error');
         e.target.value = '';
         return;
     }
@@ -4374,7 +4374,7 @@ async function handleGalleryEditUpload(e) {
     // Validate video files (misma regla que el contador "N/2 VIDEOS").
     const currentVideoCount = currentFeedItems.filter(isFeedItemVideo).length;
     if (currentVideoCount + videoFiles.length > MAX_GALLERY_VIDEOS) {
-        showStatusMessage(`Ya tenés el máximo de ${MAX_GALLERY_VIDEOS} videos en tu galería.`, 'error');
+        showStatusMessage(`Ya tienes el máximo de ${MAX_GALLERY_VIDEOS} videos en tu galería.`, 'error');
         e.target.value = '';
         return;
     }

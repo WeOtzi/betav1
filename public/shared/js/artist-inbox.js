@@ -97,7 +97,7 @@
             openFromQuery();
         } catch (error) {
             console.error('[artist-inbox] init', error);
-            renderFatal('No pudimos cargar tu inbox. Reintentá en unos segundos.');
+            renderFatal('No pudimos cargar tu inbox. Reintenta en unos segundos.');
         }
     }
 
@@ -277,7 +277,7 @@
             name: 'Soporte We Ötzi',
             initials: 'WÖ',
             subject: 'Ayuda con tu cuenta',
-            preview: 'Escribinos si necesitás ayuda',
+            preview: 'Escríbenos si necesitas ayuda',
             lastAt: null,
             lastSenderUserId: null,
             unread: 0,
@@ -452,7 +452,7 @@
             host.innerHTML = '<div class="wo-empty ai-list-empty">' +
                 '<i data-wo-icon="message-circle" aria-hidden="true"></i>' +
                 '<span class="wo-empty-title">No hay conversaciones</span>' +
-                '<p>Probá con otra categoría o búsqueda.</p></div>';
+                '<p>Prueba con otra categoría o búsqueda.</p></div>';
             refreshIcons();
             return;
         }
@@ -680,7 +680,7 @@
             return true;
         } catch (error) {
             console.error('[artist-inbox] soporte', error);
-            notify('No pudimos abrir el chat de soporte. Probá de nuevo en unos minutos.', 'error');
+            notify('No pudimos abrir el chat de soporte. Prueba de nuevo en unos minutos.', 'error');
             return false;
         } finally {
             if (cta) cta.disabled = false;
@@ -767,7 +767,7 @@
     }
 
     function renderMessagesError() {
-        el('ai-messages').innerHTML = '<div class="wo-empty"><span class="wo-empty-title">No pudimos cargar los mensajes</span><p>Volvé a abrir esta conversación para reintentar.</p></div>';
+        el('ai-messages').innerHTML = '<div class="wo-empty"><span class="wo-empty-title">No pudimos cargar los mensajes</span><p>Vuelve a abrir esta conversación para reintentar.</p></div>';
     }
 
     function adaptUnifiedMessage(message) {
@@ -832,9 +832,9 @@
         if (!items.length) {
             const row = findRow(state.activeKey);
             const copy = row && row.synthetic
-                ? 'Todavía no hay mensajes con este cliente. Escribí el primero.'
-                : 'Escribí un mensaje para continuar.';
-            host.innerHTML = '<div class="wo-empty ai-msg-empty"><i data-wo-icon="message-circle" aria-hidden="true"></i><span class="wo-empty-title">Empezá la conversación</span><p>' + esc(copy) + '</p></div>';
+                ? 'Todavía no hay mensajes con este cliente. Escribe el primero.'
+                : 'Escribe un mensaje para continuar.';
+            host.innerHTML = '<div class="wo-empty ai-msg-empty"><i data-wo-icon="message-circle" aria-hidden="true"></i><span class="wo-empty-title">Empieza la conversación</span><p>' + esc(copy) + '</p></div>';
             refreshIcons();
             return;
         }
@@ -1103,7 +1103,7 @@
             note.hidden = !closed;
         }
         if (el('ai-composer')) el('ai-composer').hidden = closed;
-        setComposer(closed ? 'Esta conversación está cerrada.' : (row && row.starter ? 'Escribí tu consulta para soporte…' : 'Escribí un mensaje…'), !closed);
+        setComposer(closed ? 'Esta conversación está cerrada.' : (row && row.starter ? 'Escribe tu consulta para soporte…' : 'Escribe un mensaje…'), !closed);
     }
 
     // El estado de la cotización que se lee al abrir el hilo es el más fresco:
@@ -1401,7 +1401,7 @@
             // Si la base rechazó el envío porque la conversación se cerró (el
             // cliente rechazó la cotización), el refresco la pasa a solo lectura.
             scheduleRefresh();
-            notify(files.length ? 'No pudimos enviar todos los adjuntos. Los pendientes siguen acá para reintentar.' : 'No pudimos enviar el mensaje. Tu texto sigue acá para reintentar.', 'error');
+            notify(files.length ? 'No pudimos enviar todos los adjuntos. Los pendientes siguen aquí para reintentar.' : 'No pudimos enviar el mensaje. Tu texto sigue aquí para reintentar.', 'error');
         } finally {
             state.sending = false;
             restoreComposerTools(findRow(state.activeKey) || row);

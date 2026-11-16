@@ -166,7 +166,7 @@ async function initializeAdmin() {
     } catch (err) {
         console.error('Initialization error:', err);
         const list = document.getElementById('quotes-table-body');
-        if (list) list.innerHTML = '<div class="q-empty"><strong>No pudimos cargar tus cotizaciones.</strong>Probá recargar la página.</div>';
+        if (list) list.innerHTML = '<div class="q-empty"><strong>No pudimos cargar tus cotizaciones.</strong>Prueba recargar la página.</div>';
     }
 }
 
@@ -599,10 +599,10 @@ function renderQuoteCard(quote, index) {
 
 function emptyStateHtml() {
     const hasFilters = filterConfig.search || filterConfig.quick !== 'all' || filterConfig.status !== 'all' || filterConfig.priority !== 'all';
-    if (hasFilters) return '<div class="q-empty"><strong>No hay cotizaciones que coincidan.</strong>Probá con otra búsqueda o limpiá los filtros.</div>';
-    if (filterConfig.scope === 'archived') return '<div class="q-empty"><strong>No tenés cotizaciones archivadas.</strong>Las cotizaciones que archives van a aparecer acá.</div>';
-    if (filterConfig.scope === 'drafts') return '<div class="q-empty"><strong>No tenés borradores.</strong>Los borradores de cotizaciones manuales que guardes aparecen acá.</div>';
-    return '<div class="q-empty"><strong>Todavía no tenés cotizaciones.</strong>Cuando un cliente te pida un presupuesto, o cargues una cotización manual, la vas a ver acá.</div>';
+    if (hasFilters) return '<div class="q-empty"><strong>No hay cotizaciones que coincidan.</strong>Prueba con otra búsqueda o limpia los filtros.</div>';
+    if (filterConfig.scope === 'archived') return '<div class="q-empty"><strong>No tienes cotizaciones archivadas.</strong>Las cotizaciones que archives van a aparecer aquí.</div>';
+    if (filterConfig.scope === 'drafts') return '<div class="q-empty"><strong>No tienes borradores.</strong>Los borradores de cotizaciones manuales que guardes aparecen aquí.</div>';
+    return '<div class="q-empty"><strong>Todavía no tienes cotizaciones.</strong>Cuando un cliente te pida un presupuesto, o cargues una cotización manual, la vas a ver aquí.</div>';
 }
 
 function renderList() {

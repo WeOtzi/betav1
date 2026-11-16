@@ -10,7 +10,7 @@
  *   - una reserva pendiente vinculada a una cotización sin aprobar
  *     (columna nueva quotation_id, migración 20261028140000 no aplicada).
  * Los turnos con cliente salen de quotation_sessions (fixtures base) y los
- * viajes de artist_trips (Travel); no se duplican acá.
+ * viajes de artist_trips (Travel); no se duplican aquí.
  */
 (function (root) {
     'use strict';

@@ -14,7 +14,7 @@
  *
  * La lógica vive en WoQuotationBodyModel (pura, testeada) y el dibujo en
  * WoQuotationBodyFigure. script.js conserva el estado (selectedBodyParts) y
- * escribe tattoo_body_part / tattoo_body_side: acá solo se avisa con onChange.
+ * escribe tattoo_body_part / tattoo_body_side: aquí solo se avisa con onChange.
  *
  * Fotos de la grilla: /shared/assets/ronda2/cot-pasos/zona-<part_id>.webp
  * (manifiesto docs/plans/ronda2-assets/cot-pasos.json). Si falta el archivo se

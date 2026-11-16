@@ -9,7 +9,7 @@
 //   isExistingAccountSignup(data) → signUp de un email ya confirmado (identities: [])
 //   isEmailNotConfirmedError(err) → "Email not confirmed" del login
 //   resend(client, email, redirectTo)
-//   renderPending(container, opts)     → estado "Revisá tu email" (DS)
+//   renderPending(container, opts)     → estado "Revisa tu email" (DS)
 //   renderLoginNotice(container, opts) → aviso de login con "Reenviar email"
 //   savePending / readPending / clearPending → progreso en localStorage
 //   stashFiles / takeFiles / clearFiles      → archivos en IndexedDB
@@ -55,11 +55,11 @@
     }
 
     function resendErrorMessage(err) {
-        if (isRateLimitError(err)) return 'Ya te enviamos un email hace muy poco. Esperá un minuto y probá de nuevo.';
+        if (isRateLimitError(err)) return 'Ya te enviamos un email hace muy poco. Espera un minuto y prueba de nuevo.';
         if (/already confirmed|email_confirmed/i.test(String((err && err.message) || ''))) {
-            return 'Tu email ya está confirmado. Ya podés ingresar.';
+            return 'Tu email ya está confirmado. Ya puedes ingresar.';
         }
-        return 'No pudimos reenviar el email. Probá de nuevo en unos minutos.';
+        return 'No pudimos reenviar el email. Prueba de nuevo en unos minutos.';
     }
 
     // ── acceso: enlace mágico. Con shouldCreateUser:false Supabase responde
@@ -75,12 +75,12 @@
     // Resultado de signInWithOtp para la UI: { ok, message, kind }.
     function magicLinkOutcome(err, email) {
         const who = escapeHtml(String(email || '').trim());
-        const neutral = 'Si ' + who + ' tiene una cuenta, te enviamos un link de acceso. Revisá tu correo (también spam).';
+        const neutral = 'Si ' + who + ' tiene una cuenta, te enviamos un link de acceso. Revisa tu correo (también spam).';
         if (!err || isNeutralOtpError(err)) return { ok: true, kind: 'success', message: neutral };
         if (isRateLimitError(err)) {
-            return { ok: false, kind: 'error', message: 'Ya te enviamos un link hace muy poco. Esperá un minuto y probá de nuevo.' };
+            return { ok: false, kind: 'error', message: 'Ya te enviamos un link hace muy poco. Espera un minuto y prueba de nuevo.' };
         }
-        return { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Probá de nuevo en un momento o ingresá con tu contraseña.' };
+        return { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Prueba de nuevo en un momento o ingresa con tu contraseña.' };
     }
 
     // ── acceso: links de Supabase vencidos o ya usados. Supabase vuelve con
@@ -110,13 +110,13 @@
         if (linkError.expired) {
             return {
                 title: 'El ' + what + ' venció o ya se usó',
-                text: 'Por seguridad cada link sirve una sola vez y vence en poco tiempo. A veces el antivirus del correo lo abre antes que vos. ' +
-                    (ctx.hint || 'Pedí uno nuevo y abrilo apenas llegue.')
+                text: 'Por seguridad cada link sirve una sola vez y vence en poco tiempo. A veces el antivirus del correo lo abre antes que tú. ' +
+                    (ctx.hint || 'Pide uno nuevo y ábrelo apenas llegue.')
             };
         }
         return {
             title: 'No pudimos validar el ' + what,
-            text: (ctx.hint || 'Pedí uno nuevo y abrilo apenas llegue.')
+            text: (ctx.hint || 'Pide uno nuevo y ábrelo apenas llegue.')
         };
     }
 
@@ -308,7 +308,7 @@
         try {
             const res = await auth.resend(payload);
             if (res && res.error) return { ok: false, message: resendErrorMessage(res.error), error: res.error };
-            return { ok: true, message: 'Te enviamos un nuevo email. Revisá también la carpeta de spam.' };
+            return { ok: true, message: 'Te enviamos un nuevo email. Revisa también la carpeta de spam.' };
         } catch (err) {
             return { ok: false, message: resendErrorMessage(err), error: err };
         }
@@ -373,7 +373,7 @@
     }
 
     /**
-     * Estado "Revisá tu email para confirmar la cuenta".
+     * Estado "Revisa tu email para confirmar la cuenta".
      * opts: { email, client?, redirectTo?, onResend?, onChangeEmail?(newEmail|undefined),
      *         title?, lead?, note?, eyebrow?, sentAt?, changeEmailMode?: 'callback'|'inline',
      *         extraHtml? }
@@ -387,14 +387,14 @@
         container.innerHTML =
             '<section class="wo-ec" role="region" aria-labelledby="' + headingId + '">' +
                 '<span class="wo-marks wo-ec-marks" aria-hidden="true"><span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span></span>' +
-                '<p class="wo-eyebrow wo-ec-eyebrow">' + escapeHtml(o.eyebrow || 'Último paso · Confirmá tu email') + '</p>' +
-                '<h2 class="wo-h2 wo-ec-title" id="' + headingId + '" tabindex="-1">' + escapeHtml(o.title || 'Revisá tu email para confirmar la cuenta') + '</h2>' +
-                '<p class="wo-ec-lead">' + (o.lead ? o.lead : 'Te enviamos un link a <strong class="wo-ec-email">' + escapeHtml(email) + '</strong>. Abrilo desde este navegador para activar tu cuenta.') + '</p>' +
+                '<p class="wo-eyebrow wo-ec-eyebrow">' + escapeHtml(o.eyebrow || 'Último paso · Confirma tu email') + '</p>' +
+                '<h2 class="wo-h2 wo-ec-title" id="' + headingId + '" tabindex="-1">' + escapeHtml(o.title || 'Revisa tu email para confirmar la cuenta') + '</h2>' +
+                '<p class="wo-ec-lead">' + (o.lead ? o.lead : 'Te enviamos un link a <strong class="wo-ec-email">' + escapeHtml(email) + '</strong>. Ábrelo desde este navegador para activar tu cuenta.') + '</p>' +
                 (o.note ? '<p class="wo-ec-note"><i data-wo-icon="save" class="wo-icon-18" aria-hidden="true"></i><span>' + o.note + '</span></p>' : '') +
                 (o.extraHtml || '') +
                 '<ul class="wo-ec-tips">' +
-                    '<li>¿No llegó? Revisá spam y promociones.</li>' +
-                    '<li>El link vence en 24 horas. Podés pedir otro cuando quieras.</li>' +
+                    '<li>¿No llegó? Revisa spam y promociones.</li>' +
+                    '<li>El link vence en 24 horas. Puedes pedir otro cuando quieras.</li>' +
                 '</ul>' +
                 '<div class="wo-ec-actions">' +
                     '<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-ec-resend>Reenviar email</button>' +
@@ -432,7 +432,7 @@
                     const next = String(input.value || '').trim().toLowerCase();
                     if (!isValidEmail(next)) {
                         status.className = 'wo-ec-status is-error';
-                        status.textContent = 'Escribí un email válido.';
+                        status.textContent = 'Escribe un email válido.';
                         input.focus();
                         return;
                     }
@@ -467,9 +467,9 @@
         ensureStyles();
         container.innerHTML =
             '<div class="wo-ec-notice" role="alert">' +
-                '<p class="wo-ec-notice-title">Confirmá tu email para ingresar</p>' +
+                '<p class="wo-ec-notice-title">Confirma tu email para ingresar</p>' +
                 '<p class="wo-ec-notice-text">Tu cuenta' + (o.email ? ' <strong>' + escapeHtml(o.email) + '</strong>' : '') +
-                    ' todavía no está confirmada. Abrí el link que te enviamos por email (revisá spam).</p>' +
+                    ' todavía no está confirmada. Abre el link que te enviamos por email (revisa spam).</p>' +
                 '<div class="wo-ec-actions">' +
                     '<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-ec-resend>Reenviar email</button>' +
                 '</div>' +
@@ -697,7 +697,7 @@
             const auth = o.client && o.client.auth;
             if (auth && typeof auth.onAuthStateChange === 'function') {
                 const res = auth.onAuthStateChange(function (event, session) {
-                    // Fuera del callback: supabase-js no admite llamadas a auth acá adentro.
+                    // Fuera del callback: supabase-js no admite llamadas a auth aquí adentro.
                     if (session && sessionMatches(session, who)) root.setTimeout(function () { done(session, 'session'); }, 0);
                 });
                 authSub = res && res.data && res.data.subscription;

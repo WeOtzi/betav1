@@ -41,12 +41,12 @@
         policy_url: '/legal/privacy#cookies',
         texts: {
             title: 'Cookies y privacidad',
-            body: 'Usamos cookies y almacenamiento local necesarios para que la plataforma funcione. Con tu permiso también usamos analítica para entender cómo se usa y mejorarla. Podés cambiar tu elección cuando quieras desde «Configuración de cookies».',
+            body: 'Usamos cookies y almacenamiento local necesarios para que la plataforma funcione. Con tu permiso también usamos analítica para entender cómo se usa y mejorarla. Puedes cambiar tu elección cuando quieras desde «Configuración de cookies».',
             accept_all: 'Aceptar todas',
             reject: 'Rechazar no esenciales',
             configure: 'Configurar',
             save: 'Guardar elección',
-            gpc_notice: 'Tu navegador envía la señal Global Privacy Control: dejamos apagadas las cookies no esenciales. Si querés, podés activarlas acá.'
+            gpc_notice: 'Tu navegador envía la señal Global Privacy Control: dejamos apagadas las cookies no esenciales. Si quieres, puedes activarlas aquí.'
         },
         categories: [
             { id: 'necessary', label: 'Necesarias', description: 'Sesión iniciada, seguridad, preferencias de la interfaz, borradores y esta misma elección. Siempre están activas.', required: true, providers: [] },

@@ -337,11 +337,11 @@ test('cotizador: el mensaje de error de la referencia con IA no cae al genérico
         'La imagen tardó demasiado en generarse. Inténtalo de nuevo.');
     assert.match(message(intakeError('x', 429, { error: 'Llegaste al límite de imágenes generadas por ahora.' })), /límite de imágenes/);
     // Un proxy cortó la espera (502 sin JSON): no se muestra "No pudimos guardar tu solicitud".
-    const cut = message(intakeError('No pudimos guardar tu solicitud. Intentá de nuevo.', 502, {}));
+    const cut = message(intakeError('No pudimos guardar tu solicitud. Intenta de nuevo.', 502, {}));
     assert.match(cut, /tardó demasiado o el servicio no respondió/);
-    assert.doesNotMatch(cut, /guardar|Intentá/);
+    assert.doesNotMatch(cut, /guardar|Intenta/);
     // Sin conexión.
-    const offline = message(intakeError('No hay conexión. Revisá tu internet y volvé a intentar.', 0, {}));
+    const offline = message(intakeError('No hay conexión. Revisa tu internet y vuelve a intentar.', 0, {}));
     assert.equal(offline, 'No hay conexión. Revisa tu internet e inténtalo de nuevo.');
     // Errores locales del panel (sin status) conservan su texto.
     assert.equal(message(new Error('No pudimos generar la imagen. Inténtalo de nuevo.')), 'No pudimos generar la imagen. Inténtalo de nuevo.');

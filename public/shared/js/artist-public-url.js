@@ -12,7 +12,7 @@
  *
  * Lo usan el perfil público (artist-profile.js), los paneles de compartir
  * (dashboard-share.js, wo-share-sheet.js), el servidor (lib/routes/perfil.js)
- * y el paso "Compartí tu perfil" del onboarding (services/artist-onboarding.js).
+ * y el paso "Comparte tu perfil" del onboarding (services/artist-onboarding.js).
  *
  * Módulo puro (sin DOM): `window.WoArtistPublicUrl` en el navegador y
  * `require` en Node.

@@ -97,7 +97,7 @@ test('buscador rápido: abre el listado y, si el código coincide exacto, la cot
         calls.length = 0;
         nodes['cpn-quick-search-input'].value = term;
         const event = { prevented: false, preventDefault() { this.prevented = true; } };
-        // filterQuotations (del dashboard) repinta y avisa: se simula acá.
+        // filterQuotations (del dashboard) repinta y avisa: se simula aquí.
         ui.afterRender({ shown: Panel.searchQuotations(list, term) });
         nodes['cpn-quick-search'].listeners.submit(event);
         assert.equal(event.prevented, true);

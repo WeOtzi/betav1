@@ -30,7 +30,7 @@
         qualities: [0.82, 0.72, 0.62, 0.52],
         sideSteps: [0.8, 0.64, 0.5, 0.4],
         angle: -Math.PI / 6,        // -30°
-        // Colores del canvas (no hay tokens CSS acá): neutral-100, blanco y
+        // Colores del canvas (no hay tokens CSS aquí): neutral-100, blanco y
         // neutral-500 del DS con transparencia.
         background: 'rgb(250, 248, 243)',
         markFill: 'rgba(252, 252, 252, 0.46)',
@@ -38,9 +38,9 @@
     };
     var MAX_TILES = 600;
 
-    var READ_ERROR = 'No pudimos leer la imagen. Subí un JPG, PNG, WebP o HEIC.';
-    var CANVAS_ERROR = 'Tu navegador no pudo preparar la imagen. Probá con otro navegador.';
-    var TOO_LARGE_ERROR = 'No pudimos dejar la imagen por debajo de 3 MB. Probá con una imagen más liviana.';
+    var READ_ERROR = 'No pudimos leer la imagen. Sube un JPG, PNG, WebP o HEIC.';
+    var CANVAS_ERROR = 'Tu navegador no pudo preparar la imagen. Prueba con otro navegador.';
+    var TOO_LARGE_ERROR = 'No pudimos dejar la imagen por debajo de 3 MB. Prueba con una imagen más liviana.';
 
     function num(value) {
         var n = typeof value === 'number' ? value : parseFloat(value);
@@ -251,7 +251,7 @@
             createCanvas: opts.createCanvas || defaultCreateCanvas,
             loadImage: opts.loadImage || defaultLoadImage
         };
-        if (!file) return Promise.reject(new Error('Elegí una imagen.'));
+        if (!file) return Promise.reject(new Error('Elige una imagen.'));
         var image = null;
         return Promise.resolve()
             .then(function () { return heic ? heic(file) : file; })

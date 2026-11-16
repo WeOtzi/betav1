@@ -682,7 +682,7 @@ function getGeolocation() {
     // IP del navegador. Si el GPS no responde, se pide la ubicación a mano.
     async function tryIPGeolocation() {
         btn.classList.remove('loading');
-        hint.textContent = 'No se pudo obtener la ubicacion. Ingresala manualmente.';
+        hint.textContent = 'No se pudo obtener la ubicacion. Ingrésala manualmente.';
         hint.style.color = 'var(--primary-red)';
     }
 
@@ -1114,7 +1114,7 @@ async function initializeAuth() {
         // wizard, even if the prior session belongs to someone with a row.
         if (session && !treatAsPreAuth) await loadExistingArtistData();
         // ── registro (ronda 2 · T1-2): con sesión y el perfil ya completo no
-        // se vuelve a mostrar el paso 01 (pasaba cuando el panel rebotaba acá
+        // se vuelve a mostrar el paso 01 (pasaba cuando el panel rebotaba aquí
         // tras confirmar el email): "Tu perfil ya está creado" + ir al panel.
         if (session && !treatAsPreAuth && showProfileAlreadyCreated()) return;
         await loadAndRenderStylesFromDB();
@@ -1419,7 +1419,7 @@ function ensurePasswordStepOnResume() {
     if (!pastAccess) return;
     groupDoneState.delete('acceso');
     goToStep(groupEntryStep('acceso'));
-    setGroupError('acceso', 'Por seguridad no guardamos tu contraseña. Escribila de nuevo para seguir donde lo dejaste.');
+    setGroupError('acceso', 'Por seguridad no guardamos tu contraseña. Escríbela de nuevo para seguir donde lo dejaste.');
 }
 
 // "Empezar de cero": borra el borrador local, limpia el remoto (el arranque
@@ -2386,14 +2386,14 @@ function applyAddressPickerVisibility(workType) {
         wrapper.style.display = showPicker ? 'block' : 'none';
         if (showPicker) {
             if (label) label.textContent = 'Tu dirección';
-            if (help)  help.textContent = 'Buscá la dirección del estudio y elegí una sugerencia para ubicarla con precisión.';
+            if (help)  help.textContent = 'Busca la dirección del estudio y elige una sugerencia para ubicarla con precisión.';
             ensureAddressPicker();
         }
         syncAddressDetailsVisibility();
     } else if (workType === 'independent') {
         wrapper.style.display = 'block';
         if (label) label.textContent = 'Tu dirección';
-        if (help)  help.textContent = 'Indicá la dirección de tu espacio de trabajo: estudio propio, casa o donde recibís clientes.';
+        if (help)  help.textContent = 'Indica la dirección de tu espacio de trabajo: estudio propio, casa o donde recibes clientes.';
         ensureAddressPicker();
         syncAddressInputFromState();
         syncAddressDetailsVisibility();
@@ -3234,7 +3234,7 @@ function setupIGStep0() {
         const s = stagedSummary || {};
         const photosCount = s.photos_count || 0;
         const reelsCount = s.reels_count || 0;
-        setStatus('Perfil encontrado: <strong>' + (s.full_name || ('@' + stagedHandle)) + '</strong>. Marcá qué traer y confirmá.', 'success');
+        setStatus('Perfil encontrado: <strong>' + (s.full_name || ('@' + stagedHandle)) + '</strong>. Marca qué traer y confirma.', 'success');
         summaryEl.innerHTML = `
             <div class="ig-step-preview">
                 <label class="ig-step-option ${s.bio_present ? '' : 'is-disabled'}">
@@ -3411,11 +3411,11 @@ function mountIGImportInRegister() {
 // el borrador local/remoto, el resume y los endpoints la consumen— y cada
 // grupo agrupa uno o más de esos pasos.
 const REGISTRATION_GROUPS = [
-    { id: 'quien',     num: '01', nav: 'Quién sos',     steps: [1, 2, 10] },
+    { id: 'quien',     num: '01', nav: 'Quién eres',     steps: [1, 2, 10] },
     { id: 'acceso',    num: '02', nav: 'Tu acceso',     steps: [3] },
     { id: 'oficio',    num: '03', nav: 'Tu oficio',     steps: [4, 5, 6] },
     { id: 'presencia', num: '04', nav: 'Tu presencia',  steps: [8, 7] },
-    { id: 'trabajo',   num: '05', nav: 'Cómo trabajás', steps: [9] },
+    { id: 'trabajo',   num: '05', nav: 'Cómo trabajas', steps: [9] },
     { id: 'novedades', num: '06', nav: 'Novedades',     steps: [11] },
     { id: 'revision',  num: '07', nav: 'Revisión',      steps: ['summary'] }
 ];
@@ -3781,7 +3781,7 @@ function refreshGroupGate() {
 }
 window.raRefreshGroupGate = refreshGroupGate;
 
-// Helper del gate del grupo 05 (Figma 422-2873): "Elegí tu estudio o creá uno
+// Helper del gate del grupo 05 (Figma 422-2873): "Elige tu estudio o crea uno
 // nuevo" acompaña al CONTINUAR deshabilitado mientras falta resolver el
 // estudio. Se oculta al crear uno nuevo (ahí guía el picker de dirección).
 function syncTrabajoGateHint() {
@@ -3815,7 +3815,7 @@ function isStudioSelectionResolved() {
 // Chequea /api/register/check-uniqueness al salir de cada campo para avisar
 // EN EL PASO, no recién al final del acordeón. El estado alimenta el gate
 // (isGroupReady/validateGroup); window.__weotziUsernameAvailability —que el
-// gate ya leía— ahora sí se escribe desde acá. Instagram duplicado NO
+// gate ya leía— ahora sí se escribe desde aquí. Instagram duplicado NO
 // bloquea: solo advierte que se validará después.
 const uniquenessState = {
     email: { value: '', state: 'unknown' },
@@ -3887,11 +3887,11 @@ function renderUniqueState(kind) {
     }
     if (kind === 'email') {
         msg.innerHTML = 'Ya existe una cuenta con este email. '
-            + `<a href="${appUrl('/artist/login')}">Iniciá sesión</a> para continuar.`;
+            + `<a href="${appUrl('/artist/login')}">Inicia sesión</a> para continuar.`;
     } else if (kind === 'username') {
-        msg.textContent = 'Ese nombre artístico ya está en uso. Probá una opción libre:';
+        msg.textContent = 'Ese nombre artístico ya está en uso. Prueba una opción libre:';
     } else {
-        msg.textContent = 'Este Instagram ya está asociado a otra cuenta. Podés registrarte igual: lo vamos a validar después.';
+        msg.textContent = 'Este Instagram ya está asociado a otra cuenta. Puedes registrarte igual: lo vamos a validar después.';
     }
     msg.hidden = false;
 }
@@ -4089,7 +4089,7 @@ function setupGroupUI() {
         });
     }
 
-    // Toggles de "¿Dónde mostrás tu trabajo?" (página 7: solo Instagram por
+    // Toggles de "¿Dónde muestras tu trabajo?" (página 7: solo Instagram por
     // defecto; el resto se activa al tocarlo o si ya tiene un valor guardado).
     document.querySelectorAll('.link-toggle').forEach((chip) => {
         chip.addEventListener('click', () => {
@@ -4121,7 +4121,7 @@ function setupGroupUI() {
     if (retryBtn) {
         retryBtn.addEventListener('click', () => {
             if (!document.getElementById('terms-checkbox')?.checked) {
-                setGroupError('revision', 'Para crear tu perfil, aceptá los Términos y Condiciones y la Política de Privacidad.');
+                setGroupError('revision', 'Para crear tu perfil, acepta los Términos y Condiciones y la Política de Privacidad.');
                 return;
             }
             formState.data.terms_accepted = true;
@@ -4463,7 +4463,7 @@ function validateStep(step) {
                 if (liveAvailability?.username === username && liveAvailability.state === 'taken') {
                     isValid = false;
                     errorElement = artisticName;
-                    errorMessage = 'Ese nombre artístico ya está en uso. Probá una de las sugerencias.';
+                    errorMessage = 'Ese nombre artístico ya está en uso. Prueba una de las sugerencias.';
                 }
             }
             break;
@@ -4488,7 +4488,7 @@ function validateStep(step) {
                 && uniquenessState.email.value === email.value.trim().toLowerCase()) {
                 isValid = false;
                 errorElement = email;
-                errorMessage = 'Ya existe una cuenta con este email. Iniciá sesión para continuar.';
+                errorMessage = 'Ya existe una cuenta con este email. Inicia sesión para continuar.';
                 break;
             }
             // Pre-auth registration: validate password fields now; the server
@@ -4506,7 +4506,7 @@ function validateStep(step) {
         case 4:
             if (!stylesRequirementMet(formState.data)) {
                 isValid = false;
-                errorMessage = 'Elegí al menos un estilo.';
+                errorMessage = 'Elige al menos un estilo.';
                 shakeElement(document.getElementById('styles-grid'));
             }
             break;
@@ -4514,7 +4514,7 @@ function validateStep(step) {
         case 5:
             if (!formState.data.experience_years) {
                 isValid = false;
-                errorMessage = 'Elegí hace cuánto tatuás.';
+                errorMessage = 'Elige hace cuánto tatúas.';
                 shakeElement(document.getElementById('experience-options'));
             }
             break;
@@ -4527,7 +4527,7 @@ function validateStep(step) {
             if (sessionPriceValue && !(parseFloat(sessionPriceValue) > 0)) {
                 isValid = false;
                 errorElement = sessionPrice;
-                errorMessage = 'Ingresá un monto mayor a cero o dejá la tarifa vacía.';
+                errorMessage = 'Ingresa un monto mayor a cero o deja la tarifa vacía.';
                 break;
             }
             formState.data.session_price = sessionPriceValue;
@@ -4548,7 +4548,7 @@ function validateStep(step) {
                 if (!ok) {
                     isValid = false;
                     errorElement = siteField;
-                    errorMessage = 'Revisá tu sitio web: escribí la dirección completa, por ejemplo tusitio.com.';
+                    errorMessage = 'Revisa tu sitio web: escribe la dirección completa, por ejemplo tusitio.com.';
                     break;
                 }
             }
@@ -4560,7 +4560,7 @@ function validateStep(step) {
                 } catch {
                     isValid = false;
                     errorElement = otherField;
-                    errorMessage = 'Revisá el enlace: tiene que empezar con https://';
+                    errorMessage = 'Revisa el enlace: tiene que empezar con https://';
                     break;
                 }
             }
@@ -4582,7 +4582,7 @@ function validateStep(step) {
         case 9:
             if (!formState.data.work_type) {
                 isValid = false;
-                errorMessage = 'Elegí si trabajás en un estudio o de forma independiente.';
+                errorMessage = 'Elige si trabajas en un estudio o de forma independiente.';
                 shakeElement(document.getElementById('work-type-options'));
             } else if ((formState.data.work_type === 'studio' || formState.data.work_type === 'both')) {
                 // Require studio name for studio or both options
@@ -4590,13 +4590,13 @@ function validateStep(step) {
                 if (!studioNameInput.value.trim()) {
                     isValid = false;
                     errorElement = studioNameInput;
-                    errorMessage = 'Contanos en qué estudio trabajás.';
+                    errorMessage = 'Cuéntanos en qué estudio trabajas.';
                 } else if (!isStudioSelectionResolved()) {
                     isValid = false;
                     errorElement = studioAddressRequired ? document.getElementById('address_search') : studioNameInput;
                     errorMessage = studioAddressRequired
-                        ? 'Elegí la dirección del estudio de la lista de sugerencias.'
-                        : 'Elegí tu estudio de la lista o creá uno nuevo.';
+                        ? 'Elige la dirección del estudio de la lista de sugerencias.'
+                        : 'Elige tu estudio de la lista o crea uno nuevo.';
                 } else {
                     formState.data.studio_name = studioNameInput.value.trim();
                 }
@@ -4606,7 +4606,7 @@ function validateStep(step) {
                 if (!getRegistrationCity()) {
                     isValid = false;
                     errorElement = document.getElementById('address_search');
-                    errorMessage = 'Elegí tu dirección de la lista de sugerencias.';
+                    errorMessage = 'Elige tu dirección de la lista de sugerencias.';
                 }
             }
             break;
@@ -4616,19 +4616,19 @@ function validateStep(step) {
             if (!iso) {
                 isValid = false;
                 errorElement = document.getElementById('birth_date');
-                errorMessage = 'Cargá tu fecha de nacimiento.';
+                errorMessage = 'Carga tu fecha de nacimiento.';
                 break;
             }
             if (!isAdultBirthDate(iso)) {
                 isValid = false;
                 errorElement = document.getElementById('birth_date');
-                errorMessage = 'Tenés que ser mayor de 18 años para registrarte.';
+                errorMessage = 'Tienes que ser mayor de 18 años para registrarte.';
                 break;
             }
             if (!birthDateWithinBounds(iso)) {
                 isValid = false;
                 errorElement = document.getElementById('birth_date');
-                errorMessage = 'Revisá la fecha de nacimiento.';
+                errorMessage = 'Revisa la fecha de nacimiento.';
                 break;
             }
             syncBirthDateFromInput();
@@ -4731,7 +4731,7 @@ const SUMMARY_ROWS = [
     { label: 'Experiencia',      group: 'oficio',    value: (d) => experienceLabel(d.experience_years) },
     { label: 'Tarifa por sesión',group: 'oficio',    value: (d) => summaryPriceValue(d) },
     { label: 'Presentación',     group: 'presencia', value: (d) => bioPlainText(d.bio, 120) },
-    { label: 'Cómo trabajás',    group: 'trabajo',   value: () => workSummaryValue() },
+    { label: 'Cómo trabajas',    group: 'trabajo',   value: () => workSummaryValue() },
     { label: 'Novedades',        group: 'novedades', value: () => newsletterSummaryValue() }
 ];
 
@@ -4813,7 +4813,7 @@ async function finalizePreAuthRegistration(username) {
             markUniquenessConflicts(conflicts, { email, username });
             const labels = { email: 'el email', username: 'el nombre artístico' };
             const conflicting = conflicts.map(c => labels[c] || c).join(' y ');
-            const error = new Error('Ya existe una cuenta con ' + conflicting + '. Corregilo en el paso marcado o iniciá sesión.');
+            const error = new Error('Ya existe una cuenta con ' + conflicting + '. Corrígelo en el paso marcado o inicia sesión.');
             error.code = 'REGISTRATION_CONFLICT';
             throw error;
         }
@@ -4846,7 +4846,7 @@ async function finalizePreAuthRegistration(username) {
             const labels = { email: 'el email', username: 'el nombre artístico' };
             const error = new Error('Ya existe una cuenta con '
                 + conflicts.map(c => labels[c] || c).join(' y ')
-                + '. Corregilo en el paso marcado o iniciá sesión.');
+                + '. Corrígelo en el paso marcado o inicia sesión.');
             error.code = 'REGISTRATION_CONFLICT';
             throw error;
         }
@@ -4924,7 +4924,7 @@ function renderArtistEmailConfirmation(email) {
     const title = section.querySelector('.ra-success-title');
     if (title) title.textContent = 'Tu perfil quedó enviado. Falta confirmar tu email.';
     const sub = section.querySelector('.ra-success-sub');
-    if (sub) sub.textContent = 'Para entrar a tu panel, abrí el link que te enviamos. Tu galería y tu sede se terminan de guardar en ese momento.';
+    if (sub) sub.textContent = 'Para entrar a tu panel, abre el link que te enviamos. Tu galería y tu sede se terminan de guardar en ese momento.';
     const cta = document.getElementById('ra-success-cta');
     if (cta) cta.hidden = true;
     let box = document.getElementById('ra-email-confirm');
@@ -4934,7 +4934,7 @@ function renderArtistEmailConfirmation(email) {
         (cta && cta.parentNode ? cta.parentNode : section).insertBefore(box, cta || null);
     }
     if (!EC) {
-        box.textContent = 'Revisá tu email para confirmar la cuenta.';
+        box.textContent = 'Revisa tu email para confirmar la cuenta.';
         return;
     }
     const pendingUserId = currentUser && currentUser.id ? currentUser.id : null;
@@ -4942,11 +4942,11 @@ function renderArtistEmailConfirmation(email) {
         email,
         client: _supabase,
         redirectTo: artistConfirmRedirectUrl(),
-        title: 'Revisá tu email para confirmar la cuenta',
-        note: 'Abrí el link desde este navegador: así subimos las fotos que elegiste.',
+        title: 'Revisa tu email para confirmar la cuenta',
+        note: 'Abre el link desde este navegador: así subimos las fotos que elegiste.',
         focus: false,
         // ── registro (ronda 2 · N4): esta pestaña se entera sola de la
-        // confirmación (otra pestaña, otro navegador o el teléfono) y sigue acá.
+        // confirmación (otra pestaña, otro navegador o el teléfono) y sigue aquí.
         watch: typeof EC.watchConfirmation === 'function' ? {
             key: ARTIST_CONFIRM_KEY,
             userId: pendingUserId,
@@ -4979,7 +4979,7 @@ async function continueArtistAfterConfirmationHere(email, info) {
     let session = info && info.session ? info.session : null;
     try {
         if (!session) {
-            // Confirmado en otro navegador o en el teléfono: acá no hay sesión,
+            // Confirmado en otro navegador o en el teléfono: aquí no hay sesión,
             // pero la contraseña sigue en memoria (nunca se guarda).
             const password = String(formState.data.signup_password || '');
             if (password) {
@@ -5212,7 +5212,7 @@ function renderStudioClaim(url, expiresAt) {
     const share = document.getElementById('ra-studio-claim-share');
     if (share) share.hidden = !(navigator.share && typeof navigator.share === 'function');
     const sub = document.querySelector('.ra-success-sub');
-    if (sub) sub.innerHTML = 'Ya podés recibir cotizaciones e invitaciones de estudios.';
+    if (sub) sub.innerHTML = 'Ya puedes recibir cotizaciones e invitaciones de estudios.';
     if (!box.dataset.wired) {
         box.dataset.wired = 'true';
         document.getElementById('ra-studio-claim-copy')?.addEventListener('click', async () => {
@@ -5228,13 +5228,13 @@ function renderStudioClaim(url, expiresAt) {
                 input.select();
                 try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
             }
-            if (status) status.textContent = ok ? 'Link copiado.' : 'No pudimos copiarlo: seleccioná el link y copialo a mano.';
+            if (status) status.textContent = ok ? 'Link copiado.' : 'No pudimos copiarlo: selecciona el link y cópialo a mano.';
         });
         share?.addEventListener('click', async () => {
             try {
                 await navigator.share({
                     title: 'Alta del estudio en We Ötzi',
-                    text: `Completá el alta de ${String(formState.data.studio_name || 'tu estudio').trim()} en We Ötzi con este link:`,
+                    text: `Completa el alta de ${String(formState.data.studio_name || 'tu estudio').trim()} en We Ötzi con este link:`,
                     url: input ? input.value : link
                 });
             } catch (_) { /* compartir cancelado */ }
@@ -5248,7 +5248,7 @@ function renderStudioClaim(url, expiresAt) {
 // quedan en el formulario y en el borrador).
 function showSubmitError(error) {
     const core = window.AccesoRegister && window.AccesoRegister.core;
-    const info = core ? core.describeSubmitError(error) : { title: 'No pudimos crear tu perfil', message: (error && error.message) || 'Intentá de nuevo.', retry: true };
+    const info = core ? core.describeSubmitError(error) : { title: 'No pudimos crear tu perfil', message: (error && error.message) || 'Intenta de nuevo.', retry: true };
     if (error && error.code === 'PASSWORD_REQUIRED') {
         groupDoneState.delete('acceso');
         goToStep(groupEntryStep('acceso'));
@@ -5336,7 +5336,7 @@ async function submitForm() {
     if (registrationSubmitInFlight) return;
     // Validate terms acceptance first — applies to all flows.
     if (!formState.data.terms_accepted) {
-        setGroupError('revision', 'Para crear tu perfil, aceptá los Términos y Condiciones y la Política de Privacidad.');
+        setGroupError('revision', 'Para crear tu perfil, acepta los Términos y Condiciones y la Política de Privacidad.');
         const termsCheckbox = document.getElementById('terms-checkbox');
         if (termsCheckbox) termsCheckbox.focus();
         return;
@@ -5516,7 +5516,7 @@ async function submitFormNow() {
         console.error('No authenticated user');
         btnNext.disabled = false;
         goToStep('summary');
-        showSubmitError(Object.assign(new Error('Tu sesión se cerró. Iniciá sesión de nuevo para terminar el registro.'), { status: 401 }));
+        showSubmitError(Object.assign(new Error('Tu sesión se cerró. Inicia sesión de nuevo para terminar el registro.'), { status: 401 }));
         return;
     }
 
@@ -5542,7 +5542,7 @@ async function submitFormNow() {
             // Go back to artistic name step
             groupDoneState.delete('quien');
             goToStep(1);
-            setGroupError('quien', `El nombre artístico «${formState.data.artistic_name}» ya está en uso. Elegí otro.`);
+            setGroupError('quien', `El nombre artístico «${formState.data.artistic_name}» ya está en uso. Elige otro.`);
             return;
         }
 
@@ -5773,7 +5773,7 @@ async function submitFormNow() {
         if (error.message === 'USERNAME_CONFLICT') {
             groupDoneState.delete('quien');
             goToStep(1);
-            setGroupError('quien', `El nombre artístico «${formState.data.artistic_name}» ya está en uso por otro artista. Elegí otro.`);
+            setGroupError('quien', `El nombre artístico «${formState.data.artistic_name}» ya está en uso por otro artista. Elige otro.`);
         } else {
             persistRegistrationDraft();
             goToStep('summary');
@@ -5855,7 +5855,7 @@ function updateBioMobilePreview() {
     const text = getBioMobilePreviewText(formState.data.bio || bioEditor.innerHTML, bioEditor);
     const hasBio = Boolean(text);
     trigger.classList.toggle('has-bio', hasBio);
-    preview.textContent = hasBio ? text : 'Tocá para escribir tu bio.';
+    preview.textContent = hasBio ? text : 'Toca para escribir tu bio.';
 }
 
 function isBioMobileViewport() {

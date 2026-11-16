@@ -222,7 +222,7 @@
         var pct = o.depositPct == null || o.depositPct === '' ? NaN : Number(o.depositPct);
         var depositAmount = o.depositAmount == null || o.depositAmount === '' ? NaN : Number(o.depositAmount);
         if (!Number.isFinite(depositAmount) && Number.isFinite(pct) && Number.isFinite(amount)) depositAmount = round2(amount * pct / 100);
-        var deposit = 'sin seña';
+        var deposit = 'sin anticipo';
         if (Number.isFinite(pct) && pct > 0) {
             deposit = String(pct).replace('.', ',') + ' %';
             if (Number.isFinite(depositAmount) && depositAmount > 0) deposit += ' (' + formatAmount(depositAmount) + (currency ? ' ' + currency : '') + ')';
@@ -761,7 +761,7 @@
     }
 
     // Misma cuenta que la cotización manual (subtotal, descuento, impuestos,
-    // total, seña y saldo).
+    // total, anticipo y saldo).
     function extrasTotals(extras, depositPct) {
         var e = extras || {};
         return N.computeTotals({
@@ -835,7 +835,7 @@
         var depositPct = null;
         if (depositRaw) {
             var pct = parseMoney(depositRaw);
-            if (!Number.isFinite(pct) || pct < 0 || pct > 100) errors.deposit_pct = 'La seña tiene que ser un porcentaje entre 0 y 100.';
+            if (!Number.isFinite(pct) || pct < 0 || pct > 100) errors.deposit_pct = 'El anticipo tiene que ser un porcentaje entre 0 y 100.';
             else if (pct > 0) depositPct = round2(pct);
         }
         var depositAmount = depositPct != null && Number.isFinite(amount) && amount > 0 ? round2(amount * depositPct / 100) : null;
@@ -988,7 +988,7 @@
         };
     }
 
-    // Tras "Confirmar acuerdo": la seña de la fila manual sigue a la acordada
+    // Tras "Confirmar acuerdo": el anticipo de la fila manual sigue a la acordada
     // (el panel de pagos prioriza la fila manual). null si no hay nada que tocar.
     function agreementManualPatch(quote, manual) {
         if (!quote || !manual) return null;

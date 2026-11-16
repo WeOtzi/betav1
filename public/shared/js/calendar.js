@@ -46,7 +46,7 @@
     const HOUR_START = 9;
     const HOUR_END = 21;
     const MONTH_VISIBLE_EVENTS = 3;
-    const QUOTE_HINT = 'Elegí una cotización para asociar este turno al cliente y a su proyecto.';
+    const QUOTE_HINT = 'Elige una cotización para asociar este turno al cliente y a su proyecto.';
     const MANUAL_QUOTE_PATH = '/my-quotations/new';
 
     const state = {
@@ -1087,7 +1087,7 @@
             <div class="cal-field cal-end-date"${hidden ? ' hidden' : ''}>
                 <label for="event-end-date">Fecha de fin <span class="cal-field-optional">(opcional)</span></label>
                 <input id="event-end-date" name="event-end-date" type="date" value="${escapeAttr(value)}" min="${escapeAttr(dateKey(startDate))}" aria-describedby="event-end-date-hint">
-                <p class="cal-field-hint" id="event-end-date-hint">Dejalo vacío si es un solo día.</p>
+                <p class="cal-field-hint" id="event-end-date-hint">Déjalo vacío si es un solo día.</p>
             </div>
         `;
     }
@@ -1235,7 +1235,7 @@
                         <input id="event-quote-search" type="text" role="combobox" autocomplete="off"
                                aria-autocomplete="list" aria-expanded="false" aria-controls="quote-listbox"
                                aria-describedby="quote-hint"
-                               placeholder="Buscá por cliente, proyecto o número de cotización"
+                               placeholder="Busca por cliente, proyecto o número de cotización"
                                value="${escapeAttr(quoteDisplay(quote))}">
                         <input id="event-quote-id" name="event-quote-id" type="hidden" value="${escapeAttr(quote ? quote.id : '')}">
                     </div>
@@ -1327,7 +1327,7 @@
                 <div class="cal-field-grid">${common.date}${common.time}</div>
                 ${toggleField('event-recurring', 'Se repite', 'Repetir este evento todas las semanas', recurring)}
                 ${untilField(raw, common.startDate, !recurring)}
-                <p class="cal-field-hint cal-client-note">Te avisamos en tus notificaciones a esa hora (y por email si lo tenés activado).</p>
+                <p class="cal-field-hint cal-client-note">Te avisamos en tus notificaciones a esa hora (y por email si lo tienes activado).</p>
                 ${common.notes}
             `;
         } else {
@@ -1390,7 +1390,7 @@
                 .catch((error) => {
                     console.warn('[calendar] No se pudieron cargar las cotizaciones:', error);
                     state.quotes = [];
-                    state.quotesError = 'No pudimos cargar tus cotizaciones. Probá de nuevo en un rato.';
+                    state.quotesError = 'No pudimos cargar tus cotizaciones. Prueba de nuevo en un rato.';
                     return state.quotes;
                 })
                 .finally(() => { state.quotesPromise = null; });
@@ -1436,7 +1436,7 @@
             text = `${code} todavía no está aprobada: el turno se guarda como reserva pendiente.`;
             tone = 'warning';
         } else if (isLegacyManualTurno()) {
-            text = 'Este turno no está vinculado a una cotización. Podés vincularlo ahora.';
+            text = 'Este turno no está vinculado a una cotización. Puedes vincularlo ahora.';
         }
         hint.textContent = text;
         hint.dataset.tone = tone;
@@ -1455,7 +1455,7 @@
 
     // "Crear cotización manual" fijo debajo del campo: solo cuando no hay
     // ninguna cotización agendable. Después de intentar guardar sin cotización
-    // el link va dentro del aviso de error (no se repite acá) y en la lista
+    // el link va dentro del aviso de error (no se repite aquí) y en la lista
     // abierta está en el estado vacío.
     function updateQuoteCreate() {
         const create = el['event-fields']?.querySelector('.cal-quote-create');
@@ -1467,7 +1467,7 @@
     }
 
     // Cotización manual desde el calendario: la hoja abre como cita y precarga
-    // la fecha elegida (?origen=cita&fecha=AAAA-MM-DD); Cancelar vuelve acá.
+    // la fecha elegida (?origen=cita&fecha=AAAA-MM-DD); Cancelar vuelve aquí.
     function manualQuoteHref() {
         const params = new URLSearchParams({ origen: 'cita', fecha: dateKey(state.selectedDate || new Date()) });
         return appUrl(`${MANUAL_QUOTE_PATH}?${params.toString()}`);
@@ -1491,7 +1491,7 @@
         if (!groups.length) {
             const message = state.quotes.length
                 ? 'No encontramos cotizaciones con esa búsqueda.'
-                : (state.quotesError || 'Todavía no tenés cotizaciones para vincular.');
+                : (state.quotesError || 'Todavía no tienes cotizaciones para vincular.');
             // Si el aviso de error ya enlaza a crear una cotización manual, el
             // estado vacío no repite el link (un solo acceso visible).
             const errorHasLink = !!el['event-form-error']?.querySelector?.('a');
@@ -1630,7 +1630,7 @@
             client.value = quote.client_full_name || '';
             client.readOnly = true;
         }
-        // Con la cotización elegida desaparece el aviso de "elegí una
+        // Con la cotización elegida desaparece el aviso de "elige una
         // cotización" (y su link) antes de recalcular avisos y accesos.
         el['event-form-error'].textContent = '';
         closeQuotePicker();
@@ -1648,7 +1648,7 @@
         if (!state.selectedType) return null;
         const dateInput = document.getElementById('event-date');
         const selectedDate = parseLocalDate(dateInput?.value);
-        if (!selectedDate) throw new Error('Elegí una fecha válida.');
+        if (!selectedDate) throw new Error('Elige una fecha válida.');
 
         const travel = isTravelOn();
         const allDay = travel || !!document.getElementById('event-all-day')?.checked;
@@ -1693,8 +1693,8 @@
             title = !inputTitle ? 'Guest Spot' : (/^Guest en\s+/i.test(inputTitle) ? inputTitle : `Guest en ${inputTitle}`);
         }
         if (!title && !options.lenient) throw new Error(state.selectedType === 'confirmed_session' || state.selectedType === 'reservation'
-            ? 'Ingresá el nombre del cliente.'
-            : 'Ingresá un título para el evento.');
+            ? 'Ingresa el nombre del cliente.'
+            : 'Ingresa un título para el evento.');
 
         const usesLocation = state.selectedType === 'confirmed_session' || state.selectedType === 'reservation';
         const locationChoice = usesLocation ? readLocationChoice() : null;
@@ -1738,12 +1738,12 @@
         // Sin el módulo de vínculos no se puede saber si va como sesión o reserva:
         // una cotización elegida nunca se guarda como evento manual suelto.
         if (state.selectedQuote && !links()) {
-            return 'La vinculación con cotizaciones no está disponible en este momento. No se guardó el turno: recargá la página o quitá la selección para crear un evento manual.';
+            return 'La vinculación con cotizaciones no está disponible en este momento. No se guardó el turno: recarga la página o quita la selección para crear un evento manual.';
         }
         const target = resolveSaveTarget();
-        if (target === 'blocked') return 'Esa cotización no se puede agendar. Elegí otra o creá una cotización manual.';
+        if (target === 'blocked') return 'Esa cotización no se puede agendar. Elige otra o crea una cotización manual.';
         if (!state.selectedQuote && !isLegacyManualTurno() && state.editingEvent?.sourceType !== 'quotation_session') {
-            return 'Elegí la cotización a vincular. Si todavía no existe, creá una cotización manual.';
+            return 'Elige la cotización a vincular. Si todavía no existe, crea una cotización manual.';
         }
         return null;
     }
@@ -2115,8 +2115,8 @@
             if (/cotización/i.test(error.message)) {
                 // Sin cotización elegida: el aviso enlaza a crear una manual.
                 el['event-form-error'].innerHTML = escapeHtml(error.message).replace(
-                    'creá una cotización manual',
-                    `<a href="${escapeAttr(manualQuoteHref())}">creá una cotización manual</a>`,
+                    'crea una cotización manual',
+                    `<a href="${escapeAttr(manualQuoteHref())}">crea una cotización manual</a>`,
                 );
                 updateQuoteCreate();
                 renderQuoteListbox();
@@ -2167,8 +2167,8 @@
             const sessionRule = !overlap && window.WoSessionFlow?.explain ? window.WoSessionFlow.explain(error) : '';
             el['event-form-error'].textContent = sessionRule || (overlap
                 ? (/sesi[oó]n con un cliente|cita de estudio|turno/i.test(`${error.details || ''} ${error.message || ''}`)
-                    ? 'Ese horario se superpone con una sesión con un cliente o una cita de estudio. Elegí otro horario o reprogramá la sesión.'
-                    : 'Ese horario se superpone con otro evento. Elegí otro horario o editá el evento existente.')
+                    ? 'Ese horario se superpone con una sesión con un cliente o una cita de estudio. Elige otro horario o reprograma la sesión.'
+                    : 'Ese horario se superpone con otro evento. Elige otro horario o edita el evento existente.')
                 : (error.message || 'No pudimos guardar el evento.'));
         } finally {
             el['save-event'].disabled = false;
@@ -2183,7 +2183,7 @@
         // Una sesión realizada es parte del trabajo entregado: no se cancela
         // desde el calendario (se gestiona en el detalle de la cotización).
         if (isSession && !isOpenSession(editing)) {
-            showToast('Esta sesión ya se registró. Gestionala desde el detalle de la cotización.', true);
+            showToast('Esta sesión ya se registró. Gestiónala desde el detalle de la cotización.', true);
             return;
         }
         const message = isSession

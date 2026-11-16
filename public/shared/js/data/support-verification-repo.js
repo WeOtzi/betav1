@@ -27,7 +27,7 @@
     // ── cifrado ── (ronda 3c) Soporte lee solo los últimos 4 del número de
     // cuenta; el número completo lo entrega el servidor (revealDestination,
     // auditado). Si la migración 20261113104000 todavía no está aplicada, cae a
-    // la columna en claro y la recorta acá (mismo dato que antes).
+    // la columna en claro y la recorta aquí (mismo dato que antes).
     var DEST_SELECT = 'id, artist_user_id, method, label, holder_name, currency, account_identifier_last4, rail, country_code, verification_status, verified_at, is_default, active, metadata_json, created_at, updated_at';
     var DEST_SELECT_LEGACY = 'id, artist_user_id, method, label, holder_name, currency, account_identifier, rail, country_code, verification_status, verified_at, is_default, active, metadata_json, created_at, updated_at';
 

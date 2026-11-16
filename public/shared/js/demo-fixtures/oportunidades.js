@@ -383,7 +383,7 @@
         /* ------------------------------ inbox ------------------------------ */
         // "Ver conversación" (?opportunity=&application=<id>) abre el hilo cuyo
         // context_id es la postulación. En producción los crea el trigger de
-        // 20260829153500_unified_artist_inbox.sql; acá hay uno por postulación,
+        // 20260829153500_unified_artist_inbox.sql; aquí hay uno por postulación,
         // con el estado y las fechas de la postulación.
         var threads = list('inbox_threads');
         var messages = list('inbox_messages');
@@ -430,7 +430,7 @@
             ], 1, false],
             [2, 'rodrigo', 'accepted', [
                 ['artist', 'Puedo hacerlo en una sesión, con dotwork suave para la luna.', at(-10, '15:00')],
-                ['client', 'Acepté tu propuesta. Coordinemos el turno por acá.', daysAgo(7)]
+                ['client', 'Acepté tu propuesta. Coordinemos el turno por aquí.', daysAgo(7)]
             ], 0, false],
             [3, 'sofia', 'rejected', [
                 ['artist', 'Lo haría en tres sesiones, con el ornamental en blackwork sólido.', at(-13, '10:45')],

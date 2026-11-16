@@ -72,7 +72,7 @@
             else out[key] = n;
         });
         var step = toInt(src.slot_step_minutes == null || src.slot_step_minutes === '' ? DEFAULTS.slot_step_minutes : src.slot_step_minutes);
-        if (STEP_OPTIONS.indexOf(step) === -1) errors.slot_step_minutes = 'Elegí un intervalo válido.';
+        if (STEP_OPTIONS.indexOf(step) === -1) errors.slot_step_minutes = 'Elige un intervalo válido.';
         else out.slot_step_minutes = step;
         out.enabled = src.enabled === true || src.enabled === 'true' || src.enabled === 1 || src.enabled === '1';
         var note = src.public_note == null ? '' : String(src.public_note).trim();

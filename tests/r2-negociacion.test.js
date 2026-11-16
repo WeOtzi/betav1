@@ -133,7 +133,7 @@ test('contrapropuesta: valores inválidos y campos ajenos se rechazan con el cam
     assert.equal(M.normalizeChanges('counter', null, current).ok, false);
 });
 
-test('enmienda: precio, sesiones, seña y condiciones; nunca por debajo de lo pagado o agendado', () => {
+test('enmienda: precio, sesiones, anticipo y condiciones; nunca por debajo de lo pagado o agendado', () => {
     const q = agreed({ artist_deposit_pct: 10, final_comment: 'Traer ropa cómoda' });
     const current = M.currentValues('amendment', q);
     assert.deepEqual(current, { final_budget_amount: '2000', final_sessions: '3', artist_deposit_pct: 10, final_comment: 'Traer ropa cómoda' });
@@ -154,7 +154,7 @@ test('enmienda: precio, sesiones, seña y condiciones; nunca por debajo de lo pa
     for (const bad of ['0', '31', '2.5', 'dos']) assert.equal(M.normalizeChanges('amendment', { final_sessions: bad }, current).ok, false, bad);
     for (const bad of ['101', '-1', 'mucho']) assert.equal(M.normalizeChanges('amendment', { artist_deposit_pct: bad }, current).ok, false, bad);
     assert.equal(M.normalizeChanges('amendment', { final_comment: 'x'.repeat(601) }, current).ok, false);
-    // La seña de la cotización manual es la vigente si quotations_db no tiene una propia.
+    // El anticipo de la cotización manual es la vigente si quotations_db no tiene una propia.
     assert.equal(M.currentValues('amendment', agreed(), { manualDepositPct: 30 }).artist_deposit_pct, 30);
 });
 
@@ -170,7 +170,7 @@ test('formulario: lo que estaba vacío y sigue vacío no es un cambio ni un erro
     // Vaciar un dato que tenía valor sí se valida.
     const cleared = M.formInput({ tattoo_body_part: '' }, 'counter', current);
     assert.equal(M.normalizeChanges('counter', cleared, current).field, 'tattoo_body_part');
-    // En una enmienda, vaciar la seña o las condiciones es un cambio válido.
+    // En una enmienda, vaciar el anticipo o las condiciones es un cambio válido.
     const amend = M.formInput({ final_budget_amount: '', artist_deposit_pct: '', final_comment: '' }, 'amendment', { final_budget_amount: '', artist_deposit_pct: 10, final_comment: 'x' });
     assert.deepEqual(amend, { artist_deposit_pct: '', final_comment: '' });
 });
@@ -185,7 +185,7 @@ test('estilos históricos (texto, lista, objeto, { styles }) se leen igual', () 
 });
 
 // ---------------------------------------------------------------- antes → después
-test('antes → después en orden fijo, con montos, sesiones y seña legibles', () => {
+test('antes → después en orden fijo, con montos, sesiones y anticipo legibles', () => {
     const rows = M.diffRows(proposal({
         kind: 'amendment',
         changes: {
@@ -199,7 +199,7 @@ test('antes → después en orden fijo, con montos, sesiones y seña legibles', 
     assert.deepEqual(rows.map((r) => [r.label, r.from, r.to]), [
         ['Precio total', '2.000 USD', '2.500,5 USD'],
         ['Sesiones', '3 sesiones', '1 sesión'],
-        ['Seña', 'Sin seña', '20 %'],
+        ['Anticipo', 'Sin anticipo', '20 %'],
         ['Condiciones', 'Sin condiciones', 'Incluye retoque'],
     ]);
     assert.equal(M.summaryLine(proposal()), 'Presupuesto: 2.000 USD → 1.800 USD · Tamaño: Mediano · 8 a 15 cm → Grande · 15 a 30 cm');
@@ -458,7 +458,7 @@ test('navegador: registra WeotziData.Negotiation y llama al servidor con el toke
     assert.equal(typeof window.WoQuoteNegotiation.panelHtml, 'function');
     const types = listeners.map((l) => l[0]);
     for (const type of ['wo:quotation-detail-rendered', 'click', 'submit', 'visibilitychange']) assert.ok(types.includes(type), type);
-    assert.ok(listeners.some((l) => l[0] === 'click' && l[1] === true), 'intercepta "editá el acuerdo" en captura');
+    assert.ok(listeners.some((l) => l[0] === 'click' && l[1] === true), 'intercepta "edita el acuerdo" en captura');
 
     const repo = window.WeotziData.Negotiation;
     await repo.state('WO 7', 'client');

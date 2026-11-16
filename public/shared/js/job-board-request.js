@@ -1,5 +1,5 @@
 // ============================================
-// WE ÖTZI · JOB BOARD — Publicá tu idea (cliente)
+// WE ÖTZI · JOB BOARD — Publica tu idea (cliente)
 // Rediseño Bauhaus 2026 (Figma 295:14727 · 286:8577 · 286:13942).
 // Vistas: inspiración (opcional) → formulario → revisión → publicar.
 // Cableado preservado del wizard legacy: draft en localStorage, auth-gate
@@ -206,8 +206,8 @@ function renderResumePrompt() {
     container.innerHTML = `
         <div class="jbrq-resume">
             <span class="wo-eyebrow">Borrador guardado</span>
-            <h1 class="wo-h2">Tenés una publicación en curso</h1>
-            <p class="jbrq-sub">Guardamos lo que cargaste. ¿Querés seguir donde la dejaste?</p>
+            <h1 class="wo-h2">Tienes una publicación en curso</h1>
+            <p class="jbrq-sub">Guardamos lo que cargaste. ¿Quieres seguir donde la dejaste?</p>
             <div class="jbrq-resume-actions">
                 <button type="button" class="wo-btn wo-btn--ink wo-btn--hard" onclick="resumeDraft()">Continuar borrador →</button>
                 <button type="button" class="wo-btn wo-btn--ghost" onclick="discardDraft()">Empezar de nuevo</button>
@@ -367,27 +367,27 @@ function deriveRequestTitle(description, styles, bodyPart) {
 window.deriveRequestTitle = deriveRequestTitle;
 
 // ============================================
-// VISTA 0 · INSPIRACIÓN ("Construí tu idea")
+// VISTA 0 · INSPIRACIÓN ("Construye tu idea")
 // ============================================
 
 function renderInspiration(el) {
     el.innerHTML = `
         <header class="jbrq-head">
-            <h1 class="wo-h1 jbrq-title">Construí tu idea</h1>
-            <p class="jbrq-sub">Explorá referencias, descubrí estilos y guardá lo que te inspira antes de publicar tu proyecto.</p>
+            <h1 class="wo-h1 jbrq-title">Construye tu idea</h1>
+            <p class="jbrq-sub">Explora referencias, descubre estilos y guarda lo que te inspira antes de publicar tu proyecto.</p>
         </header>
 
         <section class="jbrq-ai" aria-label="Inspiración con IA">
             <div class="jbrq-ai-copy">
                 <span class="wo-eyebrow jbrq-ai-eyebrow"><span class="jbrq-ai-mark" aria-hidden="true"></span>AI INSPIRATION</span>
-                <h2 class="wo-h2 jbrq-ai-title">¿No sabés exactamente qué buscás?</h2>
-                <p>Contanos tu idea y dejá que We Ötzi encuentre referencias y estilos que puedan inspirarte.</p>
+                <h2 class="wo-h2 jbrq-ai-title">¿No sabes exactamente qué buscas?</h2>
+                <p>Cuéntanos tu idea y deja que We Ötzi encuentre referencias y estilos que puedan inspirarte.</p>
             </div>
             <div class="jbrq-ai-form">
                 <label class="wo-label" for="jbrq-ai-prompt">"QUIERO UN TATUAJE DE…"</label>
                 <textarea id="jbrq-ai-prompt" class="wo-textarea" rows="3" maxlength="400" placeholder="Ej: olas del mar, minimalista, delicado, para el antebrazo"></textarea>
                 <div class="jbrq-ai-actions">
-                    <span class="wo-error-msg wo-hidden" id="jbrq-ai-error">No pudimos generar la imagen. Probá de nuevo en un rato.</span>
+                    <span class="wo-error-msg wo-hidden" id="jbrq-ai-error">No pudimos generar la imagen. Prueba de nuevo en un rato.</span>
                     <button type="button" class="wo-btn wo-btn--direct wo-btn--hard" id="jbrq-ai-btn" onclick="generateInspiration()">INSPIRARME CON AI <img src="/shared/assets/job-board-inspiration/arrow-right.svg" alt="" width="18" height="18"></button>
                 </div>
                 <p class="wo-meta-s wo-muted wo-hidden" id="jbrq-ai-status" role="status" aria-live="polite"></p>
@@ -499,7 +499,7 @@ function renderGallery() {
             <div class="wo-empty jbrq-gallery-empty">
                 <i data-wo-icon="image" aria-hidden="true"></i>
                 <span class="wo-empty-title">Sin referencias para mostrar</span>
-                <p>Probá con otro estilo, pedile una imagen a la IA o creá tu idea directamente.</p>
+                <p>Prueba con otro estilo, pídele una imagen a la IA o crea tu idea directamente.</p>
             </div>
         `;
         return;
@@ -555,7 +555,7 @@ window.toggleGalleryRef = function(card) {
         gallerySelection.splice(idx, 1);
     } else {
         if (gallerySelection.length + uploadedFiles.length >= MAX_FILES) {
-            showFormNotice('Podés llevar hasta ' + MAX_FILES + ' referencias a tu publicación');
+            showFormNotice('Puedes llevar hasta ' + MAX_FILES + ' referencias a tu publicación');
             return;
         }
         gallerySelection.push(url);
@@ -617,7 +617,7 @@ window.generateInspiration = async function() {
 
     const idea = promptEl.value.trim();
     if (!idea) {
-        showFormNotice('Contanos primero qué te gustaría tatuarte');
+        showFormNotice('Cuéntanos primero qué te gustaría tatuarte');
         return;
     }
 
@@ -681,7 +681,7 @@ window.useAiReference = async function(btnEl) {
     const img = document.querySelector('#jbrq-ai-result .jbrq-ai-img');
     if (!img || !img.src) return;
     if (uploadedFiles.length + gallerySelection.length >= MAX_FILES) {
-        showFormNotice('Ya tenés ' + MAX_FILES + ' referencias elegidas');
+        showFormNotice('Ya tienes ' + MAX_FILES + ' referencias elegidas');
         return;
     }
     try {
@@ -697,12 +697,12 @@ window.useAiReference = async function(btnEl) {
         }
         showFormNotice('Referencia agregada · la vas a ver en el formulario');
     } catch (e) {
-        showFormNotice('No pudimos guardar la imagen. Probá de nuevo.');
+        showFormNotice('No pudimos guardar la imagen. Prueba de nuevo.');
     }
 };
 
 // ============================================
-// VISTA 1 · FORMULARIO ("¿Qué tatuaje tenés en mente?")
+// VISTA 1 · FORMULARIO ("¿Qué tatuaje tienes en mente?")
 // ============================================
 
 function zonesList() {
@@ -761,7 +761,7 @@ function renderForm(el) {
         </label>
     `).join('');
 
-    const sizeOptions = ['<option value="" disabled ' + (formData.tattoo_size ? '' : 'selected') + '>Elegí un tamaño</option>']
+    const sizeOptions = ['<option value="" disabled ' + (formData.tattoo_size ? '' : 'selected') + '>Elige un tamaño</option>']
         .concat(SIZES.map(s => `<option value="${s.value}" ${formData.tattoo_size === s.value ? 'selected' : ''}>${s.label}</option>`))
         .join('');
 
@@ -769,8 +769,8 @@ function renderForm(el) {
 
     el.innerHTML = `
         <header class="jbrq-head">
-            <h1 class="wo-h1 jbrq-title">¿Qué tatuaje tenés en mente?</h1>
-            <p class="jbrq-sub">Contanos los detalles y dejá que los tatuadores te encuentren.</p>
+            <h1 class="wo-h1 jbrq-title">¿Qué tatuaje tienes en mente?</h1>
+            <p class="jbrq-sub">Cuéntanos los detalles y deja que los tatuadores te encuentren.</p>
         </header>
 
         <div class="jbrq-form">
@@ -785,10 +785,10 @@ function renderForm(el) {
             <div class="wo-field">
                 <span class="wo-label" id="jbrq-style-label">Estilo</span>
                 <details class="jbrq-style-select" id="jbrq-style-select">
-                    <summary aria-labelledby="jbrq-style-label jbrq-style-value"><span id="jbrq-style-value">${escapeHtml(selectedStyles.join(', ') || 'Elegí un estilo')}</span><img src="/shared/assets/job-board-form/chevron-down.svg" alt="" width="18" height="18"></summary>
+                    <summary aria-labelledby="jbrq-style-label jbrq-style-value"><span id="jbrq-style-value">${escapeHtml(selectedStyles.join(', ') || 'Elige un estilo')}</span><img src="/shared/assets/job-board-form/chevron-down.svg" alt="" width="18" height="18"></summary>
                     <div class="jbrq-style-options">
                         <div class="jbrq-chiprow" id="jbrq-style-chips">${styleChips}</div>
-                        <p class="wo-help">Podés elegir uno o varios · opcional</p>
+                        <p class="wo-help">Puedes elegir uno o varios · opcional</p>
                     </div>
                 </details>
             </div>
@@ -993,7 +993,7 @@ window.toggleStyle = function(chip) {
     chip.setAttribute('aria-pressed', chip.classList.contains('is-active') ? 'true' : 'false');
     formData.tattoo_style = selected;
     const summary = document.getElementById('jbrq-style-value');
-    if (summary) summary.textContent = selected.join(', ') || 'Elegí un estilo';
+    if (summary) summary.textContent = selected.join(', ') || 'Elige un estilo';
     saveDraft();
 };
 
@@ -1096,7 +1096,7 @@ function renderRefSlots() {
             html += `
                 <div class="wo-dropzone jbrq-refslot jbrq-refslot--drop" id="jbrq-dropzone" onclick="triggerFileInput()" onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); triggerFileInput(); }" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" role="button" tabindex="0" aria-label="Subir imagen de referencia">
                     <img class="jbrq-upload-icon" src="/shared/assets/job-board-form/upload.svg" alt="" width="28" height="28">
-                    <p class="jbrq-drop-title">Arrastrá o hacé click</p>
+                    <p class="jbrq-drop-title">Arrastra o haz click</p>
                     <p class="jbrq-drop-help">PNG, JPG o WebP · máx. 5 MB</p>
                 </div>
             `;
@@ -1171,7 +1171,7 @@ async function addFiles(files) {
 
     renderRefSlots();
     if (view === 'inspiration' && uploadedFiles.length > 0) {
-        showFormNotice(uploadedFiles.length + ' referencia(s) cargada(s) · continuá con Crear mi idea');
+        showFormNotice(uploadedFiles.length + ' referencia(s) cargada(s) · continúa con Crear mi idea');
     }
 }
 
@@ -1218,12 +1218,12 @@ window.continueToReview = function() {
         return;
     }
     if (!formData.tattoo_body_part) {
-        showFormNotice('Elegí una parte del cuerpo');
+        showFormNotice('Elige una parte del cuerpo');
         document.getElementById('jbrq-zones')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
     }
     if (!formData.tattoo_size) {
-        showFormNotice('Elegí un tamaño aproximado');
+        showFormNotice('Elige un tamaño aproximado');
         document.getElementById('jbrq-size')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
     }
@@ -1239,7 +1239,7 @@ window.continueToReview = function() {
 };
 
 // ============================================
-// VISTA 2 · REVISIÓN ("Revisá tu publicación")
+// VISTA 2 · REVISIÓN ("Revisa tu publicación")
 // ============================================
 
 function formatNumber(value) {
@@ -1310,7 +1310,7 @@ function renderReview(el) {
 
     el.innerHTML = `
         <header class="jbrq-head">
-            <h1 class="wo-h1 jbrq-title">Revisá tu publicación</h1>
+            <h1 class="wo-h1 jbrq-title">Revisa tu publicación</h1>
             <p class="jbrq-sub">Así la van a ver los tatuadores en el Job Board.</p>
         </header>
 
@@ -1356,7 +1356,7 @@ async function fillLoggedAs() {
         }
         const { data: client } = await WeotziData.Clients.getByUserId(session.user.id);
         const name = client?.full_name || session.user.user_metadata?.full_name || session.user.email;
-        label.textContent = 'Publicás como ' + name;
+        label.textContent = 'Publicas como ' + name;
     } catch (e) { /* silencioso */ }
 }
 
@@ -1366,7 +1366,7 @@ async function fillLoggedAs() {
 
 window.startPublish = async function() {
     if (!_supabase) {
-        showFormNotice('Servicio no disponible. Recargá la página.');
+        showFormNotice('Servicio no disponible. Recarga la página.');
         return;
     }
     try {
@@ -1403,8 +1403,8 @@ function renderAuth(el) {
         <div class="jbrq-auth">
             <button type="button" class="wo-btn wo-btn--ghost wo-btn--s jbrq-auth-back" onclick="setView('review')">← Volver a la revisión</button>
             <header class="jbrq-head">
-                <h1 class="wo-h2 jbrq-title">Publicá tu idea</h1>
-                <p class="jbrq-sub">Necesitás una cuenta para publicarla y recibir propuestas.</p>
+                <h1 class="wo-h2 jbrq-title">Publica tu idea</h1>
+                <p class="jbrq-sub">Necesitas una cuenta para publicarla y recibir propuestas.</p>
             </header>
 
             <div class="wo-tabs jbrq-auth-tabs">
@@ -1427,7 +1427,7 @@ function renderAuth(el) {
                 </div>
                 <div class="wo-field">
                     <label class="wo-label" for="jb-reg-confirm">Confirmar contraseña</label>
-                    <input type="password" id="jb-reg-confirm" class="wo-input" placeholder="Repetí tu contraseña" autocomplete="new-password">
+                    <input type="password" id="jb-reg-confirm" class="wo-input" placeholder="Repite tu contraseña" autocomplete="new-password">
                 </div>
                 <div id="jb-reg-message" class="jbrq-msg" role="status"></div>
                 <button type="button" class="wo-btn wo-btn--ink wo-btn--hard wo-btn--block" id="jb-btn-register" onclick="handleJBRegister()">Crear cuenta y publicar</button>
@@ -1497,8 +1497,8 @@ function renderJBPendingConfirmation() {
         sentAt: pending.sentAt,
         client: _supabase,
         redirectTo: jbConfirmRedirectUrl(),
-        title: 'Revisá tu email para publicar tu idea',
-        note: 'Tu idea y tus referencias quedaron guardadas en este navegador. Cuando abras el link, la retomás lista para publicar.',
+        title: 'Revisa tu email para publicar tu idea',
+        note: 'Tu idea y tus referencias quedaron guardadas en este navegador. Cuando abras el link, la retomas lista para publicar.',
         changeEmailMode: 'callback',
         onChangeEmail: () => {
             // La cuenta anterior queda sin confirmar; la idea sigue en el borrador.
@@ -1509,7 +1509,7 @@ function renderJBPendingConfirmation() {
             if (input) { input.value = ''; input.focus(); }
             const nameInput = document.getElementById('jb-reg-name');
             if (nameInput && pending.name) nameInput.value = pending.name;
-            showAuthMessage('jb-reg-message', 'Escribí el email correcto para crear tu cuenta. Tu idea sigue guardada.', 'info');
+            showAuthMessage('jb-reg-message', 'Escribe el email correcto para crear tu cuenta. Tu idea sigue guardada.', 'info');
         }
     });
     return true;
@@ -1554,7 +1554,7 @@ async function resumeAfterEmailConfirmation() {
     view = 'review';
     saveDraft();
     renderView();
-    showFormNotice('Tu email está confirmado. Revisá tu idea y publicala.');
+    showFormNotice('Tu email está confirmado. Revisa tu idea y publícala.');
     return true;
 }
 
@@ -1564,7 +1564,7 @@ async function resumeAfterEmailConfirmation() {
 
 window.handleJBRegister = async function() {
     if (!_supabase) {
-        showFormNotice('Servicio no disponible. Recargá la página.');
+        showFormNotice('Servicio no disponible. Recarga la página.');
         return;
     }
 
@@ -1578,7 +1578,7 @@ window.handleJBRegister = async function() {
     if (msgEl) { msgEl.textContent = ''; msgEl.className = 'jbrq-msg'; }
 
     if (!name || !email || !password) {
-        showAuthMessage('jb-reg-message', 'Completá todos los campos obligatorios.', 'error');
+        showAuthMessage('jb-reg-message', 'Completa todos los campos obligatorios.', 'error');
         return;
     }
     if (password !== confirm) {
@@ -1675,7 +1675,7 @@ window.handleJBRegister = async function() {
 
         let errorMessage = 'Error al crear la cuenta.';
         if (error.message?.includes('already registered')) {
-            errorMessage = 'Este email ya está registrado. Probá iniciar sesión.';
+            errorMessage = 'Este email ya está registrado. Prueba iniciar sesión.';
         }
         showAuthMessage('jb-reg-message', errorMessage, 'error');
     }
@@ -1683,7 +1683,7 @@ window.handleJBRegister = async function() {
 
 window.handleJBLogin = async function() {
     if (!_supabase) {
-        showFormNotice('Servicio no disponible. Recargá la página.');
+        showFormNotice('Servicio no disponible. Recarga la página.');
         return;
     }
 
@@ -1692,7 +1692,7 @@ window.handleJBLogin = async function() {
     const password = document.getElementById('jb-login-password')?.value;
 
     if (!email || !password) {
-        showAuthMessage('jb-login-message', 'Ingresá tu email y contraseña.', 'error');
+        showAuthMessage('jb-login-message', 'Ingresa tu email y contraseña.', 'error');
         return;
     }
 
@@ -1768,7 +1768,7 @@ function showAuthMessage(elementId, message, type) {
 window.submitRequest = async function() {
     if (isSubmitting) return;
     if (!_supabase) {
-        showFormNotice('Servicio no disponible. Recargá la página.');
+        showFormNotice('Servicio no disponible. Recarga la página.');
         return;
     }
     isSubmitting = true;
@@ -1928,7 +1928,7 @@ window.submitRequest = async function() {
             btn.disabled = false;
             btn.textContent = 'Publicar idea →';
         }
-        showFormNotice('No pudimos publicar tu idea. Probá de nuevo.');
+        showFormNotice('No pudimos publicar tu idea. Prueba de nuevo.');
     }
 };
 

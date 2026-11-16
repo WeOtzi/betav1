@@ -658,7 +658,7 @@
 
 /* ---- Paleta legacy → tokens del DS (ds/tokens.css) ----------------------
    Los alias mantienen vivo todo el CSS wod-* existente sobre la paleta
-   Bauhaus oficial. --ink ya NO se define acá: lo aporta tokens.css.       */
+   Bauhaus oficial. --ink ya NO se define aquí: lo aporta tokens.css.       */
 :root {
   --cream: var(--neutral-100);
   --cream-2: var(--neutral-200);
@@ -1883,7 +1883,7 @@ body.wod-profile-details-page .wod-footer {
   .wod-cotiz__body { display: none; }
 
   /* Agenda → 2-up card grid.
-     El contenedor #wod-agenda-rows YA NO se estilea acá: el markup `.wod-trow`
+     El contenedor #wod-agenda-rows YA NO se estilea aquí: el markup `.wod-trow`
      de esta variante no existe más y la regla convertía la agenda del rediseño
      en una grilla de 2 columnas por debajo de 768px (filas partidas al medio).
      Las reglas `.wod-*` que siguen quedan inertes: ningún markup las usa. */
@@ -2860,7 +2860,7 @@ body.wod-profile-details-page .wod-footer {
 }
 .wo-dash-gallery-cells .gallery-progress-fill { height: 100%; width: 0; background: var(--blue-400); transition: width var(--duration-fast) var(--ease-standard); }
 
-/* ---- CTA · subí tu trabajo (2003:1033) ------------------------------------ */
+/* ---- CTA · sube tu trabajo (2003:1033) ------------------------------------ */
 .wo-dash-cta {
   background: transparent;
   padding: 64.8px var(--space-4) var(--space-6);
@@ -2950,7 +2950,7 @@ body.wod-profile-details-page .wod-footer {
 /* ---- Responsive ----------------------------------------------------------- */
 /* La nav completa (7 items) + marca + cluster derecho no entra por debajo de
    ~1100px: el .wo-topbar del DS degrada a scroll horizontal y deja LOG OUT
-   fuera de vista. Acá pasamos antes al menú de hamburguesa. */
+   fuera de vista. Aquí pasamos antes al menú de hamburguesa. */
 @media (max-width: 1100px) {
   .wo-dash-topbar .wo-topbar-nav { display: none; }
   .wo-dash-burger { display: inline-flex; }

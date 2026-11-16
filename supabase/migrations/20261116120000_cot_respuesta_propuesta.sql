@@ -27,7 +27,7 @@
 -- P4. Respuestas rápidas del artista: tabla artist_message_templates,
 -- compartida con el frente "inbox" (kind = 'chat'); este frente usa
 -- kind = 'quote'. Si la tabla ya existe (migración del inbox), el
--- "create table if not exists" no la toca y las policies de acá solo usan
+-- "create table if not exists" no la toca y las policies de aquí solo usan
 -- user_id. Los defaults del producto viven en el código, no en la tabla.
 --
 -- Aditiva e idempotente. Reversa:

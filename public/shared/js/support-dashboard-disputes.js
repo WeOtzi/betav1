@@ -4,7 +4,7 @@
 // el cliente o el artista sobre una sesión (cambio sin acuerdo, sesión pasada,
 // ausencia…). Mientras el ticket está abierto la cotización figura "En
 // disputa" y no se puede completar ni cambiar el acuerdo: soporte la destraba
-// al resolver o cerrar acá. La resolución les llega por correo a las dos partes.
+// al resolver o cerrar aquí. La resolución les llega por correo a las dos partes.
 // Datos SOLO por WeotziData.SupportDisputes (/api/support/disputes…,
 // lib/routes/soporte-disputas.js): el servidor autoriza al agente.
 // Mismo patrón que DENUNCIAS: envuelve window.switchTab, pinta #dsq-panel y

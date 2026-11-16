@@ -111,7 +111,7 @@ test('historial de cambios con el copy del Figma', () => {
     const events = M.historyEvents(q, history, [session(1, 'completed', -4, { duration_hours: 2.6667, photo_urls: ['a', 'b', 'c'] })], []);
     const texts = events.map((e) => e.text);
     assert.equal(texts[0], 'Solicitud creada por el cliente desde el cotizador.');
-    assert.equal(texts[1], 'Vista por vos. Prioridad asignada: alta.');
+    assert.equal(texts[1], 'Vista por ti. Prioridad asignada: alta.');
     assert.equal(texts[2], 'Respuesta enviada: $410.000 · 3 sesiones · 2h 30m.');
     assert.match(texts[3], /^Acuerdo confirmado: \$410\.000 · 3 sesiones · primera \d{2} [A-Z]{3} 2026\.$/);
     assert.equal(texts[4], 'Trabajo iniciado. Gestión de sesiones habilitada.');

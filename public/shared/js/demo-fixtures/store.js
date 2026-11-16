@@ -147,7 +147,7 @@
             seller_type: 'artist', seller_id: artistId,
             store_tagline: 'Flash propio, prints y merch del estudio. Datos de ejemplo del modo demo.',
             contact_channel: 'WhatsApp +54 9 11 5555-0100 · respondo en el día',
-            payment_instructions: 'Transferí el monto exacto, en la moneda del producto, al alias de ejemplo DEMO.STORE.WO y mandame el comprobante por WhatsApp.',
+            payment_instructions: 'Transfiere el monto exacto, en la moneda del producto, al alias de ejemplo DEMO.STORE.WO y mándame el comprobante por WhatsApp.',
             shipping_policy: 'Despacho en 3 días hábiles por correo con seguimiento.',
             return_policy: 'Cambios de talle dentro de los 10 días, con la prenda sin uso. Los diseños digitales no tienen devolución una vez descargados.',
             pickup_address: 'Dirección de ejemplo · Palermo, Buenos Aires',
@@ -157,7 +157,7 @@
             seller_type: 'artist', seller_id: MARA,
             store_tagline: 'Blackwork y ornamental desde Córdoba.',
             contact_channel: '@mara.ink en Instagram',
-            payment_instructions: 'Transferencia al alias de ejemplo MARA.INK.DEMO. Escribime con el número de pedido.',
+            payment_instructions: 'Transferencia al alias de ejemplo MARA.INK.DEMO. Escríbeme con el número de pedido.',
             shipping_policy: 'Envíos a todo el país en 5 días hábiles.', return_policy: 'Sin devoluciones en diseños digitales.',
             pickup_address: null, authorship_attested_at: daysAgo(120), created_at: daysAgo(150), updated_at: daysAgo(20)
         }];
@@ -292,7 +292,7 @@
             order(mine({ id: O6, order_number: 'ST-AD62E019', buyer_user_id: julia.id, buyer_name: julia.name, buyer_email: julia.email,
                 status: 'paid', fulfillment_method: 'pickup', fulfillment_status: 'ready_for_pickup', currency: 'ARS',
                 subtotal_amount: 6000, total_amount: 6000, pickup_details: MY_SETTINGS.pickup_address,
-                seller_message: 'Ya está listo. Pasá de martes a sábado de 12 a 19 h.',
+                seller_message: 'Ya está listo. Pasa de martes a sábado de 12 a 19 h.',
                 paid_at: daysAgo(2), payment_collected_by: 'seller', payment_confirmed_by: artistId, ready_at: hoursAgo(5), expires_at: daysAgo(2),
                 idempotency_key: 'demo-o6', created_at: daysAgo(3), updated_at: hoursAgo(5) })),
             // Compras del usuario demo a Mara Ink.
@@ -304,7 +304,7 @@
                 currency: 'ARS', subtotal_amount: 18000, shipping_amount: 4000, total_amount: 22000,
                 shipping_address: { recipient: myName(), line1: 'Dirección de ejemplo 100', line2: null, city: 'Buenos Aires', region: 'CABA', postal_code: '1414', country: 'AR', phone: null },
                 tracking_carrier: 'Correo de ejemplo', tracking_code: 'CE987654321AR', tracking_url: 'https://seguimiento.example.com/CE987654321AR',
-                seller_message: 'Despachada. Cualquier cosa escribime por Instagram.',
+                seller_message: 'Despachada. Cualquier cosa escríbeme por Instagram.',
                 paid_at: daysAgo(3), payment_collected_by: 'seller', payment_confirmed_by: MARA, shipped_at: daysAgo(1), expires_at: daysAgo(3),
                 idempotency_key: 'demo-p2', created_at: daysAgo(4), updated_at: daysAgo(1) }))
         ];
@@ -598,7 +598,7 @@
                     fail('design_no_longer_available');
                 }
             }
-            // Validado: a partir de acá se muta.
+            // Validado: a partir de aquí se muta.
             if (reopening) {
                 if (reopen) reopen();
                 order = patch(store, 'store_orders', order.id, { status: 'pending_payment',
@@ -660,7 +660,7 @@
             }
             // 2. Términos vigentes (el email se da por confirmado en el demo).
             if (args.p_terms_version !== termsVersion()) fail('terms_version_mismatch');
-            // 3. Producto activo; una reserva exclusiva vencida se vence acá (sin
+            // 3. Producto activo; una reserva exclusiva vencida se vence aquí (sin
             // pago informado, o con el aviso vencido hace más de 7 días).
             var p = find(store, 'store_products', args.p_product_id);
             if (!p || p.status !== 'active') fail('product_unavailable');

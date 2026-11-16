@@ -25,9 +25,9 @@
     var MASK = '···';
 
     var MESSAGES = {
-        whatsappFormat: 'Usá el formato internacional, por ejemplo +54 9 11 1234 5678',
+        whatsappFormat: 'Usa el formato internacional, por ejemplo +54 9 11 1234 5678',
         whatsappDuplicate: 'Ese WhatsApp ya está asociado a otra cuenta de We Ötzi.',
-        emailInvalid: 'Ingresá un correo válido.'
+        emailInvalid: 'Ingresa un correo válido.'
     };
 
     // Saca espacios (también los no separables), guiones, puntos y paréntesis.

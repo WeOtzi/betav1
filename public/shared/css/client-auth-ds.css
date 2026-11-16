@@ -47,7 +47,7 @@
 /* Spinner que inyecta client-auth.js dentro del botón en estado loading */
 .ca-form .spinner{width:18px;height:18px;border-radius:var(--radius-circle);border:2px solid var(--neutral-400);border-top-color:var(--white);animation:om-spin var(--duration-spin) linear infinite}
 
-/* ---- Divider "O continuá con" ---- */
+/* ---- Divider "O continúa con" ---- */
 .ca-divider{display:flex;align-items:center;gap:var(--space-3);color:var(--text-faint);font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase}
 .ca-divider::before,.ca-divider::after{content:"";flex:1;height:0;border-top:var(--border-hairline) solid var(--border-subtle)}
 

@@ -44,7 +44,7 @@
         suggestError: false,
     };
     var els = {};
-    var SUGGEST_ERROR = 'No pudimos guardar el cambio. Probá de nuevo.';
+    var SUGGEST_ERROR = 'No pudimos guardar el cambio. Prueba de nuevo.';
     var SUGGEST_ERROR_MS = 6000;
     var suggestErrorTimer = 0;
 
@@ -407,7 +407,7 @@
                     return {
                         key: 'ses:' + s.id, type: 'recordatorio', icon: 'calendar',
                         title: 'Recordatorio',
-                        desc: f.when + ' tenés una sesión con ' + who + (f.time ? ' a las ' + f.time + '.' : '.'),
+                        desc: f.when + ' tienes una sesión con ' + who + (f.time ? ' a las ' + f.time + '.' : '.'),
                         ts: reminderStamp(new Date(s.session_date).getTime() - 48 * 3600000, s.created_at),
                         unread: !seen.has('ses:' + s.id), href: feedHref('session', { session: s }, '/calendar'),
                     };
@@ -524,7 +524,7 @@
                     return {
                         key: key, type: 'store', icon: 'shopping-bag',
                         title: 'Pago informado',
-                        desc: 'Pedido #' + storeOrderNumber(o) + ' · ' + (due ? 'Confirmalo antes del ' + due + '.' : 'Confirmalo desde tu Store.'),
+                        desc: 'Pedido #' + storeOrderNumber(o) + ' · ' + (due ? 'Confírmalo antes del ' + due + '.' : 'Confírmalo desde tu Store.'),
                         ts: o.buyer_payment_reported_at, unread: !seen.has(key), href: storeOrderHref(o),
                     };
                 }));
@@ -536,7 +536,7 @@
                         key: key, type: 'store', icon: 'package',
                         title: 'Pedido por preparar',
                         desc: 'Pedido #' + storeOrderNumber(o) + ' · ' + (item.title ? item.title + ' para ' + who : 'Compra de ' + who) + '. '
-                            + (o.fulfillment_method === 'pickup' ? 'Avisale cuando esté listo para retirar.' : 'Preparalo y cargá el seguimiento.'),
+                            + (o.fulfillment_method === 'pickup' ? 'Avísale cuando esté listo para retirar.' : 'Prepáralo y carga el seguimiento.'),
                         ts: o.paid_at || o.updated_at || o.created_at, unread: !seen.has(key), href: storeOrderHref(o),
                     };
                 }));
@@ -628,8 +628,8 @@
         var hasSwitch = !!(W && typeof W.setSuggestions === 'function');
         var suggestOn = suggestionsOn(W);
         return '<a class="wo-oam-link" id="wo-oam-assist" href="' + esc(appPath('/artist/account?asistido=1#perfil')) + '"><span class="wo-oam-ic">' + iconEl('check-square') + '</span>'
-            + (assistOn ? 'Modo asistido · ver mis pasos' : 'Modo asistido · configurá tu perfil') + '</a>'
-            // Siempre visible (el final del recorrido remite acá); con el demo
+            + (assistOn ? 'Modo asistido · ver mis pasos' : 'Modo asistido · configura tu perfil') + '</a>'
+            // Siempre visible (el final del recorrido remite aquí); con el demo
             // prendido arranca el recorrido sin navegar.
             + '<a class="wo-oam-link" id="wo-oam-tour" href="' + esc(appPath('/artist/dashboard')) + '?demo=1&amp;tour=1"><span class="wo-oam-ic">' + iconEl('compass') + '</span>Recorrido guiado · modo demo</a>'
             + (demo ? '<button type="button" class="wo-oam-link" id="wo-oam-demo-exit"><span class="wo-oam-ic">' + iconEl('log-out') + '</span>Salir del modo demo</button>' : '')
@@ -640,7 +640,7 @@
                 + (state.suggestError ? '<p class="wo-oam-err" id="wo-oam-suggest-err" role="alert">' + esc(SUGGEST_ERROR) + '</p>' : '') : '');
     }
     // El servidor no guardó el switch: WoDemo ya lo volvió al valor anterior
-    // (el re-render lo lee de suggestionsEnabled()); acá solo se avisa un rato.
+    // (el re-render lo lee de suggestionsEnabled()); aquí solo se avisa un rato.
     function setSuggestError(on) {
         if (suggestErrorTimer) { clearTimeout(suggestErrorTimer); suggestErrorTimer = 0; }
         if (!on && !state.suggestError) return;
@@ -775,7 +775,7 @@
             + '<button type="button" class="wo-oam-mark"' + (total ? '' : ' disabled') + '>Marcar todas como leídas</button>'
             + '</div>'
             + '<div class="wo-oam-list">'
-            + (items || '<p class="wo-oam-empty">Sin novedades por ahora. Cuando pase algo, lo vas a ver acá.</p>')
+            + (items || '<p class="wo-oam-empty">Sin novedades por ahora. Cuando pase algo, lo vas a ver aquí.</p>')
             + '</div>';
 
         els.panel.querySelector('.wo-oam-x').addEventListener('click', function () { setPanel(false); });
@@ -945,7 +945,7 @@
                 return Boolean(window.WoNotificationFeedModel);
             }).catch(function (e) { console.warn('[wo-menu] contraofertas:', e && e.message); }),
             // EP-08: avisos guardados (negociación y sesiones). Normalmente ya lo
-            // cargó wo-notify.js; acá se asegura para la primera pintada.
+            // cargó wo-notify.js; aquí se asegura para la primera pintada.
             loadCounterRepository('/shared/js/data/notifications-repo.js', function () {
                 var D = window.WeotziData;
                 return Boolean(D && D.Notifications && typeof D.Notifications.listStored === 'function');

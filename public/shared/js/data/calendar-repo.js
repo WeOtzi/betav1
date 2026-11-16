@@ -299,7 +299,7 @@
             sourceId: String(booking.id),
             readonly: true,
             href: null,
-            readonlyNote: `Cita agendada por ${studioName}. La gestiona el estudio: escribile si necesitás cambiarla.`,
+            readonlyNote: `Cita agendada por ${studioName}. La gestiona el estudio: escríbele si necesitas cambiarla.`,
             type: 'confirmed_session',
             title: `Cita en ${studioName}: ${clientName}`,
             clientName,
@@ -373,7 +373,7 @@
         return remindersToEvents(reminders, rangeStart, rangeEnd);
     }
 
-    // Cotizaciones del artista (una sola consulta por carga del mural): de acá
+    // Cotizaciones del artista (una sola consulta por carga del mural): de aquí
     // salen los turnos (quotation_sessions) y las solicitudes pendientes.
     async function listArtistQuotes(artistUserId) {
         if (!D.Quotations) return [];
@@ -387,7 +387,7 @@
 
     // "Solicitud pendiente" (801:542): proyección de solo lectura de las
     // cotizaciones que esperan respuesta y tienen una fecha preferida concreta.
-    // Abre el detalle de la cotización; no se crea ni se edita desde acá.
+    // Abre el detalle de la cotización; no se crea ni se edita desde aquí.
     function listPendingRequestsProjection(quotations, rangeStart, rangeEnd) {
         if (!Model) return [];
         return Model.pendingRequestEvents(quotations, rangeStart, rangeEnd);
@@ -714,7 +714,7 @@
         // la convención guarda además su nombre en artist_trips.event_name.
         async createTripFromEvent(input) {
             if (!D.Travel || typeof D.Travel.create !== 'function') {
-                throw new Error('No pudimos conectar con Travel. Probá de nuevo en un rato.');
+                throw new Error('No pudimos conectar con Travel. Prueba de nuevo en un rato.');
             }
             if (!Model) throw new Error('Falta calendar-model.js en la página.');
             const trip = Model.tripPayloadFromEvent(input);

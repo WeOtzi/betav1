@@ -211,7 +211,7 @@
             name,
             username: t.artist_username || '',
             artistId: t.artist_id || null,
-            preview: t.last_message || (t.synthetic ? 'Todavía no hay mensajes · Escribí el primero' : ''),
+            preview: t.last_message || (t.synthetic ? 'Todavía no hay mensajes · Escribe el primero' : ''),
             lastAt: t.last_message_at,
             lastFromArtist: t.last_message_sender === 'artist',
             unread: Number(t.unread_for_client) || 0,
@@ -351,8 +351,8 @@
             const copy = $('cch-list-empty-copy');
             if (copy) {
                 if (searchTerm) copy.textContent = 'No encontramos conversaciones para tu búsqueda.';
-                else if (activeTab === 'sin-leer') copy.textContent = 'No tenés mensajes sin leer.';
-                else if (activeTab === 'reservas') copy.textContent = 'Todavía no tenés reservas con sesión programada.';
+                else if (activeTab === 'sin-leer') copy.textContent = 'No tienes mensajes sin leer.';
+                else if (activeTab === 'reservas') copy.textContent = 'Todavía no tienes reservas con sesión programada.';
                 else if (activeTab === 'cotizaciones') copy.textContent = 'No hay conversaciones de cotizaciones.';
                 else copy.textContent = 'No hay conversaciones que coincidan con este filtro.';
             }
@@ -440,7 +440,7 @@
             console.error('[chats] error cargando mensajes:', err);
             if (seq === openSeq) {
                 messagesEl.textContent = '';
-                messagesEl.appendChild(el('div', 'cch-messages-empty', 'No pudimos cargar los mensajes. Recargá la página.'));
+                messagesEl.appendChild(el('div', 'cch-messages-empty', 'No pudimos cargar los mensajes. Recarga la página.'));
             }
             return;
         }
@@ -699,7 +699,7 @@
         if (!items.length) {
             const row = findRow(currentKey);
             host.appendChild(el('div', 'cch-messages-empty', row && row.synthetic
-                ? 'Todavía no hay mensajes. Escribile al artista para empezar la conversación.'
+                ? 'Todavía no hay mensajes. Escríbele al artista para empezar la conversación.'
                 : 'Todavía no hay mensajes en esta conversación.'));
             return;
         }
@@ -875,7 +875,7 @@
         if ($('cch-voice')) $('cch-voice').disabled = !enabled;
         if ($('cch-quick')) $('cch-quick').disabled = !enabled;
         const why = enabled ? '' : (reason || CLOSED_FALLBACK_REASON);
-        $('cch-input').placeholder = enabled ? 'Escribí un mensaje…' : CLOSED_FALLBACK_REASON;
+        $('cch-input').placeholder = enabled ? 'Escribe un mensaje…' : CLOSED_FALLBACK_REASON;
         paintClosedNote(why);
         syncSend();
     }
@@ -1076,8 +1076,8 @@
             console.error('[chats] error enviando mensaje:', err);
             renderMessages();
             showComposerError(files.length
-                ? 'No pudimos enviar todos los adjuntos. Los pendientes siguen acá para reintentar.'
-                : 'No pudimos enviar el mensaje. Probá de nuevo.');
+                ? 'No pudimos enviar todos los adjuntos. Los pendientes siguen aquí para reintentar.'
+                : 'No pudimos enviar el mensaje. Prueba de nuevo.');
         } finally {
             sending = false;
             syncSend();

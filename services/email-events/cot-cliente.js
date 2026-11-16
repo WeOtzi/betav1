@@ -38,7 +38,7 @@ function attribs(p) {
 module.exports = {
     client_quotation_accepted_receipt: {
         name: 'Cliente: aceptó la propuesta (comprobante)',
-        description: 'Confirmación al cliente de que aceptó la propuesta del artista y de los próximos pasos (turno y seña se coordinan con el artista).',
+        description: 'Confirmación al cliente de que aceptó la propuesta del artista y de los próximos pasos (turno y anticipo se coordinan con el artista).',
         templateHint: 'quotation-approved',
         serverOnly: true,
         recipient: p => p.client_email || p.recipient_email || null,
@@ -50,7 +50,7 @@ module.exports = {
             preheader: d => `Total ${text(d.budget_text, 'a confirmar')}. El artista ya tiene tu respuesta.`,
             eyebrow: 'COTIZACIÓN / ACEPTADA',
             headline: () => 'Aceptaste la propuesta.',
-            intro: d => `Le avisamos a ${text(d.artist_name, 'tu artista')}. El próximo paso es coordinar el turno y la seña con el artista desde el chat de la cotización. We Ötzi no cobra la seña por ahora: pagala solo por los medios que te indique el artista.`,
+            intro: d => `Le avisamos a ${text(d.artist_name, 'tu artista')}. El próximo paso es coordinar el turno y el anticipo con el artista desde el chat de la cotización. We Ötzi no cobra el anticipo por ahora: págalo solo por los medios que te indique el artista.`,
             rows: d => [
                 ['Cotización', text(d.quote_id)],
                 ['Artista', text(d.artist_name, '—')],

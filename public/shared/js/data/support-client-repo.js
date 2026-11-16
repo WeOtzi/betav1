@@ -80,7 +80,7 @@
         // { conversation, messages }.
         async openConversation(pageContext) {
             const headers = await authHeaders();
-            if (!headers.Authorization) throw new Error('Iniciá sesión para escribir a soporte.');
+            if (!headers.Authorization) throw new Error('Inicia sesión para escribir a soporte.');
             const res = await fetch(basePath() + '/api/support-chat/conversation', {
                 method: 'POST',
                 headers,

@@ -442,7 +442,7 @@ test('syncUser: invalid_grant marca needs_reauth y el job lo saltea', async () =
     assert.equal(r.error, 'invalid_grant');
     const conn = db.state.connections.get(USER);
     assert.equal(conn.needs_reauth, true);
-    assert.match(conn.last_error, /Volvé a conectar/);
+    assert.match(conn.last_error, /Vuelve a conectar/);
     assert.ok(!conn.last_error.includes('REFRESH'));
     assert.deepEqual(await svc2.runAll(), { users: 0, ok: 0, failed: 0 });
     assert.ok(svc);

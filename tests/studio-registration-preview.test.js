@@ -73,7 +73,7 @@ test('studio preview validates the entire registration before creating any parti
     await h.client.auth.signOut();
     const anonymous = await h.client.rpc('complete_studio_registration', { p_profile: registration, p_locations: registration.locations });
     assert.equal(anonymous.status, 400);
-    assert.match(anonymous.error.message, /iniciá sesión/);
+    assert.match(anonymous.error.message, /inicia sesión/);
     assert.deepEqual(h.runtime.getStore().dump(), before);
     assert.equal(h.requests.length, 0);
 });

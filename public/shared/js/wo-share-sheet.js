@@ -339,7 +339,7 @@
                     setTimeout(function () { label.textContent = 'Copiar enlace'; }, 2000);
                 }
                 track('copy');
-            }).catch(function () { announce('No pudimos copiar. Seleccioná el enlace y copialo a mano.'); });
+            }).catch(function () { announce('No pudimos copiar. Selecciona el enlace y cópialo a mano.'); });
             return;
         }
         if (act === 'native') { nativeShare(); return; }

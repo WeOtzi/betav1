@@ -856,7 +856,7 @@
       function applyLink() {
         var href = normalizeLinkInput(linkInput.value);
         if (!href) {
-          linkError.textContent = 'Ingresá un enlace válido: https://… o un email.';
+          linkError.textContent = 'Ingresa un enlace válido: https://… o un email.';
           linkError.hidden = false;
           linkInput.setAttribute('aria-invalid', 'true');
           linkInput.focus();

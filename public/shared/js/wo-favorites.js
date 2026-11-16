@@ -290,7 +290,7 @@
         if (!loadPromise) {
             loadPromise = load();
             // Fuera de la cadena de carga: guardar la intención pendiente vuelve
-            // a pedir ready(), y esperarla acá adentro se trabaría a sí misma.
+            // a pedir ready(), y esperarla aquí adentro se trabaría a sí misma.
             loadPromise.then(applyPendingIntent);
         }
         return loadPromise;

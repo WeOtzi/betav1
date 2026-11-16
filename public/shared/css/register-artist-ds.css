@@ -967,7 +967,7 @@ a.ra-continue:hover{color:var(--white);text-decoration:none}
 .ra-continue:disabled{background:var(--neutral-400);border-color:var(--neutral-400);color:var(--neutral-100);opacity:.6}
 .ra-continue--confirm{height:35px}
 
-/* Toggles de "¿Dónde mostrás tu trabajo?" (ink + mono 11) */
+/* Toggles de "¿Dónde muestras tu trabajo?" (ink + mono 11) */
 .link-toggle{min-height:31.6px;padding:8.6px 13.6px;font-size:11px;letter-spacing:0.04em}
 .link-toggle.is-active{background:var(--ink);border-color:var(--ink);color:var(--white)}
 .link-toggles + .ra-fields{margin-top:var(--space-3)}
@@ -1159,7 +1159,7 @@ body.ra-styles-open{overflow:hidden}
 .ra-nav-item{font-size:10px;letter-spacing:0.05em;gap:0}
 .ra-nav-item.is-done .ra-check{width:8px;margin-right:4px}
 
-/* Cabecera del registro: 16/24, ancho 525px (corta después de "Podés") */
+/* Cabecera del registro: 16/24, ancho 525px (corta después de "Puedes") */
 .ra-intro-eyebrow{margin-bottom:9.1px}
 .ra-intro-title{margin-bottom:9.1px}
 .ra-intro-lead{max-width:525px;padding-top:4.9px;font-size:16px;line-height:24px}
@@ -1196,7 +1196,7 @@ body.register-page .ra-styles-search input::placeholder{color:var(--ra-placehold
 .ra-group[data-group="oficio"] .ra-hint{margin-bottom:12px;font-size:14px}
 .ra-group[data-group="oficio"] .ra-actions{margin-top:80px}
 
-/* 05 · Cómo trabajás: TU DIRECCIÓN en Inter, como el valor del frame 801:1094 */
+/* 05 · Cómo trabajas: TU DIRECCIÓN en Inter, como el valor del frame 801:1094 */
 .address-picker-wrapper #address_search,
 .address-picker-wrapper .weotzi-address-picker-input{font-family:var(--font-body);font-size:var(--body-m-size);letter-spacing:0}
 .address-picker-wrapper #address_search:focus{transform:none}
@@ -1270,7 +1270,7 @@ body.igi-open .ra-topbar{z-index:0}
   .summary-row{grid-template-columns:minmax(0,1fr) auto;gap:var(--space-1) var(--space-4)}
 }
 
-/* 05 · Cómo trabajás (801:1094): tarjetas de 84.2px (18.6 + borde de 1px), sin
+/* 05 · Cómo trabajas (801:1094): tarjetas de 84.2px (18.6 + borde de 1px), sin
    relleno, kicker mono 10 ink y valor 24px. La elegida va en ink sin sombra;
    la sombra dura de 3px queda para hover (801:1095 muestra la tarjeta bajo
    el puntero). No hay token de sombra de 3px: se usa --neutral-500 a mano. */
@@ -1367,7 +1367,7 @@ body.register-page .bauhaus-footer{display:none}
 /* 04 · Tu presencia (801:1091–801:1093) */
 /* Presentación: 99.2px de alto, texto a 13.6 / 17.6 del borde */
 .ra-textarea{height:99.2px;min-height:99.2px;padding:12.6px 17.6px}
-/* "¿Dónde mostrás tu trabajo?": 22px bajo el campo, 10px hasta los toggles */
+/* "¿Dónde muestras tu trabajo?": 22px bajo el campo, 10px hasta los toggles */
 .ra-sublabel{margin:22px 0 10px;line-height:17px}
 /* Toggles de 31.6px con 10px de separación */
 .link-toggles{gap:10px}

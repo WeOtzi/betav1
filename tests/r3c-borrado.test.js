@@ -111,13 +111,13 @@ test('lib: la ejecución exige solicitud aprobada y cero bloqueos recalculados',
 });
 
 test('lib: payload de email por estado, idempotente y sin datos inventados', () => {
-    const base = { id: RID, user_id: UID, role: 'client', email_snapshot: 'ana@example.com', name_snapshot: 'Ana', support_notes: 'Tenés un pedido pendiente.' };
+    const base = { id: RID, user_id: UID, role: 'client', email_snapshot: 'ana@example.com', name_snapshot: 'Ana', support_notes: 'Tienes un pedido pendiente.' };
     const pending = AD.buildEmailPayload({ ...base, status: 'pending' }, 'https://weotzi.com/beta/');
     assert.equal(pending.eventId, 'account_deletion_received');
     assert.equal(pending.payload.email, 'ana@example.com');
     assert.equal(pending.payload.account_url, 'https://weotzi.com/beta/client/profile#seguridad');
     assert.equal(pending.idempotencyKey, `account_deletion:${RID}:pending`);
-    assert.equal(AD.buildEmailPayload({ ...base, status: 'rejected' }, '').payload.support_note, 'Tenés un pedido pendiente.');
+    assert.equal(AD.buildEmailPayload({ ...base, status: 'rejected' }, '').payload.support_note, 'Tienes un pedido pendiente.');
     assert.equal(AD.buildEmailPayload({ ...base, status: 'approved', role: 'studio' }, 'x').payload.account_url, 'x/studio/dashboard#cuenta');
     assert.equal(AD.buildEmailPayload({ ...base, status: 'completed' }, 'x').payload.account_url, 'x/');
     assert.equal(AD.buildEmailPayload({ ...base, status: 'in_review' }, 'x'), null, 'en revisión no manda email');
@@ -247,7 +247,7 @@ test('widget: confirmación ELIMINAR, estado vigente y bloqueos sin links extern
     const html = Widget.blockerListHtml([{ ...block, label: '<b>x</b>', href: 'https://evil.com' }], 'vacío');
     assert.ok(!html.includes('<b>x</b>') && !html.includes('evil.com'));
     assert.match(Widget.blockerListHtml([], 'Sin pendientes'), /Sin pendientes/);
-    assert.match(Widget.errorText({ message: 'duplicate 23505' }), /Ya tenés una solicitud/);
+    assert.match(Widget.errorText({ message: 'duplicate 23505' }), /Ya tienes una solicitud/);
 });
 
 test('UI: artista, cliente y estudio montan "Eliminar mi cuenta"; el cliente ya no ve el mailto', () => {
@@ -289,7 +289,7 @@ test('soporte: cola BAJAS DE CUENTA con reglas de decisión y ejecución', () =>
     assert.equal(Queue.buildReview('approved', '', null).error, Queue.MSG.blocked, 'sin bloqueos en vivo no aprueba');
     assert.equal(Queue.buildReview('approved', '', [warn]).action, 'approved');
     assert.equal(Queue.buildReview('rejected', 'no', []).field, 'note');
-    assert.equal(Queue.buildReview('blocked', 'Tenés saldo.', [block]).action, 'blocked');
+    assert.equal(Queue.buildReview('blocked', 'Tienes saldo.', [block]).action, 'blocked');
     assert.equal(Queue.buildReview('completed', '', []).error, Queue.MSG.generic, 'completed solo por el servidor');
     assert.equal(Queue.canExecute({ status: 'approved' }, []), true);
     assert.equal(Queue.canExecute({ status: 'approved' }, [check]), false);
@@ -327,5 +327,5 @@ test('política de privacidad explica el proceso de baja', () => {
     assert.match(html, /id="baja-de-cuenta"/);
     assert.match(html, /Eliminar mi cuenta/);
     assert.match(html, /wallet \(saldo disponible o retiros en proceso\)/);
-    assert.match(html, /podés cancelar la solicitud/);
+    assert.match(html, /puedes cancelar la solicitud/);
 });

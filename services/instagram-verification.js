@@ -50,9 +50,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 const UNAVAILABLE_CODE = 'IG_VERIFICATION_UNAVAILABLE';
 const UNAVAILABLE_ERROR = 'La validación de Instagram se habilita pronto.';
-const GENERIC_ERROR = 'No pudimos completar la validación de Instagram. Probá de nuevo en un rato.';
-const MISSING_HANDLE_ERROR = 'Cargá tu usuario de Instagram en Mi perfil antes de validar.';
-const INVALID_HANDLE_ERROR = 'Ese usuario de Instagram no es válido. Usá solo letras, números, puntos y guiones bajos.';
+const GENERIC_ERROR = 'No pudimos completar la validación de Instagram. Prueba de nuevo en un rato.';
+const MISSING_HANDLE_ERROR = 'Carga tu usuario de Instagram en Mi perfil antes de validar.';
+const INVALID_HANDLE_ERROR = 'Ese usuario de Instagram no es válido. Usa solo letras, números, puntos y guiones bajos.';
 const DM_URL = 'https://ig.me/m/weotzi';
 const INSTRUCTIONS = Object.freeze({
     account: 'weotzi',
@@ -661,7 +661,7 @@ async function confirmForSupportHandler(req, res) {
     const force = body.force === true;
     const hasCode = body.code != null && String(body.code).trim() !== '';
     if (!hasCode && !force) {
-        return res.status(400).json({ success: false, code: 'IG_CODE_REQUIRED', error: 'Indicá el código que mandó el artista o confirmá sin código.' });
+        return res.status(400).json({ success: false, code: 'IG_CODE_REQUIRED', error: 'Indica el código que mandó el artista o confirma sin código.' });
     }
     const codeHash = hasCode ? hashCode(body.code) : null;
     if (hasCode && !codeHash) {
@@ -679,7 +679,7 @@ async function confirmForSupportHandler(req, res) {
     }
     const expired = row.status === 'expired' || timeOf(row.expires_at) <= deps.now();
     if (expired && !force) {
-        return res.status(409).json({ success: false, code: 'IG_CODE_EXPIRED', error: 'El código venció. Confirmá sin código o pedile al artista que genere uno nuevo.' });
+        return res.status(409).json({ success: false, code: 'IG_CODE_EXPIRED', error: 'El código venció. Confirma sin código o pídele al artista que genere uno nuevo.' });
     }
 
     const result = await markVerified(row, {

@@ -165,7 +165,7 @@ test('hoja: formatos en español neutro (montos, fechas, duración, políticas)'
     for (const sentence of Object.values(SM.POLICY_TEXT)) {
         assert.doesNotMatch(sentence, /cancelás|podés|querés/i, 'sin voseo');
     }
-    assert.equal(SM.policyText('sin-sena'), 'No se pide seña. Puedes cancelar sin costo.');
+    assert.equal(SM.policyText('sin-sena'), 'No se pide anticipo. Puedes cancelar sin costo.');
     assert.equal(SM.policyText('desconocida'), '');
     assert.equal(SM.fileName({ quote_id: 'COT-AB12' }, 'png'), 'cotizacion-COT-AB12.png');
     assert.equal(SM.fileName({ quote_id: '../../x y' }, 'pdf'), 'cotizacion-x-y.pdf');
@@ -186,7 +186,7 @@ test('hoja: la vista arma propuesta, desglose, términos y artista en texto plan
     assert.equal(view.totalLabel, 'Presupuesto');
     assert.equal(view.total, '900 USD');
     assert.deepEqual(view.proposalRows, [
-        ['Sesiones', '3 sesiones'], ['Duración por sesión', '4 h'], ['Seña para reservar', '270 USD · 30 %'],
+        ['Sesiones', '3 sesiones'], ['Duración por sesión', '4 h'], ['Anticipo para reservar', '270 USD · 30 %'],
         ['Saldo', '630 USD'], ['Lugar', 'Estudio Norte']
     ]);
     assert.deepEqual(view.items, [
@@ -194,7 +194,7 @@ test('hoja: la vista arma propuesta, desglose, términos y artista en texto plan
         { name: 'Sesión', description: '', qtyLine: '3 × 300 USD', total: '900 USD' }
     ]);
     assert.deepEqual(view.totals, [['Subtotal', '1.000 USD'], ['Descuento 10 %', '- 100 USD'], ['Total', '900 USD']]);
-    assert.deepEqual(view.terms, ['Propuesta válida hasta el 26 de noviembre de 2026.', 'La seña se devuelve si cancelas con 72 h de aviso.']);
+    assert.deepEqual(view.terms, ['Propuesta válida hasta el 26 de noviembre de 2026.', 'El anticipo se devuelve si cancelas con 72 h de aviso.']);
     assert.equal(view.extraTerms, 'Retoque incluido.');
     assert.equal(view.clientNotes, 'Trae ropa cómoda.');
     assert.deepEqual(view.artist, { name: 'Mateo Rivas', line: 'Bogotá', verified: true, profileUrl: 'https://beta.weotzi.com/mateoink', photoUrl: '', handle: '@mateoink.wo' });
@@ -207,9 +207,9 @@ test('hoja: la vista arma propuesta, desglose, términos y artista en texto plan
     assert.equal(pending.pendingCopy, 'El artista todavía no envió su propuesta.');
     assert.deepEqual(pending.proposalRows, []);
     assert.equal(pending.url, '');
-    // Con propuesta y sin seña se dice explícitamente.
+    // Con propuesta y sin anticipo se dice explícitamente.
     const noDeposit = SM.view(logic.buildSheet({ quote: { quote_id: 'COT-2', quote_status: 'responded', artist_budget_amount: '500', artist_budget_currency: 'USD' } }), {});
-    assert.deepEqual(noDeposit.proposalRows, [['Seña para reservar', 'Sin seña']]);
+    assert.deepEqual(noDeposit.proposalRows, [['Anticipo para reservar', 'Sin anticipo']]);
     // Estado cerrado.
     assert.equal(SM.view(logic.buildSheet({ quote: { quote_id: 'COT-3', quote_status: 'expired' } }), {}).statusTone, 'closed');
     assert.equal(SM.view({}, {}).title, 'Cotización de tatuaje');

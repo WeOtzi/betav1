@@ -13,7 +13,7 @@
 //     (is_support_user()) y, al aprobar, rechaza los otros reclamos pendientes
 //     de esa ficha. Por eso, después de decidir, se recarga la lista.
 //   - Auth: el mismo Bearer de la sesión de Supabase que usa admin.js
-//     (_getApifyAuthHeaders / _fetchAdminJson), resuelto acá para leer también
+//     (_getApifyAuthHeaders / _fetchAdminJson), resuelto aquí para leer también
 //     el status HTTP y `migration_pending`.
 //   - Sin la migración M1 aplicada el servidor responde {claims: [],
 //     migration_pending: true}: la lista queda vacía con el aviso estándar.
@@ -49,10 +49,10 @@
     const PREFETCH_RETRIES = 3;
 
     const MISSING_SCHEMA_MESSAGE = 'Esta función todavía no está disponible (falta aplicar una migración).';
-    const NETWORK_MESSAGE = 'No pudimos conectarnos con el servidor. Revisá tu conexión e intentá de nuevo.';
-    const NO_SESSION_MESSAGE = 'No hay sesión de superadmin activa. Iniciá sesión de nuevo en /backoffice/login.';
-    const NOT_DEPLOYED_MESSAGE = 'El servidor todavía no tiene esta función: actualizá el deploy.';
-    const GENERIC_MESSAGE = 'No pudimos completar la acción. Intentá de nuevo.';
+    const NETWORK_MESSAGE = 'No pudimos conectarnos con el servidor. Revisa tu conexión e intenta de nuevo.';
+    const NO_SESSION_MESSAGE = 'No hay sesión de superadmin activa. Inicia sesión de nuevo en /backoffice/login.';
+    const NOT_DEPLOYED_MESSAGE = 'El servidor todavía no tiene esta función: actualiza el deploy.';
+    const GENERIC_MESSAGE = 'No pudimos completar la acción. Intenta de nuevo.';
     const SUPPORT_HINT = 'Para decidir reclamos tu cuenta tiene que estar activa en Super Admin → Usuarios Soporte.';
 
     const state = { claims: [], loading: false, loaded: false, error: null, migrationPending: false, seq: 0 };
@@ -200,7 +200,7 @@
         const msg = typeof data.error === 'string' ? data.error.trim() : '';
         if (res.status === 401) return NO_SESSION_MESSAGE;
         if (res.status === 403) {
-            const base = msg || 'No tenés permiso para esta acción.';
+            const base = msg || 'No tienes permiso para esta acción.';
             return opts && opts.supportHint ? base + ' ' + SUPPORT_HINT : base;
         }
         if (res.status === 404 && !msg) return NOT_DEPLOYED_MESSAGE;
@@ -248,9 +248,9 @@
     function buildDecideRequest(claimId, decision, note) {
         const id = String(claimId || '').trim();
         if (!UUID_RE.test(id)) throw new Error('ID de reclamo inválido.');
-        if (!DECISIONS.includes(decision)) throw new Error('Decisión inválida: usá approve o reject.');
+        if (!DECISIONS.includes(decision)) throw new Error('Decisión inválida: usa approve o reject.');
         const clean = note == null ? '' : String(note).trim().slice(0, NOTE_MAX);
-        if (decision === 'reject' && clean.length < REASON_MIN) throw new Error('Escribí el motivo del rechazo.');
+        if (decision === 'reject' && clean.length < REASON_MIN) throw new Error('Escribe el motivo del rechazo.');
         return {
             url: ENDPOINT + '/' + encodeURIComponent(id) + '/decide',
             options: {
@@ -310,7 +310,7 @@
             v.termsAccepted ? badge('Aceptó términos' + (v.termsVersion ? ' · ' + v.termsVersion : ''), 'approved') : ''
         ].filter(Boolean).join(' ');
         const approveAttrs = v.studioOwned
-            ? ' disabled title="La ficha ya tiene dueño: rechazá este reclamo."'
+            ? ' disabled title="La ficha ya tiene dueño: rechaza este reclamo."'
             : ' title="Asignar la ficha a esta cuenta"';
         return '<tr data-claim-row="' + id + '">'
             + '<td><div class="artist-cell-identity"><span class="avatar">' + avatar + '</span>'
@@ -356,7 +356,7 @@
         const claims = Array.isArray(s.claims) ? s.claims : [];
         if (!claims.length) {
             return emptyHtml('fa-flag', 'No hay reclamos pendientes',
-                'Cuando un estudio reclame su ficha desde el registro, aparece acá para que lo revises.');
+                'Cuando un estudio reclame su ficha desde el registro, aparece aquí para que lo revises.');
         }
         return '<div class="table-container bo-table-scroll"><table class="data-table data-table-compact bo-claims-table">'
             + '<thead><tr><th scope="col">Estudio</th><th scope="col">Quién reclama</th><th scope="col">Evidencia</th>'
@@ -498,7 +498,7 @@
             function submit() {
                 const note = String(textarea.value || '').trim();
                 if (c.required && note.length < REASON_MIN) {
-                    errorEl.textContent = c.requiredMessage || 'Escribí un motivo (al menos 3 caracteres).';
+                    errorEl.textContent = c.requiredMessage || 'Escribe un motivo (al menos 3 caracteres).';
                     errorEl.hidden = false;
                     textarea.setAttribute('aria-invalid', 'true');
                     textarea.focus();
@@ -619,7 +619,7 @@
             noteLabel: 'Motivo (se lo mostramos a quien reclamó)',
             placeholder: 'Ej.: no pudimos verificar que administres este estudio',
             required: true,
-            requiredMessage: 'Escribí el motivo del rechazo (al menos 3 caracteres).',
+            requiredMessage: 'Escribe el motivo del rechazo (al menos 3 caracteres).',
             confirmLabel: 'Rechazar reclamo',
             confirmClass: 'btn-secondary danger-hover'
         };
@@ -632,7 +632,7 @@
         // lib/routes/estudio-registro.js devuelve { email: { sent, delivery_status } }.
         const email = data && data.email && typeof data.email === 'object' ? data.email : null;
         const emailSent = email ? email.sent !== false : (data && Object.prototype.hasOwnProperty.call(data, 'email_sent') ? data.email_sent : true);
-        return emailSent === false ? base + ' No pudimos enviar el aviso por email: avisale por otro medio.' : base;
+        return emailSent === false ? base + ' No pudimos enviar el aviso por email: avísale por otro medio.' : base;
     }
 
     async function startDecision(claimId, decision) {
@@ -640,7 +640,7 @@
         if (!claim || !DECISIONS.includes(decision)) return null;
         const view = claimView(claim);
         if (decision === 'approve' && view.studioOwned) {
-            toast('La ficha ya tiene dueño: rechazá este reclamo.', 'warning');
+            toast('La ficha ya tiene dueño: rechaza este reclamo.', 'warning');
             return null;
         }
         const note = await openNoteDialog(dialogConfig(view, decision));

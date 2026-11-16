@@ -34,7 +34,7 @@
 
     // Aviso por correo de mensaje nuevo del inbox directo (evento
     // inbox_message_received, definido por el frente de emails). El servidor
-    // resuelve destinatarios y throttling desde el mensaje guardado; acá solo
+    // resuelve destinatarios y throttling desde el mensaje guardado; aquí solo
     // se informa qué mensaje se guardó. Nunca bloquea ni falla el envío.
     function notifyRecipient(threadId, saved) {
         const message = Array.isArray(saved) ? saved[0] : saved;

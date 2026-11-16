@@ -269,7 +269,7 @@
                 && event.target.closest('.wo-org-product-nav__logout, #logout-btn, [data-wo-logout]');
             // Cuenta (#aac-logout) ya pregunta con su propio confirm.
             if (!btn || btn.id === 'aac-logout' || !current.loaded || current.settings.confirm_logout === false) return;
-            if (root.confirm('¿Querés cerrar sesión?')) return;
+            if (root.confirm('¿Quieres cerrar sesión?')) return;
             event.preventDefault();
             event.stopImmediatePropagation();
         }, true);

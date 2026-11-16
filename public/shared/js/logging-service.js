@@ -63,7 +63,7 @@ const LoggingService = (function() {
     // la sesión completa (#access_token=…&refresh_token=… al volver del correo
     // o de Google), el token del enlace público de una cotización
     // (?returnTo=/cotizacion/<token>) o datos personales (?email=…). Lo que
-    // se guarda acá lo lee soporte: nada de eso tiene que llegar.
+    // se guarda aquí lo lee soporte: nada de eso tiene que llegar.
     // Enlaces que no son http(s) (mailto:, tel:, blob:…) quedan en su esquema.
     function scrubUrl(value) {
         if (value == null || value === '') return null;

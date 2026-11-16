@@ -231,7 +231,7 @@ test('P4: el diálogo abre ancho, con cuatro pestañas y los datos de usuario es
     assert.match(shell, /name="amount" inputmode="decimal" autocomplete="off" value="410\.000"/, 'toma el presupuesto que ya escribió en el expediente');
     assert.match(shell, /name="sessions" type="number"[^>]*value="2"/);
     assert.match(shell, /name="hours" type="number"[^>]*value="3"/);
-    for (const label of ['Presupuesto', 'Moneda', 'Sesiones', 'Seña (%)', 'Complejidad', 'Estudio o ubicación', 'Vencimiento de la propuesta',
+    for (const label of ['Presupuesto', 'Moneda', 'Sesiones', 'Anticipo (%)', 'Complejidad', 'Estudio o ubicación', 'Vencimiento de la propuesta',
         'Desglose económico (opcional)', 'Política de reserva y cancelación', 'Notas para el cliente', 'Términos adicionales',
         'Respuestas rápidas', 'Mensaje para el cliente (opcional)', 'Fechas ofrecidas']) {
         assert.ok(shell.includes(label), label);
@@ -245,7 +245,7 @@ test('P4: el diálogo abre ancho, con cuatro pestañas y los datos de usuario es
     assert.equal(env.document.documentElement.classes.has('qr-open'), true);
     assert.match(d.q('#qr-money').html, /Total propuesto<\/span><strong>410\.000 ARS<\/strong>/);
     assert.match(d.q('#qr-money').html, /El saldo acordado se activa cuando el cliente aprueba la propuesta, no antes\./);
-    assert.equal(d.q('#qr-summary').textContent, 'Total 410.000 ARS · Sin seña · 2 sesiones de 3 h · Sin fechas ofrecidas');
+    assert.equal(d.q('#qr-summary').textContent, 'Total 410.000 ARS · Sin anticipo · 2 sesiones de 3 h · Sin fechas ofrecidas');
 
     await flush();
     assert.equal(env.calls.context, 1);
@@ -372,7 +372,7 @@ test('P29 + P4: desglose, respuestas rápidas, variables y envío con el mensaje
     d.input('deposit_pct', '30');
     d.input('complexity', 'Alta');
     d.input('location', 'Estudio Norte');
-    assert.match(d.q('#qr-money').html, /Seña para reservar<\/span><strong>135\.000 ARS · 30 %<\/strong>/);
+    assert.match(d.q('#qr-money').html, /Anticipo para reservar<\/span><strong>135\.000 ARS · 30 %<\/strong>/);
 
     // Mensaje: respuesta rápida guardada + una variable insertada con su chip.
     d.click({ 'data-qr-tab': 'mensaje' });
@@ -385,10 +385,10 @@ test('P29 + P4: desglose, respuestas rápidas, variables y envío con el mensaje
     assert.equal(area.value, 'Hola {{cliente}}, te ofrezco {{fechas}}. {{seña}}');
     assert.equal(d.q('#qr-preview').textContent, 'Hola Lucía, te ofrezco mar 17 nov 2026 · 10:00–13:00. 30 % (135.000 ARS)');
     // Guardar el mensaje como respuesta rápida propia (con las variables sin resolver).
-    d.q('[name="template_title"]').value = 'Con seña';
+    d.q('[name="template_title"]').value = 'Con anticipo';
     d.click({ 'data-qr-template-save': '' });
     await flush();
-    assert.deepEqual(plain(env.calls.savedTemplates[0]), { userId: 'artist-1', template: { title: 'Con seña', body: 'Hola {{cliente}}, te ofrezco {{fechas}}. {{seña}}', sort: 2 } });
+    assert.deepEqual(plain(env.calls.savedTemplates[0]), { userId: 'artist-1', template: { title: 'Con anticipo', body: 'Hola {{cliente}}, te ofrezco {{fechas}}. {{seña}}', sort: 2 } });
     assert.equal(d.q('#qr-template-status').textContent, 'Respuesta rápida guardada.');
     // Eliminar pide confirmación en dos pasos.
     d.click({ 'data-qr-template-delete': 'tpl-1' });

@@ -139,7 +139,7 @@ test('pickImage: foto → primer trabajo raster → imagen por defecto (sin rela
 test('describe sin bio: estilos y ciudad (la ciudad solo si es pública)', () => {
     const artist = { ...ARTIST, bio_description: '' };
     const withCity = ProfileMeta.buildArtistMeta({ artist, prefs: { privacy: { show_city: true } } }).description;
-    assert.match(withCity, /Fine line, Botánico · Buenos Aires\. Mirá el portafolio/);
+    assert.match(withCity, /Fine line, Botánico · Buenos Aires\. Mira el portafolio/);
     const noCity = ProfileMeta.buildArtistMeta({ artist, prefs: { privacy: { show_city: false } } }).description;
     assert.doesNotMatch(noCity, /Buenos Aires/);
     const long = ProfileMeta.buildArtistMeta({ artist: { ...ARTIST, bio_description: 'palabra '.repeat(80) } }).description;
@@ -340,8 +340,8 @@ test('artists-public: anon key, solo filas publicadas y usuario normalizado', as
 // ---------------------------------------------------------------------------
 
 test('wo-share-sheet: enlaces de las redes, codificados (ronda 2: sin Mail, Telegram ni LinkedIn)', () => {
-    const l = ShareSheet.networkLinks('https://beta.weotzi.com/lau?x=1&y=2', 'Mirá a Lau & cía', 'Lau · We Ötzi');
-    assert.equal(l.whatsapp, 'https://wa.me/?text=' + encodeURIComponent('Mirá a Lau & cía: https://beta.weotzi.com/lau?x=1&y=2'));
+    const l = ShareSheet.networkLinks('https://beta.weotzi.com/lau?x=1&y=2', 'Mira a Lau & cía', 'Lau · We Ötzi');
+    assert.equal(l.whatsapp, 'https://wa.me/?text=' + encodeURIComponent('Mira a Lau & cía: https://beta.weotzi.com/lau?x=1&y=2'));
     assert.equal(l.facebook, 'https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fbeta.weotzi.com%2Flau%3Fx%3D1%26y%3D2');
     assert.match(l.x, /^https:\/\/twitter\.com\/intent\/tweet\?url=https%3A/);
     assert.deepEqual(Object.keys(l).sort(), ['facebook', 'whatsapp', 'x'], 'nota N8: sin Mail, Telegram ni LinkedIn');

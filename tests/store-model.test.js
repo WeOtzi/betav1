@@ -335,7 +335,7 @@ test('publishChecklist de merch con retiro: «Dirección de retiro en Ajustes» 
     assert.deepEqual(without.map((i) => i.key), ['price', 'variants', 'images', 'payment_instructions', 'contact_channel', 'pickup_address']);
     const item = without.find((i) => i.key === 'pickup_address');
     assert.deepEqual([item.ok, item.label, item.scope], [false, 'Dirección de retiro en Ajustes', 'pickup']);
-    assert.match(item.hint, /cargá la dirección en Ajustes o desactivá el retiro/);
+    assert.match(item.hint, /carga la dirección en Ajustes o desactiva el retiro/);
     assert.equal(M.checklistComplete(without), false, 'sin dirección no se publica con retiro');
     const withAddress = M.publishChecklist(product, { settings: Object.assign({}, settings, { pickup_address: 'Palermo, CABA' }) });
     assert.equal(M.checklistComplete(withAddress), true);
@@ -452,7 +452,7 @@ const CONTRACT_CODES = [
     'stock_changed', 'checklist_incomplete', 'asset_licensed', 'asset_missing', 'invalid_image_path', 'download_limit', 'license_revoked', 'license_used'
 ];
 
-test('ERROR_COPY cubre exactamente los códigos store:* de la §4, en voseo y sin «!»', () => {
+test('ERROR_COPY cubre exactamente los códigos store:* de la §4, en tuteo neutro y sin «!»', () => {
     assert.deepEqual([...M.ERROR_CODES].sort(), [...CONTRACT_CODES].sort());
     const plan = read('docs/plans/2026-10-30-store-artista.md');
     const section = plan.slice(plan.indexOf('- **Errores**'), plan.indexOf('## 5. Esquema'));
@@ -461,7 +461,7 @@ test('ERROR_COPY cubre exactamente los códigos store:* de la §4, en voseo y si
     for (const [code, copy] of Object.entries(M.ERROR_COPY)) {
         assert.ok(copy.length > 10, code);
         assert.doesNotMatch(copy, /[!¡]/, code + ' sin exclamación');
-        assert.doesNotMatch(copy, /(?<![\p{L}])(puedes|tienes|intenta|ingresa|vuelve|revisa|confirma|elige)(?![\p{L}])/iu, code + ' en voseo');
+        assert.doesNotMatch(copy, /(?<![\p{L}])(podés|tenés|intentá|ingresá|volvé|revisá|confirmá|elegí|vos)(?![\p{L}])/iu, code + ' en tuteo neutro');
     }
 });
 
@@ -510,7 +510,7 @@ test("TERMS['2026-10'] tiene los 3 niveles y las reglas comunes del contrato", (
         assert.ok(t[tier].title, tier);
     }
     assert.ok(t.common.clauses.length >= 5);
-    const stencil = /podés compartir el stencil con el tatuador que te va a tatuar, solo para esa sesión/i;
+    const stencil = /puedes compartir el stencil con el tatuador que te va a tatuar, solo para esa sesión/i;
     assert.match(t.personal.clauses.join(' '), stencil);
     assert.match(t.exclusive.clauses.join(' '), stencil);
     assert.match(t.personal.clauses.join(' '), /una sola vez/);
@@ -660,7 +660,7 @@ test('orderView del comprador: pago pendiente, plazo y próxima acción', () => 
     assert.equal(v.statusTag, 'wo-tag wo-tag--highlight');
     assert.equal(v.totals.totalLabel, 'ARS 75.000');
     assert.equal(v.numberLabel, 'Pedido #ST-ABCD1234');
-    assert.match(v.deadlineLabel, /^Tenés hasta el 31 oct 2026 · \d\d:\d\d para pagar\.$/);
+    assert.match(v.deadlineLabel, /^Tienes hasta el 31 oct 2026 · \d\d:\d\d para pagar\.$/);
     assert.equal(v.nextAction.key, 'report_payment');
     assert.equal(v.nextAction.label, 'Ya pagué →');
     assert.ok(v.actions.some((a) => a.key === 'cancel'));
@@ -697,7 +697,7 @@ test('orderView del vendedor y soporte: confirmar pago, envío, reembolso y rete
 
     const sellerCollected = order({ status: 'paid', paid_at: NOW, fulfillment_status: 'preparing', payment_collected_by: 'seller' });
     const refund = M.orderView(sellerCollected, { role: 'seller', now: NOW }).actions.find((a) => a.key === 'refund');
-    assert.equal(refund.confirm, 'Confirmá que ya le devolviste el dinero.');
+    assert.equal(refund.confirm, 'Confirma que ya le devolviste el dinero.');
     const shipped = order({ status: 'paid', paid_at: NOW, fulfillment_status: 'shipped', payment_collected_by: 'seller' });
     assert.ok(!M.orderView(shipped, { role: 'seller', now: NOW }).actions.some((a) => a.key === 'refund'), 'merch despachado no se reembolsa desde el vendedor');
 });
@@ -909,7 +909,7 @@ test('renderPreview: convierte HEIC antes de leer y falla con copy claro si no e
     const g = fakeCanvasFactory((type) => ({ type, size: 10 }));
     const out = await W.renderPreview(heic, { createCanvas: g.createCanvas, loadImage, convertHeic: async () => { throw new Error('heic2any'); } });
     assert.equal(out.contentType, 'image/webp');
-    await assert.rejects(W.renderPreview(null, {}), /Elegí una imagen/);
+    await assert.rejects(W.renderPreview(null, {}), /Elige una imagen/);
 });
 
 /* --------------------------- shell (partes puras) --------------------------- */

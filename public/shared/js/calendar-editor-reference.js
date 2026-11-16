@@ -34,7 +34,7 @@
             }).filter(q => normalize([q.client, q.project, q.number].join(' ')).includes(search));
     }
     function assertManualSaveAllowed(selectedQuote) {
-        if (selectedQuote) throw new Error('La vinculación con cotizaciones no está disponible en esta entrega. No se guardó el turno vinculado. Podés quitar la selección para crear un evento manual o administrarlo desde Cotizaciones.');
+        if (selectedQuote) throw new Error('La vinculación con cotizaciones no está disponible en esta entrega. No se guardó el turno vinculado. Puedes quitar la selección para crear un evento manual o administrarlo desde Cotizaciones.');
     }
     function monthDayCount(date) {
         const first = new Date(date.getFullYear(), date.getMonth(), 1);

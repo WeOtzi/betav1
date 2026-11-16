@@ -93,7 +93,7 @@ test('los extras del registro arman un patch limpio para artists_db', () => {
 
 test('bienvenida usa el copy del Figma 797:269 y preselecciona por ?role=', () => {
     const html = read('public/bienvenida/index.html');
-    assert.match(html, /¡Bienvenido!<br>¿Cómo querés usar We Ötzi\?/);
+    assert.match(html, /¡Bienvenido!<br>¿Cómo quieres usar We Ötzi\?/);
     assert.match(html, /Podrás cambiar esta experiencia en cualquier momento desde la configuración de tu cuenta\./);
     const js = read('public/shared/js/bienvenida.js');
     assert.match(js, /function roleFromQuery/);
@@ -106,14 +106,14 @@ test('login: Instagram · Email · Facebook, sin Google ni recuperación embebid
     assert.match(html, /data-social="instagram"/);
     assert.match(html, /data-social="email"/);
     assert.match(html, /data-social="facebook"/);
-    assert.doesNotMatch(html, /handleArtistGoogleLogin|recovery-view|¿Sos cliente\?/);
+    assert.doesNotMatch(html, /handleArtistGoogleLogin|recovery-view|¿Eres cliente\?/);
     assert.match(html, /wo-postauth-loader\.js/);
     const js = read('public/shared/js/artist-login.js');
     assert.match(js, /signInWithOtp/);
     assert.match(js, /provider: 'facebook'/);
     assert.match(js, /variant: 'v1'/);
     assert.match(js, /loader: 'v2'/);
-    assert.match(js, /Continuá desde tu panel de artista/);
+    assert.match(js, /Continúa desde tu panel de artista/);
     // ?state=login solo en preview/demo.
     assert.match(js, /params\.get\('state'\) === 'login' && isPreviewContext\(\)/);
 });
@@ -121,12 +121,12 @@ test('login: Instagram · Email · Facebook, sin Google ni recuperación embebid
 test('crear cuenta: sin topbar, copy corregido y Facebook vía /artist/login', () => {
     const html = read('public/registerclosedbeta/index.html');
     assert.doesNotMatch(html, /wo-beta-topbar|dashboard-mobile-menu|login-modal/);
-    assert.match(html, /Creá tu cuenta/);
-    assert.match(html, /Empezá hoy como artista\./);
+    assert.match(html, /Crea tu cuenta/);
+    assert.match(html, /Empieza hoy como artista\./);
     assert.match(html, /Tu próximo<\/span>/);
-    assert.match(html, /Está acá/);
-    assert.match(html, /Seleccioná tu estilo principal/);
-    assert.match(html, /¿Ya tenés cuenta\?/);
+    assert.match(html, /Está aquí/);
+    assert.match(html, /Selecciona tu estilo principal/);
+    assert.match(html, /¿Ya tienes cuenta\?/);
     const main = read('public/shared/js/main.js');
     assert.match(main, /function handleFacebookSignup/);
     assert.match(main, /\/artist\/login\?/);
@@ -162,10 +162,10 @@ test('registro: Behance, portfolio y panel de estilos del Figma final', () => {
 
 test('recuperar acceso: copy del Figma y ?step= solo en preview', () => {
     const html = read('public/recover/index.html');
-    assert.match(html, /Ingresá tu email y te mandamos un código para restablecer tu contraseña\./);
+    assert.match(html, /Ingresa tu email y te mandamos un código para restablecer tu contraseña\./);
     assert.doesNotMatch(html, /reestablecer/);
     assert.match(html, /¡Contraseña actualizada!/);
-    assert.match(html, /Ya podés iniciar sesión con tu nueva contraseña\./);
+    assert.match(html, /Ya puedes iniciar sesión con tu nueva contraseña\./);
     assert.match(html, />Iniciar sesión</);
     assert.match(html, /rc-step-line/);
     const js = read('public/shared/js/recover.js');
@@ -196,7 +196,7 @@ test('las plantillas de recuperación usan las variables correctas', () => {
     const recovery = read('templates/email/supabase-recovery.html');
     assert.match(recovery, /\{\{ \.Token \}\}/);
     assert.match(recovery, /\{\{ \.ConfirmationURL \}\}/);
-    assert.match(recovery, /Recuperá tu acceso/);
+    assert.match(recovery, /Recupera tu acceso/);
     assert.match(recovery, /Este código vence en 10 minutos\./);
     const updated = read('templates/email/password-updated.html');
     for (const variable of ['nombre', 'fecha', 'hora', 'zona_horaria', 'login_url', 'recover_url', 'año']) {
@@ -220,7 +220,7 @@ test('registro 05: el gate exige elegir o crear el estudio (801:1095)', () => {
     assert.match(resolved.slice(0, 1400), /if \(formState\.data\.studio_id\) return true;/);
     assert.match(resolved.slice(0, 1400), /return studioAddressRequired && hasAddress;/);
     // validateStep(9) también lo exige (no solo el botón deshabilitado).
-    assert.match(js, /Elegí tu estudio de la lista o creá uno nuevo\./);
+    assert.match(js, /Elige tu estudio de la lista o crea uno nuevo\./);
     // Hasta 5 estudios y "Crear «x»" siempre al pie.
     assert.match(js, /const STUDIO_SUGGESTIONS_LIMIT = 5;/);
     assert.match(js, /studioSuggestionsCache\.slice\(0, STUDIO_SUGGESTIONS_LIMIT\)/);
@@ -269,7 +269,7 @@ test('crear cuenta: validación propia, botón sin estilos inline y sesión acti
     assert.doesNotMatch(handler, /btn\.style|'ERROR'/);
     assert.match(handler, /setRegisterButtonState\(btn, ''\)/);
     assert.match(main, /function validateBetaForm\(/);
-    assert.match(main, /Para seguir, aceptá los términos y condiciones\./);
+    assert.match(main, /Para seguir, acepta los términos y condiciones\./);
     assert.match(main, /window\.location\.replace\(appUrl\('\/artist\/login'/);
     assert.doesNotMatch(main, /function renderActiveSessionBanner/);
     const css = read('public/shared/css/registerclosedbeta-ds.css');

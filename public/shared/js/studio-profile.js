@@ -2,8 +2,8 @@
 // Perfil público del estudio · /studio/profile?studio=<slug-o-id>
 // Figma de estudios 91wYIpURj0xn0kzqhybOOt:
 //   E-PROFILE-02 (2012:305)      equipo con filtros, banda, accesos
-//   E-CODE-PUBLIC-01 (2022:5625) Conocé el estudio
-//   E-CODE-PUBLIC-02 (2022:5626) Encontranos · mapa de sedes (2029:9422)
+//   E-CODE-PUBLIC-01 (2022:5625) Conoce el estudio
+//   E-CODE-PUBLIC-02 (2022:5626) Encuéntranos · mapa de sedes (2029:9422)
 //   E-CODE-PUBLIC-03 (2022:5627) El espacio (galería)
 //   E-CODE-PUBLIC-04 (2022:5628) Marcas que acompañan
 //   E-CODE-PUBLIC-05 (2022:5629) No encontramos este estudio
@@ -139,7 +139,7 @@
         }).join('');
     }
 
-    // ── favoritos (ronda 2 · P22): corazón "Guardar" del estudio. Acá solo se
+    // ── favoritos (ronda 2 · P22): corazón "Guardar" del estudio. Aquí solo se
     // deja el botón vacío; lo pinta y lo activa public/shared/js/wo-favorites.js
     // (llega oculto y aparece cuando el módulo carga).
     function favoriteButtonHtml(studio) {
@@ -322,7 +322,7 @@
             team.innerHTML = rows.length
                 ? rows.map(r => rowHtml(r.title, r.meta, r.href)).join('')
                 : '<li><div class="sp-row sp-row--empty"><strong>' + ((memberships || []).length ? 'No hay artistas con ese filtro' : 'Todavía no hay artistas publicados') + '</strong>'
-                    + ((memberships || []).length ? '<span>Probá con otra sede u otro estilo.</span>' : '') + '</div></li>';
+                    + ((memberships || []).length ? '<span>Prueba con otra sede u otro estilo.</span>' : '') + '</div></li>';
         };
         if (locSelect) locSelect.addEventListener('change', paint);
         if (styleSelect) styleSelect.addEventListener('change', paint);
@@ -352,7 +352,7 @@
 
         root.document.title = name + ' · Estudio en We Ötzi';
         const ogTitle = $('og-title'); if (ogTitle) ogTitle.setAttribute('content', name + ' · We Ötzi');
-        const ogDesc = $('og-description'); if (ogDesc) ogDesc.setAttribute('content', studio.tagline || ('Conocé el equipo y las sedes de ' + name + '.'));
+        const ogDesc = $('og-description'); if (ogDesc) ogDesc.setAttribute('content', studio.tagline || ('Conoce el equipo y las sedes de ' + name + '.'));
 
         setText('sp-title', preparing ? 'El estudio está preparando su perfil' : name);
         setText('sp-sub', [name, place].filter(Boolean).join(' · '));
@@ -396,14 +396,14 @@
         // Equipo + filtros
         if (!preparing) wireTeamFilters(memberships, locations);
 
-        // Conocé el estudio
-        setText('sp-about-title', 'Conocé ' + name);
+        // Conoce el estudio
+        setText('sp-about-title', 'Conoce ' + name);
         const about = aboutRows(studio, locations, styles);
         const aboutEl = $('sp-about');
         if (aboutEl) aboutEl.innerHTML = about.length ? about.map(r => rowHtml(r[0], r[1])).join('') : rowHtml('Sobre el estudio', 'Todavía no agregó una descripción');
 
         // Sedes
-        setText('sp-locations-title', primary && primary.city ? 'Encontranos en ' + primary.city : 'Nuestras sedes');
+        setText('sp-locations-title', primary && primary.city ? 'Encuéntranos en ' + primary.city : 'Nuestras sedes');
         const locEl = $('sp-locations');
         if (locEl) locEl.innerHTML = locationsHtml(locations);
 
@@ -415,8 +415,8 @@
         // Lateral
         setText('sp-aside-title', preparing ? 'Información' : 'Tu próximo tatuaje, en ' + name);
         setText('sp-aside-text', preparing
-            ? 'Volvé más adelante para conocer los detalles que comparta el estudio.'
-            : 'Conocé al equipo residente y a los artistas que nos visitan. Elegí el estilo que buscás y revisá su disponibilidad.');
+            ? 'Vuelve más adelante para conocer los detalles que comparta el estudio.'
+            : 'Conoce al equipo residente y a los artistas que nos visitan. Elige el estilo que buscas y revisa su disponibilidad.');
 
         show('sp-loading', false);
         show('sp-profile', true);
@@ -466,7 +466,7 @@
         } catch (err) {
             console.error('[studio-profile] failed:', err);
             setText('sp-title', 'No pudimos cargar el estudio');
-            setText('sp-sub', 'Revisá tu conexión y recargá la página.');
+            setText('sp-sub', 'Revisa tu conexión y recarga la página.');
             show('sp-loading', false);
             show('sp-not-found', true);
         }

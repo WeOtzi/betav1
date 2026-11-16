@@ -177,9 +177,9 @@ test('client preview reproduces the empty Figma state (801:557)', () => {
     assert.deepEqual(p.chips, ['Estilo a definir', 'Zona a definir', '1 sesión(es) · 3 h']);
     assert.deepEqual(p.items.map((i) => [i.qtyLine, i.total]), [['1 × $0', '$0']]);
     assert.equal(p.total, '$0');
-    assert.equal(p.depositLine, 'Seña $0 · Saldo $0');
+    assert.equal(p.depositLine, 'Anticipo $0 · Saldo $0');
     // 13 nov 2026: el vencimiento es opcional y arranca apagado.
-    assert.equal(p.conditions, 'Sin vencimiento. La seña no es reembolsable. Reprogramaciones con 48 h de aviso.');
+    assert.equal(p.conditions, 'Sin vencimiento. El anticipo no es reembolsable. Reprogramaciones con 48 h de aviso.');
 });
 
 test('client search covers name, email and phone; new clients are validated', () => {
@@ -191,7 +191,7 @@ test('client search covers name, email and phone; new clients are validated', ()
     assert.equal(M.searchClients(list, 'ibanez')[0].id, 'a');
     assert.equal(M.searchClients(list, 't@x')[0].name, 'Tomás Reyes');
     assert.equal(M.searchClients(list, '5555')[0].name, 'Marina Ibáñez');
-    assert.equal(M.validateNewClient({ name: 'A' }), 'Ingresá el nombre del cliente.');
+    assert.equal(M.validateNewClient({ name: 'A' }), 'Ingresa el nombre del cliente.');
     assert.equal(M.validateNewClient({ name: 'Ana', email: 'no-mail' }), 'El correo no parece válido.');
     assert.equal(M.validateNewClient({ name: 'Ana', email: '' }), '');
 });
@@ -234,7 +234,7 @@ test('/my-quotations/new reuses the exact listing markup and auto-opens the shee
 test('the data layer adds named methods instead of ad-hoc CRUD', () => {
     const repo = read('public', 'shared', 'js', 'data', 'quotations-repo.js');
     assert.match(repo, /async createManual\(quote, details\)[\s\S]*c\.rpc\('create_manual_quotation', \{ p_quote: quote, p_details: details \}\)/);
-    // Ronda 2 · SEG-01: el contacto del cliente lo entrega el servidor; acá solo nombres.
+    // Ronda 2 · SEG-01: el contacto del cliente lo entrega el servidor; aquí solo nombres.
     assert.match(repo, /async listClientNamesForArtist\(artistUserId/);
     assert.doesNotMatch(repo, /listClientContactsForArtist/);
     const newRepo = read('public', 'shared', 'js', 'data', 'quotation-new-repo.js');

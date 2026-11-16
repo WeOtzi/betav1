@@ -714,7 +714,7 @@ test('endpoint genérico: el tope diario solo lo gastan los pedidos que llegan a
     assert.equal((await post({ prompt: 'un colibrí' })).statusCode, 200);
     assert.equal((await post({ prompt: 'una rosa' })).statusCode, 200);
     assert.equal(calls.length, 2);
-    // …y el tercero se corta acá, sin llamar al proveedor.
+    // …y el tercero se corta aquí, sin llamar al proveedor.
     const capped = await post({ prompt: 'un ancla' });
     assert.equal(capped.statusCode, 429);
     assert.deepEqual(capped.body, { success: false, code: 'ai_busy', rate_limited: true, error: 'Hay mucha demanda en este momento. Inténtalo de nuevo más tarde.' });

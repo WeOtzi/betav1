@@ -230,7 +230,7 @@ grant execute on function public.quotation_same_contact(text) to authenticated, 
 
 -- ---------------------------------------------------------------------------
 -- Backfill: agrupa las cotizaciones ya enviadas (en orden de alta). No vincula
--- cuentas acá: eso ya lo hizo el backfill de 20261115140000 y lo repite el
+-- cuentas aquí: eso ya lo hizo el backfill de 20261115140000 y lo repite el
 -- claim en cada inicio de sesión.
 -- ---------------------------------------------------------------------------
 do $$

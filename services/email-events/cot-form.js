@@ -42,8 +42,8 @@ module.exports = {
             subject: (d) => `${dash(d.client_first_name)} te eligió para su próximo tatuaje`,
             preheader: (d) => `Nueva solicitud ${dash(d.quote_code || d.quote_id)}: ${dash(d.tattoo_style)} · ${dash(d.tattoo_location)}`,
             eyebrow: 'Nueva solicitud',
-            headline: (d) => `${dash(d.client_first_name)} quiere tatuarse con vos`,
-            intro: () => 'Cotizó sin artista y te eligió entre los artistas que le sugerimos por estilo y ubicación. Revisá la idea y respondé con tu propuesta.',
+            headline: (d) => `${dash(d.client_first_name)} quiere tatuarse contigo`,
+            intro: () => 'Cotizó sin artista y te eligió entre los artistas que le sugerimos por estilo y ubicación. Revisa la idea y responde con tu propuesta.',
             rows: (d) => [
                 ['Solicitud', dash(d.quote_code || d.quote_id)],
                 ['Idea', dash(d.tattoo_description)],

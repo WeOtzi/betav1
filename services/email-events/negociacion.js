@@ -115,7 +115,7 @@ const EVENTS = {
             preheader: () => 'La cotización quedó aprobada por ambas partes con las condiciones que propusiste.',
             eyebrow: 'COTIZACIÓN / APROBADA',
             headline: () => 'Tus cambios fueron aceptados.',
-            intro: d => `${text(d.artist_name, 'Tu artista')} aceptó los cambios que propusiste: la cotización quedó aprobada por ambas partes. El próximo paso es coordinar el turno y la seña desde el chat de la cotización.`,
+            intro: d => `${text(d.artist_name, 'Tu artista')} aceptó los cambios que propusiste: la cotización quedó aprobada por ambas partes. El próximo paso es coordinar el turno y el anticipo desde el chat de la cotización.`,
             rows: d => rows(d, [['Total acordado', text(d.agreed_total_text)]], [['Mensaje del artista', clip(d.response_note, 400)]]),
             cta: link('Ver la cotización'),
         }

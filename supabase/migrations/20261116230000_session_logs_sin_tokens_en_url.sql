@@ -19,7 +19,7 @@
 -- Paso operativo aparte (no lo hace esta migración): cerrar las sesiones de
 -- los usuarios cuyos tokens quedaron guardados. Ver deployments/DEPLOY.md.
 --
--- Reversa: no existe. Lo que se borra acá no se recupera, y es la intención.
+-- Reversa: no existe. Lo que se borra aquí no se recupera, y es la intención.
 -- ============================================================================
 
 -- 1) Registros con tokens de sesión o con el enlace de una cotización en la

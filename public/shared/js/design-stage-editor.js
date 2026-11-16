@@ -82,7 +82,7 @@
                     '<button type="button" class="wod-modal-x" data-close aria-label="Cerrar"><i data-wo-icon="x"></i></button></header>' +
                 '<form class="wod-modal-body wod-form" novalidate>' +
                     '<p class="wod-stage-title">' + esc(opts.title || 'Diseño') + '</p>' +
-                    '<p class="wod-stage-help">Marcá en qué punto está el diseño y hasta cuándo tenés para terminarlo. Solo lo ves vos.</p>' +
+                    '<p class="wod-stage-help">Marca en qué punto está el diseño y hasta cuándo tienes para terminarlo. Solo lo ves tú.</p>' +
                     '<p class="wod-label" id="wds-stage-l">ETAPA</p>' +
                     segHtml(st.stage) +
                     '<label class="wod-label" for="wds-due">FECHA LÍMITE</label>' +
@@ -181,10 +181,10 @@
                 btns.forEach(function (b) { b.disabled = false; });
                 var msg = String((err && err.message) || '');
                 showError(form, /42501|permission|Solo el artista/i.test(msg)
-                    ? 'No podés cambiar la etapa de esta cotización.'
+                    ? 'No puedes cambiar la etapa de esta cotización.'
                     : /function|does not exist|PGRST202/i.test(msg)
-                        ? 'Esta función todavía no está disponible. Probá más tarde.'
-                        : 'No pudimos guardar la etapa. Probá de nuevo.');
+                        ? 'Esta función todavía no está disponible. Prueba más tarde.'
+                        : 'No pudimos guardar la etapa. Prueba de nuevo.');
             });
     }
 

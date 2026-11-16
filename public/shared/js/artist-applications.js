@@ -56,7 +56,7 @@
         client = await resolveClient();
         wireLogout();
         if (!client) {
-            showLoadError('No pudimos conectar con el servidor. Recargá la página en unos segundos.');
+            showLoadError('No pudimos conectar con el servidor. Recarga la página en unos segundos.');
             return;
         }
         try {
@@ -162,11 +162,11 @@
                 console.error('[applications] spots:', results[1].reason);
             }
             if (results[0].status === 'rejected' && results[1].status === 'rejected') {
-                loadError = 'No pudimos cargar tus postulaciones. Recargá la página en unos segundos.';
+                loadError = 'No pudimos cargar tus postulaciones. Recarga la página en unos segundos.';
             }
         } catch (err) {
             console.error('[applications] carga:', err);
-            loadError = 'No pudimos cargar tus postulaciones. Recargá la página en unos segundos.';
+            loadError = 'No pudimos cargar tus postulaciones. Recarga la página en unos segundos.';
         }
 
         // Contraofertas pendientes del cliente para las postulaciones vivas del JB.
@@ -549,25 +549,25 @@
         if (activeTab === 'jobboard') {
             return '<i data-wo-icon="briefcase" aria-hidden="true"></i>' +
                 '<span class="wo-empty-title">Todavía no cotizaste ninguna solicitud</span>' +
-                '<p>En el Job Board los clientes publican sus proyectos y vos les mandás tu propuesta.</p>' +
+                '<p>En el Job Board los clientes publican sus proyectos y tú les mandas tu propuesta.</p>' +
                 '<div class="apx-empty-ctas">' + jbCta + '</div>';
         }
         if (activeTab === 'spots') {
             return '<i data-wo-icon="map-pin" aria-hidden="true"></i>' +
                 '<span class="wo-empty-title">Todavía no te postulaste a ningún spot</span>' +
-                '<p>Los estudios publican residencias y guest spots: encontrá tu próximo lugar donde tatuar.</p>' +
+                '<p>Los estudios publican residencias y guest spots: encuentra tu próximo lugar donde tatuar.</p>' +
                 '<div class="apx-empty-ctas"><a href="/studio-spots" class="wo-btn wo-btn--s">Explorar spots ' + ARROW_ICON + '</a></div>';
         }
         return '<i data-wo-icon="inbox" aria-hidden="true"></i>' +
             '<span class="wo-empty-title">Todavía no enviaste postulaciones</span>' +
-            '<p>Cuando cotices una solicitud del Job Board o te postules a un spot, el seguimiento aparece acá.</p>' +
+            '<p>Cuando cotices una solicitud del Job Board o te postules a un spot, el seguimiento aparece aquí.</p>' +
             '<div class="apx-empty-ctas">' + jbCta + spotCta + '</div>';
     }
 
     function emptyFilterHtml() {
         return '<i data-wo-icon="search" aria-hidden="true"></i>' +
             '<span class="wo-empty-title">Sin resultados</span>' +
-            '<p>Probá con otra búsqueda u otro filtro de estado.</p>';
+            '<p>Prueba con otra búsqueda u otro filtro de estado.</p>';
     }
 
     function rowHtml(it) {
@@ -1211,7 +1211,7 @@
         const app = item.app;
         const overlay = openModal(
             '<h3 class="wo-modal-title">Editar propuesta</h3>' +
-            '<p>Podés cambiar tu propuesta hasta que ' + escapeHtml(item.clientName || 'el cliente') + ' la abra.</p>' +
+            '<p>Puedes cambiar tu propuesta hasta que ' + escapeHtml(item.clientName || 'el cliente') + ' la abra.</p>' +
             '<form class="apx-modal-form" data-modal="edit-form">' +
                 '<div class="apx-modal-dates">' +
                     '<div class="wo-field"><label class="wo-label" for="apx-ed-price">Precio (' + escapeHtml(item.currency || 'USD') + ')</label>' +
@@ -1234,7 +1234,7 @@
             const sessions = parseInt(overlay.querySelector('#apx-ed-sessions').value, 10);
             const message = overlay.querySelector('#apx-ed-message').value.trim();
             if (!(price > 0) || !(sessions >= 1)) {
-                modalError(overlay, 'Ingresá un precio y una cantidad de sesiones válidos.');
+                modalError(overlay, 'Ingresa un precio y una cantidad de sesiones válidos.');
                 return;
             }
             const submitBtn = overlay.querySelector('[type="submit"]');
@@ -1251,7 +1251,7 @@
                 });
                 if (!updated) {
                     submitBtn.disabled = false;
-                    modalError(overlay, 'El cliente ya abrió tu propuesta: no se puede editar. Si necesitás cambiarla, escribile desde la conversación.');
+                    modalError(overlay, 'El cliente ya abrió tu propuesta: no se puede editar. Si necesitas cambiarla, escríbele desde la conversación.');
                     return;
                 }
                 Object.assign(app, updated);
@@ -1261,7 +1261,7 @@
             } catch (err) {
                 console.error('[applications] editar propuesta:', err);
                 submitBtn.disabled = false;
-                modalError(overlay, 'No pudimos guardar los cambios. Probá de nuevo en unos segundos.');
+                modalError(overlay, 'No pudimos guardar los cambios. Prueba de nuevo en unos segundos.');
             }
         });
     }
@@ -1336,7 +1336,7 @@
             } catch (err) {
                 console.error('[applications] retirar:', err);
                 btn.disabled = false;
-                modalError(overlay, 'No pudimos retirar la postulación. Probá de nuevo en unos segundos.');
+                modalError(overlay, 'No pudimos retirar la postulación. Prueba de nuevo en unos segundos.');
             }
         });
     }
@@ -1362,14 +1362,14 @@
                 '<button type="button" class="wo-btn wo-btn--direct" data-modal="accept">Aceptar contraoferta</button>' +
                 '<button type="button" class="wo-btn wo-btn--secondary" data-modal="reject">Rechazar</button>' +
             '</div>' +
-            '<p class="apx-modal-sep">O contra-proponé otras condiciones</p>' +
+            '<p class="apx-modal-sep">O contra-propón otras condiciones</p>' +
             '<form class="apx-modal-form" data-modal="counter-form">' +
                 '<div class="wo-field"><label class="wo-label" for="apx-co-price">Precio</label>' +
                     '<input type="number" min="1" step="1" id="apx-co-price" class="wo-input" placeholder="450"></div>' +
                 '<div class="wo-field"><label class="wo-label" for="apx-co-date">Fecha propuesta</label>' +
                     '<input type="text" id="apx-co-date" class="wo-input" placeholder="Por ejemplo: semana del 10 de agosto"></div>' +
                 '<div class="wo-field"><label class="wo-label" for="apx-co-note">Nota para el cliente</label>' +
-                    '<textarea id="apx-co-note" class="wo-textarea" rows="3" placeholder="Contale qué mantenés y qué cambia"></textarea></div>' +
+                    '<textarea id="apx-co-note" class="wo-textarea" rows="3" placeholder="Cuéntale qué mantienes y qué cambia"></textarea></div>' +
                 '<div class="wo-modal-actions">' +
                     '<button type="button" class="wo-btn wo-btn--ghost" data-modal="cancel">Cancelar</button>' +
                     '<button type="submit" class="wo-btn">Enviar contrapropuesta</button>' +
@@ -1392,7 +1392,7 @@
             } catch (err) {
                 console.error('[applications] contraoferta:', err);
                 btn.disabled = false;
-                modalError(overlay, 'No pudimos registrar tu respuesta. Probá de nuevo en unos segundos.');
+                modalError(overlay, 'No pudimos registrar tu respuesta. Prueba de nuevo en unos segundos.');
             }
         };
         overlay.querySelector('[data-modal="accept"]').addEventListener('click', (e) => decide('aceptada', e.currentTarget));
@@ -1405,7 +1405,7 @@
             const proposedDate = overlay.querySelector('#apx-co-date').value.trim() || null;
             const note = overlay.querySelector('#apx-co-note').value.trim() || null;
             if (price == null && !proposedDate && !note) {
-                modalError(overlay, 'Cargá al menos un cambio: precio, fecha o nota.');
+                modalError(overlay, 'Carga al menos un cambio: precio, fecha o nota.');
                 return;
             }
             const submitBtn = overlay.querySelector('[type="submit"]');
@@ -1426,7 +1426,7 @@
             } catch (err) {
                 console.error('[applications] contrapropuesta:', err);
                 submitBtn.disabled = false;
-                modalError(overlay, 'No pudimos enviar la contrapropuesta. Probá de nuevo en unos segundos.');
+                modalError(overlay, 'No pudimos enviar la contrapropuesta. Prueba de nuevo en unos segundos.');
             }
         });
     }
@@ -1445,7 +1445,7 @@
                 '<button type="button" class="wo-btn wo-btn--direct" data-modal="accept">Aceptar contraoferta</button>' +
                 '<button type="button" class="wo-btn wo-btn--secondary" data-modal="reject">Rechazar</button>' +
             '</div>' +
-            '<p class="apx-modal-sep">O contra-proponé otras condiciones</p>' +
+            '<p class="apx-modal-sep">O contra-propón otras condiciones</p>' +
             '<form class="apx-modal-form" data-modal="spot-counter-form">' +
                 '<div class="wo-field"><label class="wo-label" for="apx-spot-split">Split para el artista (%)</label>' +
                     '<input type="number" min="0" max="100" step="1" id="apx-spot-split" class="wo-input" placeholder="66"></div>' +
@@ -1454,7 +1454,7 @@
                     '<div class="wo-field"><label class="wo-label" for="apx-spot-end">Fecha de fin</label><input type="date" id="apx-spot-end" class="wo-input"></div>' +
                 '</div>' +
                 '<div class="wo-field"><label class="wo-label" for="apx-spot-note">Nota para el estudio</label>' +
-                    '<textarea id="apx-spot-note" class="wo-textarea" rows="3" placeholder="Contale qué condiciones proponés"></textarea></div>' +
+                    '<textarea id="apx-spot-note" class="wo-textarea" rows="3" placeholder="Cuéntale qué condiciones propones"></textarea></div>' +
                 '<div class="wo-modal-actions">' +
                     '<button type="button" class="wo-btn wo-btn--ghost" data-modal="cancel">Cancelar</button>' +
                     '<button type="submit" class="wo-btn">Enviar contrapropuesta</button>' +
@@ -1478,7 +1478,7 @@
             } catch (err) {
                 console.error('[applications] contraoferta spot:', err);
                 button.disabled = false;
-                modalError(overlay, 'No pudimos registrar tu respuesta. Probá de nuevo en unos segundos.');
+                modalError(overlay, 'No pudimos registrar tu respuesta. Prueba de nuevo en unos segundos.');
             }
         };
         overlay.querySelector('[data-modal="accept"]').addEventListener('click', (event) => decide('accepted', event.currentTarget));
@@ -1492,7 +1492,7 @@
             const endDate = overlay.querySelector('#apx-spot-end').value || null;
             const note = overlay.querySelector('#apx-spot-note').value.trim() || null;
             if (revenueSplitPct == null && !startDate && !endDate && !note) {
-                modalError(overlay, 'Cargá al menos un cambio de split, fechas o condiciones.');
+                modalError(overlay, 'Carga al menos un cambio de split, fechas o condiciones.');
                 return;
             }
             if (startDate && endDate && endDate < startDate) {
@@ -1523,7 +1523,7 @@
             } catch (err) {
                 console.error('[applications] contrapropuesta spot:', err);
                 submit.disabled = false;
-                modalError(overlay, 'No pudimos enviar la contrapropuesta. Probá de nuevo en unos segundos.');
+                modalError(overlay, 'No pudimos enviar la contrapropuesta. Prueba de nuevo en unos segundos.');
             }
         });
     }

@@ -682,7 +682,7 @@ test('endpoint genérico de imágenes con IA: el guard deja pasar solo el prompt
     assert.equal(req.aiImageBudget, guardBudget);
     const res = fakeRes();
     await sanitize({ headers: {}, body: {} }, res, () => { passed += 1; });
-    assert.equal(res.statusCode, 200, 'un cuerpo vacío no gasta el cupo del día ni se corta acá');
+    assert.equal(res.statusCode, 200, 'un cuerpo vacío no gasta el cupo del día ni se corta aquí');
     assert.equal(passed, 2);
     assert.equal(guardBudget.take(), true, 'el cupo sigue entero');
 

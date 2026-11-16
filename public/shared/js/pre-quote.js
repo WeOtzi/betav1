@@ -118,17 +118,17 @@
 
     function validateInput(input) {
         if (!input.tattoo_idea_description || input.tattoo_idea_description.length < 5) {
-            return 'Contanos un poco más sobre la idea del tatuaje (mínimo 5 caracteres).';
+            return 'Cuéntanos un poco más sobre la idea del tatuaje (mínimo 5 caracteres).';
         }
-        if (!input.tattoo_style) return 'Seleccioná un estilo.';
-        if (!input.tattoo_size) return 'Seleccioná un tamaño.';
+        if (!input.tattoo_style) return 'Selecciona un estilo.';
+        if (!input.tattoo_size) return 'Selecciona un tamaño.';
         var zone = getSelectedBodyZone();
-        if (!zone) return 'Seleccioná la zona del cuerpo.';
+        if (!zone) return 'Selecciona la zona del cuerpo.';
         if (zone.subparts && zone.subparts.length && !getSelectedSubzoneIds().length) {
-            return 'Marcá al menos una subzona, "Sin subzona específica" o "Zona entera".';
+            return 'Marca al menos una subzona, "Sin subzona específica" o "Zona entera".';
         }
-        if (!input.tattoo_body_part) return 'Seleccioná la zona del cuerpo.';
-        if (!input.client_city_residence) return 'Indicá tu ciudad (incluí el país, ej: "Buenos Aires, Argentina").';
+        if (!input.tattoo_body_part) return 'Selecciona la zona del cuerpo.';
+        if (!input.client_city_residence) return 'Indica tu ciudad (incluye el país, ej: "Buenos Aires, Argentina").';
         return null;
     }
 
@@ -138,14 +138,14 @@
         var sizeSelect = document.getElementById('prequote-size');
 
         if (styleSelect) {
-            styleSelect.innerHTML = '<option value="">Seleccioná un estilo</option>' +
+            styleSelect.innerHTML = '<option value="">Selecciona un estilo</option>' +
                 (shared.TATTOO_STYLE_OPTIONS || []).map(function (option) {
                     return '<option value="' + option.value + '">' + option.label + '</option>';
                 }).join('');
         }
 
         if (sizeSelect) {
-            sizeSelect.innerHTML = '<option value="">Seleccioná un tamaño</option>' +
+            sizeSelect.innerHTML = '<option value="">Selecciona un tamaño</option>' +
                 (shared.TATTOO_SIZE_OPTIONS || []).map(function (option) {
                     var suffix = option.subtitle ? ' · ' + option.subtitle : '';
                     return '<option value="' + option.value + '">' + option.label + suffix + '</option>';
@@ -162,7 +162,7 @@
             return;
         }
         zoneSelect.disabled = false;
-        zoneSelect.innerHTML = '<option value="">Seleccioná una zona</option>' +
+        zoneSelect.innerHTML = '<option value="">Selecciona una zona</option>' +
             BODY_PARTS_TREE.map(function (zone) {
                 return '<option value="' + escapeHtml(zone.id) + '">' + escapeHtml(zone.label) + '</option>';
             }).join('');
@@ -236,7 +236,7 @@
 
         if (!zone) {
             container.classList.add('prequote-checkbox-grid--empty');
-            container.innerHTML = '<p class="prequote-checkbox-empty">Seleccioná una zona primero</p>';
+            container.innerHTML = '<p class="prequote-checkbox-empty">Selecciona una zona primero</p>';
             return;
         }
 
@@ -309,7 +309,7 @@
         });
         var data = await response.json().catch(function () { return null; });
         if (!response.ok || !data || !data.success) {
-            var message = (data && data.error) || 'No se pudo calcular el estimado. Probá de nuevo.';
+            var message = (data && data.error) || 'No se pudo calcular el estimado. Prueba de nuevo.';
             throw new Error(message);
         }
         return data;
@@ -417,14 +417,14 @@
             artists.length
                 ? '<div class="prequote-artists-section">'
                     + '  <h3 class="wo-h2 prequote-artists-title">Artistas sugeridos para tu idea</h3>'
-                    + '  <p class="prequote-artists-sub">Elegí uno para continuar la cotización con sus datos pre-cargados.</p>'
+                    + '  <p class="prequote-artists-sub">Elige uno para continuar la cotización con sus datos pre-cargados.</p>'
                     + '  <div class="prequote-artists-grid">'
                     + artists.map(renderArtistCard).join('\n')
                     + '  </div>'
                     + '</div>'
                 : '<div class="wo-empty prequote-empty">'
                     + '  <p class="wo-empty-title">Sin artistas para esta combinación</p>'
-                    + '  <p>Todavía no encontramos artistas activos para tu idea. Podés continuar en el cotizador y buscar manualmente.</p>'
+                    + '  <p>Todavía no encontramos artistas activos para tu idea. Puedes continuar en el cotizador y buscar manualmente.</p>'
                     + '  <a class="wo-btn wo-btn--ghost" href="/quotation">Ir al cotizador →</a>'
                     + '</div>'
         ].join('\n');
@@ -498,7 +498,7 @@
             renderEstimate(input, data);
         } catch (err) {
             console.error('[PreQuote] Estimate failed:', err);
-            showError(err.message || 'No se pudo calcular el estimado. Probá de nuevo.');
+            showError(err.message || 'No se pudo calcular el estimado. Prueba de nuevo.');
         } finally {
             hideLoading();
         }

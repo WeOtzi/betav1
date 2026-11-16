@@ -100,7 +100,7 @@
         const msgEl = $('cpa-public-msg');
 
         if (!window.WeotziData?.ClientProfiles) {
-            msgEl.textContent = 'No se pudo cargar el perfil · recargá la página';
+            msgEl.textContent = 'No se pudo cargar el perfil · recarga la página';
             return;
         }
 
@@ -236,7 +236,7 @@
         const statusEl = $('cpa-profile-status');
         if (!file) return;
         if (!file.type.startsWith('image/')) {
-            setStatus(statusEl, 'Elegí una imagen JPG o PNG', true);
+            setStatus(statusEl, 'Elige una imagen JPG o PNG', true);
             return;
         }
         if (file.size > 5 * 1024 * 1024) {
@@ -287,7 +287,7 @@
                 profilePictureUrl = await uploadPendingAvatar();
             } catch (uploadError) {
                 console.error('[client-profile] error subiendo la foto:', uploadError);
-                setStatus(statusEl, 'No se pudo subir la foto · probá con otra imagen', true);
+                setStatus(statusEl, 'No se pudo subir la foto · prueba con otra imagen', true);
                 return;
             }
 
@@ -388,7 +388,7 @@
             console.error('[client-profile] error actualizando contraseña:', error);
             const msg = /different from the old/i.test(error?.message || '')
                 ? 'La nueva contraseña tiene que ser distinta de la actual'
-                : 'No se pudo actualizar la contraseña · probá de nuevo';
+                : 'No se pudo actualizar la contraseña · prueba de nuevo';
             setStatus(statusEl, msg, true);
         } finally {
             btn.disabled = false;
@@ -513,7 +513,7 @@
             setStatus(statusEl, 'Guardado');
         } catch (error) {
             console.error('[client-profile] error guardando configuración:', error);
-            setStatus(statusEl, 'No se pudo guardar · probá de nuevo', true);
+            setStatus(statusEl, 'No se pudo guardar · prueba de nuevo', true);
         }
     }
 

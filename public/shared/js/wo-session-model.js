@@ -14,7 +14,7 @@
  *     Buenos Aires, Argentina") con su origen (sede, propia, la del cliente o
  *     libre con Google Places).
  *
- * Las mismas reglas viven en la base (migración 20261116150000): acá solo se
+ * Las mismas reglas viven en la base (migración 20261116150000): aquí solo se
  * decide qué mostrar y qué pedirle al servidor.
  *
  * Navegador: window.WoSessionModel. Node (tests y servidor): require().
@@ -45,7 +45,7 @@
         { id: 'trato', label: 'Trato durante la sesión' },
         { id: 'higiene', label: 'Higiene o seguridad' },
         { id: 'calidad', label: 'Resultado de la sesión' },
-        { id: 'pago', label: 'Pago o seña' },
+        { id: 'pago', label: 'Pago o anticipo' },
         { id: 'otro', label: 'Otro motivo' }
     ];
 

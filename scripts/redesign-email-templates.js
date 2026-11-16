@@ -164,7 +164,7 @@ const SPECS = {
         quoteVar: 'support_note', quoteLabel: 'Nota de soporte', ctaLabel: 'Ver mi cuenta', ctaVar: 'account_url'
     },
     'admin-new-quotation': {
-        subject: 'Nueva cotización {{quote_id}}', preheader: 'Se registró una solicitud nueva en We Ötzi. Revisá cliente, artista, estilo y presupuesto.',
+        subject: 'Nueva cotización {{quote_id}}', preheader: 'Se registró una solicitud nueva en We Ötzi. Revisa cliente, artista, estilo y presupuesto.',
         eyebrow: 'ADMIN · COTIZACIÓN', headline: 'Nueva cotización en el sistema',
         intro: '{{client_full_name}} envió una solicitud a {{artist_name}}.'
     },
@@ -176,13 +176,13 @@ const SPECS = {
     'ambassador-updated': {
         subject: 'Actualizamos tu estado de embajador', preheader: 'Hay novedades sobre tu participación en el programa de embajadores de We Ötzi.',
         eyebrow: 'PROGRAMA DE EMBAJADORES', greeting: 'Hola, {{artist_name}}.', headline: 'Tu estado de embajador cambió',
-        intro: 'Actualizamos tu estado dentro del programa de embajadores. Revisalo desde tu panel.',
+        intro: 'Actualizamos tu estado dentro del programa de embajadores. Revísalo desde tu panel.',
         ctaLabel: 'Abrir mi panel', ctaVar: 'dashboard_url'
     },
     'application-accepted': {
-        subject: 'Aceptaron tu postulación', preheader: 'El cliente eligió avanzar con vos. Coordiná los próximos pasos desde tu panel de We Ötzi.',
+        subject: 'Aceptaron tu postulación', preheader: 'El cliente eligió avanzar contigo. Coordina los próximos pasos desde tu panel de We Ötzi.',
         eyebrow: 'JOB BOARD · ACEPTADA', greeting: 'Hola, {{artist_name}}.', headline: 'Tu postulación fue aceptada',
-        intro: '{{client_name}} eligió avanzar con vos. La solicitud ya es una cotización en tu panel.',
+        intro: '{{client_name}} eligió avanzar contigo. La solicitud ya es una cotización en tu panel.',
         ctaLabel: 'Abrir mi panel', ctaVar: 'dashboard_url'
     },
     'application-rejected': {
@@ -192,45 +192,45 @@ const SPECS = {
         ctaLabel: 'Ver el Job Board', ctaVar: 'dashboard_url'
     },
     'artist-quotation-notification': {
-        subject: 'Nueva solicitud de {{client_full_name}}', preheader: 'Un cliente quiere tatuarse con vos. Revisá la idea y las referencias, y respondé desde tu panel.',
-        eyebrow: 'NUEVA SOLICITUD', greeting: 'Hola, {{artist_name}}.', headline: 'Tenés una nueva solicitud',
-        intro: '{{client_full_name}} te envió una idea para cotizar. Revisá el brief y respondé desde tu panel.',
+        subject: 'Nueva solicitud de {{client_full_name}}', preheader: 'Un cliente quiere tatuarse contigo. Revisa la idea y las referencias, y responde desde tu panel.',
+        eyebrow: 'NUEVA SOLICITUD', greeting: 'Hola, {{artist_name}}.', headline: 'Tienes una nueva solicitud',
+        intro: '{{client_full_name}} te envió una idea para cotizar. Revisa el brief y responde desde tu panel.',
         ctaLabel: 'Ver la solicitud', ctaVar: 'quotation_url'
     },
     'artist-rejected-quotation': {
-        subject: '{{artist_name}} no puede tomar tu solicitud', preheader: 'Esta vez el artista no puede tomar tu idea. Podés buscar otro artista o publicarla en el Job Board.',
+        subject: '{{artist_name}} no puede tomar tu solicitud', preheader: 'Esta vez el artista no puede tomar tu idea. Puedes buscar otro artista o publicarla en el Job Board.',
         eyebrow: 'SOLICITUD SIN CUPO', greeting: 'Hola, {{client_name}}.', headline: 'El artista no va a tomar tu solicitud',
-        intro: '{{artist_name}} revisó tu idea y esta vez no puede tomarla. Podés buscar otro artista o publicar tu idea en el Job Board para recibir propuestas.',
+        intro: '{{artist_name}} revisó tu idea y esta vez no puede tomarla. Puedes buscar otro artista o publicar tu idea en el Job Board para recibir propuestas.',
         ctaLabel: 'Ver mis cotizaciones', ctaVar: 'dashboard_url'
     },
     'artist-responded': {
-        subject: '{{artist_name}} respondió tu solicitud', preheader: 'Ya tenés la propuesta de tu artista: presupuesto, sesiones estimadas y mensaje.',
-        eyebrow: 'PROPUESTA DEL ARTISTA', greeting: 'Hola, {{client_name}}.', headline: 'Tenés una propuesta',
-        intro: '{{artist_name}} revisó tu idea y te mandó su propuesta. Revisala y aprobala o respondele desde tu cuenta.',
+        subject: '{{artist_name}} respondió tu solicitud', preheader: 'Ya tienes la propuesta de tu artista: presupuesto, sesiones estimadas y mensaje.',
+        eyebrow: 'PROPUESTA DEL ARTISTA', greeting: 'Hola, {{client_name}}.', headline: 'Tienes una propuesta',
+        intro: '{{artist_name}} revisó tu idea y te mandó su propuesta. Revísala y apruébala o respóndele desde tu cuenta.',
         quoteVar: 'message_preview', quoteLabel: 'Mensaje del artista', ctaLabel: 'Ver la propuesta', ctaVar: 'quotation_url'
     },
     'artist-welcome': {
-        subject: 'Te damos la bienvenida a We Ötzi', preheader: 'Tu perfil de artista ya está creado. Completalo y empezá a recibir solicitudes de tatuaje.',
+        subject: 'Te damos la bienvenida a We Ötzi', preheader: 'Tu perfil de artista ya está creado. Complétalo y empieza a recibir solicitudes de tatuaje.',
         eyebrow: 'REGISTRO DE ARTISTA', greeting: 'Hola, {{artistic_name}}.', headline: 'Tu perfil está listo',
-        intro: 'Recibimos tu registro. Entrá a tu panel con el email y la contraseña que elegiste para completar tu perfil, cargar tu galería y responder solicitudes.',
+        intro: 'Recibimos tu registro. Entra a tu panel con el email y la contraseña que elegiste para completar tu perfil, cargar tu galería y responder solicitudes.',
         ctaLabel: 'Abrir mi panel', ctaVar: 'dashboard_url'
     },
     'calendar-reminder': {
-        subject: 'Recordatorio: {{reminder_title}}', preheader: 'Tenés un recordatorio agendado en tu calendario de We Ötzi. Revisá los detalles.',
+        subject: 'Recordatorio: {{reminder_title}}', preheader: 'Tienes un recordatorio agendado en tu calendario de We Ötzi. Revisa los detalles.',
         eyebrow: 'RECORDATORIO', greeting: 'Hola, {{artist_name}}.', headline: '{{reminder_title}}',
         intro: 'Lo agendaste en tu calendario de We Ötzi para {{reminder_when}}.',
         ctaLabel: 'Abrir mi calendario', ctaVar: 'dashboard_url'
     },
     'chat-message-artist': {
-        subject: '{{client_name}} te escribió', preheader: 'Tenés un mensaje nuevo de tu cliente en We Ötzi. Respondé desde la app para mantener el historial.',
-        eyebrow: 'MENSAJE NUEVO', greeting: 'Hola, {{artist_name}}.', headline: 'Tenés un mensaje nuevo',
-        intro: '{{client_name}} te escribió sobre su cotización. Respondé desde We Ötzi para mantener todo el historial en un solo lugar.',
+        subject: '{{client_name}} te escribió', preheader: 'Tienes un mensaje nuevo de tu cliente en We Ötzi. Responde desde la app para mantener el historial.',
+        eyebrow: 'MENSAJE NUEVO', greeting: 'Hola, {{artist_name}}.', headline: 'Tienes un mensaje nuevo',
+        intro: '{{client_name}} te escribió sobre su cotización. Responde desde We Ötzi para mantener todo el historial en un solo lugar.',
         quoteVar: 'message_preview', quoteLabel: 'Mensaje', ctaLabel: 'Responder en We Ötzi', ctaVar: 'chat_url'
     },
     'chat-message-client': {
-        subject: '{{artist_name}} te escribió', preheader: 'Tenés un mensaje nuevo de tu artista en We Ötzi. Respondé desde la app para mantener el historial.',
-        eyebrow: 'MENSAJE NUEVO', greeting: 'Hola, {{client_name}}.', headline: 'Tenés un mensaje nuevo',
-        intro: '{{artist_name}} te escribió sobre tu cotización. Respondé desde We Ötzi para mantener todo el historial en un solo lugar.',
+        subject: '{{artist_name}} te escribió', preheader: 'Tienes un mensaje nuevo de tu artista en We Ötzi. Responde desde la app para mantener el historial.',
+        eyebrow: 'MENSAJE NUEVO', greeting: 'Hola, {{client_name}}.', headline: 'Tienes un mensaje nuevo',
+        intro: '{{artist_name}} te escribió sobre tu cotización. Responde desde We Ötzi para mantener todo el historial en un solo lugar.',
         quoteVar: 'message_preview', quoteLabel: 'Mensaje', ctaLabel: 'Responder en We Ötzi', ctaVar: 'chat_url'
     },
     'client-rating': {
@@ -240,9 +240,9 @@ const SPECS = {
         quoteVar: 'rating_comment', quoteLabel: 'Comentario', ctaLabel: 'Ver la cotización', ctaVar: 'quotation_url'
     },
     'client-welcome': {
-        subject: 'Tu cuenta de We Ötzi está lista', preheader: 'Desde tu cuenta seguís tus cotizaciones, mensajes y sesiones con tus artistas.',
+        subject: 'Tu cuenta de We Ötzi está lista', preheader: 'Desde tu cuenta sigues tus cotizaciones, mensajes y sesiones con tus artistas.',
         eyebrow: 'REGISTRO DE CLIENTE', greeting: 'Hola, {{full_name}}.', headline: 'Tu cuenta está lista',
-        intro: 'Creamos tu acceso a We Ötzi. Desde tu cuenta podés seguir tus cotizaciones, conversar con tus artistas y ver tus sesiones.',
+        intro: 'Creamos tu acceso a We Ötzi. Desde tu cuenta puedes seguir tus cotizaciones, conversar con tus artistas y ver tus sesiones.',
         ctaLabel: 'Entrar a mi cuenta', ctaVar: 'dashboard_url'
     },
     'daily-digest': {
@@ -257,16 +257,16 @@ const SPECS = {
         quoteVar: 'artist_response', quoteLabel: 'Respuesta del artista', ctaLabel: 'Ver la respuesta', ctaVar: 'dashboard_url'
     },
     'instagram-verification': {
-        subject: 'Tu código para validar Instagram', preheader: 'Mandá este código por mensaje directo a nuestra cuenta de Instagram para validar tu perfil.',
+        subject: 'Tu código para validar Instagram', preheader: 'Manda este código por mensaje directo a nuestra cuenta de Instagram para validar tu perfil.',
         eyebrow: 'VALIDACIÓN DE INSTAGRAM', greeting: 'Hola, {{artist_name}}.', headline: 'Tu código para validar Instagram',
-        intro: 'Este es tu código para validar tu cuenta de Instagram en We Ötzi. Desde {{instagram_handle}}, seguí a {{weotzi_instagram}} y mandanos el código por mensaje directo. Vence en {{expires_label}}. Si no lo pediste, ignorá este correo.',
+        intro: 'Este es tu código para validar tu cuenta de Instagram en We Ötzi. Desde {{instagram_handle}}, sigue a {{weotzi_instagram}} y mándanos el código por mensaje directo. Vence en {{expires_label}}. Si no lo pediste, ignora este correo.',
         highlightVar: 'verification_code', highlightLabel: 'Tu código', highlightSize: 30,
         ctaLabel: 'Abrir mensaje directo', ctaVar: 'dm_url'
     },
     'job-board-application': {
-        subject: '{{artist_name}} se postuló a tu idea', preheader: 'Un artista quiere tomar tu solicitud. Revisá su propuesta, precio estimado y mensaje.',
-        eyebrow: 'JOB BOARD · POSTULACIÓN', greeting: 'Hola, {{client_name}}.', headline: 'Tenés una nueva postulación',
-        intro: '{{artist_name}} quiere tomar tu solicitud. Revisá su propuesta antes de decidir.',
+        subject: '{{artist_name}} se postuló a tu idea', preheader: 'Un artista quiere tomar tu solicitud. Revisa su propuesta, precio estimado y mensaje.',
+        eyebrow: 'JOB BOARD · POSTULACIÓN', greeting: 'Hola, {{client_name}}.', headline: 'Tienes una nueva postulación',
+        intro: '{{artist_name}} quiere tomar tu solicitud. Revisa su propuesta antes de decidir.',
         quoteVar: 'message', quoteLabel: 'Mensaje del artista', ctaLabel: 'Ver postulaciones', ctaVar: 'dashboard_url'
     },
     'job-board-confirmed': {
@@ -276,9 +276,9 @@ const SPECS = {
         ctaLabel: 'Ver mi solicitud', ctaVar: 'dashboard_url'
     },
     'password-reset': {
-        subject: 'Tu contraseña temporal de We Ötzi', preheader: 'Usá esta contraseña temporal para entrar y cambiala apenas ingreses a tu cuenta.',
+        subject: 'Tu contraseña temporal de We Ötzi', preheader: 'Usa esta contraseña temporal para entrar y cámbiala apenas ingreses a tu cuenta.',
         eyebrow: 'SEGURIDAD DE LA CUENTA', headline: 'Tu contraseña temporal',
-        intro: 'Usá esta contraseña para entrar con {{email}} y cambiala desde tu cuenta apenas ingreses.',
+        intro: 'Usa esta contraseña para entrar con {{email}} y cámbiala desde tu cuenta apenas ingreses.',
         highlightVar: 'temp_password', highlightLabel: 'Contraseña temporal', highlightSize: 26,
         note: 'No compartas esta contraseña con nadie. Nadie del equipo de We Ötzi te la va a pedir.',
         ctaLabel: 'Iniciar sesión', ctaVar: 'login_url'
@@ -297,15 +297,15 @@ const SPECS = {
     },
     // COT-A-11: el artista registra el acuerdo → aviso al cliente.
     'quotation-agreement-client': {
-        subject: 'Tu tatuaje con {{artist_name}} tiene acuerdo', preheader: 'Guardá este resumen: presupuesto final, seña, sesiones y la primera fecha que acordaron.',
+        subject: 'Tu tatuaje con {{artist_name}} tiene acuerdo', preheader: 'Guarda este resumen: presupuesto final, anticipo, sesiones y la primera fecha que acordaron.',
         eyebrow: 'ACUERDO CONFIRMADO', greeting: 'Hola, {{client_name}}.', headline: 'Tu tatuaje tiene acuerdo',
-        intro: '{{artist_name}} registró lo que acordaron. Guardá este resumen: tiene el presupuesto final, la seña, las sesiones y la primera fecha.',
+        intro: '{{artist_name}} registró lo que acordaron. Guarda este resumen: tiene el presupuesto final, el anticipo, las sesiones y la primera fecha.',
         ctaLabel: 'Ver mi cotización', ctaVar: 'dashboard_url'
     },
     'quotation-approved': {
-        subject: '{{client_name}} aprobó tu propuesta', preheader: 'La cotización avanzó. Coordiná la agenda y confirmá los detalles finales desde el expediente.',
+        subject: '{{client_name}} aprobó tu propuesta', preheader: 'La cotización avanzó. Coordina la agenda y confirma los detalles finales desde el expediente.',
         eyebrow: 'PROPUESTA APROBADA', greeting: 'Hola, {{artist_name}}.', headline: 'Tu propuesta fue aprobada',
-        intro: '{{client_name}} aprobó tu propuesta. Coordiná la sesión y confirmá los detalles desde el expediente.',
+        intro: '{{client_name}} aprobó tu propuesta. Coordina la sesión y confirma los detalles desde el expediente.',
         ctaLabel: 'Abrir el expediente', ctaVar: 'quotation_url'
     },
     'quotation-completed': {
@@ -317,30 +317,30 @@ const SPECS = {
     'quotation-confirmation-client': {
         subject: 'Recibimos tu solicitud {{quote_id}}', preheader: 'Enviamos tu idea al artista. Te avisamos por email cuando responda.',
         eyebrow: 'SOLICITUD ENVIADA', greeting: 'Hola, {{client_full_name}}.', headline: 'Tu solicitud fue enviada',
-        intro: 'Enviamos tu idea a {{artist_name}}. Te avisamos por email cuando responda; mientras tanto podés seguir la solicitud desde tu cuenta.',
+        intro: 'Enviamos tu idea a {{artist_name}}. Te avisamos por email cuando responda; mientras tanto puedes seguir la solicitud desde tu cuenta.',
         ctaLabel: 'Seguir mi solicitud', ctaVar: 'quotation_url'
     },
     'quotation-expired': {
-        subject: 'La propuesta de {{artist_name}} venció', preheader: 'La propuesta venció sin respuesta. Si todavía te interesa, escribile al artista o pedí una nueva.',
+        subject: 'La propuesta de {{artist_name}} venció', preheader: 'La propuesta venció sin respuesta. Si todavía te interesa, escríbele al artista o pide una nueva.',
         eyebrow: 'PROPUESTA VENCIDA', greeting: 'Hola, {{client_name}}.', headline: 'La propuesta venció',
-        intro: 'La propuesta de {{artist_name}} venció sin respuesta. Si todavía te interesa, escribile o pedí una nueva cotización desde tu cuenta.',
+        intro: 'La propuesta de {{artist_name}} venció sin respuesta. Si todavía te interesa, escríbele o pide una nueva cotización desde tu cuenta.',
         ctaLabel: 'Ir a mi cuenta', ctaVar: 'dashboard_url'
     },
     'quotation-ready-client': {
-        subject: 'Tu tatuaje está listo para revisar', preheader: 'Tu artista marcó el trabajo como terminado. Revisalo y confirmá la entrega desde tu cuenta.',
+        subject: 'Tu tatuaje está listo para revisar', preheader: 'Tu artista marcó el trabajo como terminado. Revísalo y confirma la entrega desde tu cuenta.',
         eyebrow: 'ENTREGA LISTA', greeting: 'Hola, {{client_name}}.', headline: 'Tu tatuaje está listo para revisar',
-        intro: '{{artist_name}} marcó el trabajo como terminado. Entrá a tu cuenta para revisarlo y aprobar la entrega, o contale qué hay que ajustar.',
+        intro: '{{artist_name}} marcó el trabajo como terminado. Entra a tu cuenta para revisarlo y aprobar la entrega, o cuéntale qué hay que ajustar.',
         ctaLabel: 'Revisar la entrega', ctaVar: 'dashboard_url'
     },
     'quotation-rejected': {
         subject: '{{client_name}} no aprobó la propuesta', preheader: 'La cotización se cerró sin aprobación. El historial queda disponible en tu panel.',
         eyebrow: 'PROPUESTA NO APROBADA', greeting: 'Hola, {{artist_name}}.', headline: 'La propuesta no fue aprobada',
-        intro: '{{client_name}} decidió no avanzar con esta cotización. Conservamos el historial por si querés revisarlo.',
+        intro: '{{client_name}} decidió no avanzar con esta cotización. Conservamos el historial por si quieres revisarlo.',
         ctaLabel: 'Ver la cotización', ctaVar: 'quotation_url'
     },
     'request-rating': {
         subject: '¿Cómo fue tu experiencia con {{artist_name}}?', preheader: 'Tu reseña ayuda a cuidar la comunidad y a que otras personas elijan con más información.',
-        eyebrow: 'TU EXPERIENCIA', greeting: 'Hola, {{client_name}}.', headline: 'Contanos cómo te fue',
+        eyebrow: 'TU EXPERIENCIA', greeting: 'Hola, {{client_name}}.', headline: 'Cuéntanos cómo te fue',
         intro: 'Tu trabajo con {{artist_name}} quedó completado. Dejar una reseña lleva un minuto y ayuda a otras personas a elegir.',
         ctaLabel: 'Dejar mi reseña', ctaVar: 'review_url'
     },
@@ -357,25 +357,25 @@ const SPECS = {
         ctaLabel: 'Ver la cotización', ctaVar: 'quotation_url'
     },
     'session-reminder': {
-        subject: 'Recordatorio: tu sesión es mañana', preheader: 'Tu sesión es mañana. Revisá fecha, horario y detalles para llegar con todo listo.',
+        subject: 'Recordatorio: tu sesión es mañana', preheader: 'Tu sesión es mañana. Revisa fecha, horario y detalles para llegar con todo listo.',
         eyebrow: 'RECORDATORIO DE SESIÓN', greeting: 'Hola, {{recipient_name}}.', headline: 'Tu sesión es mañana',
-        intro: 'Mañana es la sesión entre {{client_name}} y {{artist_name}}. Revisá los detalles para llegar con todo listo.',
+        intro: 'Mañana es la sesión entre {{client_name}} y {{artist_name}}. Revisa los detalles para llegar con todo listo.',
         ctaLabel: 'Ver mi cuenta', ctaVar: 'dashboard_url'
     },
     'session-rescheduled': {
-        subject: 'Cambió la fecha de la sesión', preheader: 'La sesión se reprogramó. Revisá la nueva fecha antes de confirmar tu agenda.',
+        subject: 'Cambió la fecha de la sesión', preheader: 'La sesión se reprogramó. Revisa la nueva fecha antes de confirmar tu agenda.',
         eyebrow: 'SESIÓN REPROGRAMADA', headline: 'Cambió la fecha de la sesión',
-        intro: 'La sesión entre {{client_name}} y {{artist_name}} se reprogramó. Revisá la nueva fecha.',
+        intro: 'La sesión entre {{client_name}} y {{artist_name}} se reprogramó. Revisa la nueva fecha.',
         ctaLabel: 'Ver la cotización', ctaVar: 'quotation_url'
     },
     'session-scheduled': {
-        subject: 'Sesión agendada', preheader: 'La sesión ya está en el calendario. Guardá este resumen con fecha, duración y cotización.',
+        subject: 'Sesión agendada', preheader: 'La sesión ya está en el calendario. Guarda este resumen con fecha, duración y cotización.',
         eyebrow: 'SESIÓN AGENDADA', headline: 'Sesión agendada',
         intro: 'La sesión entre {{client_name}} y {{artist_name}} ya está en el calendario.',
         ctaLabel: 'Ver la cotización', ctaVar: 'quotation_url'
     },
     'studio-notification': {
-        subject: '{{subject}}', preheader: 'Tu estudio tiene una novedad para vos en We Ötzi. Revisá los detalles y respondé desde tu cuenta.',
+        subject: '{{subject}}', preheader: 'Tu estudio tiene una novedad para ti en We Ötzi. Revisa los detalles y responde desde tu cuenta.',
         eyebrow: 'ESTUDIOS', greeting: 'Hola, {{recipient_name}}.', headline: '{{subject}}',
         intro: '{{body_text}}', ctaLabel: 'Ver en We Ötzi', ctaVar: 'dashboard_url'
     },
@@ -386,9 +386,9 @@ const SPECS = {
         quoteVar: 'support_note', quoteLabel: 'Nota de soporte', ctaLabel: 'Ver mi cuenta', ctaVar: 'dashboard_url'
     },
     'verification-denied': {
-        subject: 'Necesitamos revisar tu verificación', preheader: 'No pudimos verificar tu perfil con la información actual. Revisá el motivo y volvé a enviarla.',
+        subject: 'Necesitamos revisar tu verificación', preheader: 'No pudimos verificar tu perfil con la información actual. Revisa el motivo y vuelve a enviarla.',
         eyebrow: 'VERIFICACIÓN', greeting: 'Hola, {{artist_name}}.', headline: 'Necesitamos ajustar tu verificación',
-        intro: 'No pudimos verificar tu perfil con la información actual. Revisá el motivo, corregí lo pendiente y volvé a enviarla desde tu cuenta.',
+        intro: 'No pudimos verificar tu perfil con la información actual. Revisa el motivo, corrige lo pendiente y vuelve a enviarla desde tu cuenta.',
         quoteVar: 'reason', quoteLabel: 'Motivo', ctaLabel: 'Revisar mi verificación', ctaVar: 'account_url'
     },
     'weekly-digest': {
@@ -399,7 +399,7 @@ const SPECS = {
 };
 
 // Workflows de n8n que todavía usan su propio HTML (ver docs/N8N_EMAIL_WEBHOOKS.md).
-// El workflow "Ronda 3" (8N3w5FsaVW5FvSEw) no está acá porque sus nodos no son
+// El workflow "Ronda 3" (8N3w5FsaVW5FvSEw) no está aquí porque sus nodos no son
 // legibles por la API; el relé genérico lo reemplaza.
 const NODE_TEMPLATE_MAP = {
     'We Otzi Email Notifications': {
@@ -515,76 +515,76 @@ const SUPABASE_FOOTER = { baseUrl: raw('{{ .SiteURL }}'), year: '2026' };
 
 const SUPABASE_TEMPLATES = {
     'supabase-confirm-signup': {
-        comment: 'Supabase Auth · "Confirm signup" (Authentication → Emails → Templates).\nAsunto: Confirmá tu email en We Ötzi\nVariables: {{ .Email }}, {{ .ConfirmationURL }}, {{ .SiteURL }}',
-        subject: 'Confirmá tu email · We Ötzi',
-        preheader: 'Confirmá tu email para activar tu cuenta de We Ötzi y retomar lo que dejaste cargado.',
+        comment: 'Supabase Auth · "Confirm signup" (Authentication → Emails → Templates).\nAsunto: Confirma tu email en We Ötzi\nVariables: {{ .Email }}, {{ .ConfirmationURL }}, {{ .SiteURL }}',
+        subject: 'Confirma tu email · We Ötzi',
+        preheader: 'Confirma tu email para activar tu cuenta de We Ötzi y retomar lo que dejaste cargado.',
         eyebrow: 'ÚLTIMO PASO · TU CUENTA',
-        headline: 'Confirmá tu email',
-        intro: 'Para activar tu cuenta de We Ötzi, confirmá que este email es tuyo. Abrí el link desde el mismo navegador donde creaste la cuenta: así retomamos lo que dejaste cargado.',
+        headline: 'Confirma tu email',
+        intro: 'Para activar tu cuenta de We Ötzi, confirma que este email es tuyo. Abre el link desde el mismo navegador donde creaste la cuenta: así retomamos lo que dejaste cargado.',
         highlight: { label: 'CUENTA A CONFIRMAR', value: raw('{{ .Email }}'), size: 18, spacing: 0 },
         cta: { label: 'Confirmar mi email', url: raw('{{ .ConfirmationURL }}') },
-        aside: { title: '¿No creaste una cuenta?', text: 'Si no creaste una cuenta en We Ötzi, ignorá este email: sin confirmar, la cuenta no se activa. El link vence en 24 horas.' }
+        aside: { title: '¿No creaste una cuenta?', text: 'Si no creaste una cuenta en We Ötzi, ignora este email: sin confirmar, la cuenta no se activa. El link vence en 24 horas.' }
     },
     'supabase-recovery': {
         comment: 'Supabase Auth · plantilla "Reset Password" (Authentication → Emails → Reset Password).\nFigma final del flujo de artista (oct 2026): 801:1116 "Correo - Código para recuperar acceso".\nAsunto sugerido: Tu código para recuperar el acceso a We Ötzi\nVariables de Supabase (Go templates):\n  {{ .Token }}            código OTP de 6 dígitos que /recover valida con verifyOtp(type:\'recovery\')\n  {{ .ConfirmationURL }}  enlace seguro; vuelve a /recover?recovery=1 y abre el paso "Nueva contraseña"\n  {{ .SiteURL }}          URL del sitio configurada en Supabase (links del pie)\n  {{ .Data.full_name }}   nombre guardado en user_metadata (si existe)\n"Este código vence en 10 minutos": configurar Email OTP Expiration = 600 s en Supabase\n(Authentication → Providers → Email) para que el texto sea exacto.',
         subject: 'Tu código para recuperar el acceso a We Ötzi',
-        preheader: 'Usá este código para recuperar el acceso a tu cuenta de We Ötzi. Vence en 10 minutos.',
+        preheader: 'Usa este código para recuperar el acceso a tu cuenta de We Ötzi. Vence en 10 minutos.',
         eyebrow: 'SEGURIDAD DE LA CUENTA',
         greeting: raw('{{ if .Data.full_name }}Hola, {{ .Data.full_name }}.{{ else }}Hola.{{ end }}'),
-        headline: 'Recuperá tu acceso',
+        headline: 'Recupera tu acceso',
         intro: 'Recibimos una solicitud para restablecer la contraseña de tu cuenta de We Ötzi.',
         introMargin: 78,
         highlight: { label: 'TU CÓDIGO DE VERIFICACIÓN', value: raw('{{ .Token }}'), note: 'Este código vence en 10 minutos.', size: 46, spacing: 12 },
         note: 'No compartas este código con nadie. Nadie del equipo de We Ötzi te lo va a pedir.',
         cta: { label: 'Continuar recuperación', url: raw('{{ .ConfirmationURL }}') },
-        aside: { title: '¿No solicitaste este cambio?', text: 'Podés ignorar este mensaje. Tu contraseña continuará siendo la misma y no se realizará ningún cambio en tu cuenta.' }
+        aside: { title: '¿No solicitaste este cambio?', text: 'Puedes ignorar este mensaje. Tu contraseña continuará siendo la misma y no se realizará ningún cambio en tu cuenta.' }
     },
     'supabase-password-changed': {
         comment: 'Supabase Auth · notificación de seguridad "Password changed"\n(Authentication → Emails → Security notifications → Password changed; habilitar el envío).\nMisma pieza que templates/email/password-updated.html (Figma 2001:3351) con variables de Supabase.\nAsunto sugerido: Tu contraseña de We Ötzi se actualizó\nVariables: {{ .Email }}, {{ .SiteURL }}',
         subject: 'Tu contraseña se actualizó · We Ötzi',
-        preheader: 'Cambiaste la contraseña de tu cuenta de We Ötzi correctamente. Ya podés iniciar sesión.',
+        preheader: 'Cambiaste la contraseña de tu cuenta de We Ötzi correctamente. Ya puedes iniciar sesión.',
         eyebrow: 'SEGURIDAD DE LA CUENTA',
         headline: 'Tu contraseña se actualizó',
-        intro: 'Cambiaste la contraseña de tu cuenta de We Ötzi correctamente. Ya podés iniciar sesión con tu nueva contraseña.',
+        intro: 'Cambiaste la contraseña de tu cuenta de We Ötzi correctamente. Ya puedes iniciar sesión con tu nueva contraseña.',
         highlight: { label: 'CONTRASEÑA ACTUALIZADA', value: raw('{{ .Email }}'), size: 18, spacing: 0 },
         cta: { label: 'Iniciar sesión', url: raw('{{ .SiteURL }}/bienvenida') },
-        aside: { title: '¿No hiciste este cambio?', text: 'Si no reconocés este cambio, restablecé tu contraseña cuanto antes para proteger tu cuenta. Si necesitás ayuda, contactá a nuestro equipo de soporte.' },
+        aside: { title: '¿No hiciste este cambio?', text: 'Si no reconoces este cambio, restablece tu contraseña cuanto antes para proteger tu cuenta. Si necesitas ayuda, contacta a nuestro equipo de soporte.' },
         secondary: { label: 'Proteger mi cuenta →', url: raw('{{ .SiteURL }}/recover') }
     },
     'supabase-magic-link': {
         comment: 'Supabase Auth · "Magic Link" (Authentication → Emails → Magic Link).\nLo usa signInWithOtp({ shouldCreateUser: false }) del login de artista (y del cliente cuando se sume).\nAsunto: Tu link para entrar a We Ötzi\nVariables: {{ .ConfirmationURL }}, {{ .Token }}, {{ .Email }}, {{ .SiteURL }}',
         subject: 'Tu link para entrar a We Ötzi',
-        preheader: 'Entrá a tu cuenta de We Ötzi con un toque, sin contraseña. El link vence pronto.',
+        preheader: 'Entra a tu cuenta de We Ötzi con un toque, sin contraseña. El link vence pronto.',
         eyebrow: 'ACCESO SIN CONTRASEÑA',
-        headline: 'Entrá a We Ötzi',
-        intro: 'Tocá el botón para entrar a tu cuenta con este email. Abrilo en el mismo dispositivo donde lo pediste.',
+        headline: 'Entra a We Ötzi',
+        intro: 'Toca el botón para entrar a tu cuenta con este email. Ábrelo en el mismo dispositivo donde lo pediste.',
         cta: { label: 'Entrar a We Ötzi', url: raw('{{ .ConfirmationURL }}') },
-        highlight: { label: 'O USÁ ESTE CÓDIGO', value: raw('{{ .Token }}'), note: 'El link y el código vencen en 10 minutos.', size: 34, spacing: 8 },
+        highlight: { label: 'O USA ESTE CÓDIGO', value: raw('{{ .Token }}'), note: 'El link y el código vencen en 10 minutos.', size: 34, spacing: 8 },
         note: 'No compartas este link ni el código con nadie. Nadie del equipo de We Ötzi te los va a pedir.',
-        aside: { title: '¿No pediste entrar?', text: 'Podés ignorar este mensaje: sin el link o el código nadie puede entrar a tu cuenta.' }
+        aside: { title: '¿No pediste entrar?', text: 'Puedes ignorar este mensaje: sin el link o el código nadie puede entrar a tu cuenta.' }
     },
     'supabase-email-change': {
-        comment: 'Supabase Auth · "Change Email Address" (Authentication → Emails → Change Email Address).\nLo dispara updateUser({ email }) desde la cuenta del artista o del cliente.\nAsunto: Confirmá tu nuevo email en We Ötzi\nVariables: {{ .ConfirmationURL }}, {{ .Email }} (actual), {{ .NewEmail }}, {{ .Token }}, {{ .SiteURL }}',
-        subject: 'Confirmá tu nuevo email en We Ötzi',
-        preheader: 'Confirmá el cambio de email de tu cuenta de We Ötzi. Hasta entonces seguís entrando con el anterior.',
+        comment: 'Supabase Auth · "Change Email Address" (Authentication → Emails → Change Email Address).\nLo dispara updateUser({ email }) desde la cuenta del artista o del cliente.\nAsunto: Confirma tu nuevo email en We Ötzi\nVariables: {{ .ConfirmationURL }}, {{ .Email }} (actual), {{ .NewEmail }}, {{ .Token }}, {{ .SiteURL }}',
+        subject: 'Confirma tu nuevo email en We Ötzi',
+        preheader: 'Confirma el cambio de email de tu cuenta de We Ötzi. Hasta entonces sigues entrando con el anterior.',
         eyebrow: 'SEGURIDAD DE LA CUENTA',
-        headline: 'Confirmá tu nuevo email',
-        intro: raw(`${escapeHtml('Pediste cambiar el email de tu cuenta de We Ötzi de')} {{ .Email }} ${escapeHtml('a')} {{ .NewEmail }}. ${escapeHtml('Confirmá el cambio para empezar a usarlo.')}`),
+        headline: 'Confirma tu nuevo email',
+        intro: raw(`${escapeHtml('Pediste cambiar el email de tu cuenta de We Ötzi de')} {{ .Email }} ${escapeHtml('a')} {{ .NewEmail }}. ${escapeHtml('Confirma el cambio para empezar a usarlo.')}`),
         highlight: { label: 'NUEVO EMAIL', value: raw('{{ .NewEmail }}'), size: 18, spacing: 0 },
         cta: { label: 'Confirmar el cambio', url: raw('{{ .ConfirmationURL }}') },
-        aside: { title: '¿No pediste este cambio?', text: 'No toques el link y cambiá tu contraseña desde tu cuenta. Si necesitás ayuda, escribinos a soporte.' }
+        aside: { title: '¿No pediste este cambio?', text: 'No toques el link y cambia tu contraseña desde tu cuenta. Si necesitas ayuda, escríbenos a soporte.' }
     },
     'password-updated': {
         comment: 'Correo "Contraseña actualizada" — Figma final del flujo de artista (oct 2026),\n2001:3351 "Recuperar acceso - 05 Correo contraseña actualizada".\nAsunto sugerido: Tu contraseña de We Ötzi se actualizó\nVariables {{variable}}: {{nombre}}, {{fecha}}, {{hora}}, {{zona_horaria}}, {{login_url}}, {{recover_url}}, {{año}}.\nAlternativa sin servidor: templates/email/supabase-password-changed.html.',
         subject: 'Tu contraseña se actualizó · We Ötzi',
-        preheader: 'Cambiaste la contraseña de tu cuenta de We Ötzi correctamente. Ya podés iniciar sesión.',
+        preheader: 'Cambiaste la contraseña de tu cuenta de We Ötzi correctamente. Ya puedes iniciar sesión.',
         eyebrow: 'SEGURIDAD DE LA CUENTA',
         greeting: raw('Hola, {{nombre}}.'),
         headline: 'Tu contraseña se actualizó',
-        intro: 'Cambiaste la contraseña de tu cuenta de We Ötzi correctamente. Ya podés iniciar sesión con tu nueva contraseña.',
+        intro: 'Cambiaste la contraseña de tu cuenta de We Ötzi correctamente. Ya puedes iniciar sesión con tu nueva contraseña.',
         highlight: { label: 'CONTRASEÑA ACTUALIZADA', value: raw('{{fecha}} &middot; {{hora}} ({{zona_horaria}})'), size: 16, spacing: 0 },
         cta: { label: 'Iniciar sesión', url: raw('{{login_url}}') },
-        aside: { title: '¿No hiciste este cambio?', text: 'Si no reconocés este cambio, restablecé tu contraseña cuanto antes para proteger tu cuenta. Si necesitás ayuda, contactá a nuestro equipo de soporte.' },
+        aside: { title: '¿No hiciste este cambio?', text: 'Si no reconoces este cambio, restablece tu contraseña cuanto antes para proteger tu cuenta. Si necesitas ayuda, contacta a nuestro equipo de soporte.' },
         secondary: { label: 'Proteger mi cuenta →', url: raw('{{recover_url}}') },
         footer: { baseUrl: DEFAULT_PUBLIC_BASE, year: raw('{{año}}') }
     }

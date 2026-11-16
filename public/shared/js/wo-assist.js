@@ -62,111 +62,111 @@
     // Títulos = contrato §1. Las etiquetas de checks son respaldo: manda el servidor.
     var STEP_COPY = {
         perfil: {
-            title: 'Completá tu perfil',
-            description: 'Subí un banner y tu foto, sumá al menos una red (Instagram, TikTok o tu sitio web) y dejá tu WhatsApp y tu email de contacto. La biografía es opcional, pero ayuda a que te elijan.',
+            title: 'Completa tu perfil',
+            description: 'Sube un banner y tu foto, suma al menos una red (Instagram, TikTok o tu sitio web) y deja tu WhatsApp y tu email de contacto. La biografía es opcional, pero ayuda a que te elijan.',
             checks: { banner: 'Banner de perfil', foto: 'Foto de perfil', redes: 'Instagram, TikTok o sitio web', whatsapp: 'WhatsApp', email: 'Email de contacto', bio: 'Biografía' }
         },
         portafolio: {
-            title: 'Validá tu Instagram y tu portafolio',
-            description: 'Cargá al menos un trabajo y validá tu cuenta de Instagram. Las fotos que importes de Instagram se muestran en tu perfil público cuando la cuenta queda validada.',
+            title: 'Valida tu Instagram y tu portafolio',
+            description: 'Carga al menos un trabajo y valida tu cuenta de Instagram. Las fotos que importes de Instagram se muestran en tu perfil público cuando la cuenta queda validada.',
             checks: { trabajos: 'Al menos un trabajo cargado', instagram_validado: 'Instagram validado', portafolio_validado: 'Fotos de Instagram revisadas' }
         },
         compartir: {
-            title: 'Compartí tu perfil en Instagram',
-            description: 'Pegá tu enlace de We Ötzi en tu Instagram para que tus clientes coticen directo desde ahí. Copiar el enlace y el mensaje desde acá es opcional: lo que cuenta es que quede pegado.',
+            title: 'Comparte tu perfil en Instagram',
+            description: 'Pega tu enlace de We Ötzi en tu Instagram para que tus clientes coticen directo desde ahí. Copiar el enlace y el mensaje desde aquí es opcional: lo que cuenta es que quede pegado.',
             checks: { enlace_copiado: 'Enlace copiado', bio_copiada: 'Mensaje para la bio copiado', pegado: 'Enlace pegado en tu Instagram' }
         },
         retiro: {
-            title: 'Configurá un medio de retiro',
-            description: 'Agregá al menos un destino de retiro en Cobros para recibir lo que cobrás con We Ötzi. Podés cambiarlo cuando quieras.',
+            title: 'Configura un medio de retiro',
+            description: 'Agrega al menos un destino de retiro en Cobros para recibir lo que cobras con We Ötzi. Puedes cambiarlo cuando quieras.',
             unavailable: 'El Wallet todavía no está activo en tu cuenta: este paso se habilita pronto.',
             checks: { destino: 'Destino de retiro activo' }
         },
         disponibilidad: {
-            title: 'Configurá tu disponibilidad',
-            description: 'Contanos si trabajás de forma independiente, en un estudio o en ambos, y marcá al menos un día con horario. Si trabajás en un estudio, indicá cuál.',
-            checks: { modalidad: 'Modalidad de trabajo', estudio: 'Estudio donde trabajás', horarios: 'Días y horarios' }
+            title: 'Configura tu disponibilidad',
+            description: 'Cuéntanos si trabajas de forma independiente, en un estudio o en ambos, y marca al menos un día con horario. Si trabajas en un estudio, indica cuál.',
+            checks: { modalidad: 'Modalidad de trabajo', estudio: 'Estudio donde trabajas', horarios: 'Días y horarios' }
         },
         notificaciones: {
-            title: 'Configurá tus notificaciones',
-            description: 'Elegí por qué canal querés enterarte de mensajes, cotizaciones e invitaciones. Con guardar una preferencia ya alcanza.',
+            title: 'Configura tus notificaciones',
+            description: 'Elige por qué canal quieres enterarte de mensajes, cotizaciones e invitaciones. Con guardar una preferencia ya alcanza.',
             checks: { preferencias: 'Preferencias guardadas' }
         },
         verificacion: {
-            title: 'Completá la verificación',
-            description: 'Subí tu documento de identidad y un comprobante de domicilio, y pedí la verificación de tu cuenta. El certificado de bioseguridad es opcional.',
+            title: 'Completa la verificación',
+            description: 'Sube tu documento de identidad y un comprobante de domicilio, y pide la verificación de tu cuenta. El certificado de bioseguridad es opcional.',
             checks: { identidad: 'Documento de identidad', domicilio: 'Comprobante de domicilio', bioseguridad: 'Certificado de bioseguridad', solicitud: 'Solicitud de verificación' }
         },
         configuracion: {
-            title: 'Completá la configuración',
-            description: 'Revisá tu país, tu zona horaria y la moneda en la que ves los precios. Con eso la agenda y las cotizaciones te muestran todo en tu horario.',
+            title: 'Completa la configuración',
+            description: 'Revisa tu país, tu zona horaria y la moneda en la que ves los precios. Con eso la agenda y las cotizaciones te muestran todo en tu horario.',
             checks: { region: 'País y zona horaria', moneda: 'Moneda de los precios', revisada: 'Configuración revisada' }
         }
     };
 
     // Mensajes cortos para la bio de Instagram (el enlace va en el campo de enlaces).
     var BIO_MESSAGES = [
-        'Agendá conmigo en el enlace',
-        'Cotizá fácil desde el enlace',
-        'Pedí tu cotización en el enlace',
-        'Reservá tu turno en el enlace',
-        'Contame tu idea en el enlace',
-        'Pedí tu turno en el enlace',
-        'Escribime tu idea desde el enlace',
-        'Consultá fechas en el enlace',
-        'Mandame tu referencia en el enlace',
-        'Sacá turno desde el enlace',
-        'Contá qué querés tatuarte en el enlace',
-        'Agendá tu sesión en el enlace',
-        'Pedí presupuesto en el enlace',
-        'Mirá mi agenda en el enlace',
-        'Reservá tu lugar en el enlace',
-        'Cotizá sin vueltas en el enlace',
-        'Elegí tu fecha en el enlace',
-        'Subí tu idea y cotizá en el enlace',
-        'Cotizá tu próximo tatuaje en el enlace',
+        'Agenda conmigo en el enlace',
+        'Cotiza fácil desde el enlace',
+        'Pide tu cotización en el enlace',
+        'Reserva tu turno en el enlace',
+        'Cuéntame tu idea en el enlace',
+        'Pide tu turno en el enlace',
+        'Escríbeme tu idea desde el enlace',
+        'Consulta fechas en el enlace',
+        'Mándame tu referencia en el enlace',
+        'Saca turno desde el enlace',
+        'Cuenta qué quieres tatuarte en el enlace',
+        'Agenda tu sesión en el enlace',
+        'Pide presupuesto en el enlace',
+        'Mira mi agenda en el enlace',
+        'Reserva tu lugar en el enlace',
+        'Cotiza sin vueltas en el enlace',
+        'Elige tu fecha en el enlace',
+        'Sube tu idea y cotiza en el enlace',
+        'Cotiza tu próximo tatuaje en el enlace',
         'Turnos y cotizaciones en el enlace'
     ];
 
     var SHARE_COPY = {
         linkLabel: 'Tu enlace de We Ötzi',
-        noLink: 'Todavía no encontramos tu enlace público. Revisá tu nombre de usuario en Mi perfil.',
-        instructions: 'En Instagram: Editar perfil → Enlaces → Agregar enlace externo. Pegá este enlace en el campo URL.',
+        noLink: 'Todavía no encontramos tu enlace público. Revisa tu nombre de usuario en Mi perfil.',
+        instructions: 'En Instagram: Editar perfil → Enlaces → Agregar enlace externo. Pega este enlace en el campo URL.',
         bioLabel: 'Mensaje para tu bio',
-        bioHint: 'Pegalo al final de tu presentación sin borrar lo que ya tenés.'
+        bioHint: 'Pégalo al final de tu presentación sin borrar lo que ya tienes.'
     };
 
     // Sin el módulo de Instagram (instagram.available === false) el paso se
     // completa con los trabajos: el servidor deja opcionales los dos checks de IG.
-    var IG_UNAVAILABLE_NOTE = 'La validación de Instagram se habilita pronto: por ahora cargá tus trabajos.';
+    var IG_UNAVAILABLE_NOTE = 'La validación de Instagram se habilita pronto: por ahora carga tus trabajos.';
     // Acceso al demo desde el dock (en móvil reemplaza a la tarjeta, que se oculta).
-    var DEMO_LINK_LABEL = 'Probá el modo demo →';
+    var DEMO_LINK_LABEL = 'Prueba el modo demo →';
     var REVIEWED_LABEL = 'Ya lo revisé';
     // Motivos con los que WoTour.narrator.speak avisa que no pudo leer.
     var VOICE_FAIL = {
         unsupported: 'Este navegador no tiene voz para leer los pasos.',
-        gesture: 'Tocá de nuevo para escuchar: el navegador pide un toque antes de habilitar la voz.',
-        generic: 'No pudimos leer el paso en voz alta. Probá de nuevo.'
+        gesture: 'Toca de nuevo para escuchar: el navegador pide un toque antes de habilitar la voz.',
+        generic: 'No pudimos leer el paso en voz alta. Prueba de nuevo.'
     };
 
     var COMPLETED_COPY = {
         title: 'Tu perfil está listo',
-        description: 'Ya recorriste todos los pasos. Mirá la bienvenida para conocer todo lo que podés hacer en We Ötzi.'
+        description: 'Ya recorriste todos los pasos. Mira la bienvenida para conocer todo lo que puedes hacer en We Ötzi.'
     };
 
     var WELCOME = {
         eyebrow: 'Modo asistido · completo',
         intro: 'Bienvenido a We Ötzi. Tu perfil ya tiene todo lo necesario para recibir cotizaciones: desde ahora, cada persona que entre a tu enlace puede pedirte un tatuaje con la información completa.',
-        featuresTitle: 'Todo lo que podés hacer en We Ötzi',
+        featuresTitle: 'Todo lo que puedes hacer en We Ötzi',
         features: [
-            { icon: 'file-text', name: 'Cotizaciones', text: 'Recibí pedidos completos y respondé con tu presupuesto.' },
-            { icon: 'calendar', name: 'Calendario', text: 'Organizá tus sesiones y recordatorios en una sola agenda.' },
-            { icon: 'briefcase', name: 'Job board', text: 'Encontrá personas que ya buscan tatuarse con tu estilo.' },
-            { icon: 'map-pin', name: 'Spots e invitaciones', text: 'Postulate a espacios en estudios y respondé invitaciones.' },
-            { icon: 'globe', name: 'Travel', text: 'Planificá tus viajes y avisá dónde vas a tatuar.' },
-            { icon: 'inbox', name: 'Inbox', text: 'Hablá con clientes, estudios y soporte desde un solo lugar.' },
-            { icon: 'bar-chart-2', name: 'Estadísticas', text: 'Mirá cuántas visitas y cotizaciones suma tu perfil.' },
-            { icon: 'credit-card', name: 'Wallet', text: 'Cobrá señas y pagos protegidos, y retirá tu saldo.' }
+            { icon: 'file-text', name: 'Cotizaciones', text: 'Recibí pedidos completos y responde con tu presupuesto.' },
+            { icon: 'calendar', name: 'Calendario', text: 'Organiza tus sesiones y recordatorios en una sola agenda.' },
+            { icon: 'briefcase', name: 'Job board', text: 'Encuentra personas que ya buscan tatuarse con tu estilo.' },
+            { icon: 'map-pin', name: 'Spots e invitaciones', text: 'Postúlate a espacios en estudios y responde invitaciones.' },
+            { icon: 'globe', name: 'Travel', text: 'Planifica tus viajes y avisa dónde vas a tatuar.' },
+            { icon: 'inbox', name: 'Inbox', text: 'Habla con clientes, estudios y soporte desde un solo lugar.' },
+            { icon: 'bar-chart-2', name: 'Estadísticas', text: 'Mira cuántas visitas y cotizaciones suma tu perfil.' },
+            { icon: 'credit-card', name: 'Wallet', text: 'Cobra anticipos y pagos protegidos, y retira tu saldo.' }
         ],
         whyTitle: 'Por qué conviene que tus clientes coticen con We Ötzi',
         why: [
@@ -174,12 +174,12 @@
             'Todo ordenado en un solo lugar, con historial y sin mensajes perdidos.',
             'Tu enlace funciona como cotizador las 24 horas, aunque no estés conectado.',
             'Agenda y recordatorios conectados a tu calendario.',
-            'Cobros y señas protegidos en el Wallet.',
+            'Cobros y anticipos protegidos en el Wallet.',
             'Reseñas verificadas que suman confianza a tu perfil.',
             'Soporte del equipo We Ötzi ante cancelaciones, disputas o dudas.'
         ],
         supportTitle: 'Soporte',
-        supportBefore: 'Si necesitás ayuda, escribinos desde ',
+        supportBefore: 'Si necesitas ayuda, escríbenos desde ',
         supportInbox: 'Inbox → Soporte',
         supportMiddle: ' o a ',
         supportAfter: '. Te responde una persona del equipo We Ötzi.'
@@ -535,7 +535,7 @@
     }
     function renderConfirm() {
         return '<h2 class="wo-assist__title" id="wo-assist-title" tabindex="-1">¿Salir del modo asistido?</h2>' +
-            '<p class="wo-assist__desc">Podés retomarlo desde el menú Ö.</p>' +
+            '<p class="wo-assist__desc">Puedes retomarlo desde el menú Ö.</p>' +
             '<div class="wo-assist__actions">' + btn('exit-confirm', 'SALIR', 'ink') + btn('exit-cancel', 'SEGUIR CON LOS PASOS', 'ghost') + '</div>';
     }
     function renderTools(m) {
@@ -582,7 +582,7 @@
         if (m.confirmExit) html += renderConfirm();
         else if (m.loading) html += '<h2 class="wo-assist__title" id="wo-assist-title" tabindex="-1">Cargando tus pasos</h2><p class="wo-assist__desc">Estamos revisando qué te falta completar.</p>';
         else if (m.error) html += '<h2 class="wo-assist__title" id="wo-assist-title" tabindex="-1">No pudimos cargar tus pasos</h2>' +
-            '<p class="wo-assist__desc">Revisá tu conexión y probá de nuevo en unos segundos.</p><div class="wo-assist__actions">' + btn('retry', 'REINTENTAR', 'ink') + '</div>';
+            '<p class="wo-assist__desc">Revisa tu conexión y prueba de nuevo en unos segundos.</p><div class="wo-assist__actions">' + btn('retry', 'REINTENTAR', 'ink') + '</div>';
         else if (m.view) html += renderStep(m);
         else html += renderCompleted();
         if (!m.loading && !m.error && !m.confirmExit) html += renderTools(m);
@@ -1113,10 +1113,10 @@
         render();
         focusTitle();
         post({ assisted: { skip: stepId } }).then(function () {
-            announce('Lo dejamos para después. Lo encontrás en la lista de pasos.');
+            announce('Lo dejamos para después. Lo encuentras en la lista de pasos.');
         }, function (err) {
             warn('skip', err && err.message);
-            announce('No pudimos guardar el cambio. Probá de nuevo.');
+            announce('No pudimos guardar el cambio. Prueba de nuevo.');
         });
     }
     function continueFrom(stepId) {
@@ -1202,7 +1202,7 @@
         var url = state.data && safeUrl(state.data.profile_url);
         if (!url) return;
         copyText(url, document.getElementById('wo-assist-link')).then(function (ok) {
-            if (!ok) { announce('No pudimos copiar. Seleccioná el enlace y copialo a mano.'); return; }
+            if (!ok) { announce('No pudimos copiar. Selecciona el enlace y cópialo a mano.'); return; }
             markCopied('link');
             announce('Copiamos tu enlace.');
             ack('compartir.enlace');
@@ -1217,7 +1217,7 @@
     function copyBio() {
         var text = ui.bio || BIO_MESSAGES[0];
         copyText(text, document.getElementById('wo-assist-bio')).then(function (ok) {
-            if (!ok) { announce('No pudimos copiar. Seleccioná el mensaje y copialo a mano.'); return; }
+            if (!ok) { announce('No pudimos copiar. Selecciona el mensaje y cópialo a mano.'); return; }
             markCopied('bio');
             announce('Copiamos el mensaje.');
             ack('compartir.bio');
@@ -1226,7 +1226,7 @@
     function ackShared() {
         post({ assisted: { acknowledge: 'compartir' } }).catch(function (err) {
             warn('acknowledge', err && err.message);
-            announce('No pudimos guardar el cambio. Probá de nuevo.');
+            announce('No pudimos guardar el cambio. Prueba de nuevo.');
         });
     }
     // "Ya lo revisé" (notificaciones, configuración): el servidor acepta el ack
@@ -1237,7 +1237,7 @@
             return refresh();
         }, function (err) {
             warn('acknowledge', err && err.message);
-            announce('No pudimos guardar el cambio. Probá de nuevo.');
+            announce('No pudimos guardar el cambio. Prueba de nuevo.');
             return null;
         });
     }

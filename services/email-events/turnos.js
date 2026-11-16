@@ -38,7 +38,7 @@ module.exports = {
             preheader: (d) => `${text(d.client_name, 'Un cliente')} pidió un turno. Queda apartado hasta ${text(d.hold_expires_label, 'que respondas')}.`,
             eyebrow: 'Turnos',
             headline: () => 'Te pidieron un turno',
-            intro: (d) => `${text(d.client_name, 'Un cliente')} eligió uno de tus turnos disponibles y te mandó su idea. El turno queda apartado mientras respondés: si lo aceptás, se agenda y se bloquea en tu calendario.`,
+            intro: (d) => `${text(d.client_name, 'Un cliente')} eligió uno de tus turnos disponibles y te mandó su idea. El turno queda apartado mientras respondes: si lo aceptas, se agenda y se bloquea en tu calendario.`,
             rows: (d) => [
                 ['Turno pedido', text(d.slot_label, '-')],
                 ['Zona horaria', text(d.slot_timezone, '-')],
@@ -70,7 +70,7 @@ module.exports = {
             preheader: (d) => `Tu sesión quedó agendada: ${text(d.slot_label, '')}.`,
             eyebrow: 'Turno confirmado',
             headline: () => 'Tu turno quedó agendado',
-            intro: (d) => `${text(d.artist_name, 'El artista')} aceptó tu solicitud y reservó el turno que elegiste. Si necesitás cambiarlo, escribile desde tu cotización.`,
+            intro: (d) => `${text(d.artist_name, 'El artista')} aceptó tu solicitud y reservó el turno que elegiste. Si necesitas cambiarlo, escríbele desde tu cotización.`,
             rows: (d) => [
                 ['Turno', text(d.slot_label, '-')],
                 ['Zona horaria', text(d.slot_timezone, '-')],
@@ -101,7 +101,7 @@ module.exports = {
             preheader: (d) => `El turno ${text(d.slot_label, '')} ya no está apartado. Tu solicitud sigue activa.`,
             eyebrow: 'Turnos',
             headline: () => 'El apartado de tu turno venció',
-            intro: (d) => `${text(d.artist_name, 'El artista')} todavía no respondió y el turno que habías elegido volvió a quedar libre. Tu solicitud de cotización sigue activa: podés elegir otro turno o esperar la respuesta.`,
+            intro: (d) => `${text(d.artist_name, 'El artista')} todavía no respondió y el turno que habías elegido volvió a quedar libre. Tu solicitud de cotización sigue activa: puedes elegir otro turno o esperar la respuesta.`,
             rows: (d) => [
                 ['Turno liberado', text(d.slot_label, '-')],
                 ['Cotización', text(d.quote_id, '-')],

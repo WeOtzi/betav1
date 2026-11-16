@@ -602,7 +602,7 @@ test('CAL-14 y CAL-13 en Cuenta: zona horaria guardada y diálogo de desconexió
     const js = read('public/shared/js/artist-account.js');
     assert.match(js, /if \(!appSettings\(\)\.timezone\) \{\s+savePrefs\('app_settings', \{ timezone: tzSel\.value \}\)/);
     assert.match(js, /D\.GoogleCalendar\.disconnect\(\{ removeEvents \}\)/);
-    assert.ok(!js.includes("window.confirm('¿Querés desconectar Google Calendar? Dejamos de sincronizar"), 'ya no usa confirm como flujo principal');
+    assert.ok(!js.includes("window.confirm('¿Quieres desconectar Google Calendar? Dejamos de sincronizar"), 'ya no usa confirm como flujo principal');
     const html = read('public/artist/account/index.html');
     assert.match(html, /<dialog class="aac-dialog" id="av-gcal-disconnect-dialog" aria-labelledby="av-gcal-disconnect-title"/);
     assert.match(html, /<input type="checkbox" id="av-gcal-remove-events">/);

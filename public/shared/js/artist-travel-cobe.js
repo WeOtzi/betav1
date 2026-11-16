@@ -20,7 +20,7 @@
 }(typeof globalThis !== 'undefined' ? globalThis : this, function createTravelCobeApi() {
     'use strict';
 
-    const FALLBACK_MESSAGE = 'El globo interactivo no está disponible. Podés consultar las paradas en la agenda.';
+    const FALLBACK_MESSAGE = 'El globo interactivo no está disponible. Puedes consultar las paradas en la agenda.';
     const CANCELLED_TRIP_STATUSES = new Set(['cancelado', 'cancelled', 'canceled']);
     const INACTIVE_LINK_STATUSES = new Set(['rechazada', 'cancelada', 'rejected', 'cancelled', 'canceled']);
     const DEG = Math.PI / 180;
@@ -321,7 +321,7 @@
                     summary: trip.personal_notes
                         || trip.agreed_conditions
                         || trip.event_name
-                        || 'Consultá la agenda para ver el detalle de esta parada.',
+                        || 'Consulta la agenda para ver el detalle de esta parada.',
                     location,
                     coordinateSource: studioContext.location ? 'studio' : 'city',
                     trip,

@@ -170,7 +170,7 @@
         }
         function ownedStudio(store, studioId, userId) {
             var row = store.rows('studios').find(function (s) { return s.id === studioId; });
-            if (!row || !accessFor(store, studioId, userId)) throw new Error('No tenés acceso al inbox de este estudio.');
+            if (!row || !accessFor(store, studioId, userId)) throw new Error('No tienes acceso al inbox de este estudio.');
             return row;
         }
         function studioThread(store, threadId) {
@@ -256,8 +256,8 @@
             if (r.status !== 'pending') throw new Error('Esta solicitud ya fue respondida.');
             var decision = args.p_decision;
             var reply = String(args.p_reply || '').trim();
-            if (decision !== 'accepted' && decision !== 'declined') throw new Error('Elegí si actualizás la invitación o mantenés las condiciones.');
-            if (decision === 'declined' && reply.length < 10) throw new Error('Contale al artista por qué mantenés las condiciones (mínimo 10 caracteres).');
+            if (decision !== 'accepted' && decision !== 'declined') throw new Error('Elige si actualizas la invitación o mantienes las condiciones.');
+            if (decision === 'declined' && reply.length < 10) throw new Error('Cuéntale al artista por qué mantienes las condiciones (mínimo 10 caracteres).');
             var changes = args.p_changes || {};
             var summary = [];
             if (decision === 'accepted' && access === 'manager') {
@@ -274,7 +274,7 @@
                     else d[key] = changes[key];
                     summary.push(key);
                 });
-                if (!summary.length) throw new Error('No hay cambios: si mantenés las condiciones, respondé sin actualizar.');
+                if (!summary.length) throw new Error('No hay cambios: si mantienes las condiciones, responde sin actualizar.');
             }
             r.status = decision; r.resolved_at = nowIso();
             var thread = r._demo_thread_id ? studioThread(store, r._demo_thread_id) : null;

@@ -2,7 +2,7 @@
  * WE OTZI - /bienvenida · selección de rol (rediseño Bauhaus 2026)
  * ----------------------------------------------------------------
  * Figma final (oct 2026) 797:269 (= 801:1125 del flujo de clientes):
- * "¡Bienvenido! ¿Cómo querés usar We Ötzi?" — dos cards radio
+ * "¡Bienvenido! ¿Cómo quieres usar We Ötzi?" — dos cards radio
  * (cliente / artista) + CONTINUAR.
  *
  * Comportamiento al continuar:

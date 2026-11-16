@@ -849,7 +849,7 @@ html.qn-pv-open .qn-overlay { background: transparent; }
 }
 
 .qn-pv-conditions {
-    margin-top: calc(var(--space-5) + 2px); /* Figma 547:3710: 22px bajo seña/saldo */
+    margin-top: calc(var(--space-5) + 2px); /* Figma 547:3710: 22px bajo anticipo/saldo */
     padding-top: var(--space-4);
     border-top: var(--border-hairline) solid var(--sand-250);
 }

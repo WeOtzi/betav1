@@ -11,7 +11,7 @@
  *                       con canvas (con código QR si hay enlace público y
  *                       qrcode-generator.js está cargado)
  *
- * Todo dato llega como texto plano y se escapa acá. Expone window.WoQuoteSheet.
+ * Todo dato llega como texto plano y se escapa aquí. Expone window.WoQuoteSheet.
  */
 (function () {
     'use strict';

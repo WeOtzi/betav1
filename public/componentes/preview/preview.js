@@ -15,7 +15,7 @@
     const title = document.createElement("strong");
     title.textContent = "Preview no disponible";
     const detail = document.createElement("code");
-    detail.textContent = validTag ? "La variante no es válida." : "Usá ?component=weotzi-nombre";
+    detail.textContent = validTag ? "La variante no es válida." : "Usa ?component=weotzi-nombre";
     error.append(title, detail);
     root.append(error);
     document.title = "Preview no disponible · We Ötzi";

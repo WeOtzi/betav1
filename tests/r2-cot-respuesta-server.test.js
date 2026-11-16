@@ -339,7 +339,7 @@ test('P29: los campos de la cotización manual se guardan como fila "sent" del a
     assert.equal(broken.calls.saves.length, 1);
 });
 
-test('P29: tras el acuerdo la seña de la fila manual se alinea', async () => {
+test('P29: tras el acuerdo el anticipo de la fila manual se alinea', async () => {
     const none = await logic.handleAgreementSync(REQ, 'QT-1', fakeDeps().deps);
     assert.deepEqual(none, { ok: true, synced: false });
     const f = fakeDeps({
@@ -486,7 +486,7 @@ test('email: artist_updated_quotation_proposal es solo-servidor, al cliente y co
     assert.ok(out.preheader.length >= 40 && out.preheader.length <= 110);
     assert.equal(out.cta.url, 'https://beta.weotzi.com/client/dashboard?quote=QT-1');
     assert.match(out.text, /Fechas ofrecidas: sáb 5 dic 2026 · 14:00–17:00; 10 al 15 dic 2026/);
-    assert.match(out.text, /Seña: 30 % · 123\.000 ARS/);
+    assert.match(out.text, /Anticipo: 30 % · 123\.000 ARS/);
     assert.match(out.text, /Hola Lucía, te espero\./);
     assert.doesNotMatch(out.html, /<script>alert/);
     // Sin quotation_url cae al panel del cliente (nunca queda sin botón).

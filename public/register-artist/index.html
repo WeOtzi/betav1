@@ -73,17 +73,17 @@
             </a>
         </div>
         <nav class="ra-nav" id="ra-nav" aria-label="Progreso del registro">
-            <button type="button" class="ra-nav-item is-active" data-nav-group="quien"><span class="ra-check" aria-hidden="true"></span>Quién sos</button>
+            <button type="button" class="ra-nav-item is-active" data-nav-group="quien"><span class="ra-check" aria-hidden="true"></span>Quién eres</button>
             <button type="button" class="ra-nav-item" data-nav-group="acceso"><span class="ra-check" aria-hidden="true"></span>Tu acceso</button>
             <button type="button" class="ra-nav-item" data-nav-group="oficio"><span class="ra-check" aria-hidden="true"></span>Tu oficio</button>
             <button type="button" class="ra-nav-item" data-nav-group="presencia"><span class="ra-check" aria-hidden="true"></span>Tu presencia</button>
-            <button type="button" class="ra-nav-item" data-nav-group="trabajo"><span class="ra-check" aria-hidden="true"></span>Cómo trabajás</button>
+            <button type="button" class="ra-nav-item" data-nav-group="trabajo"><span class="ra-check" aria-hidden="true"></span>Cómo trabajas</button>
             <button type="button" class="ra-nav-item" data-nav-group="novedades"><span class="ra-check" aria-hidden="true"></span>Novedades</button>
             <button type="button" class="ra-nav-item" data-nav-group="revision"><span class="ra-check" aria-hidden="true"></span>Revisión</button>
         </nav>
     </header>
 
-    <!-- Hooks legacy de progreso: register.js sigue escribiendo acá (ancho + etiqueta)
+    <!-- Hooks legacy de progreso: register.js sigue escribiendo aquí (ancho + etiqueta)
          para el autosave del borrador; no se muestran en el diseño nuevo. -->
     <div class="ra-legacy-progress" hidden aria-hidden="true">
         <div class="progress-fill" id="progress-fill"></div>
@@ -96,7 +96,7 @@
         <div class="ra-intro" id="ra-intro">
             <p class="ra-intro-eyebrow">Registro de artistas</p>
             <h1 class="ra-intro-title">Armemos tu perfil.</h1>
-            <p class="ra-intro-lead">Todo en una sola página — completá cada grupo y avanzá. Podés volver a editar cualquiera antes de confirmar.</p>
+            <p class="ra-intro-lead">Todo en una sola página — completa cada grupo y avanza. Puedes volver a editar cualquiera antes de confirmar.</p>
             <hr class="ra-intro-rule">
         </div>
 
@@ -106,8 +106,8 @@
             <section class="ra-group ra-group--ig" data-group="ig" data-index="0" hidden>
                 <div class="ra-panel">
                     <p class="ra-eyebrow">IG · Importación</p>
-                    <h2 class="ra-title">Conectá tu Instagram.</h2>
-                    <p class="ra-hint">Pegá tu @usuario y elegí qué traer. Después confirmás cada campo.</p>
+                    <h2 class="ra-title">Conecta tu Instagram.</h2>
+                    <p class="ra-hint">Pega tu @usuario y elige qué traer. Después confirmas cada campo.</p>
                     <div class="ra-fields">
                         <div class="ra-field ra-field--half">
                             <label class="ra-label" for="ig-step-handle">Usuario de Instagram</label>
@@ -127,17 +127,17 @@
                 </div>
             </section>
 
-            <!-- ===== 01 · QUIÉN SOS ===== -->
+            <!-- ===== 01 · QUIÉN ERES ===== -->
             <section class="ra-group" data-group="quien" data-index="1">
                 <div class="ra-row" hidden>
                     <div class="ra-row-main">
-                        <p class="ra-row-eyebrow"><span class="ra-check" aria-hidden="true"></span>Quién sos</p>
+                        <p class="ra-row-eyebrow"><span class="ra-check" aria-hidden="true"></span>Quién eres</p>
                         <p class="ra-row-value" data-row-value>—</p>
                     </div>
                     <button type="button" class="ra-edit" data-edit-group="quien">Editar</button>
                 </div>
                 <div class="ra-panel" hidden>
-                    <p class="ra-eyebrow">01 · Quién sos</p>
+                    <p class="ra-eyebrow">01 · Quién eres</p>
                     <h2 class="ra-title">Tu nombre, real y artístico.</h2>
                     <div class="ra-fields ra-fields--2col">
                         <div class="ra-field">
@@ -191,7 +191,7 @@
                                 </div>
                                 <div class="password-strength" id="password-strength" aria-live="polite">
                                     <div class="password-strength-track"><div class="password-strength-fill" id="password-strength-fill"></div></div>
-                                    <div class="password-feedback" id="password-strength-text">Usá una mezcla difícil de adivinar.</div>
+                                    <div class="password-feedback" id="password-strength-text">Usa una mezcla difícil de adivinar.</div>
                                     <ul class="password-rules" id="password-rules">
                                         <li data-rule="length">6+ caracteres</li>
                                         <li data-rule="case">Mayusculas y minusculas</li>
@@ -204,13 +204,13 @@
                             <div class="ra-field">
                                 <label class="ra-label" for="signup_password_confirm">Repetir contraseña</label>
                                 <div class="password-input-row">
-                                    <input type="password" id="signup_password_confirm" class="form-input" placeholder="Confirmá tu contraseña" autocomplete="new-password" minlength="6">
+                                    <input type="password" id="signup_password_confirm" class="form-input" placeholder="Confirma tu contraseña" autocomplete="new-password" minlength="6">
                                     <button type="button" class="password-toggle" data-password-toggle="signup_password_confirm" aria-label="Mostrar confirmacion" aria-pressed="false">
                                         <svg class="icon-eye" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
                                         <svg class="icon-eye-off" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" hidden><path d="M3 3l18 18"/><path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6"/><path d="M7.1 7.1C3.8 8.8 2 12 2 12s3.5 6 10 6c1.5 0 2.8-.3 4-.8"/><path d="M20.6 14.4C21.5 13.1 22 12 22 12s-3.5-6-10-6c-.8 0-1.6.1-2.3.3"/></svg>
                                     </button>
                                 </div>
-                                <div class="password-match-hint" id="password-match-hint" aria-live="polite">Repetí la contraseña para confirmar.</div>
+                                <div class="password-match-hint" id="password-match-hint" aria-live="polite">Repite la contraseña para confirmar.</div>
                             </div>
                         </div>
                     </div>
@@ -232,19 +232,19 @@
                 </div>
                 <div class="ra-panel" hidden>
                     <p class="ra-eyebrow">03 · Tu oficio</p>
-                    <h2 class="ra-title">¿Qué estilos trabajás?</h2>
-                    <p class="ra-hint">Elegí todos los que representen tu trabajo.</p>
+                    <h2 class="ra-title">¿Qué estilos trabajas?</h2>
+                    <p class="ra-hint">Elige todos los que representen tu trabajo.</p>
                     <div class="styles-grid" id="styles-grid">
                         <!-- Chips generados desde tattoo_styles por register.js.
                              "Ver más estilos" cierra la misma fila de chips (Figma 72-12519):
                              register.js lo preserva al re-renderizar el grid. -->
                         <button type="button" class="ra-more-styles" id="styles-more-btn" aria-expanded="false" aria-controls="styles-grid">Ver más estilos</button>
                     </div>
-                    <p class="ra-hint ra-styles-later" id="styles-later-hint" hidden>Dejaste tu estilo para más adelante: podés seguir sin elegir uno. Si querés, buscalo en «Ver más estilos» o escribilo en «Otro» (opcional).</p>
+                    <p class="ra-hint ra-styles-later" id="styles-later-hint" hidden>Dejaste tu estilo para más adelante: puedes seguir sin elegir uno. Si quieres, búscalo en «Ver más estilos» o escríbelo en «Otro» (opcional).</p>
                     <div class="custom-style-wrapper" id="custom-style-wrapper" hidden>
                         <label class="ra-label" for="custom_style">Tu estilo</label>
                         <div class="ra-inline-add">
-                            <input type="text" id="custom_style" class="form-input custom-style-input" placeholder="Escribí tu estilo" autocomplete="off" maxlength="60" aria-describedby="custom-style-note">
+                            <input type="text" id="custom_style" class="form-input custom-style-input" placeholder="Escribe tu estilo" autocomplete="off" maxlength="60" aria-describedby="custom-style-note">
                             <button type="button" class="ra-add-btn" id="add-custom-style-btn" aria-label="Agregar estilo">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                             </button>
@@ -253,7 +253,7 @@
                         <button type="button" class="ra-link-btn" id="custom-style-close">Cerrar</button>
                     </div>
 
-                    <p class="ra-sublabel">¿Hace cuánto tatuás?</p>
+                    <p class="ra-sublabel">¿Hace cuánto tatúas?</p>
                     <div class="experience-options" id="experience-options">
                         <button type="button" class="experience-option" data-years="0-1">Menos de 1 año</button>
                         <button type="button" class="experience-option" data-years="1-3">1-3 años</button>
@@ -326,15 +326,15 @@
                 </div>
                 <div class="ra-panel" hidden>
                     <p class="ra-eyebrow">04 · Tu presencia</p>
-                    <h2 class="ra-title">Contanos quién sos.</h2>
+                    <h2 class="ra-title">Cuéntanos quién eres.</h2>
                     <div class="ra-fields">
                         <div class="ra-field">
                             <label class="ra-label" for="bio_text">Breve presentación</label>
-                            <textarea id="bio_text" class="ra-textarea" rows="4" maxlength="2000" placeholder="Un par de líneas sobre vos y tu trabajo"></textarea>
+                            <textarea id="bio_text" class="ra-textarea" rows="4" maxlength="2000" placeholder="Un par de líneas sobre ti y tu trabajo"></textarea>
                         </div>
                     </div>
 
-                    <p class="ra-sublabel">¿Dónde mostrás tu trabajo?</p>
+                    <p class="ra-sublabel">¿Dónde muestras tu trabajo?</p>
                     <div class="link-toggles" id="link-toggles">
                         <button type="button" class="link-toggle is-active" data-link="instagram" aria-pressed="true">Instagram</button>
                         <button type="button" class="link-toggle" data-link="website" aria-pressed="false">Sitio web</button>
@@ -374,14 +374,14 @@
                          el borrador de medios de register.js. -->
                     <div class="ra-portfolio" id="ra-portfolio" role="group" aria-labelledby="ra-portfolio-title">
                         <h3 class="ra-portfolio-title" id="ra-portfolio-title">Portfolio</h3>
-                        <p class="ra-portfolio-lead">Agregá tu portfolio para que los clientes puedan conocer tu trabajo.</p>
+                        <p class="ra-portfolio-lead">Agrega tu portfolio para que los clientes puedan conocer tu trabajo.</p>
 
                         <div class="ra-portfolio-choices" id="ra-portfolio-choices">
                             <button type="button" class="ra-portfolio-choice" data-portfolio-choice="instagram">
                                 <span class="ra-portfolio-choice-icon is-instagram" aria-hidden="true"><i data-wo-icon="instagram"></i></span>
                                 <span class="ra-portfolio-choice-kicker">Instagram</span>
                                 <span class="ra-portfolio-choice-title">Agregar desde Instagram</span>
-                                <span class="ra-portfolio-choice-hint">Elegí hasta 50 de tus publicaciones.</span>
+                                <span class="ra-portfolio-choice-hint">Elige hasta 50 de tus publicaciones.</span>
                             </button>
                             <button type="button" class="ra-portfolio-choice" data-portfolio-choice="files">
                                 <span class="ra-portfolio-choice-icon is-files" aria-hidden="true"><i data-wo-icon="image"></i></span>
@@ -404,7 +404,7 @@
 
                         <div class="ra-works" id="ra-works" hidden>
                             <p class="ra-works-head"><span class="ra-works-title">Tus trabajos</span><span class="ra-works-count" id="ra-works-count">0 archivos</span></p>
-                            <p class="ra-works-lead">Estas son las fotos que aparecerán en tu perfil. Borrá las que no quieras y/o agregá más desde tu dispositivo.</p>
+                            <p class="ra-works-lead">Estas son las fotos que aparecerán en tu perfil. Borra las que no quieras y/o agrega más desde tu dispositivo.</p>
                             <div class="ra-works-grid" id="ra-works-grid" role="list"></div>
                             <p class="ra-note ra-works-ig-note" id="ra-works-ig-note" hidden>Las publicaciones de Instagram no van a ser visibles en tu perfil hasta que validemos tu identidad y que la cuenta es tuya.</p>
                             <div class="ra-works-actions">
@@ -423,17 +423,17 @@
                 </div>
             </section>
 
-            <!-- ===== 05 · CÓMO TRABAJÁS ===== -->
+            <!-- ===== 05 · CÓMO TRABAJAS ===== -->
             <section class="ra-group" data-group="trabajo" data-index="5">
                 <div class="ra-row" hidden>
                     <div class="ra-row-main">
-                        <p class="ra-row-eyebrow"><span class="ra-check" aria-hidden="true"></span>Cómo trabajás</p>
+                        <p class="ra-row-eyebrow"><span class="ra-check" aria-hidden="true"></span>Cómo trabajas</p>
                         <p class="ra-row-value" data-row-value>—</p>
                     </div>
                     <button type="button" class="ra-edit" data-edit-group="trabajo">Editar</button>
                 </div>
                 <div class="ra-panel" hidden>
-                    <p class="ra-eyebrow">05 · Cómo trabajás</p>
+                    <p class="ra-eyebrow">05 · Cómo trabajas</p>
                     <h2 class="ra-title">¿Estudio o independiente?</h2>
                     <div class="work-type-options" id="work-type-options">
                         <button type="button" class="work-type-option" data-type="studio">
@@ -451,7 +451,7 @@
                     </div>
 
                     <div class="studio-name-wrapper" id="studio-name-wrapper" style="display: none;">
-                        <label class="ra-label" for="studio_name">Nombre del estudio donde trabajás</label>
+                        <label class="ra-label" for="studio_name">Nombre del estudio donde trabajas</label>
                         <div class="studio-autocomplete-wrapper">
                             <input type="text" id="studio_name" class="form-input ra-input--hard" placeholder="Nombre del estudio" autocomplete="off">
                             <div class="studio-suggestions" id="studio-suggestions"></div>
@@ -475,7 +475,7 @@
                     <div class="address-picker-wrapper" id="address-picker-wrapper" style="display: none;">
                         <label class="ra-label" id="address-picker-label" for="address_search">Tu dirección</label>
                         <input type="text" id="address_search" class="form-input ra-input--hard" placeholder="Calle 123, Ciudad, País" autocomplete="off">
-                        <p class="ra-hint wo-sr-only" id="address-picker-help">Buscá la dirección y elegí una sugerencia para ubicarla con precisión.</p>
+                        <p class="ra-hint wo-sr-only" id="address-picker-help">Busca la dirección y elige una sugerencia para ubicarla con precisión.</p>
                         <details class="address-details" id="address-details" hidden>
                             <summary>Ver datos completos de la dirección</summary>
                             <div class="weotzi-address-fields" id="address-preview" hidden></div>
@@ -483,7 +483,7 @@
                     </div>
                     <p class="ra-error" data-group-error hidden role="alert"></p>
                     <div class="ra-actions">
-                        <span class="ra-gate-hint" id="trabajo-gate-hint" hidden>Elegí tu estudio o creá uno nuevo</span>
+                        <span class="ra-gate-hint" id="trabajo-gate-hint" hidden>Elige tu estudio o crea uno nuevo</span>
                         <button type="button" class="ra-continue" data-continue="trabajo" disabled>Continuar <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i></button>
                     </div>
                 </div>
@@ -499,8 +499,8 @@
                     <button type="button" class="ra-edit" data-edit-group="novedades">Editar</button>
                 </div>
                 <div class="ra-panel" hidden>
-                    <p class="ra-eyebrow">06 · Mantenete al tanto</p>
-                    <h2 class="ra-title">¿Qué querés recibir?</h2>
+                    <p class="ra-eyebrow">06 · Mantente al tanto</p>
+                    <h2 class="ra-title">¿Qué quieres recibir?</h2>
                     <div class="newsletter-topics" id="newsletter-topics">
                         <label class="newsletter-topic">
                             <input type="checkbox" class="newsletter-topic-input" data-topic="oportunidades">
@@ -541,8 +541,8 @@
             <!-- ===== 07 · REVISIÓN ===== -->
             <section class="ra-group" data-group="revision" data-index="7">
                 <div class="ra-panel" hidden>
-                    <p class="ra-eyebrow">07 · Revisá y confirmá</p>
-                    <h2 class="ra-title">Revisá tus datos.</h2>
+                    <p class="ra-eyebrow">07 · Revisa y confirma</p>
+                    <h2 class="ra-title">Revisa tus datos.</h2>
                     <div class="summary-card" id="summary-card">
                         <!-- Filas de revisión generadas por register.js -->
                     </div>
@@ -558,7 +558,7 @@
                         <div>
                             <p class="ra-submit-error-title" data-submit-error-title>No pudimos crear tu perfil</p>
                             <p data-submit-error-text></p>
-                            <p class="ra-submit-error-keep">Tus datos siguen cargados. Revisalos si hace falta y volvé a intentar.</p>
+                            <p class="ra-submit-error-keep">Tus datos siguen cargados. Revísalos si hace falta y vuelve a intentar.</p>
                             <button type="button" class="ra-ghost ra-submit-retry" id="ra-submit-retry">Reintentar</button>
                         </div>
                     </div>
@@ -598,11 +598,11 @@
                 <span class="wo-mark-triangle"></span>
             </span>
             <h2 class="ra-success-title">Tu perfil está listo, <span id="ra-success-name">artista</span>.</h2>
-            <p class="ra-success-sub">Ya podés recibir cotizaciones e invitaciones de estudios.<br>Te llevamos a tu panel.</p>
+            <p class="ra-success-sub">Ya puedes recibir cotizaciones e invitaciones de estudios.<br>Te llevamos a tu panel.</p>
             <!-- Página 9: link de alta del estudio nuevo (studio_claim_url) -->
             <div class="ra-studio-claim" id="ra-studio-claim" hidden>
                 <p class="ra-eyebrow">Alta del estudio</p>
-                <p class="ra-studio-claim-lead">Compartí este link con quien se encarga de <strong data-studio-claim-name>tu estudio</strong> para que complete el alta en We Ötzi. Hasta entonces no figura como ubicación verificada en tu perfil.</p>
+                <p class="ra-studio-claim-lead">Comparte este link con quien se encarga de <strong data-studio-claim-name>tu estudio</strong> para que complete el alta en We Ötzi. Hasta entonces no figura como ubicación verificada en tu perfil.</p>
                 <label class="ra-label" for="ra-studio-claim-url">Link de alta</label>
                 <div class="ra-studio-claim-row">
                     <input type="text" id="ra-studio-claim-url" class="form-input" readonly>
@@ -646,7 +646,7 @@
             <button type="button" class="newsletter-option" data-subscribe="true" tabindex="-1">Sí, quiero unirme</button>
             <button type="button" class="newsletter-option newsletter-option-decline" data-subscribe="false" tabindex="-1">Ahora no</button>
         </div>
-        <p class="newsletter-error" id="newsletter-error" role="alert" hidden>Elegí una opción para continuar.</p>
+        <p class="newsletter-error" id="newsletter-error" role="alert" hidden>Elige una opción para continuar.</p>
 
         <!-- Editor rich-text de bio: reemplazado por el textarea del grupo 04 -->
         <div id="bio-editor-modal" class="bio-editor-wrapper">
@@ -671,11 +671,11 @@
                     <button type="button" class="emoji-item" tabindex="-1">😀</button><button type="button" class="emoji-item" tabindex="-1">😎</button><button type="button" class="emoji-item" tabindex="-1">🎨</button><button type="button" class="emoji-item" tabindex="-1">✨</button><button type="button" class="emoji-item" tabindex="-1">🔥</button><button type="button" class="emoji-item" tabindex="-1">💪</button><button type="button" class="emoji-item" tabindex="-1">🖤</button><button type="button" class="emoji-item" tabindex="-1">❤️</button><button type="button" class="emoji-item" tabindex="-1">💫</button><button type="button" class="emoji-item" tabindex="-1">⚡</button>
                 </div>
             </div>
-            <div id="bio" class="bio-editor" contenteditable="true" data-placeholder="Escribí tu bio acá…"></div>
+            <div id="bio" class="bio-editor" contenteditable="true" data-placeholder="Escribe tu bio aquí…"></div>
         </div>
         <button type="button" id="bio-mobile-open" class="bio-mobile-open" tabindex="-1">
             <span class="bio-mobile-open-kicker">Editor WYSIWYG</span>
-            <span id="bio-mobile-preview" class="bio-mobile-preview">Tocá para escribir tu bio.</span>
+            <span id="bio-mobile-preview" class="bio-mobile-preview">Toca para escribir tu bio.</span>
         </button>
 
         <!-- Galería de trabajos e importación IG: ahora viven en el panel del artista -->
@@ -688,7 +688,7 @@
         <div id="portfolio-media-modal" class="portfolio-media-modal" hidden aria-hidden="true">
             <div class="portfolio-media-modal-panel">
                 <div class="portfolio-media-modal-head">
-                    <h2 id="portfolio-media-modal-title">Editá tus fotos y videos.</h2>
+                    <h2 id="portfolio-media-modal-title">Edita tus fotos y videos.</h2>
                     <button type="button" class="portfolio-media-modal-close" id="portfolio-media-modal-close" aria-label="Cerrar" tabindex="-1">×</button>
                 </div>
                 <div id="portfolio-media-modal-grid" class="portfolio-media-grid portfolio-media-modal-grid"></div>
@@ -792,7 +792,7 @@
                         return;
                     }
                     window.__weotziUsernameAvailability.suggestions = suggestionsFor(normalized);
-                    setState('taken', 'Ese nombre ya existe. Probá una alternativa: ' + window.__weotziUsernameAvailability.suggestions.join(' · '));
+                    setState('taken', 'Ese nombre ya existe. Prueba una alternativa: ' + window.__weotziUsernameAvailability.suggestions.join(' · '));
                 } catch (_) {
                     if (currentSeq !== seq) return;
                     window.__weotziUsernameAvailability.suggestions = [];
@@ -818,7 +818,7 @@
                 if (reserved.has(normalized)) {
                     window.__weotziUsernameAvailability.username = normalized + '.wo';
                     window.__weotziUsernameAvailability.suggestions = suggestionsFor(normalized);
-                    setState('taken', 'Ese nombre está reservado. Probá otro.');
+                    setState('taken', 'Ese nombre está reservado. Prueba otro.');
                     return;
                 }
 

@@ -9,7 +9,7 @@
  *     timeline, instrucciones y contacto (snapshots del pedido), «Ya pagué →»
  *     (reportPayment) mientras esté pendiente y en plazo (vencido: sin
  *     instrucciones ni form), cancelar (sin pago informado), retiro con la
- *     dirección del pedido o «Coordiná el retiro con el vendedor»,
+ *     dirección del pedido o «Coordina el retiro con el vendedor»,
  *     descargas del diseño pagado (listLicenseAssets + getDownloadUrl con la
  *     ventana abierta ANTES del await), «Imprimir a escala real» (stencil
  *     PNG/JPEG/WebP con medidas: las de la licencia o, si no están, las de la
@@ -26,7 +26,7 @@
     var Store = window.WeotziData && window.WeotziData.Store;
 
     var LIST_PATH = '/store/purchases/';
-    var POPUP_BLOCKED = 'El navegador bloqueó la ventana nueva. Habilitá las ventanas emergentes y probá de nuevo.';
+    var POPUP_BLOCKED = 'El navegador bloqueó la ventana nueva. Habilita las ventanas emergentes y prueba de nuevo.';
     // Hoja A4 con 10 mm de margen: lo que entra sin cortar.
     var A4_PRINTABLE_CM = { w: 19, h: 27.7 };
 
@@ -84,11 +84,11 @@
         if (view.status === 'pending_payment') {
             if (view.overdue) return 'Venció el plazo para pagar';
             if (view.paymentReported) return view.nextAction && view.nextAction.kind === 'info' ? view.nextAction.label : 'Pago informado';
-            return view.expiresLabel ? 'Pagalo antes del ' + view.expiresLabel : 'Esperando tu pago';
+            return view.expiresLabel ? 'Págalo antes del ' + view.expiresLabel : 'Esperando tu pago';
         }
         if (view.status === 'paid' && view.method !== 'digital') {
             if (view.actions.some(function (a) { return a.key === 'confirm_received'; })) {
-                return view.fulfillmentStatus === 'ready_for_pickup' ? 'Listo para retirar · confirmá cuando lo tengas' : 'Enviado · confirmá cuando lo recibas';
+                return view.fulfillmentStatus === 'ready_for_pickup' ? 'Listo para retirar · confirma cuando lo tengas' : 'Enviado · confirma cuando lo recibas';
             }
             return view.nextAction && view.nextAction.kind === 'info' ? view.nextAction.label : view.fulfillmentLabel;
         }
@@ -126,8 +126,8 @@
             box.innerHTML = '<div class="sts-panel">' + S.emptyState({
                 icon: 'shopping-bag',
                 title: 'Todavía no compraste nada.',
-                text: 'Cuando compres un diseño o merch en la Store de un artista, lo vas a ver acá.',
-                actionLabel: 'Explorá artistas →',
+                text: 'Cuando compres un diseño o merch en la Store de un artista, lo vas a ver aquí.',
+                actionLabel: 'Explora artistas →',
                 actionHref: '/marketplace'
             }) + '</div>';
         } else {
@@ -200,7 +200,7 @@
     function sellerContactHtml(order) {
         if (!order.seller_contact) return '';
         return '<div class="stb-block"><h3 class="stb-block-title">Contacto del vendedor</h3><p class="stb-text">' + esc(order.seller_contact) + '</p>' +
-            '<p class="stb-text stb-text--s stb-muted">Escribile con el número de pedido si tenés dudas sobre el pago o la entrega.</p></div>';
+            '<p class="stb-text stb-text--s stb-muted">Escríbele con el número de pedido si tienes dudas sobre el pago o la entrega.</p></div>';
     }
 
     function paymentPanelHtml(order, view) {
@@ -209,12 +209,12 @@
         var blocks = [];
         var reportAction = view.actions.filter(function (a) { return a.key === 'report_payment'; })[0];
         var cancelAction = view.actions.filter(function (a) { return a.key === 'cancel'; })[0];
-        var head = '<h2 class="stb-block-title">' + (view.paymentReported ? 'Pago informado' : (view.overdue ? 'Venció el plazo para pagar' : 'Pagá tu pedido')) + '</h2>';
+        var head = '<h2 class="stb-block-title">' + (view.paymentReported ? 'Pago informado' : (view.overdue ? 'Venció el plazo para pagar' : 'Paga tu pedido')) + '</h2>';
         if (view.overdue && view.paymentReported) {
             head += '<p class="wo-alert wo-alert--warning">' + esc('Informaste el pago, pero ' + (view.collector === 'seller' ? 'el vendedor' : 'We Ötzi') +
-                ' no lo confirmó a tiempo. Soporte va a revisar el pedido; si querés, escribile.') + '</p>';
+                ' no lo confirmó a tiempo. Soporte va a revisar el pedido; si quieres, escríbele.') + '</p>';
         } else if (view.overdue) {
-            head += '<p class="wo-alert wo-alert--warning">Venció el plazo para pagar este pedido. Si ya pagaste, escribile al vendedor con el número de pedido.</p>';
+            head += '<p class="wo-alert wo-alert--warning">Venció el plazo para pagar este pedido. Si ya pagaste, escríbele al vendedor con el número de pedido.</p>';
         } else if (view.paymentReported) {
             head += '<p class="stb-text">' + esc(view.nextAction && view.nextAction.kind === 'info' ? view.nextAction.label : 'Informaste el pago.') + '</p>' +
                 '<p class="stb-text stb-text--s stb-muted">' + esc((view.paymentReference ? 'Referencia: ' + view.paymentReference + ' · ' : '') +
@@ -233,21 +233,21 @@
             // que llamar a POST /api/store/orders/:id/checkout con Bearer y seguir
             // el redirectUrl o las instrucciones del adaptador. WeotziData.Store
             // todavía no expone ese método; mientras tanto, mensaje genérico.
-            blocks.push('<div class="stb-block"><p class="stb-text">Estamos preparando el pago de este pedido. Volvé a mirarlo en unos minutos.</p></div>');
+            blocks.push('<div class="stb-block"><p class="stb-text">Estamos preparando el pago de este pedido. Vuelve a mirarlo en unos minutos.</p></div>');
         } else if (payable) {
-            var payTo = view.collector === 'platform' ? 'Le pagás a We Ötzi' : 'Le pagás directo al vendedor';
+            var payTo = view.collector === 'platform' ? 'Le pagas a We Ötzi' : 'Le pagas directo al vendedor';
             blocks.push('<div class="stb-block"><h3 class="stb-block-title">Cómo pagar</h3>' +
-                '<p class="stb-block-sub">' + esc(payTo) + '. Pagá el monto exacto: ' + esc(view.totals.totalLabel) + '.</p>' +
+                '<p class="stb-block-sub">' + esc(payTo) + '. Paga el monto exacto: ' + esc(view.totals.totalLabel) + '.</p>' +
                 (order.payment_instructions ? '<p class="stb-pre">' + esc(order.payment_instructions) + '</p>'
-                    : '<p class="stb-text">El vendedor todavía no cargó las instrucciones. Escribile por el contacto de abajo.</p>') +
+                    : '<p class="stb-text">El vendedor todavía no cargó las instrucciones. Escríbele por el contacto de abajo.</p>') +
             '</div>');
         }
         blocks.push(sellerContactHtml(order));
 
         if (manual && reportAction && payable && view.collector !== 'provider') {
             blocks.push('<div class="stb-block">' +
-                '<h3 class="stb-block-title">' + (view.paymentReported ? 'Actualizá el comprobante' : 'Informá tu pago') + '</h3>' +
-                '<p class="stb-block-sub">Dejá la referencia del comprobante para que el vendedor encuentre tu pago rápido.</p>' +
+                '<h3 class="stb-block-title">' + (view.paymentReported ? 'Actualiza el comprobante' : 'Informa tu pago') + '</h3>' +
+                '<p class="stb-block-sub">Deja la referencia del comprobante para que el vendedor encuentre tu pago rápido.</p>' +
                 '<form class="stb-form" id="stb-report-form" novalidate>' +
                     '<div class="wo-field">' +
                         '<label class="wo-label" for="stb-report-ref">Referencia del comprobante</label>' +
@@ -261,10 +261,10 @@
         if (cancelAction) {
             blocks.push('<div class="stb-block"><div class="stb-inline-actions">' +
                 '<button class="wo-btn wo-btn--ghost wo-btn--s" type="button" data-stb-action="cancel">' + esc(cancelAction.label) + '</button>' +
-                '<p class="stb-text stb-text--s stb-muted">Si no lo vas a pagar, cancelalo y el producto queda libre para otra persona.</p>' +
+                '<p class="stb-text stb-text--s stb-muted">Si no lo vas a pagar, cancélalo y el producto queda libre para otra persona.</p>' +
             '</div></div>');
         } else if (view.paymentReported) {
-            blocks.push('<div class="stb-block"><p class="stb-text stb-text--s stb-muted">Ya informaste un pago: para cancelar el pedido, escribile a soporte.</p></div>');
+            blocks.push('<div class="stb-block"><p class="stb-text stb-text--s stb-muted">Ya informaste un pago: para cancelar el pedido, escríbele a soporte.</p></div>');
         }
         return '<div class="sts-panel">' + blocks.join('') + '</div>';
     }
@@ -315,7 +315,7 @@
         if (!license) {
             if (view.status === 'pending_payment') {
                 return '<div class="sts-panel"><div class="stb-block"><h2 class="stb-block-title">Licencia y archivos</h2>' +
-                    '<p class="stb-text">Cuando el vendedor confirme tu pago, acá vas a poder bajar el original, el stencil y el certificado de tu licencia.</p></div></div>';
+                    '<p class="stb-text">Cuando el vendedor confirme tu pago, aquí vas a poder bajar el original, el stencil y el certificado de tu licencia.</p></div></div>';
             }
             return '';
         }
@@ -329,9 +329,9 @@
         var isHolder = !!(raw && state.viewer && state.viewer.user && String(raw.holder_user_id) === String(state.viewer.user.id));
         var downloads;
         if (assets === null) {
-            downloads = '<p class="stb-text">No pudimos cargar los archivos. Recargá la página para intentar de nuevo.</p>';
+            downloads = '<p class="stb-text">No pudimos cargar los archivos. Recarga la página para intentar de nuevo.</p>';
         } else if (!assets || !assets.length) {
-            downloads = '<p class="stb-text">Los archivos de este diseño ya no están disponibles. Escribile al vendedor.</p>';
+            downloads = '<p class="stb-text">Los archivos de este diseño ya no están disponibles. Escríbele al vendedor.</p>';
         } else {
             var buttons = assets.slice().sort(function (a, b) { return a.kind === b.kind ? 0 : (a.kind === 'original' ? -1 : 1); }).map(function (a) {
                 return '<button class="wo-btn wo-btn--ghost wo-btn--hard" type="button" data-stb-action="download" data-asset="' + esc(a.id) + '">' +
@@ -345,7 +345,7 @@
             }
             downloads = '<div class="stb-downloads">' + buttons.join('') + '</div>' +
                 (printable ? '<p class="stb-text stb-text--s stb-muted" id="stb-print-help">El stencil se imprime a ' + esc(fmtCm(printable.width)) + ' × ' + esc(fmtCm(printable.height)) + ' cm.</p>' : '') +
-                '<p class="stb-text stb-text--s stb-muted">Cada enlace de descarga dura 5 minutos. Guardá los archivos en un lugar seguro: son para tu uso, no para publicarlos.</p>';
+                '<p class="stb-text stb-text--s stb-muted">Cada enlace de descarga dura 5 minutos. Guarda los archivos en un lugar seguro: son para tu uso, no para publicarlos.</p>';
         }
         var used = license.used
             ? '<p class="stb-text stb-text--s">' + esc('Usada el ' + (license.usedLabel || '') + (license.usedNote ? ' · ' + license.usedNote : '')) + '</p>'
@@ -377,10 +377,10 @@
         return '<address class="stb-address">' + lines.map(esc).join('<br>') + '</address>';
     }
 
-    // «Coordiná el retiro con el vendedor (Instagram @mara).»
+    // «Coordina el retiro con el vendedor (Instagram @mara).»
     function pickupCoordinationText(order) {
         var contact = String(order.seller_contact || '').trim();
-        return 'Coordiná el retiro con el vendedor' + (contact ? ' (' + contact + ')' : '') + '.';
+        return 'Coordina el retiro con el vendedor' + (contact ? ' (' + contact + ')' : '') + '.';
     }
 
     function deliveryPanelHtml(order, view) {
@@ -418,7 +418,7 @@
         var confirm = view.actions.filter(function (a) { return a.key === 'confirm_received'; })[0];
         if (confirm) {
             blocks.push('<div class="stb-block"><p class="stb-text stb-text--s">' +
-                (view.method === 'pickup' ? 'Cuando lo retires, confirmalo acá.' : 'Cuando lo recibas, confirmalo acá.') + '</p>' +
+                (view.method === 'pickup' ? 'Cuando lo retires, confírmalo aquí.' : 'Cuando lo recibas, confírmalo aquí.') + '</p>' +
                 '<div class="stb-actions"><button class="wo-btn wo-btn--hard" type="button" data-stb-action="confirm-received">' + esc(confirm.label) + '</button></div></div>');
         } else if (view.status === 'paid' && view.nextAction && view.nextAction.kind === 'info') {
             blocks.push('<div class="stb-block"><p class="stb-text stb-text--s stb-muted">' + esc(view.nextAction.label) + '</p></div>');
@@ -437,7 +437,7 @@
         // lo confirmó (store_order_lapsed): no fue por falta de aviso.
         if (view.status === 'expired') {
             text = order.buyer_payment_reported_at
-                ? 'Este pedido venció porque nadie confirmó el pago a tiempo. Si pagaste, escribile a soporte con el número de pedido.'
+                ? 'Este pedido venció porque nadie confirmó el pago a tiempo. Si pagaste, escríbele a soporte con el número de pedido.'
                 : 'Este pedido venció porque no se informó el pago a tiempo.';
         }
         if (view.status === 'refunded') text = 'Este pedido se reembolsó' + (order.refunded_at ? ' el ' + M.formatDate(order.refunded_at) : '') + '.';
@@ -447,8 +447,8 @@
 
     function helpHtml(order) {
         var contact = order.seller_contact
-            ? 'Escribile al vendedor (' + esc(order.seller_contact) + ') o '
-            : 'Escribile ';
+            ? 'Escríbele al vendedor (' + esc(order.seller_contact) + ') o '
+            : 'Escríbele ';
         return '<p class="stb-help">¿Problemas con tu pedido? ' + contact +
             '<button type="button" class="stb-linkbtn" data-stb-action="support">a soporte →</button></p>';
     }
@@ -532,7 +532,7 @@
     // Acciones que cambian el estado del pedido: con la vista desactualizada,
     // un segundo clic daría un error del servidor (invalid_status).
     var STALE_ACTIONS = '[data-stb-action="cancel"],[data-stb-action="confirm-received"],[data-stb-action="mark-used"],#stb-report-submit,#stb-report-ref';
-    var STALE_COPY = 'Actualizamos tu pedido, pero no pudimos recargar la vista. Recargá la página.';
+    var STALE_COPY = 'Actualizamos tu pedido, pero no pudimos recargar la vista. Recarga la página.';
 
     function markDetailStale() {
         var box = $('stb-detail');
@@ -578,7 +578,7 @@
         input.classList.remove('wo-input--error');
         input.removeAttribute('aria-invalid');
         if (!ref) {
-            slot.textContent = 'Ingresá la referencia del comprobante.';
+            slot.textContent = 'Ingresa la referencia del comprobante.';
             slot.hidden = false;
             input.classList.add('wo-input--error');
             input.setAttribute('aria-invalid', 'true');
@@ -593,7 +593,7 @@
             return refreshCurrent();
         }).catch(function (err) {
             S.setBusy(btn, false);
-            S.notifyError(err, 'No pudimos informar el pago. Probá de nuevo.');
+            S.notifyError(err, 'No pudimos informar el pago. Prueba de nuevo.');
         });
     }
 
@@ -610,7 +610,7 @@
             return Store.cancelOrder(state.currentId, res.value || null).then(function () {
                 S.notify('Cancelaste el pedido.', 'success');
                 return refreshCurrent();
-            }).catch(function (err) { S.notifyError(err, 'No pudimos cancelar el pedido. Probá de nuevo.'); });
+            }).catch(function (err) { S.notifyError(err, 'No pudimos cancelar el pedido. Prueba de nuevo.'); });
         });
     }
 
@@ -619,7 +619,7 @@
         var pickup = order && order.fulfillment_method === 'pickup';
         S.confirmDialog({
             title: pickup ? '¿Ya retiraste tu pedido?' : '¿Ya recibiste tu pedido?',
-            message: 'Confirmalo solo cuando lo tengas en tus manos. Con esto el pedido queda completado.',
+            message: 'Confírmalo solo cuando lo tengas en tus manos. Con esto el pedido queda completado.',
             confirmLabel: pickup ? 'Sí, ya lo retiré' : 'Sí, ya lo recibí',
             cancelLabel: 'Todavía no'
         }).then(function (res) {
@@ -627,7 +627,7 @@
             return Store.confirmReceived(state.currentId).then(function () {
                 S.notify('Listo, el pedido quedó completado.', 'success');
                 return refreshCurrent();
-            }).catch(function (err) { S.notifyError(err, 'No pudimos confirmar la entrega. Probá de nuevo.'); });
+            }).catch(function (err) { S.notifyError(err, 'No pudimos confirmar la entrega. Prueba de nuevo.'); });
         });
     }
 
@@ -646,7 +646,7 @@
             return Store.markLicenseUsed(license.id, res.value || null).then(function () {
                 S.notify('Marcaste la licencia como usada.', 'success');
                 return refreshCurrent();
-            }).catch(function (err) { S.notifyError(err, 'No pudimos marcar la licencia. Probá de nuevo.'); });
+            }).catch(function (err) { S.notifyError(err, 'No pudimos marcar la licencia. Prueba de nuevo.'); });
         });
     }
 
@@ -669,7 +669,7 @@
             popup.location.href = absoluteUrl(url);
         }).catch(function (err) {
             try { popup.close(); } catch (e) { /* ya cerrada */ }
-            S.notifyError(err, 'No pudimos preparar la descarga. Probá de nuevo.');
+            S.notifyError(err, 'No pudimos preparar la descarga. Prueba de nuevo.');
         });
     }
 
@@ -701,8 +701,8 @@
         var p = d.createElement('p');
         var size = fmtCm(info.width) + ' × ' + fmtCm(info.height) + ' cm';
         var tooBig = !((info.width <= A4_PRINTABLE_CM.w && info.height <= A4_PRINTABLE_CM.h) || (info.width <= A4_PRINTABLE_CM.h && info.height <= A4_PRINTABLE_CM.w));
-        p.textContent = 'El stencil mide ' + size + '. Imprimilo al 100 %, sin «Ajustar a la página», para que salga a escala real.' +
-            (tooBig ? ' Es más grande que una hoja A4: elegí un papel más grande o imprimilo por partes.' : '');
+        p.textContent = 'El stencil mide ' + size + '. Imprímelo al 100 %, sin «Ajustar a la página», para que salga a escala real.' +
+            (tooBig ? ' Es más grande que una hoja A4: elige un papel más grande o imprímelo por partes.' : '');
         var status = d.createElement('p');
         status.setAttribute('role', 'status');
         status.textContent = 'Cargando el stencil…';
@@ -741,12 +741,12 @@
                 shell.status.textContent = 'Listo para imprimir.';
                 setTimeout(function () { try { popup.focus(); popup.print(); } catch (e) { /* el usuario imprime con el botón */ } }, 300);
             });
-            img.addEventListener('error', function () { shell.status.textContent = 'No pudimos cargar el stencil. Cerrá esta ventana y probá de nuevo.'; });
+            img.addEventListener('error', function () { shell.status.textContent = 'No pudimos cargar el stencil. Cierra esta ventana y prueba de nuevo.'; });
             img.src = absoluteUrl(url);
             shell.sheet.appendChild(img);
         }).catch(function (err) {
             try { popup.close(); } catch (e) { /* ya cerrada */ }
-            S.notifyError(err, 'No pudimos preparar el stencil. Probá de nuevo.');
+            S.notifyError(err, 'No pudimos preparar el stencil. Prueba de nuevo.');
         });
     }
 
@@ -755,7 +755,7 @@
             window.SupportChat.openPanel();
             return;
         }
-        S.notify('El chat de soporte no está disponible en este momento. Probá en unos minutos o escribile al vendedor.', 'info');
+        S.notify('El chat de soporte no está disponible en este momento. Prueba en unos minutos o escríbele al vendedor.', 'info');
     }
 
     /* ------------------------------------------------------------------ */
@@ -809,17 +809,17 @@
         S.mountStoreTopbar('store-topbar', { active: 'purchases' });
         S.isStoreEnabled().then(function (enabled) {
             if (!enabled) {
-                showMessage({ icon: 'clock', title: 'La Store todavía no está disponible.', text: 'Estamos terminando de prepararla. Volvé a mirarla en unos días.',
-                    actionLabel: 'Explorá artistas →', actionHref: '/marketplace' });
+                showMessage({ icon: 'clock', title: 'La Store todavía no está disponible.', text: 'Estamos terminando de prepararla. Vuelve a mirarla en unos días.',
+                    actionLabel: 'Explora artistas →', actionHref: '/marketplace' });
                 return null;
             }
             var returnTo = LIST_PATH + (window.location.search || '');
             return S.requireSession({ returnTo: returnTo }).then(function (session) {
                 if (!session) {
                     var links = S.loginLinks(returnTo);
-                    showMessage({ icon: 'lock', title: 'Ingresá para ver tus compras.', text: 'Tus pedidos, licencias y descargas quedan guardados en tu cuenta.',
-                        actionLabel: 'Ingresá →', actionHref: links.client,
-                        links: [{ label: 'Creá tu cuenta →', href: links.register }, { label: '¿Sos artista? Ingresá →', href: links.artist }] });
+                    showMessage({ icon: 'lock', title: 'Ingresa para ver tus compras.', text: 'Tus pedidos, licencias y descargas quedan guardados en tu cuenta.',
+                        actionLabel: 'Ingresa →', actionHref: links.client,
+                        links: [{ label: 'Crea tu cuenta →', href: links.register }, { label: '¿Eres artista? Ingresa →', href: links.artist }] });
                     return null;
                 }
                 return S.viewer().then(function (v) {
@@ -832,7 +832,7 @@
             });
         }).catch(function (err) {
             if (window.console) console.error('[store-purchases]', err);
-            showMessage({ icon: 'alert-circle', title: 'No pudimos cargar tus compras.', text: 'Probá de nuevo en unos minutos.',
+            showMessage({ icon: 'alert-circle', title: 'No pudimos cargar tus compras.', text: 'Prueba de nuevo en unos minutos.',
                 actionLabel: 'Volver a intentar →', actionHref: LIST_PATH });
         });
     }

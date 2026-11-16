@@ -267,7 +267,7 @@
             state.sheet = body.sheet || {};
             state.viewer = body.viewer || { signed_in: false };
             render();
-            // Volvió del registro o del login que abrió desde acá: se vincula sola.
+            // Volvió del registro o del login que abrió desde aquí: se vincula sola.
             if (state.viewer.signed_in && state.viewer.can_claim && takeClaimIntent()) {
                 claim(document.querySelector('[data-wqp="claim"]'));
             }

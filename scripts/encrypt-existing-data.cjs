@@ -252,7 +252,7 @@ async function main() {
 
     const payouts = await processPayouts({ db: PayoutDestinationsRepo, crypto, apply: opts.apply });
     const apify = await processAppSettings({ settings, crypto, apply: opts.apply, mode: 'encrypt' });
-    console.log(`[encrypt] ${opts.apply ? 'APLICADO' : 'DRY-RUN (no se escribió nada; usá --apply)'}`);
+    console.log(`[encrypt] ${opts.apply ? 'APLICADO' : 'DRY-RUN (no se escribió nada; usa --apply)'}`);
     console.log('[encrypt] artist_payout_destinations:', JSON.stringify(payouts.counts));
     console.log('[encrypt] app_settings.apify_token:', JSON.stringify(apify));
     if (opts.apply) console.log('[encrypt] Siguiente paso: node scripts/encrypt-existing-data.cjs --verify');

@@ -808,7 +808,7 @@
             if (!token || !repoReady()) { local('Este es un aviso de prueba dentro de la app.'); return undefined; }
             var send = function () { return window.WeotziData.Notifications.Push.test(token, roleFromPath()); };
             return send().then(function (res) {
-                // Acá el push figura activo, pero el servidor no tiene ningún dispositivo de la
+                // Aquí el push figura activo, pero el servidor no tiene ningún dispositivo de la
                 // cuenta: perdió la suscripción. Se registra otra vez y se repite la prueba (una vez).
                 if (res && res.push_enabled && res.devices === 0 && state.pushActive) {
                     return syncPush(true).then(function (active) { return active ? send() : res; });

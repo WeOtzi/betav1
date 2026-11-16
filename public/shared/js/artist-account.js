@@ -86,9 +86,9 @@
     const INDEPENDENT_STUDIO = 'Sin estudio/Independiente';
     const PRIVATE_STUDIO_NAME = 'ESTUDIO PRIVADO';
     const MODALITY_HINTS = {
-        studio: 'Tatuás en un estudio: queda como tu estudio base en Ubicaciones.',
-        independent: 'Tatuás por tu cuenta, en tu propio espacio o a domicilio.',
-        both: 'Combinás un estudio con tu propio espacio: el estudio queda como tu base.'
+        studio: 'Tatúas en un estudio: queda como tu estudio base en Ubicaciones.',
+        independent: 'Tatúas por tu cuenta, en tu propio espacio o a domicilio.',
+        both: 'Combinas un estudio con tu propio espacio: el estudio queda como tu base.'
     };
 
     const TIMEZONES = [
@@ -230,7 +230,7 @@
         });
 
         $('aac-logout')?.addEventListener('click', async () => {
-            if (appSettings().confirm_logout !== false && !window.confirm('¿Querés cerrar tu sesión?')) return;
+            if (appSettings().confirm_logout !== false && !window.confirm('¿Quieres cerrar tu sesión?')) return;
             try { await _supabase.auth.signOut(); } catch (err) { console.warn('[account] logout:', err); }
             window.location.href = '/artist/login';
         });
@@ -598,7 +598,7 @@
             options: LANGS,
             selected: Array.isArray(artist.languages) ? artist.languages : [],
             labelId: 'aac-langs-label',
-            placeholder: 'Elegí tus idiomas'
+            placeholder: 'Elige tus idiomas'
         });
 
         const styles = Array.isArray(extras?.styles_array) ? extras.styles_array
@@ -607,7 +607,7 @@
             options: [],
             selected: styles,
             labelId: 'aac-styles-label',
-            placeholder: 'Elegí tus estilos'
+            placeholder: 'Elige tus estilos'
         });
         loadProfileStyleOptions(styles).then((opts) => {
             if (opts.length) stylesPicker.setOptions(opts);
@@ -678,7 +678,7 @@
 
     function assertImage(file) {
         if (!file.type.startsWith('image/')) throw new Error('Formato no admitido');
-        if (file.size > MAX_PROFILE_IMAGE_BYTES) throw new Error('La imagen supera los 5 MB. Probá con una más liviana.');
+        if (file.size > MAX_PROFILE_IMAGE_BYTES) throw new Error('La imagen supera los 5 MB. Prueba con una más liviana.');
     }
 
     // Dropzone: click (label ya abre el input), drag & drop y subida.
@@ -861,7 +861,7 @@
             console.error('[account] whatsapp:', err);
             setFieldError('aac-contact-whatsapp', CM && CM.isDuplicatePhoneError(err)
                 ? CM.MESSAGES.whatsappDuplicate
-                : 'No pudimos guardar el WhatsApp. Probá de nuevo.');
+                : 'No pudimos guardar el WhatsApp. Prueba de nuevo.');
             return false;
         }
     }
@@ -884,8 +884,8 @@
         if (!help) return;
         const pending = user.new_email && !(CM ? CM.sameEmail(user.new_email, user.email) : user.new_email === user.email);
         help.textContent = message
-            || (pending ? `Cambio pendiente: confirmá el enlace que te enviamos a ${user.new_email}.`
-                : 'Es el correo con el que entrás a We Ötzi. Si lo cambiás, te mandamos un enlace para confirmarlo.');
+            || (pending ? `Cambio pendiente: confirma el enlace que te enviamos a ${user.new_email}.`
+                : 'Es el correo con el que entras a We Ötzi. Si lo cambias, te mandamos un enlace para confirmarlo.');
     }
 
     // El cambio de correo es de auth: Supabase manda un enlace y lo aplica al
@@ -897,7 +897,7 @@
         const unchanged = !email || (CM ? CM.sameEmail(email, user.email) : email === String(user.email || '').toLowerCase());
         if (unchanged) { input.value = user.email || ''; return; }
         if (!(CM ? CM.isValidEmail(email) : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
-            setFieldError('aac-contact-email', CM ? CM.MESSAGES.emailInvalid : 'Ingresá un correo válido.');
+            setFieldError('aac-contact-email', CM ? CM.MESSAGES.emailInvalid : 'Ingresa un correo válido.');
             return;
         }
         if (isDemo()) {
@@ -918,7 +918,7 @@
             console.error('[account] cambiar email:', err);
             setFieldError('aac-contact-email', /already|registered|exists/i.test(err?.message || '')
                 ? 'Ese correo ya está asociado a otra cuenta de We Ötzi.'
-                : 'No pudimos pedir el cambio de correo. Probá de nuevo.');
+                : 'No pudimos pedir el cambio de correo. Prueba de nuevo.');
         } finally {
             input.disabled = false;
         }
@@ -939,7 +939,7 @@
         const priceRaw = $('aac-price').value.trim();
         const price = priceRaw === '' ? null : Number(priceRaw);
         if (price !== null && (!Number.isFinite(price) || price < 0)) {
-            toast('Ingresá una tarifa válida', false);
+            toast('Ingresa una tarifa válida', false);
             $('aac-price').focus();
             return;
         }
@@ -1043,7 +1043,7 @@
             <button type="button" class="aac-drop aac-work-drop" data-work-add>
                 <i data-wo-icon="image" aria-hidden="true"></i>
                 <span class="aac-drop-title">Trabajo</span>
-                <span class="aac-drop-hint">o <u>buscá archivos</u></span>
+                <span class="aac-drop-hint">o <u>busca archivos</u></span>
             </button>`);
         }
         grid.innerHTML = cells.join('');
@@ -1101,7 +1101,7 @@
     async function addWorkFiles(list) {
         const files = list.filter((f) => (f.type.startsWith('image/') && f.size <= MAX_IMAGE_BYTES)
             || (/^video\/(mp4|quicktime)$/.test(f.type) && f.size <= MAX_VIDEO_BYTES));
-        if (list.length && !files.length) { toast('Usá imágenes de hasta 15 MB o videos MP4/MOV de hasta 100 MB', false); return; }
+        if (list.length && !files.length) { toast('Usa imágenes de hasta 15 MB o videos MP4/MOV de hasta 100 MB', false); return; }
         if (!files.length) return;
         let added = 0;
         try {
@@ -1287,7 +1287,7 @@
     async function requestIgCode() {
         if (isDemo()) { toast('En modo demo la validación es simulada.'); return; }
         const handle = igHandle();
-        if (!handle) { toast('Cargá tu usuario de Instagram en Mi perfil', false); return; }
+        if (!handle) { toast('Carga tu usuario de Instagram en Mi perfil', false); return; }
         if (igState.busy) return;
         igState.busy = true;
         renderIgVerify();
@@ -1313,9 +1313,9 @@
                 return;
             }
             renderIgVerify();
-            toast(status === 429 ? 'Pediste varios códigos seguidos. Probá de nuevo en un rato.'
-                : status === 400 ? 'Revisá tu usuario de Instagram en Mi perfil.'
-                : 'No pudimos generar el código. Probá de nuevo.', false);
+            toast(status === 429 ? 'Pediste varios códigos seguidos. Prueba de nuevo en un rato.'
+                : status === 400 ? 'Revisa tu usuario de Instagram en Mi perfil.'
+                : 'No pudimos generar el código. Prueba de nuevo.', false);
         }
     }
 
@@ -1358,12 +1358,12 @@
                 + `<p class="aac-ig-text">${!pending ? 'Tu portafolio está validado: tus fotos importadas se muestran en tu perfil público.'
                     : pending === 1 ? `1 foto de otra cuenta sigue pendiente: solo se publican las de @${esc(verified)}.`
                     : `${pending} fotos de otra cuenta siguen pendientes: solo se publican las de @${esc(verified)}.`}</p>`
-                + (changed ? `<p class="aac-ig-meta">En Mi perfil tu Instagram ahora es <strong>@${esc(handle)}</strong> y todavía no está validado. ${ig.status === 'expired' ? 'El código que pediste venció: generá uno nuevo para' : 'Validalo para'} publicar lo que importes desde esa cuenta.</p>
+                + (changed ? `<p class="aac-ig-meta">En Mi perfil tu Instagram ahora es <strong>@${esc(handle)}</strong> y todavía no está validado. ${ig.status === 'expired' ? 'El código que pediste venció: genera uno nuevo para' : 'Valídalo para'} publicar lo que importes desde esa cuenta.</p>
                     <div class="aac-ig-actions">${requestBtn('Validar esta cuenta', 'aac-btn--accent')}</div>` : '');
         } else if (ig.status === 'pending') {
             tone = ' aac-ig--pending';
             const who = esc(GV ? GV.normalizeHandle(ig.handle || handle) : (ig.handle || handle));
-            const mail = ig.email_masked ? `Revisá tu correo <strong>${esc(ig.email_masked)}</strong>` : 'Revisá tu correo';
+            const mail = ig.email_masked ? `Revisa tu correo <strong>${esc(ig.email_masked)}</strong>` : 'Revisa tu correo';
             // El GET no trae email_sent: se recuerda el del último POST para ese código.
             const last = igState.lastRequest;
             const sameCode = !!(last && last.expires_at && Date.parse(last.expires_at) === Date.parse(ig.expires_at));
@@ -1372,22 +1372,22 @@
             // Si el correo no salió, el paso 1 no puede decir que se mandó: pide
             // reenviarlo (el aviso de abajo explica qué pasó).
             const resend = ig.email_masked
-                ? `Tocá “Reenviar código” y revisá tu correo <strong>${esc(ig.email_masked)}</strong>`
-                : 'Tocá “Reenviar código” y revisá tu correo';
+                ? `Toca “Reenviar código” y revisa tu correo <strong>${esc(ig.email_masked)}</strong>`
+                : 'Toca “Reenviar código” y revisa tu correo';
             const steps = [
                 ig.simulated
                     ? `${mail}: en el demo tu código de ejemplo es <strong class="aac-ig-code">${IG_DEMO_CODE}</strong>.`
                     : emailSent
                         ? `${mail}: te mandamos un código que empieza con WO-.`
                         : `${resend}: el código empieza con WO-.`,
-                `Desde <strong>@${who}</strong>, seguí a <strong>@weotzi</strong> en Instagram.`,
-                'Mandá el código por mensaje directo a <strong>@weotzi</strong>. Cuando lo recibamos, tu portafolio queda validado.'
+                `Desde <strong>@${who}</strong>, sigue a <strong>@weotzi</strong> en Instagram.`,
+                'Manda el código por mensaje directo a <strong>@weotzi</strong>. Cuando lo recibamos, tu portafolio queda validado.'
             ];
             html = head('<span class="aac-chip-warn">Pendiente</span>')
-                + `<h2 class="aac-ig-title">Validá @${who}</h2>`
+                + `<h2 class="aac-ig-title">Valida @${who}</h2>`
                 + `<ol class="aac-ig-steps">${steps.map((s) => `<li>${s}</li>`).join('')}</ol>`
                 + (expires ? `<p class="aac-ig-meta">El código vence el ${esc(expires)}.</p>` : '')
-                + (emailSent ? '' : '<p class="aac-ig-warn" role="alert">No pudimos enviarte el correo con el código. Tocá “Reenviar código” o escribinos por soporte.</p>')
+                + (emailSent ? '' : '<p class="aac-ig-warn" role="alert">No pudimos enviarte el correo con el código. Toca “Reenviar código” o escríbenos por soporte.</p>')
                 + (ig.simulated ? '<p class="aac-ig-note">En modo demo la validación es simulada.</p>' : '')
                 + `<div class="aac-ig-actions">
                     <a class="aac-btn aac-btn--outline aac-btn--s" href="${esc(igFollowUrl())}" target="_blank" rel="noopener">Abrir @weotzi →</a>
@@ -1396,12 +1396,12 @@
         } else {
             const expired = ig.status === 'expired';
             html = head(`<span class="aac-chip-muted">${expired ? 'Código vencido' : 'Sin validar'}</span>`)
-                + '<h2 class="aac-ig-title">Validá tu cuenta de Instagram</h2>'
-                + (expired ? '<p class="aac-ig-text">Tu código anterior venció. Generá uno nuevo para seguir.</p>' : '')
-                + '<p class="aac-ig-text">Las fotos que importás de Instagram no se muestran en tu perfil público hasta que valides que la cuenta es tuya. Te mandamos un código por correo y nos lo enviás por mensaje directo.</p>'
+                + '<h2 class="aac-ig-title">Valida tu cuenta de Instagram</h2>'
+                + (expired ? '<p class="aac-ig-text">Tu código anterior venció. Genera uno nuevo para seguir.</p>' : '')
+                + '<p class="aac-ig-text">Las fotos que importas de Instagram no se muestran en tu perfil público hasta que valides que la cuenta es tuya. Te mandamos un código por correo y nos lo envías por mensaje directo.</p>'
                 + (pending ? `<p class="aac-ig-meta">${pending === 1 ? '1 foto importada espera' : `${pending} fotos importadas esperan`} la validación.</p>` : '')
                 + (handle ? `<p class="aac-ig-meta">Cuenta a validar: <strong>@${esc(handle)}</strong></p>`
-                    : '<p class="aac-ig-meta">Primero cargá tu usuario de Instagram en Mi perfil.</p>')
+                    : '<p class="aac-ig-meta">Primero carga tu usuario de Instagram en Mi perfil.</p>')
                 + `<div class="aac-ig-actions">${requestBtn('Generar código', 'aac-btn--accent')}${profileLink(handle ? 'Cambiar en Mi perfil →' : 'Ir a Mi perfil →')}</div>`;
         }
         box.className = 'aac-ig' + tone;
@@ -1421,7 +1421,7 @@
     async function removeWork(index) {
         const item = works[index];
         if (!item) return;
-        if (!window.confirm('¿Querés quitar este trabajo del portafolio?')) return;
+        if (!window.confirm('¿Quieres quitar este trabajo del portafolio?')) return;
         works.splice(index, 1);
         renderWorks();
         try {
@@ -1609,7 +1609,7 @@
                     <div class="av-meta"><span class="av-meta-label">Vigencia</span><span class="av-meta-value">${esc(AV.vigencia(loc))}</span></div>
                     <div class="av-meta"><span class="av-meta-label">Horas semanales</span><span class="av-meta-value">${esc(String(AV.weeklyHours(weekly)).replace('.', ','))} h</span></div>
                     ${avState.editing && AV.isTravel(loc) && !loc.virtual && !paused ? `<label class="av-meta"><span class="av-meta-label">Agenda</span><select class="av-status-select" data-av-status aria-label="Estado de la agenda en ${esc(AV.locationTitle(loc))}"><option value="open" ${statusOf(loc) === 'open' ? 'selected' : ''}>Abierta</option><option value="waitlist" ${statusOf(loc) === 'waitlist' ? 'selected' : ''}>Lista de espera</option></select></label>` : ''}
-                    <button type="button" class="av-pause" data-av-pause ${avState.editing && !loc.virtual ? '' : 'disabled'} title="${avState.editing ? '' : 'Tocá “Editar disponibilidad” para pausar o reactivar'}">${paused ? 'Reactivar ubicación' : 'Pausar ubicación'}</button>
+                    <button type="button" class="av-pause" data-av-pause ${avState.editing && !loc.virtual ? '' : 'disabled'} title="${avState.editing ? '' : 'Toca “Editar disponibilidad” para pausar o reactivar'}">${paused ? 'Reactivar ubicación' : 'Pausar ubicación'}</button>
                 </div>`;
         } else {
             $('av-current').innerHTML = '';
@@ -1764,7 +1764,7 @@
             assistRefresh('disponibilidad');
         } catch (err) {
             console.error('[account] disponibilidad:', err);
-            errEl.textContent = 'No pudimos guardar la disponibilidad. Probá de nuevo.';
+            errEl.textContent = 'No pudimos guardar la disponibilidad. Prueba de nuevo.';
             errEl.hidden = false;
         } finally {
             btn.disabled = false;
@@ -1806,11 +1806,11 @@
             await loadLocations();
             toast(row?.degraded
                 ? 'Destino agregado sin país ni lista de espera: el servidor todavía no los admite.'
-                : 'Destino Travel agregado. Definí sus horarios con “Editar disponibilidad”.', !row?.degraded);
+                : 'Destino Travel agregado. Define sus horarios con “Editar disponibilidad”.', !row?.degraded);
             assistRefresh('disponibilidad');
         } catch (err) {
             console.error('[account] destino travel:', err);
-            errEl.textContent = 'No pudimos agregar el destino. Revisá las fechas y probá de nuevo.';
+            errEl.textContent = 'No pudimos agregar el destino. Revisa las fechas y prueba de nuevo.';
             errEl.hidden = false;
         } finally { if (submit) submit.disabled = false; }
     }
@@ -1899,7 +1899,7 @@
         const type = selectedWorkType();
         const field = $('aac-modalidad-studio-field');
         field.hidden = !(type === 'studio' || type === 'both');
-        $('aac-modalidad-hint').textContent = MODALITY_HINTS[type] || 'Elegí si tatuás en un estudio, en tu propio espacio o en los dos.';
+        $('aac-modalidad-hint').textContent = MODALITY_HINTS[type] || 'Elige si tatúas en un estudio, en tu propio espacio o en los dos.';
         if (field.hidden) closeStudioList();
     }
 
@@ -2064,11 +2064,11 @@
     async function saveModality() {
         modalityError('');
         const type = selectedWorkType();
-        if (!WORK_TYPES.includes(type)) { modalityError('Elegí cómo trabajás: estudio, independiente o ambos.'); return; }
+        if (!WORK_TYPES.includes(type)) { modalityError('Elige cómo trabajas: estudio, independiente o ambos.'); return; }
         const withStudio = type !== 'independent';
         const name = $('aac-modalidad-studio').value.trim();
         if (withStudio && !name) {
-            modalityError('Escribí el nombre de tu estudio o elegilo de la lista.');
+            modalityError('Escribe el nombre de tu estudio o elígelo de la lista.');
             $('aac-modalidad-studio').focus();
             return;
         }
@@ -2091,13 +2091,13 @@
             if (currentResident && !sameStudio) {
                 const oldName = (currentResident.studios && currentResident.studios.name) || 'tu estudio actual';
                 const leaveMsg = withStudio
-                    ? `¿Salir del equipo de ${oldName}? Si no, seguís en ese estudio y además pedís el alta en el nuevo.`
-                    : `Para trabajar como independiente salís del equipo de ${oldName}. ¿Confirmás?`;
+                    ? `¿Salir del equipo de ${oldName}? Si no, sigues en ese estudio y además pides el alta en el nuevo.`
+                    : `Para trabajar como independiente sales del equipo de ${oldName}. ¿Confirmas?`;
                 if (window.confirm(leaveMsg)) {
                     const ended = await D.StudioMemberships.endMembership(currentResident.id);
                     if (ended && ended.error) throw ended.error;
                 } else if (!withStudio) {
-                    modalityError(`Seguís en el equipo de ${oldName}. Para pasar a independiente, primero salí del estudio.`);
+                    modalityError(`Sigues en el equipo de ${oldName}. Para pasar a independiente, primero sal del estudio.`);
                     return;
                 }
             }
@@ -2120,7 +2120,7 @@
             assistRefresh('disponibilidad');
         } catch (err) {
             console.error('[account] modalidad:', err);
-            modalityError('No pudimos guardar la modalidad. Probá de nuevo.');
+            modalityError('No pudimos guardar la modalidad. Prueba de nuevo.');
         } finally {
             btn.disabled = false;
         }
@@ -2139,7 +2139,7 @@
 
     async function requestStudioLink(studioId, name, open) {
         if (open.some((m) => m.studio_id === studioId)) {
-            return `Ya tenés una solicitud o invitación abierta con ${name}. La ves en Invitaciones.`;
+            return `Ya tienes una solicitud o invitación abierta con ${name}. La ves en Invitaciones.`;
         }
         if (!D.StudioMemberships || typeof D.StudioMemberships.requestMembership !== 'function') return '';
         const { data, error } = await D.StudioMemberships.requestMembership({ studioId, role: 'resident' });
@@ -2148,7 +2148,7 @@
             if (/Esperá unos días/i.test(text)) return `Guardamos tu modalidad. Esperá unos días antes de volver a pedir el alta en ${name}.`;
             if (/Ya tenés/i.test(text)) return `Ya tenés una solicitud o vínculo abierto con ${name}.`;
             console.warn('[account] solicitud de alta:', error);
-            return `Guardamos tu modalidad, pero no pudimos enviar tu solicitud a ${name}. Pedila desde Invitaciones.`;
+            return `Guardamos tu modalidad, pero no pudimos enviar tu solicitud a ${name}. Pídela desde Invitaciones.`;
         }
         if (data && data.membership_id) {
             igApi('/api/artist/studio-notify', { method: 'POST', body: { kind: 'membership_request_created', membership_id: data.membership_id } })
@@ -2164,9 +2164,9 @@
     let gcalBusy = false;
     const GCAL_RETURN_MESSAGES = {
         denied: 'Cancelaste la conexión con Google Calendar.',
-        scope: 'Para sincronizar necesitamos permiso para ver y editar los eventos de tu calendario. Probá de nuevo y dejá tildado ese permiso.',
-        state: 'El pedido de conexión no es válido. Probá de nuevo desde este navegador.',
-        expired: 'El pedido de conexión venció. Probá de nuevo.',
+        scope: 'Para sincronizar necesitamos permiso para ver y editar los eventos de tu calendario. Prueba de nuevo y deja tildado ese permiso.',
+        state: 'El pedido de conexión no es válido. Prueba de nuevo desde este navegador.',
+        expired: 'El pedido de conexión venció. Prueba de nuevo.',
         config: 'Google Calendar todavía no está disponible.'
     };
 
@@ -2219,7 +2219,7 @@
         } else if (reauth) {
             note.textContent = 'Hay que volver a conectar tu cuenta';
             action.textContent = 'Reconectar';
-            errorText = st.last_error || 'Google revocó el acceso. Volvé a conectar tu cuenta.';
+            errorText = st.last_error || 'Google revocó el acceso. Vuelve a conectar tu cuenta.';
         } else if (connected) {
             note.textContent = `Sincroniza ${word}`;
             action.textContent = 'Conectado';
@@ -2232,7 +2232,7 @@
             detailHtml = parts.join(' · ');
             errorText = st.last_error || '';
         } else {
-            note.textContent = 'Sincronizá tus ubicaciones con tu calendario';
+            note.textContent = 'Sincroniza tus ubicaciones con tu calendario';
             action.textContent = 'Conectar';
         }
 
@@ -2263,7 +2263,7 @@
             toast('Google Calendar conectado. Estamos sincronizando tu agenda.');
             setTimeout(() => { refreshGcal(); }, 8000);
         } else {
-            toast(GCAL_RETURN_MESSAGES[params.get('reason')] || 'No pudimos conectar Google Calendar. Probá de nuevo.', false);
+            toast(GCAL_RETURN_MESSAGES[params.get('reason')] || 'No pudimos conectar Google Calendar. Prueba de nuevo.', false);
         }
     }
 
@@ -2284,7 +2284,7 @@
             console.error('[account] Google Calendar:', error && error.message);
             toast(error && error.configured === false
                 ? 'Google Calendar todavía no está disponible'
-                : 'No pudimos iniciar la conexión con Google. Probá de nuevo.', false);
+                : 'No pudimos iniciar la conexión con Google. Prueba de nuevo.', false);
         } finally {
             gcalBusy = false;
             renderSync();
@@ -2295,7 +2295,7 @@
         const dialog = $('av-gcal-disconnect-dialog');
         if (!dialog || typeof dialog.showModal !== 'function') {
             // Sin <dialog> (navegador viejo): confirmación simple, sin quitar eventos.
-            if (window.confirm('¿Querés desconectar Google Calendar? Dejamos de publicar tu agenda y revocamos el acceso de We Ötzi.')) {
+            if (window.confirm('¿Quieres desconectar Google Calendar? Dejamos de publicar tu agenda y revocamos el acceso de We Ötzi.')) {
                 disconnectGcal(false);
             }
             return;
@@ -2316,7 +2316,7 @@
             $('av-gcal-disconnect-dialog')?.close();
         } else {
             const errEl = $('av-gcal-disconnect-error');
-            errEl.textContent = 'No pudimos desconectar Google Calendar. Probá de nuevo.';
+            errEl.textContent = 'No pudimos desconectar Google Calendar. Prueba de nuevo.';
             errEl.hidden = false;
         }
     }
@@ -2329,7 +2329,7 @@
             const result = await D.GoogleCalendar.disconnect({ removeEvents });
             let message = 'Google Calendar desconectado';
             if (removeEvents && result) {
-                if (result.removeError) message += '. No pudimos quitar los eventos de Google: borralos desde Google Calendar.';
+                if (result.removeError) message += '. No pudimos quitar los eventos de Google: bórralos desde Google Calendar.';
                 else if (result.remainingEvents) message += `. Quitamos ${result.removedEvents || 0} eventos; quedaron ${result.remainingEvents} en Google.`;
                 else message += `. Quitamos ${result.removedEvents || 0} eventos próximos de Google.`;
             }
@@ -2340,7 +2340,7 @@
             console.error('[account] Google Calendar:', error && error.message);
             toast(error && error.configured === false
                 ? 'Google Calendar todavía no está disponible'
-                : 'No pudimos desconectar Google Calendar. Probá de nuevo.', false);
+                : 'No pudimos desconectar Google Calendar. Prueba de nuevo.', false);
             return false;
         } finally {
             gcalBusy = false;
@@ -2463,7 +2463,7 @@
         const current = $('aac-pass-current').value;
         const next = $('aac-pass-new').value;
         const fail = (msg) => { errEl.textContent = msg; errEl.hidden = false; };
-        if (!current || !next) return fail('Completá la contraseña actual y la nueva.');
+        if (!current || !next) return fail('Completa la contraseña actual y la nueva.');
         if (next.length < 8) return fail('La nueva contraseña lleva al menos 8 caracteres.');
         if (next === current) return fail('La nueva contraseña tiene que ser distinta de la actual.');
         const btn = $('aac-pass-save');
@@ -2479,7 +2479,7 @@
             toast('Contraseña actualizada');
         } catch (err) {
             console.error('[account] contraseña:', err);
-            fail('No pudimos actualizar la contraseña. Probá de nuevo.');
+            fail('No pudimos actualizar la contraseña. Prueba de nuevo.');
         } finally {
             btn.disabled = false;
         }
@@ -2578,7 +2578,7 @@
         toggle.disabled = true;
         try {
             if (!wantsOn && verifiedMfaFactors.length) {
-                if (!window.confirm('¿Querés desactivar la autenticación en dos pasos?')) return;
+                if (!window.confirm('¿Quieres desactivar la autenticación en dos pasos?')) return;
                 const { error } = await _supabase.auth.mfa.unenroll({ factorId: verifiedMfaFactors[0].id });
                 if (error) throw error;
                 await loadMfaState();
@@ -2591,7 +2591,7 @@
                 pendingMfaFactor = data;
                 const qr = data?.totp?.qr_code;
                 const secret = data?.totp?.secret;
-                $('aac-mfa-enrollment').innerHTML = `${qr ? `<img class="aac-mfa-qr" src="${esc(qr)}" alt="Código QR para configurar la app autenticadora" width="240" height="240">` : ''}<p class="wal-confirm-text">Escaneá el QR con tu app autenticadora.${secret ? ` Si no podés, ingresá esta clave: <code>${esc(secret)}</code>.` : ''}</p>`;
+                $('aac-mfa-enrollment').innerHTML = `${qr ? `<img class="aac-mfa-qr" src="${esc(qr)}" alt="Código QR para configurar la app autenticadora" width="240" height="240">` : ''}<p class="wal-confirm-text">Escanea el QR con tu app autenticadora.${secret ? ` Si no puedes, ingresa esta clave: <code>${esc(secret)}</code>.` : ''}</p>`;
                 $('aac-mfa-code').value = '';
                 $('aac-mfa-dialog').showModal();
             }
@@ -2608,7 +2608,7 @@
         event.preventDefault();
         const code = $('aac-mfa-code').value.trim();
         if (!pendingMfaFactor?.id || !/^\d{6}$/.test(code)) {
-            toast('Ingresá el código de 6 dígitos', false);
+            toast('Ingresa el código de 6 dígitos', false);
             return;
         }
         const submit = event.submitter;
@@ -2679,7 +2679,7 @@
         event.preventDefault();
         phoneError('');
         const phone = normalizePhone($('aac-phone-number').value);
-        if (!phone) { phoneError('Ingresá el número con código de país, por ejemplo +54 9 11 1234 5678.'); return; }
+        if (!phone) { phoneError('Ingresa el número con código de país, por ejemplo +54 9 11 1234 5678.'); return; }
         const masked = `···· ${phone.slice(-4)}`;
         const btn = $('aac-phone-submit');
         btn.disabled = true;
@@ -2698,7 +2698,7 @@
                 return;
             }
             const token = $('aac-phone-code').value.trim();
-            if (!/^\d{6}$/.test(token)) { phoneError('Ingresá el código de 6 dígitos.'); return; }
+            if (!/^\d{6}$/.test(token)) { phoneError('Ingresa el código de 6 dígitos.'); return; }
             const { error } = await _supabase.auth.verifyOtp({ phone, token, type: 'phone_change' });
             if (error) throw Object.assign(error, { stage: 'verify' });
             await savePrefs('app_settings', { recovery: { ...recoverySettings(), phone: { status: 'verified', number_masked: masked, verified_at: new Date().toISOString() } } });
@@ -2740,7 +2740,7 @@
             toast('Pregunta de seguridad guardada');
         } catch (err) {
             console.error('[account] pregunta de seguridad:', err);
-            errEl.textContent = 'No pudimos guardar la pregunta. Probá de nuevo.';
+            errEl.textContent = 'No pudimos guardar la pregunta. Prueba de nuevo.';
             errEl.hidden = false;
         }
     }
@@ -2809,16 +2809,16 @@
             } else if (state === 'Denied' || state === 'rejected' || docStatus(idDoc) === 'rejected') {
                 cls = ' aac-verif-box--error'; icon = 'alert-circle';
                 title = 'Verificación denegada';
-                detail = `${reason.trim() ? reason.trim() + ' ' : ''}Revisá tus documentos y volvé a solicitarla. El documento de identidad y el comprobante de domicilio son obligatorios; el certificado de bioseguridad es opcional.`;
+                detail = `${reason.trim() ? reason.trim() + ' ' : ''}Revisa tus documentos y vuelve a solicitarla. El documento de identidad y el comprobante de domicilio son obligatorios; el certificado de bioseguridad es opcional.`;
                 action = requestBtn;
             } else {
                 cls = ' aac-verif-box--warning'; icon = 'alert-circle';
                 if (lastVerifDecision?.action === 'revoked') {
                     title = 'Tu perfil quedó sin verificar';
-                    detail = `${reason.trim() ? reason.trim() + ' ' : ''}Podés volver a solicitar la verificación con tu documento de identidad y tu comprobante de domicilio.`;
+                    detail = `${reason.trim() ? reason.trim() + ' ' : ''}Puedes volver a solicitar la verificación con tu documento de identidad y tu comprobante de domicilio.`;
                 } else {
                     title = 'Todavía no verificaste tu identidad';
-                    detail = 'Subí tu documento de identidad y un comprobante de domicilio (obligatorios) y solicitá la verificación. El certificado de bioseguridad es opcional y suma confianza.';
+                    detail = 'Sube tu documento de identidad y un comprobante de domicilio (obligatorios) y solicita la verificación. El certificado de bioseguridad es opcional y suma confianza.';
                 }
                 action = requestBtn;
             }
@@ -2838,7 +2838,7 @@
     async function requestVerification(btn) {
         const missing = verifAvailable ? missingRequiredDocs() : [];
         if (missing.length) {
-            toast(`Antes de solicitarla, subí tu ${missing.join(' y tu ')}.`, false);
+            toast(`Antes de solicitarla, sube tu ${missing.join(' y tu ')}.`, false);
             return;
         }
         if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
@@ -2854,7 +2854,7 @@
             assistRefresh('verificacion');
         } catch (err) {
             console.error('[account] solicitar verificación:', err);
-            const message = err && err.status && err.status < 500 && err.message ? err.message : 'No pudimos enviar la solicitud. Probá de nuevo en unos minutos.';
+            const message = err && err.status && err.status < 500 && err.message ? err.message : 'No pudimos enviar la solicitud. Prueba de nuevo en unos minutos.';
             toast(message, false);
             if (btn && btn.isConnected) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
         }
@@ -2923,7 +2923,7 @@
                 if (!file) return;
                 const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
                 if (!allowed.includes(file.type) || file.size > 10 * 1024 * 1024) {
-                    toast('Usá PDF, JPG, PNG o WebP de hasta 10 MB', false);
+                    toast('Usa PDF, JPG, PNG o WebP de hasta 10 MB', false);
                     return;
                 }
                 let path = null;
@@ -2971,7 +2971,7 @@
         });
         wrap.querySelectorAll('[data-doc-del]').forEach((btn) => {
             btn.addEventListener('click', async () => {
-                if (!window.confirm('¿Querés eliminar este documento?')) return;
+                if (!window.confirm('¿Quieres eliminar este documento?')) return;
                 try {
                     const doc = verifDocs.find((item) => item.id === btn.dataset.docDel);
                     await D.VerificationDocs.delete(btn.dataset.docDel);
@@ -2998,7 +2998,7 @@
     function setCountrySelect(value) {
         const sel = $('aac-setting-country');
         const list = COUNTRIES.includes(value) || !value ? COUNTRIES : [value, ...COUNTRIES];
-        sel.innerHTML = '<option value="">Elegí un país</option>' + list.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+        sel.innerHTML = '<option value="">Elige un país</option>' + list.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
         sel.value = value || '';
     }
 
@@ -3009,7 +3009,7 @@
         const currencySel = $('aac-currency');
         // Moneda efectiva: la elegida o, si no hay, la de la tarifa (la que usa el Wallet).
         fillAccountCurrencySelect(currencySel, artist.preferred_display_currency || artist.session_price_currency || '',
-            { placeholder: 'Elegí una moneda' });
+            { placeholder: 'Elige una moneda' });
 
         const detectedTz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'America/Argentina/Buenos_Aires';
         const tzList = TIMEZONES.includes(detectedTz) ? TIMEZONES : [detectedTz, ...TIMEZONES];
@@ -3111,7 +3111,7 @@
         $('aac-setting-city').addEventListener('input', debounce(saveRegion, 600));
 
         $('aac-reset-settings').addEventListener('click', async () => {
-            if (!window.confirm('¿Querés restablecer las preferencias de la aplicación?')) return;
+            if (!window.confirm('¿Quieres restablecer las preferencias de la aplicación?')) return;
             try {
                 await savePrefs('app_settings', DEFAULT_APP_SETTINGS);
                 window.location.reload();

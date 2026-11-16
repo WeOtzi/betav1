@@ -6,7 +6,7 @@
  * la cotización no esté aprobada por ambas partes (P25).
  *
  * Cuatro secciones en pestañas (entra en 720 px de alto sin scroll de página):
- *   1 Propuesta       presupuesto, moneda, sesiones, duración, seña,
+ *   1 Propuesta       presupuesto, moneda, sesiones, duración, anticipo,
  *                     complejidad, estudio o ubicación y vencimiento
  *   2 Disponibilidad  calendario conectado a la agenda real: turnos con
  *                     horario y rangos de fechas (varias fechas). Lo ocupado
@@ -195,7 +195,7 @@
             + field('Sesiones', '<input class="wo-input" name="sessions" type="number" inputmode="numeric" min="1" max="30" step="1" value="' + esc(v.sessions) + '">')
             + field('Horas por sesión', '<input class="wo-input" name="hours" type="number" inputmode="numeric" min="0" max="24" step="1" value="' + esc(v.hours) + '">')
             + field('Minutos', '<select class="wo-select" name="mins">' + selectOptions(mins, v.mins) + '</select>')
-            + field('Seña (%)', '<input class="wo-input" name="deposit_pct" type="number" inputmode="decimal" min="0" max="100" step="1" value="' + esc(v.depositPct) + '" placeholder="Sin seña">')
+            + field('Anticipo (%)', '<input class="wo-input" name="deposit_pct" type="number" inputmode="decimal" min="0" max="100" step="1" value="' + esc(v.depositPct) + '" placeholder="Sin anticipo">')
             + field('Complejidad', '<select class="wo-select" name="complexity">' + selectOptions(complexity, v.complexity) + '</select>')
             + field('Estudio o ubicación', '<input class="wo-input" name="location" maxlength="' + model.MAX_LOCATION + '" autocomplete="off" value="' + esc(v.location) + '" placeholder="Estudio, barrio o ciudad">', 'qr-col-2')
             + '<div class="wo-field qr-col-2" role="group" aria-labelledby="qr-expiry-label">'
@@ -395,7 +395,7 @@
                 return '<div class="qr-money-cell' + (strong ? ' is-strong' : '') + '"><span class="wo-label">' + esc(label) + '</span><strong>' + value + '</strong></div>';
             };
             box.innerHTML = cell('Total propuesto', t.amount != null ? esc(model.formatAmount(t.amount)) + ' ' + currency : '—', true)
-                + cell('Seña para reservar', t.deposit != null ? esc(model.formatAmount(t.deposit)) + ' ' + currency + ' · ' + esc(String(t.depositPct).replace('.', ',')) + ' %' : 'Sin seña')
+                + cell('Anticipo para reservar', t.deposit != null ? esc(model.formatAmount(t.deposit)) + ' ' + currency + ' · ' + esc(String(t.depositPct).replace('.', ',')) + ' %' : 'Sin anticipo')
                 + cell('Saldo', t.balance != null ? esc(model.formatAmount(t.balance)) + ' ' + currency : '—')
                 + '<p class="qr-money-note">El saldo acordado se activa cuando el cliente aprueba la propuesta, no antes.</p>';
         }
@@ -403,7 +403,7 @@
         if (summary) {
             var parts = [];
             if (t.amount != null) parts.push('Total ' + model.formatAmount(t.amount) + ' ' + state.v.currency);
-            parts.push(t.deposit != null ? 'Seña ' + String(t.depositPct).replace('.', ',') + ' %' : 'Sin seña');
+            parts.push(t.deposit != null ? 'Anticipo ' + String(t.depositPct).replace('.', ',') + ' %' : 'Sin anticipo');
             var sessions = model.sessionsText(state.v.sessions);
             var duration = model.durationText(minutesOf(state));
             if (sessions) parts.push(sessions + (duration ? ' de ' + duration : ''));

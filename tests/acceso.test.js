@@ -197,7 +197,7 @@ test('wo-welcome se carga en los dos paneles y en login/registro de cliente', ()
     for (const page of ['public/artist/dashboard/index.html', 'public/client/dashboard/index.html', 'public/client/login/index.html', 'public/client/register/index.html']) {
         assert.match(read(page), /\/shared\/js\/wo-welcome\.js/, page);
     }
-    // El envío sin sesión (401 + toast falso) ya no existe en la rama "confirmá tu email".
+    // El envío sin sesión (401 + toast falso) ya no existe en la rama "confirma tu email".
     const reg = read('public/shared/js/register.js');
     const branch = reg.slice(reg.indexOf('if (finalizeData.email_confirmation_required) {'), reg.indexOf("goToStep('success');", reg.indexOf('if (finalizeData.email_confirmation_required) {')));
     assert.doesNotMatch(branch, /sendArtistRegistrationCompletedEvent\(/);
@@ -246,7 +246,7 @@ test('ACC-11: "Signups not allowed for otp" responde igual que el éxito (anti-e
     assert.equal(EC.magicLinkOutcome({ code: 'otp_disabled' }, 'a@x.com').ok, true);
     const rate = EC.magicLinkOutcome({ status: 429, message: 'rate limit' }, 'a@x.com');
     assert.equal(rate.ok, false);
-    assert.match(rate.message, /Esperá un minuto/);
+    assert.match(rate.message, /Espera un minuto/);
     assert.equal(EC.magicLinkOutcome({ message: 'Failed to fetch' }, 'a@x.com').ok, false);
     assert.match(read('public/shared/js/artist-login.js'), /artistMagicLinkOutcome\(error, email\)/);
 });

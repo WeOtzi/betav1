@@ -4,7 +4,7 @@
  * Ronda 3 · grupo "pagos". Diseño propio (el Figma 801:580–583 no tiene pagos):
  * mismo esquema que «Sesiones del proyecto» (eyebrow mono, titular, barra de
  * avance y filas con regla). Muestra el saldo pendiente REAL (acordado −
- * cobrado), la seña requerida de la cotización manual (801:556) como
+ * cobrado), el anticipo requerido de la cotización manual (801:556) como
  * pendiente/parcial/pagada, la lista de pagos (ver comprobante · anular) y la
  * acción REGISTRAR PAGO (abre WoPaymentDialog con la cotización fija).
  *
@@ -54,7 +54,7 @@
             try {
                 var rows = await R.manualQuotesFor([quote.quote_id]);
                 manual = rows[0] || null;
-            } catch (e) { /* sin seña */ }
+            } catch (e) { /* sin anticipo */ }
             cache.payments = payments.map(M.normalize);
             cache.manual = manual;
         }());
@@ -89,9 +89,9 @@
         else title = 'Pagado en su totalidad';
         var countTxt = s.count ? s.count + (s.count === 1 ? ' pago' : ' pagos') + ' · último ' + M.formatDate(s.lastPaidOn) : 'Todavía no registraste pagos';
         var depositCell = s.deposit
-            ? '<div><dt>Seña requerida</dt><dd>' + esc(money(s.deposit.required, s.deposit.currency)) +
+            ? '<div><dt>Anticipo requerido</dt><dd>' + esc(money(s.deposit.required, s.deposit.currency)) +
               '<small><span class="wqp-chip wqp-chip--' + esc(s.deposit.status) + '">' + esc(M.depositLabel(s.deposit.status)) + '</span></small></dd></div>'
-            : '<div><dt>Seña requerida</dt><dd>—<small>Sin seña pactada</small></dd></div>';
+            : '<div><dt>Anticipo requerido</dt><dd>—<small>Sin anticipo pactado</small></dd></div>';
         var others = s.others.length
             ? '<p class="qpp-note">Además cobraste ' + esc(s.others.map(function (o) { return money(o.amount, o.currency); }).join(' · ')) + ': sin tipo de cambio, no se descuenta del saldo.</p>'
             : '';
@@ -115,7 +115,7 @@
             '</dl>' +
             (s.count ? '<ul class="qpp-list">' + s.payments.map(function (p) { return rowHtml(p, readOnly); }).join('') + '</ul>' : '') +
             others + over +
-            '<p class="qpp-note">Los pagos que registrás son cobros tuyos por fuera de We Ötzi: los ves en tu Wallet como «Cobrado por fuera» y no suman a tu saldo retirable.</p>' +
+            '<p class="qpp-note">Los pagos que registras son cobros tuyos por fuera de We Ötzi: los ves en tu Wallet como «Cobrado por fuera» y no suman a tu saldo retirable.</p>' +
         '</section>';
     }
 

@@ -76,8 +76,8 @@ test('no lee ni escribe tablas desde el navegador', () => {
 });
 
 test('copy: instrucciones en voseo, botones del contrato y sin signos de exclamación', () => {
-    assert.match(source, /Abrí los mensajes directos de @weotzi, buscá el mensaje de \$\{esc\(handle/);
-    assert.match(source, /y copiá el código\./);
+    assert.match(source, /Abre los mensajes directos de @weotzi, busca el mensaje de \$\{esc\(handle/);
+    assert.match(source, /y copia el código\./);
     for (const label of ['VALIDAR CON CÓDIGO', 'VALIDAR SIN CÓDIGO', 'RECHAZAR']) assert.ok(source.includes(label), label);
     assert.doesNotMatch(source, /¡/);
     for (const [key, text] of Object.entries(ig.MSG)) assert.doesNotMatch(text, /!/, `MSG.${key}`);
@@ -467,7 +467,7 @@ test('detalle: instrucciones, validación con código, sin código y rechazo con
     sandbox.SupportInstagramQueue.open('v1');
     assert.equal(page.toggle.checked, true, 'abre el drawer');
     const detail = page.drawer.innerHTML;
-    assert.match(detail, /Abrí los mensajes directos de @weotzi, buscá el mensaje de @laura&quot;&gt;&lt;script&gt;x&lt;\/script&gt; y copiá el código\./);
+    assert.match(detail, /Abre los mensajes directos de @weotzi, busca el mensaje de @laura&quot;&gt;&lt;script&gt;x&lt;\/script&gt; y copia el código\./);
     assert.doesNotMatch(detail, /<script>x/);
     assert.doesNotMatch(detail, /instagram\.com\/laura%22/, 'sin link de perfil para un handle inválido');
     assert.match(detail, /placeholder="WO-XXXXXX"/);
@@ -493,7 +493,7 @@ test('detalle: instrucciones, validación con código, sin código y rechazo con
     form.dispatch('submit');
     await flush();
     assert.equal(page.calls.length, before);
-    assert.equal(feedback().textContent, 'Ingresá el código con el formato WO-XXXXXX.');
+    assert.equal(feedback().textContent, 'Ingresa el código con el formato WO-XXXXXX.');
     assert.equal(feedback().hidden, false);
     assert.equal(doc.getElementById('igq-code').getAttribute('aria-invalid'), 'true');
 
@@ -501,13 +501,13 @@ test('detalle: instrucciones, validación con código, sin código y rechazo con
     doc.getElementById('igq-act-force').dispatch('click');
     await flush();
     assert.equal(page.calls.length, before);
-    assert.equal(feedback().textContent, 'Escribí una nota para validar sin código.');
+    assert.equal(feedback().textContent, 'Escribe una nota para validar sin código.');
 
     // Rechazo sin nota tampoco sale.
     doc.getElementById('igq-act-reject').dispatch('click');
     await flush();
     assert.equal(page.calls.length, before);
-    assert.equal(feedback().textContent, 'Escribí una nota con el motivo del rechazo.');
+    assert.equal(feedback().textContent, 'Escribe una nota con el motivo del rechazo.');
 
     // Error del servidor: se muestra en línea.
     doc.getElementById('igq-code').value = 'wo-aaaaaa';
@@ -595,7 +595,7 @@ test('vencida (status expired): aviso, VALIDAR SIN CÓDIGO y RECHAZAR, sin campo
     sandbox.SupportInstagramQueue.open('v7');
     const detail = page.drawer.innerHTML;
     assert.ok(detail.includes(ig.MSG.expiredHint), 'muestra el aviso de código vencido');
-    assert.match(detail, /buscá el mensaje de @sol\.ink\.<\/p>/, 'no pide copiar un código que ya no sirve');
+    assert.match(detail, /busca el mensaje de @sol\.ink\.<\/p>/, 'no pide copiar un código que ya no sirve');
     assert.doesNotMatch(detail, /VALIDAR CON CÓDIGO/, 'ni el botón ni las instrucciones nombran la validación con código');
     assert.doesNotMatch(detail, /id="igq-code"|id="igq-act-code"|type="submit"/);
     assert.equal(doc.getElementById('igq-code'), null);
@@ -644,8 +644,8 @@ test('pendiente vigente: sigue con código, VALIDAR CON CÓDIGO como acción pri
     page.sandbox.SupportInstagramQueue.open('v3');
     const detail = page.drawer.innerHTML;
     assert.ok(!detail.includes(ig.MSG.expiredHint));
-    assert.match(detail, /buscá el mensaje de @lu\.ink y copiá el código\./);
-    assert.match(detail, /Pegalo abajo y tocá VALIDAR CON CÓDIGO\./);
+    assert.match(detail, /busca el mensaje de @lu\.ink y copia el código\./);
+    assert.match(detail, /Pégalo abajo y toca VALIDAR CON CÓDIGO\./);
     assert.match(detail, /id="igq-act-code" class="action-btn igq-btn igq-btn--accent" data-igq-action="code">VALIDAR CON CÓDIGO</);
     assert.match(detail, /id="igq-act-force" class="action-btn igq-btn" data-igq-action="force">VALIDAR SIN CÓDIGO</);
     assert.ok(page.doc.getElementById('igq-code'));

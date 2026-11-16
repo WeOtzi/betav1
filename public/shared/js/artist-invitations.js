@@ -477,8 +477,8 @@
         if (!visible.length) {
             const filtered = state.items.length > 0;
             list.innerHTML = `<div class="inv-empty"><strong>${filtered ? 'No hay invitaciones con estos filtros' : 'Todavía no hay invitaciones'}</strong><p>${filtered
-                ? 'Probá con otra pestaña o borrá la búsqueda.'
-                : 'Cuando un estudio te quiera en su roster, la invitación va a aparecer acá. Mientras tanto, explorá el mapa de estudios.'}</p></div>`;
+                ? 'Prueba con otra pestaña o borra la búsqueda.'
+                : 'Cuando un estudio te quiera en su roster, la invitación va a aparecer aquí. Mientras tanto, explora el mapa de estudios.'}</p></div>`;
             return;
         }
         // 'Ordenar' por defecto = bloques del Figma; con otro orden, una sola lista
@@ -630,7 +630,7 @@
         const cells = [
             ['Fechas propuestas', start ? `Incorporación a partir del ${start}` : 'A coordinar con el estudio'],
             ['Duración', details.duration || 'A coordinar'],
-            ['Split para vos', details.split != null ? `${Math.round(details.split)}% para el artista` : 'A coordinar'],
+            ['Split para ti', details.split != null ? `${Math.round(details.split)}% para el artista` : 'A coordinar'],
             ['Stipend / beneficios', details.benefits.length ? details.benefits.join(' · ') : 'Sin beneficios publicados'],
         ];
         const columns = [
@@ -714,10 +714,10 @@
         const studio = studioOf(membership);
         const sub = membership._state === 'pending'
             ? (changePending(membership)
-                ? 'Pediste cambios en las condiciones. Mientras el estudio responde, podés aceptar o rechazar igual.'
-                : 'El estudio te seleccionó. Revisá las condiciones y respondé.')
+                ? 'Pediste cambios en las condiciones. Mientras el estudio responde, puedes aceptar o rechazar igual.'
+                : 'El estudio te seleccionó. Revisa las condiciones y responde.')
             : membership._state === 'active'
-                ? 'Ya formás parte del roster de este estudio.'
+                ? 'Ya formas parte del roster de este estudio.'
                 : 'Rechazaste esta invitación. El estudio puede volver a invitarte.';
         let actions = '';
         if (membership._state === 'pending') {
@@ -741,7 +741,7 @@
                 <div class="inv-aside-row"><span class="inv-key">Contacto</span><span class="inv-aside-value">${escapeHtml(details.contactName || studioName(membership))}</span></div>
             </div>
             ${changeRequestNotice(membership)}
-            ${membership._state === 'pending' && details.steps.length ? `<section class="inv-aside-section"><span class="inv-key">Si aceptás</span><ul class="inv-accept-list">${details.steps.map((step) => `<li>${icon('arrow-right')}<span>${escapeHtml(step)}</span></li>`).join('')}</ul></section>` : ''}
+            ${membership._state === 'pending' && details.steps.length ? `<section class="inv-aside-section"><span class="inv-key">Si aceptas</span><ul class="inv-accept-list">${details.steps.map((step) => `<li>${icon('arrow-right')}<span>${escapeHtml(step)}</span></li>`).join('')}</ul></section>` : ''}
             <div class="inv-aside-actions">${actions}</div>`;
     }
 
@@ -913,7 +913,7 @@
         openDrawer(`
             <aside class="inv-drawer inv-drawer--change" role="dialog" aria-modal="true" aria-labelledby="inv-drawer-title" tabindex="-1">
                 <h2 class="inv-drawer-heading" id="inv-drawer-title">Solicitar cambios</h2>
-                <p class="inv-change-copy">Contale al estudio qué te gustaría ajustar antes de aceptar.</p>
+                <p class="inv-change-copy">Cuéntale al estudio qué te gustaría ajustar antes de aceptar.</p>
                 <form class="inv-change-form" id="inv-change-form" novalidate>
                     <label class="inv-key" for="inv-change-message">Tu propuesta de cambios</label>
                     <textarea class="inv-change-textarea" id="inv-change-message" name="message" required minlength="10" maxlength="1000" aria-describedby="inv-change-count inv-change-error" placeholder="Ej: ¿podríamos mover las fechas dos semanas y subir el split a 45/55?"></textarea>

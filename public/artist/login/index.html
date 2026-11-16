@@ -49,7 +49,7 @@
             <span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span>
         </span>
         <p class="wo-auth-poster-title">
-            <span class="line">Accedé</span>
+            <span class="line">Accede</span>
             <span class="line hl-blue">A tu</span>
             <span class="line hl-yellow">Panel</span>
         </p>
@@ -70,7 +70,7 @@
             <div id="login-anonymous-view" class="wo-auth-view">
                 <div class="wo-auth-head">
                     <h1 class="wo-auth-title" id="artist-login-title">Bienvenida de nuevo</h1>
-                    <p class="wo-auth-copy">Ingresá para gestionar tus spots y cotizaciones.</p>
+                    <p class="wo-auth-copy">Ingresa para gestionar tus spots y cotizaciones.</p>
                 </div>
 
                 <form id="login-form" class="wo-auth-form" onsubmit="handleArtistLogin(event)" novalidate>
@@ -78,7 +78,7 @@
                         <label class="wo-auth-label" for="login-email">Email</label>
                         <div class="wo-auth-inputwrap">
                             <i data-wo-icon="mail" aria-hidden="true"></i>
-                            <input type="email" id="login-email" class="wo-auth-input" placeholder="vos@email.com" required autocomplete="email">
+                            <input type="email" id="login-email" class="wo-auth-input" placeholder="tu@email.com" required autocomplete="email">
                         </div>
                     </div>
                     <div class="wo-auth-field">
@@ -105,12 +105,12 @@
 
                 <div id="form-message" class="wo-auth-message" role="status" hidden></div>
 
-                <div class="wo-auth-or" role="separator">O continuá con</div>
+                <div class="wo-auth-or" role="separator">O continúa con</div>
 
                 <div class="wo-auth-social">
                     <span class="wo-auth-reco"><i data-wo-icon="star" aria-hidden="true"></i>Recomendado</span>
                     <div class="wo-auth-social-row">
-                        <button type="button" class="wo-auth-social-btn" data-social="instagram" onclick="handleArtistSocialLogin('instagram')" aria-label="Continuar con Instagram: creá tu perfil importando tu Instagram">
+                        <button type="button" class="wo-auth-social-btn" data-social="instagram" onclick="handleArtistSocialLogin('instagram')" aria-label="Continuar con Instagram: crea tu perfil importando tu Instagram">
                             <i data-wo-icon="instagram" aria-hidden="true"></i><span>Instagram</span>
                         </button>
                         <button type="button" class="wo-auth-social-btn" data-social="email" onclick="handleArtistSocialLogin('email')" aria-label="Recibir un link de acceso por email">
@@ -122,7 +122,7 @@
                     </div>
                 </div>
 
-                <p class="wo-auth-foot">¿Sin cuenta? <a href="/registerclosedbeta">Registrate</a></p>
+                <p class="wo-auth-foot">¿Sin cuenta? <a href="/registerclosedbeta">Regístrate</a></p>
             </div>
 
             <!-- Vista: segundo factor (2FA, Cuenta 801:575). Diseño propio con los
@@ -131,7 +131,7 @@
             <div id="login-mfa-view" class="wo-auth-view wo-auth-view--mfa" hidden>
                 <div class="wo-auth-head">
                     <h2 class="wo-auth-title" id="mfa-title" tabindex="-1">Verificación en dos pasos</h2>
-                    <p class="wo-auth-copy" id="mfa-copy">Ingresá el código de 6 dígitos de tu app autenticadora para terminar de entrar.</p>
+                    <p class="wo-auth-copy" id="mfa-copy">Ingresa el código de 6 dígitos de tu app autenticadora para terminar de entrar.</p>
                 </div>
 
                 <form id="mfa-form" class="wo-auth-form" novalidate aria-describedby="mfa-copy">
@@ -159,7 +159,7 @@
             <div id="login-authenticated-view" class="wo-auth-view wo-auth-view--session" hidden>
                 <div class="wo-auth-head">
                     <h2 class="wo-auth-title" id="auth-view-title">Ya iniciaste sesión</h2>
-                    <p class="wo-auth-copy" id="auth-view-subcopy">Continuá desde tu panel de artista</p>
+                    <p class="wo-auth-copy" id="auth-view-subcopy">Continúa desde tu panel de artista</p>
                 </div>
 
                 <div id="auth-view-progress-note" class="wo-auth-message" role="status" hidden></div>

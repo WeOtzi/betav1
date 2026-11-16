@@ -95,7 +95,7 @@
         host.textContent = '';
         var note = document.createElement('p');
         note.textContent = 'Solo se cargan con el consentimiento de su categoría. Tipos soportados: Microsoft Clarity. ' +
-            (envClarity ? 'El servidor tiene CLARITY_PROJECT_ID configurado: se usa si dejás el ID vacío.' : 'Sin ID no se carga nada.');
+            (envClarity ? 'El servidor tiene CLARITY_PROJECT_ID configurado: se usa si dejas el ID vacío.' : 'Sin ID no se carga nada.');
         host.appendChild(note);
         scripts.forEach(function (s, i) {
             var box = document.createElement('fieldset');
@@ -105,7 +105,7 @@
             legend.textContent = s.provider + ' · categoría ' + s.category;
             box.appendChild(legend);
             box.appendChild(checkboxRow('privacy-script-' + i + '-enabled', s.enabled, 'Activo'));
-            box.appendChild(field('ID de proyecto de Clarity', input('text', 'privacy-script-' + i + '-project_id', s.project_id, { maxlength: '20', pattern: '[A-Za-z0-9]{6,20}', placeholder: 'ej. abcd1234ef' }), 'Lo encontrás en clarity.microsoft.com → Settings → Overview.'));
+            box.appendChild(field('ID de proyecto de Clarity', input('text', 'privacy-script-' + i + '-project_id', s.project_id, { maxlength: '20', pattern: '[A-Za-z0-9]{6,20}', placeholder: 'ej. abcd1234ef' }), 'Lo encuentras en clarity.microsoft.com → Settings → Overview.'));
             box.appendChild(field('Rutas excluidas (una por línea)', input('textarea', 'privacy-script-' + i + '-exclude', (s.exclude_paths || []).join('\n'), { rows: '2' })));
             host.appendChild(box);
         });
@@ -162,7 +162,7 @@
     async function loadPrivacyAdmin() {
         setStatus('Cargando configuración…');
         var headers = await authHeaders();
-        if (!headers) { setStatus('Iniciá sesión como superadmin para editar esta sección.', true); return; }
+        if (!headers) { setStatus('Inicia sesión como superadmin para editar esta sección.', true); return; }
         try {
             var res = await fetch(apiUrl('/api/admin/privacy/cookie-config'), { headers: headers });
             var data = await res.json();
@@ -179,7 +179,7 @@
         var versionChanged = cfg.version !== current.version;
         if (versionChanged && !window.confirm('Cambiaste la versión del consentimiento (' + current.version + ' → ' + cfg.version + '). Se le va a volver a pedir el consentimiento a todas las personas. ¿Guardar?')) return;
         var headers = await authHeaders();
-        if (!headers) { setStatus('Iniciá sesión como superadmin para guardar.', true); return; }
+        if (!headers) { setStatus('Inicia sesión como superadmin para guardar.', true); return; }
         var btn = $('privacy-save-btn');
         btn.disabled = true;
         try {

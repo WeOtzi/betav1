@@ -1821,7 +1821,7 @@ document.head.appendChild(modesScript);
 
 // ---------------------------------------------------------------------------
 // Avisos push / in-app (frente push): toast + sonido + Web Push. Carga única
-// acá porque config-manager.js está en todas las páginas con sesión; sin
+// aquí porque config-manager.js está en todas las páginas con sesión; sin
 // sesión wo-notify.js no hace nada. Opt-out: <html data-wo-notify="off">.
 // ---------------------------------------------------------------------------
 (function () {

@@ -3879,7 +3879,7 @@ function saveSupabaseAPI() {
 
 async function testN8NAPI() {
     if (!window.EmailClient) {
-        showToast('El servicio de correo no está cargado. Recargá la página.', 'error');
+        showToast('El servicio de correo no está cargado. Recarga la página.', 'error');
         return;
     }
     const recipient = window.prompt('Enviar un correo de prueba. Email del destinatario:', '');
@@ -3887,7 +3887,7 @@ async function testN8NAPI() {
     showToast('Enviando correo de prueba...', 'info');
     const result = await window.EmailClient.sendTest('artist_registration_completed', recipient.trim(), 'n8n');
     updateAPIStatus('n8n', result?.success ? 'connected' : 'error');
-    showToast(result?.success ? 'El servidor SMTP aceptó el correo. Revisá la bandeja del destinatario.' : (result?.error || 'No se pudo confirmar el correo.'), result?.success ? 'success' : 'error');
+    showToast(result?.success ? 'El servidor SMTP aceptó el correo. Revisa la bandeja del destinatario.' : (result?.error || 'No se pudo confirmar el correo.'), result?.success ? 'success' : 'error');
 }
 
 function saveN8NAPI() {
@@ -4173,7 +4173,7 @@ function saveGeminiAPI() {
     const defaultStyle = document.getElementById('api-gemini-style').value.trim();
     const defaultBackgroundColor = document.getElementById('api-gemini-bg').value.trim();
 
-    // "enabled" no se guarda desde acá: la IA de imágenes se enciende y se apaga
+    // "enabled" no se guarda desde aquí: la IA de imágenes se enciende y se apaga
     // en el servidor (clave y AI_IMAGE_PROVIDER) y ConfigManager toma ese valor.
     window.ConfigManager?.update({
         gemini: {
@@ -4895,7 +4895,7 @@ function openRowEditor({ table, row, isNew = false, title, subtitle, idColumn, i
     document.getElementById('row-editor-title').textContent = title || (isNew ? `Nueva fila · ${table}` : `Editar fila · ${table}`);
     document.getElementById('row-editor-subtitle').innerHTML = subtitle == null
         ? (isNew
-            ? 'Completá los campos. Los vacíos usan el valor por defecto de la tabla.'
+            ? 'Completa los campos. Los vacíos usan el valor por defecto de la tabla.'
             : `Identificada por <code>${escapeHtml(String(idColumn))} = ${escapeHtml(String(idValue))}</code>. Solo se guardan los campos que cambies. Vacío = <code>null</code>.`)
         : subtitle;
 
@@ -4904,7 +4904,7 @@ function openRowEditor({ table, row, isNew = false, title, subtitle, idColumn, i
         fieldsEl.innerHTML = `<div class="form-group">
             <label for="rowedit-rawjson">Fila (JSON)</label>
             <textarea id="rowedit-rawjson" rows="8" class="rowedit-input" style="font-family:monospace;">${escapeHtml(JSON.stringify(row, null, 2))}</textarea>
-            <small class="form-hint">No se pudo inferir el esquema (tabla vacía). Editá el JSON de la fila a insertar.</small>
+            <small class="form-hint">No se pudo inferir el esquema (tabla vacía). Edita el JSON de la fila a insertar.</small>
         </div>`;
     } else {
         const skipKeys = isNew ? ['id', 'created_at', 'updated_at'] : [];
@@ -4935,7 +4935,7 @@ async function saveRowEditor(event) {
                 // Only send filled fields so table defaults / NOT NULL apply.
                 if (coerced !== null) values[col] = coerced;
             });
-            if (Object.keys(values).length === 0) { showToast('Completá al menos un campo.', 'error'); return; }
+            if (Object.keys(values).length === 0) { showToast('Completa al menos un campo.', 'error'); return; }
             await _fetchAdminJson(base, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ values })
@@ -7356,7 +7356,7 @@ function loadStudioImagesTab() {
         sdGalleryUploader = WeOtziUploader.attachGallery(gallery, { supabase: client, bucket: 'studio-photos', pathPrefix: s.id + '/gallery', initialUrls: photoUrls, accept: 'image/*' });
     } else {
         sdGalleryUploader = null;
-        gallery.innerHTML = '<p class="sd-panel-hint">Subida no disponible (sin cliente Supabase). Pegá URLs en los campos de arriba.</p>';
+        gallery.innerHTML = '<p class="sd-panel-hint">Subida no disponible (sin cliente Supabase). Pega URLs en los campos de arriba.</p>';
     }
 }
 
@@ -7393,7 +7393,7 @@ async function loadStudioLocations() {
     try {
         sdLocations = await _sdFetchChildren('studio_locations', 'studio_id', currentStudioDetailId, 'sort_order.asc');
         if (!sdLocations.length) {
-            listEl.innerHTML = '<p class="sd-panel-hint">Sin sedes. Agregá la primera con "Nueva sede".</p>';
+            listEl.innerHTML = '<p class="sd-panel-hint">Sin sedes. Agrega la primera con "Nueva sede".</p>';
             return;
         }
 
@@ -7643,7 +7643,7 @@ async function loadStudioSpots() {
     try {
         sdSpots = await _sdFetchChildren('studio_spots', 'studio_id', currentStudioDetailId, 'created_at.desc');
         if (!sdSpots.length) {
-            listEl.innerHTML = '<p class="sd-panel-hint">Sin spots. Creá uno con "Nuevo spot".</p>';
+            listEl.innerHTML = '<p class="sd-panel-hint">Sin spots. Crea uno con "Nuevo spot".</p>';
             return;
         }
         const openCount = sdSpots.filter(s => s.status === 'open').length;
@@ -7893,7 +7893,7 @@ async function loadOpsTable() {
         sdOpsRows = await _sdFetchChildren(currentOpsTable, 'studio_id', currentStudioDetailId, 'created_at.desc');
         if (!sdOpsRows.length) {
             head.innerHTML = '<tr><th>Sin datos</th></tr>';
-            body.innerHTML = '<tr><td style="padding:16px;opacity:.6;">Sin registros. Usá "Agregar".</td></tr>';
+            body.innerHTML = '<tr><td style="padding:16px;opacity:.6;">Sin registros. Usa "Agregar".</td></tr>';
             return;
         }
         const cols = Object.keys(sdOpsRows[0]);

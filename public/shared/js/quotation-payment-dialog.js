@@ -147,7 +147,7 @@
         rows.push('<div><dt>Cobrado</dt><dd>' + esc(money(s.paid, s.currency)) + '</dd></div>');
         rows.push('<div><dt>Saldo</dt><dd class="is-strong">' + esc(!proposed && s.balance != null ? money(s.balance, s.currency) : '—') + '</dd></div>');
         var dep = s.deposit
-            ? '<p class="wqp-sum-dep">Seña requerida ' + esc(money(s.deposit.required, s.deposit.currency)) +
+            ? '<p class="wqp-sum-dep">Anticipo requerido ' + esc(money(s.deposit.required, s.deposit.currency)) +
               (s.deposit.pct ? ' (' + esc(String(s.deposit.pct).replace('.', ',')) + '%)' : '') +
               ' · <span class="wqp-chip wqp-chip--' + esc(s.deposit.status) + '">' + esc(M.depositLabel(s.deposit.status)) + '</span></p>'
             : '';
@@ -166,7 +166,7 @@
         } else {
             quotePart = '<label class="wqp-label" for="wqp-quote">COTIZACIÓN</label>' +
                 '<select class="wqp-input" id="wqp-quote" name="quotationId" required data-autofocus>' +
-                '<option value="" disabled' + (state.quotationId ? '' : ' selected') + '>Elegí la cotización</option>' +
+                '<option value="" disabled' + (state.quotationId ? '' : ' selected') + '>Elige la cotización</option>' +
                 state.quotes.map(function (q) {
                     return '<option value="' + esc(q.id) + '"' + (String(q.id) === String(state.quotationId) ? ' selected' : '') + '>' + esc(quoteLabel(q)) + '</option>';
                 }).join('') +
@@ -194,7 +194,7 @@
             '<p class="wqp-label">MEDIO</p>' +
             segHtml('method', M.METHODS.map(function (m) { return [m, M.METHOD_LABELS[m]]; }), state.method, 'Medio de pago') +
             '<label class="wqp-label" for="wqp-note">NOTA <span class="wqp-opt">· opcional</span></label>' +
-            '<textarea class="wqp-input wqp-textarea" id="wqp-note" name="note" rows="3" maxlength="' + M.MAX_NOTE + '" placeholder="Ej.: seña en efectivo, en el estudio"></textarea>' +
+            '<textarea class="wqp-input wqp-textarea" id="wqp-note" name="note" rows="3" maxlength="' + M.MAX_NOTE + '" placeholder="Ej.: anticipo en efectivo, en el estudio"></textarea>' +
             '<p class="wqp-label">COMPROBANTE <span class="wqp-opt">· opcional</span></p>' +
             '<label class="wqp-attach">' + svg('paperclip') + '<span id="wqp-file-name">ADJUNTAR IMAGEN O PDF</span>' +
                 '<input type="file" name="file" id="wqp-file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf" class="wo-sr-only"></label>' +
@@ -379,7 +379,7 @@
         var s = state.summary;
         if (s && s.balance != null && v.currency === s.currency && v.amount - s.balance > 0.005 && !state.confirmOver) {
             state.confirmOver = true;
-            showErrors(form, { general: 'El monto supera el saldo pendiente (' + M.formatMoney(s.balance, s.currency) + '). Si es correcto, tocá GUARDAR PAGO otra vez.' });
+            showErrors(form, { general: 'El monto supera el saldo pendiente (' + M.formatMoney(s.balance, s.currency) + '). Si es correcto, toca GUARDAR PAGO otra vez.' });
             return;
         }
         showErrors(form, {});
@@ -395,7 +395,7 @@
             var saved = row || v;
             try { document.dispatchEvent(new CustomEvent('weotzi:payments-changed', { detail: { payment: saved } })); } catch (e) { /* noop */ }
             var cb = state.opts.onSaved;
-            toast((v.kind === 'deposit' ? 'Seña registrada: ' : 'Pago registrado: ') + M.formatMoney(v.amount, v.currency) + '.');
+            toast((v.kind === 'deposit' ? 'Anticipo registrado: ' : 'Pago registrado: ') + M.formatMoney(v.amount, v.currency) + '.');
             close();
             if (typeof cb === 'function') cb(saved);
         } catch (err) {
@@ -421,19 +421,19 @@
             paymentsByQuote: {}, manualByQuote: {}, busy: false, amountTouched: false, confirmOver: false
         };
         var R = repo();
-        if (!opts.user || !R) { mount(messageHtml('No pudimos abrir el registro de pagos. Recargá la página.')); return; }
+        if (!opts.user || !R) { mount(messageHtml('No pudimos abrir el registro de pagos. Recarga la página.')); return; }
         mount('<div class="wqp-body"><p class="wqp-empty">Cargando…</p></div>');
         var available = await R.isAvailable();
         if (!state) return;
         if (!available) {
-            mount(messageHtml('El registro de pagos todavía no está activo en tu cuenta. Pronto vas a poder anotar señas y pagos de tus clientes desde acá.'));
+            mount(messageHtml('El registro de pagos todavía no está activo en tu cuenta. Pronto vas a poder anotar anticipos y pagos de tus clientes desde aquí.'));
             return;
         }
         try {
             if (opts.quotationId) {
                 var q = opts.quote || await R.getQuote(opts.quotationId);
                 if (!q || !M.isPayable(q)) {
-                    mount(messageHtml('Podés registrar pagos cuando la cotización está respondida o tiene un acuerdo.'));
+                    mount(messageHtml('Puedes registrar pagos cuando la cotización está respondida o tiene un acuerdo.'));
                     return;
                 }
                 state.fixedQuote = q;
@@ -441,7 +441,7 @@
             } else {
                 state.quotes = (await R.listPayableQuotes(opts.user.id)).filter(M.isPayable);
                 if (!state.quotes.length) {
-                    mount(messageHtml('Todavía no tenés cotizaciones respondidas o aprobadas para registrar un pago.'));
+                    mount(messageHtml('Todavía no tienes cotizaciones respondidas o aprobadas para registrar un pago.'));
                     return;
                 }
                 if (state.quotes.length === 1) state.quotationId = state.quotes[0].id;
@@ -450,7 +450,7 @@
             await loadQuoteData(list.map(function (x) { return x.id; }), list.map(function (x) { return x.quote_id; }));
         } catch (err) {
             console.warn('[pagos] abrir:', err && err.message);
-            if (state) mount(messageHtml('No pudimos cargar tus cotizaciones. Probá de nuevo.'));
+            if (state) mount(messageHtml('No pudimos cargar tus cotizaciones. Prueba de nuevo.'));
             return;
         }
         if (!state) return;

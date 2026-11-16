@@ -7,8 +7,8 @@
  *   - etiqueta clara de cada estado (sin borradores como "En proceso"),
  *   - monto, moneda, sesiones, duración, disponibilidad y vigencia,
  *   - desglose de la cotización manual (artist_manual_quotes, RLS del cliente),
- *   - seña y pagos registrados por el artista (quotation_payments, RLS del
- *     cliente) — sin pasarela: la seña se coordina con el artista,
+ *   - anticipo y pagos registrados por el artista (quotation_payments, RLS del
+ *     cliente) — sin pasarela: el anticipo se coordina con el artista,
  *   - acciones Aceptar / Rechazar / Modificar cuando la propuesta está vigente.
  *     Ronda 2 (negociación · P23/P25): "Modificar" y el panel de cambios los
  *     maneja quotation-negotiation.js, que se monta solo en
@@ -41,10 +41,10 @@
     var ACTIVE_KEYS = ['pending', 'responded', 'client_approved', 'in_progress', 'artist_completed'];
 
     var POLICIES = {
-        'no-reembolsable-48': 'La seña no es reembolsable. Reprogramaciones con 48 h de aviso.',
-        'no-reembolsable-24': 'La seña no es reembolsable. Reprogramaciones con 24 h de aviso.',
-        'reembolsable-72': 'La seña se devuelve si cancelás con 72 h de aviso.',
-        'sin-sena': 'No se pide seña. Podés cancelar sin costo.'
+        'no-reembolsable-48': 'El anticipo no es reembolsable. Reprogramaciones con 48 h de aviso.',
+        'no-reembolsable-24': 'El anticipo no es reembolsable. Reprogramaciones con 24 h de aviso.',
+        'reembolsable-72': 'El anticipo se devuelve si cancelas con 72 h de aviso.',
+        'sin-sena': 'No se pide anticipo. Puedes cancelar sin costo.'
     };
 
     // P23 (ronda 2): texto pedido por el dueño para la advertencia del rechazo.
@@ -52,7 +52,7 @@
     // Estados en los que puede haber negociación o historial que mostrar.
     var NEGOTIATION_KEYS = ['responded', 'client_approved', 'in_progress', 'artist_completed', 'completed', 'client_rejected', 'expired', 'cancelled'];
 
-    var KIND_LABELS = { deposit: 'Seña', session: 'Pago de sesión', balance: 'Saldo', other: 'Otro' };
+    var KIND_LABELS = { deposit: 'Anticipo', session: 'Pago de sesión', balance: 'Saldo', other: 'Otro' };
     var METHOD_LABELS = { cash: 'Efectivo', transfer: 'Transferencia', other: 'Otro' };
 
     function esc(value) {
@@ -222,7 +222,7 @@
         if (!canDecide(q, now)) return '';
         var id = esc(q.quote_id);
         return '<div class="cqp-decision" data-quote-id="' + id + '">'
-            + '<p class="cqp-decision-copy">¿Te sirve esta propuesta? Si la aceptas, el artista recibe el aviso y coordinan el turno y la seña por el chat. Si necesitas ajustar algo, modifícala y el artista te responde.</p>'
+            + '<p class="cqp-decision-copy">¿Te sirve esta propuesta? Si la aceptas, el artista recibe el aviso y coordinan el turno y el anticipo por el chat. Si necesitas ajustar algo, modifícala y el artista te responde.</p>'
             + '<div class="cqp-decision-actions">'
             + '<button type="button" class="wo-btn wo-btn--accent wo-btn--s" data-proposal-action="approve" onclick="handleProposalAction(this)">Aceptar</button>'
             + '<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-proposal-action="reject" onclick="handleProposalAction(this)">Rechazar</button>'
@@ -266,8 +266,8 @@
     function stateNote(q, now) {
         var key = statusKey(q, now);
         if (key === 'pending') return 'El artista todavía no respondió. Te avisamos por email cuando mande su propuesta.';
-        if (key === 'expired') return 'La propuesta venció sin respuesta. Si te sigue interesando, escribile al artista por el chat.';
-        if (key === 'client_approved') return 'Aceptaste la propuesta. Coordiná el turno y la seña con el artista por el chat.';
+        if (key === 'expired') return 'La propuesta venció sin respuesta. Si te sigue interesando, escríbele al artista por el chat.';
+        if (key === 'client_approved') return 'Aceptaste la propuesta. Coordina el turno y el anticipo con el artista por el chat.';
         if (key === 'client_rejected') return 'Rechazaste esta propuesta y la cotización quedó finalizada. Si quieres retomar la idea, inicia una cotización nueva.';
         if (key === 'cancelled') return 'El artista no va a tomar esta solicitud.';
         if (key === 'responded' && (q.dispute_status || 'none') === 'open') return 'Hay un reclamo abierto: no se puede responder hasta que soporte lo resuelva.';
@@ -338,18 +338,18 @@
             parts.push('</dl></div>');
         }
 
-        // Seña y pagos (solo lectura). Sin pasarela de pago integrada.
+        // Anticipo y pagos (solo lectura). Sin pasarela de pago integrada.
         var summary = ctx.payments && ctx.payments.summary;
         var depositAmount = b && b.deposit ? b.deposit : (summary && summary.deposit ? summary.deposit.required : null);
         var depositCurrency = b && b.deposit ? b.currency : (summary && summary.deposit ? summary.deposit.currency : p.currency);
         var showMoney = depositAmount || (summary && summary.count) || ['client_approved', 'in_progress', 'artist_completed', 'completed'].indexOf(key) !== -1;
         if (showMoney) {
-            parts.push('<div class="cqp-payments"><h4 class="cqp-subtitle">Seña y pagos</h4><dl class="cqp-summary">');
+            parts.push('<div class="cqp-payments"><h4 class="cqp-subtitle">Anticipo y pagos</h4><dl class="cqp-summary">');
             if (depositAmount) {
                 var depStatus = summary && summary.deposit ? summary.deposit.status : 'pending';
                 var depLabel = depStatus === 'paid' ? 'Pagada' : depStatus === 'partial' ? 'Pago parcial' : 'Pendiente';
-                parts.push(row('Seña' + (b && b.depositPct ? ' (' + b.depositPct + '%)' : ''), money(depositAmount, depositCurrency)));
-                parts.push(row('Estado de la seña', depLabel, 'cqp-row--' + depStatus));
+                parts.push(row('Anticipo' + (b && b.depositPct ? ' (' + b.depositPct + '%)' : ''), money(depositAmount, depositCurrency)));
+                parts.push(row('Estado del anticipo', depLabel, 'cqp-row--' + depStatus));
             }
             if (summary && summary.count) {
                 parts.push(row('Pagado', money(summary.paid, summary.currency)));
@@ -366,7 +366,7 @@
                 });
                 parts.push('</ul>');
             }
-            parts.push('<p class="cqp-note">We Ötzi todavía no cobra pagos online: coordiná la seña y el saldo con el artista por el chat y pagá solo por los medios que te indique. Los pagos que el artista registre aparecen acá.</p>');
+            parts.push('<p class="cqp-note">We Ötzi todavía no cobra pagos online: coordina el anticipo y el saldo con el artista por el chat y paga solo por los medios que te indique. Los pagos que el artista registre aparecen aquí.</p>');
             parts.push('</div>');
         }
 

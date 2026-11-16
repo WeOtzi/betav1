@@ -78,7 +78,7 @@ test('control "Vencimiento": días 1–365 y patch de quotations_db', () => {
     assert.equal(bad.ok, false);
     assert.match(bad.error, /entre 1 y 365 días/);
     assert.equal(VM.expirySummary({ quote_status: 'responded' }), 'Sin vencimiento');
-    assert.equal(VM.expirySummary({ quote_status: 'pending', quote_expiry_enabled: true, quote_expiry_days: 1 }), '1 día desde que respondés');
+    assert.equal(VM.expirySummary({ quote_status: 'pending', quote_expiry_enabled: true, quote_expiry_days: 1 }), '1 día desde que respondes');
     assert.match(VM.expirySummary({ quote_status: 'responded', quote_expiry_enabled: true, quote_expiry_days: 7, quote_expires_at: '2099-01-05T12:00:00Z' }, NOW), /^Vence el 05 ene/);
     assert.match(VM.expirySummary({ quote_status: 'responded', quote_expiry_enabled: true, quote_expiry_days: 7, quote_expires_at: ago(1) }, NOW), /^Venció el /);
 });

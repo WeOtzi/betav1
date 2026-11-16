@@ -208,7 +208,7 @@ test('P16: NoteFiles sube a <artist>/<cotización>/ del bucket privado y valida 
     const window = { WeotziData: { getClient: () => ({ storage: { from: (b) => { assert.equal(b, 'quotation-note-files'); return bucket; } } }) } };
     vm.runInNewContext(read('public/shared/js/data/note-files-repo.js'), { window, console, URL, Date, Math });
     const F = window.WeotziData.NoteFiles;
-    assert.equal(F.validate({ name: 'a.pdf', type: 'application/pdf', size: 10 }), 'Formato no admitido. Subí JPG, PNG, WEBP, GIF o HEIC.');
+    assert.equal(F.validate({ name: 'a.pdf', type: 'application/pdf', size: 10 }), 'Formato no admitido. Sube JPG, PNG, WEBP, GIF o HEIC.');
     assert.equal(F.validate({ name: 'a.png', type: 'image/png', size: 11 * 1024 * 1024 }), 'La imagen pesa más de 10 MB.');
     const p = await F.upload({ name: 'Boceto Final ñ.png', type: 'image/png', size: 100 }, { artistId: 'u1', quotationId: 42 });
     assert.match(p, /^u1\/42\/\d+-[a-z0-9]+-Boceto-Final-n\.png$/);

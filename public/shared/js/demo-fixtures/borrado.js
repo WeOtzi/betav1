@@ -37,12 +37,12 @@
             var quotes = store.rows('quotations_db').filter(function (q) { return q.artist_id === uid || q.client_user_id === uid; });
             var isArtist = store.rows('quotations_db').some(function (q) { return q.artist_id === uid; });
             var work = quotes.filter(function (q) { return WORK.indexOf(q.quote_status) >= 0; }).length;
-            if (work) out.push(item('quotes_in_progress', 'block', 'Trabajos en curso', work + ' cotización(es) aprobada(s) o en progreso. Terminalas o cancelalas.', work, isArtist ? '/my-quotations' : '/client/dashboard#mis-cotizaciones'));
+            if (work) out.push(item('quotes_in_progress', 'block', 'Trabajos en curso', work + ' cotización(es) aprobada(s) o en progreso. Termínalas o cancélalas.', work, isArtist ? '/my-quotations' : '/client/dashboard#mis-cotizaciones'));
             var open = quotes.filter(function (q) { return q.quote_status === 'pending' || q.quote_status === 'responded'; }).length;
             if (open) out.push(item('quotes_open', 'warn', 'Cotizaciones abiertas', open + ' cotización(es) sin aprobar: se cierran al eliminar la cuenta.', open, isArtist ? '/my-quotations' : '/client/dashboard#mis-cotizaciones'));
             var mships = store.rows('studio_artist_memberships').filter(function (m) { return m.artist_user_id === uid; });
             var active = mships.filter(function (m) { return m.status === 'active' || m.status === 'paused'; }).length;
-            if (active) out.push(item('studio_memberships', 'block', 'Membresías en estudios', active + ' membresía(s) activa(s) en estudios. Finalizalas primero.', active, '/artist/account#perfil'));
+            if (active) out.push(item('studio_memberships', 'block', 'Membresías en estudios', active + ' membresía(s) activa(s) en estudios. Finalízalas primero.', active, '/artist/account#perfil'));
             var invites = mships.filter(function (m) { return m.status === 'pending_invite' || m.status === 'pending_acceptance'; }).length;
             if (invites) out.push(item('studio_invitations', 'warn', 'Invitaciones de estudios', invites + ' invitación(es) pendiente(s): se descartan al eliminar la cuenta.', invites, null));
             return out;
@@ -60,9 +60,9 @@
         };
         ctx.rpcs.request_account_deletion = function (args, store, c) {
             var uid = c && c.userId;
-            if (!uid) fail('Iniciá sesión para pedir la baja.');
+            if (!uid) fail('Inicia sesión para pedir la baja.');
             if (['client', 'artist', 'studio'].indexOf(args.p_role) < 0) fail('Tipo de cuenta no válido.');
-            if (store.rows('account_deletion_requests').some(function (r) { return r.user_id === uid && OPEN.indexOf(r.status) >= 0; })) fail('Ya tenés una solicitud de baja abierta.');
+            if (store.rows('account_deletion_requests').some(function (r) { return r.user_id === uid && OPEN.indexOf(r.status) >= 0; })) fail('Ya tienes una solicitud de baja abierta.');
             var list = blockers(store, uid);
             var who = (store.rows('artists_db').find(function (a) { return a.user_id === uid; }) || store.rows('clients_db').find(function (x) { return x.user_id === uid; }) || {});
             var row = store.insert('account_deletion_requests', [{
@@ -90,7 +90,7 @@
             if (OPEN.indexOf(row.status) < 0) fail('Esta solicitud ya está cerrada.');
             var list = blockers(store, row.user_id);
             if (action === 'approved' && hasBlocking(list)) fail('Todavía hay bloqueos: no se puede aprobar la baja.');
-            if ((action === 'rejected' || action === 'blocked') && (!note || note.length < 5)) fail('Escribí una nota para el usuario (mínimo 5 caracteres).');
+            if ((action === 'rejected' || action === 'blocked') && (!note || note.length < 5)) fail('Escribe una nota para el usuario (mínimo 5 caracteres).');
             var from = row.status;
             if (['in_review', 'blocked', 'approved', 'rejected'].indexOf(action) >= 0) row.status = action;
             row.blockers = list; row.blockers_checked_at = nowIso();

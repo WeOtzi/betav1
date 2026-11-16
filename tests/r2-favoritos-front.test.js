@@ -87,7 +87,7 @@ test('repo: toda lectura y escritura filtra por el dueño (soporte puede leer to
     assert.match(steps(client.calls[1]), /order\("created_at",\{"ascending":false\}\)\.limit\(5000\)$/);
     assert.equal(steps(client.calls[3]), `delete().eq("owner_user_id","${USER}").eq("kind","design").eq("target_id","p1")`);
     assert.ok(steps(client.calls[4]).endsWith('.eq("list_id","l2")'));
-    // La lista por defecto nunca se borra desde acá.
+    // La lista por defecto nunca se borra desde aquí.
     assert.ok(steps(client.calls[6]).includes('.eq("is_default",false)'));
 });
 

@@ -117,7 +117,7 @@ self.addEventListener('push', function (event) {
             if (assets[0]) options.icon = assets[0];
             if (assets[1]) options.badge = assets[1];
             if (focused) {
-                // Solo WebKit llega acá con foco: la página ya muestra el toast y hace
+                // Solo WebKit llega aquí con foco: la página ya muestra el toast y hace
                 // sonar el aviso, así que la notificación obligatoria sale muda, sin
                 // volver a avisar, y se cierra sola.
                 options.silent = true;

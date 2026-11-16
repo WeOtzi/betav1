@@ -800,7 +800,7 @@
     function renderHeadline() {
         const t = nextTrip();
         const h = $('tv-headline');
-        if (!t) { h.textContent = 'Tu próxima gira empieza acá.'; return; }
+        if (!t) { h.textContent = 'Tu próxima gira empieza aquí.'; return; }
         if (isOngoing(t)) {
             h.innerHTML = `<span class="wo-highlight">${esc(t.city)}</span> es tu destino, ahora mismo.`;
             return;
@@ -886,7 +886,7 @@
                 <div class="wo-empty tvl-agenda-empty">
                     <i data-wo-icon="map" aria-hidden="true"></i>
                     <span class="wo-empty-title">Sin viajes próximos</span>
-                    <p>Creá un viaje para empezar a armar tu gira.</p>
+                    <p>Crea un viaje para empezar a armar tu gira.</p>
                 </div>`;
             return;
         }
@@ -1020,7 +1020,7 @@
         } catch (error) {
             if (token !== createStudioSearchToken) return;
             console.error('[travel] autocompletar estudio:', error);
-            setCreateStudioResults([], 'No pudimos cargar los estudios. Probá de nuevo.');
+            setCreateStudioResults([], 'No pudimos cargar los estudios. Prueba de nuevo.');
         }
     }
 
@@ -1044,11 +1044,11 @@
         input.value = '';
         if (convention) {
             label.textContent = 'Lugar (opcional)';
-            input.placeholder = 'Buscá el lugar en Google Maps';
+            input.placeholder = 'Busca el lugar en Google Maps';
             input.setAttribute('aria-autocomplete', 'both');
             input.removeAttribute('aria-controls');
             input.removeAttribute('aria-activedescendant');
-            help.textContent = 'Seleccioná un lugar sugerido por Google Maps.';
+            help.textContent = 'Selecciona un lugar sugerido por Google Maps.';
             createVenuePicker = window.WeOtziAddressPicker?.attach?.(input, {
                 types: ['establishment'],
                 onChange(address, place) {
@@ -1063,10 +1063,10 @@
             }) || null;
         } else {
             label.textContent = 'Estudio (opcional)';
-            input.placeholder = 'Nombre del estudio, si ya lo tenés';
+            input.placeholder = 'Nombre del estudio, si ya lo tienes';
             input.setAttribute('aria-autocomplete', 'list');
             input.setAttribute('aria-controls', 'tvc-studio-results');
-            help.textContent = 'Solo podés elegir estudios activos registrados en We Ötzi.';
+            help.textContent = 'Solo puedes elegir estudios activos registrados en We Ötzi.';
         }
     }
 
@@ -1192,7 +1192,7 @@
                 });
             } catch (ex) {
                 console.error('[travel] error creando viaje:', ex);
-                err.textContent = 'No pudimos crear el viaje. Probá de nuevo.';
+                err.textContent = 'No pudimos crear el viaje. Prueba de nuevo.';
                 err.hidden = false;
                 btn.disabled = false;
                 return;
@@ -1222,7 +1222,7 @@
         const partialMessage = pendingAction === 'place'
             ? ' El viaje quedó guardado, pero el lugar quedó pendiente. No vuelvas a crear el viaje.'
             : pendingAction === 'studio'
-                ? ' El viaje quedó guardado, pero no pudimos solicitar el vínculo con el estudio. Podés intentarlo desde el detalle.'
+                ? ' El viaje quedó guardado, pero no pudimos solicitar el vínculo con el estudio. Puedes intentarlo desde el detalle.'
                 : ' Vas a poder editarlo o completarlo más adelante.';
         $('tv-s-body').textContent = `Tu viaje a ${trip.city} ya forma parte de Travel.${partialMessage}`;
         $('tv-s-status').textContent = STATUS_LABELS[trip.status] || trip.status;
@@ -1339,7 +1339,7 @@
             <div class="wo-alert wo-alert--error tvd-banner">
                 <i data-wo-icon="x-circle" class="wo-icon-18" aria-hidden="true"></i>
                 <div><span class="tvd-banner-title">Viaje cancelado</span>
-                Podés reactivarlo desde Acciones cuando quieras retomarlo.</div>
+                Puedes reactivarlo desde Acciones cuando quieras retomarlo.</div>
             </div>` : waiting ? `
             <div class="wo-alert wo-alert--warning tvd-banner">
                 <i data-wo-icon="info" class="wo-icon-18" aria-hidden="true"></i>
@@ -1402,7 +1402,7 @@
                         <div class="wo-empty tvl-agenda-empty">
                             <i data-wo-icon="folder" aria-hidden="true"></i>
                             <span class="wo-empty-title">Sin documentos</span>
-                            <p>Guardá acá pasajes, reservas y contratos del viaje.</p>
+                            <p>Guarda aquí pasajes, reservas y contratos del viaje.</p>
                         </div>`}
                     </section>
 
@@ -1574,7 +1574,7 @@
                     const path = btn.getAttribute('data-path');
                     const popup = window.open('', '_blank');
                     if (!popup) {
-                        window.alert('El navegador bloqueó la nueva pestaña. Habilitá las ventanas emergentes e intentá de nuevo.');
+                        window.alert('El navegador bloqueó la nueva pestaña. Habilita las ventanas emergentes e intenta de nuevo.');
                         return;
                     }
                     popup.opener = null;
@@ -1584,7 +1584,7 @@
                         popup.location.href = data.signedUrl;
                     } catch (openError) {
                         popup?.close();
-                        window.alert('No pudimos abrir el documento. Probá de nuevo.');
+                        window.alert('No pudimos abrir el documento. Prueba de nuevo.');
                         throw openError;
                     }
                 } else if (act === 'doc-del') {
@@ -1614,7 +1614,7 @@
                 }
             } catch (err) {
                 console.error('[travel] acción falló:', act, err);
-                notify('No pudimos completar la acción. Probá de nuevo.', 'error');
+                notify('No pudimos completar la acción. Prueba de nuevo.', 'error');
             }
         });
 
@@ -1635,7 +1635,7 @@
             } catch (err) {
                 console.error('[travel] checklist:', err);
                 cb.checked = !cb.checked;
-                notify('No pudimos actualizar la tarea. Probá de nuevo.', 'error');
+                notify('No pudimos actualizar la tarea. Prueba de nuevo.', 'error');
             }
         });
 
@@ -1667,7 +1667,7 @@
                 focusViewTarget('tvd-title');
             } catch (err) {
                 console.error('[travel] editar:', err);
-                showModalError('tve-error', 'No pudimos guardar los cambios. Probá de nuevo.');
+                showModalError('tve-error', 'No pudimos guardar los cambios. Prueba de nuevo.');
             }
         });
 
@@ -1698,7 +1698,7 @@
                 focusViewTarget('tvd-title');
             } catch (ex) {
                 console.error('[travel] fechas:', ex);
-                err.textContent = 'No pudimos guardar las fechas. Probá de nuevo.';
+                err.textContent = 'No pudimos guardar las fechas. Prueba de nuevo.';
                 err.hidden = false;
             }
         });
@@ -1716,7 +1716,7 @@
                 focusViewTarget('tvd-title');
             } catch (err) {
                 console.error('[travel] cancelar:', err);
-                showModalError('tvx-error', 'No pudimos cancelar el viaje. Probá de nuevo.');
+                showModalError('tvx-error', 'No pudimos cancelar el viaje. Prueba de nuevo.');
             }
         });
     }
@@ -1775,7 +1775,7 @@
                 await D.Travel.requestStudioLink({ tripId: t.id, studioId: selectedStudio.id });
             } catch (err) {
                 console.error('[travel] vincular estudio:', err);
-                showModalError('tvl-error', 'No pudimos enviar la solicitud. Probá de nuevo.');
+                showModalError('tvl-error', 'No pudimos enviar la solicitud. Prueba de nuevo.');
                 $('tvl-submit').disabled = false;
                 return;
             }
@@ -1810,7 +1810,7 @@
                 <div class="wo-empty tvm-empty">
                     <i data-wo-icon="alert-circle" aria-hidden="true"></i>
                     <span class="wo-empty-title">No pudimos cargar el directorio</span>
-                    <p>Reintentá la búsqueda en unos segundos.</p>
+                    <p>Reintenta la búsqueda en unos segundos.</p>
                 </div>`;
             refreshIcons($('tvl-results'));
         }
@@ -1820,8 +1820,8 @@
         $('tvl-results').innerHTML = `
             <div class="wo-empty tvm-empty">
                 <i data-wo-icon="search" aria-hidden="true"></i>
-                <span class="wo-empty-title">Buscá un estudio para comenzar</span>
-                <p>Escribí el nombre del estudio o utilizá los filtros para encontrar estudios por ciudad, país o especialidad.</p>
+                <span class="wo-empty-title">Busca un estudio para comenzar</span>
+                <p>Escribe el nombre del estudio o utiliza los filtros para encontrar estudios por ciudad, país o especialidad.</p>
             </div>`;
         refreshIcons();
     }
@@ -1999,7 +1999,7 @@
             } catch (err) {
                 console.error('[travel] no pudimos activar o copiar el enlace:', err);
                 $('tvs-copy-label').textContent = 'No disponible';
-                showModalError('tvs-error', 'No pudimos activar o copiar el enlace. Probá de nuevo.');
+                showModalError('tvs-error', 'No pudimos activar o copiar el enlace. Prueba de nuevo.');
             }
         });
         $('tvs-email').addEventListener('click', async (event) => {
@@ -2009,7 +2009,7 @@
                 window.location.href = $('tvs-email').href;
             } catch (err) {
                 console.error('[travel] compartir por email:', err);
-                showModalError('tvs-error', 'No pudimos activar el enlace. Probá de nuevo.');
+                showModalError('tvs-error', 'No pudimos activar el enlace. Prueba de nuevo.');
             }
         });
         $('tvs-wa').addEventListener('click', async (event) => {
@@ -2023,7 +2023,7 @@
             } catch (err) {
                 popup?.close();
                 console.error('[travel] compartir por WhatsApp:', err);
-                showModalError('tvs-error', 'No pudimos abrir WhatsApp. Habilitá las ventanas emergentes e intentá de nuevo.');
+                showModalError('tvs-error', 'No pudimos abrir WhatsApp. Habilita las ventanas emergentes e intenta de nuevo.');
             }
         });
         $('tvs-disable').addEventListener('click', async () => {
@@ -2032,7 +2032,7 @@
                 $('tvs-copy').focus();
             } catch (err) {
                 console.error('[travel] desactivar enlace:', err);
-                showModalError('tvs-error', 'No pudimos desactivar el enlace. Probá de nuevo.');
+                showModalError('tvs-error', 'No pudimos desactivar el enlace. Prueba de nuevo.');
             }
         });
     }
@@ -2047,7 +2047,7 @@
             err.hidden = true;
             if (!file) return;
             if (!ALLOWED_DOCUMENT_TYPES.has(file.type)) {
-                err.textContent = 'Elegí un PDF, JPG, PNG o WEBP.';
+                err.textContent = 'Elige un PDF, JPG, PNG o WEBP.';
                 err.hidden = false;
                 return;
             }
@@ -2088,7 +2088,7 @@
                 focusViewTarget('tvd-title');
             } catch (ex) {
                 console.error('[travel] subir documento:', ex);
-                err.textContent = 'No pudimos subir el archivo. Probá de nuevo.';
+                err.textContent = 'No pudimos subir el archivo. Prueba de nuevo.';
                 err.hidden = false;
             } finally {
                 btn.disabled = false;

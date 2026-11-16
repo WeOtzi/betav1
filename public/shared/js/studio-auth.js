@@ -37,7 +37,7 @@
     const CLAIM_STATUS = { pending: 'En revisión', approved: 'Aprobado', rejected: 'Rechazado' };
     function requireClient() {
         client = window.WeotziData?.getClient?.() || window._supabase || client;
-        if (!client) throw new Error('No pudimos conectar. Recargá la página e intentá nuevamente.');
+        if (!client) throw new Error('No pudimos conectar. Recarga la página e intenta nuevamente.');
         return client;
     }
     async function ready() {
@@ -66,7 +66,7 @@
         const code = errorCode(err);
         const error = new Error(MISSING_SCHEMA_CODES.includes(code)
             ? MISSING_SCHEMA_MESSAGE
-            : String(err?.message || 'No pudimos completar la acción. Intentá de nuevo.'));
+            : String(err?.message || 'No pudimos completar la acción. Intenta de nuevo.'));
         if (code) error.code = code;
         if (err?.hint) error.hint = err.hint;
         return error;
@@ -258,13 +258,13 @@
             return head('No aprobamos tu reclamo') + meta
                 + '<p class="sr-kicker sr-claim-motive">Motivo</p>'
                 + `<p class="sr-help">${escapeHtml(note || 'Soporte no dejó un motivo.')}</p>`
-                + '<p class="sr-help">Si el estudio es tuyo, escribinos a soporte con más datos. '
-                + 'También podés registrar un estudio nuevo.</p>'
+                + '<p class="sr-help">Si el estudio es tuyo, escríbenos a soporte con más datos. '
+                + 'También puedes registrar un estudio nuevo.</p>'
                 + `<div class="sr-actions">${registerLink}${logoutButton}</div>`;
         }
         return head('No pudimos enviar tu reclamo')
             + `<p class="sr-help">${escapeHtml(state?.error || 'El reclamo ya no se puede enviar.')}</p>`
-            + '<p class="sr-help">Podés buscar otro estudio del catálogo o registrar uno nuevo.</p>'
+            + '<p class="sr-help">Puedes buscar otro estudio del catálogo o registrar uno nuevo.</p>'
             + `<div class="sr-actions">${registerLink}${logoutButton}</div>`;
     }
     // Monta la pantalla en #studio-claim-screen (solo existe en /studio/register).
@@ -341,12 +341,12 @@
                 presentState(state);
                 return null;
             } catch (err) {
-                setState({ kind: 'error', error: err.message || 'No se pudo cargar tu estudio. Intentá nuevamente.' });
+                setState({ kind: 'error', error: err.message || 'No se pudo cargar tu estudio. Intenta nuevamente.' });
                 const status = document.getElementById('login-status') || document.getElementById('wizard-status')
                     || document.getElementById('dashboard-status');
                 if (status) {
                     status.className = 'studio-status studio-status-error';
-                    status.textContent = err.message || 'No se pudo cargar tu estudio. Intentá nuevamente.';
+                    status.textContent = err.message || 'No se pudo cargar tu estudio. Intenta nuevamente.';
                     status.hidden = false;
                 }
                 console.error('[studio-auth] state check failed:', err);
@@ -370,20 +370,20 @@
         const state = await resolveState(data.session);
         if (state.studio) return state.studio;
         if (state.kind !== 'none') { presentState(state); return null; }
-        throw new Error('Tu cuenta todavía no tiene un estudio. Completá el registro desde Registrar tu estudio.');
+        throw new Error('Tu cuenta todavía no tiene un estudio. Completa el registro desde Registrar tu estudio.');
     }
     async function registerStudio(payload) {
         await ready();
         const { email, password, locations, ...profile } = payload || {};
         if (!email || !profile.name || !Array.isArray(locations) || !locations.length) {
-            throw new Error('Completá el nombre, correo y al menos una sede.');
+            throw new Error('Completa el nombre, correo y al menos una sede.');
         }
         const draft = { profile, locations };
         const { data: { session }, error: sessionError } = await requireClient().auth.getSession();
         if (sessionError) throw sessionError;
         if (session) {
             if (session.user.email?.toLowerCase() !== email.trim().toLowerCase()) {
-                throw new Error('Hay otra cuenta abierta. Cerrá esa sesión antes de registrar un correo diferente.');
+                throw new Error('Hay otra cuenta abierta. Cierra esa sesión antes de registrar un correo diferente.');
             }
             return completeRegistration(draft, email);
         }
@@ -396,9 +396,9 @@
             }
         });
         if (error) throw error;
-        if (!data?.user?.id) throw new Error('No pudimos crear tu cuenta. Intentá nuevamente.');
+        if (!data?.user?.id) throw new Error('No pudimos crear tu cuenta. Intenta nuevamente.');
         if (Array.isArray(data.user.identities) && !data.user.identities.length) {
-            throw new Error('Ya existe una cuenta con ese email. Iniciá sesión para continuar.');
+            throw new Error('Ya existe una cuenta con ese email. Inicia sesión para continuar.');
         }
         if (!data.session) return { confirmationRequired: true, email: email.trim() };
         return completeRegistration(draft, email);
@@ -411,10 +411,10 @@
         await ready();
         const { email, password, studioId, studio, evidence, contactName, contactPhone, termsVersion } = payload || {};
         const cleanEvidence = String(evidence || '').trim();
-        if (!studioId) throw new Error('Elegí el estudio que querés reclamar.');
-        if (!cleanEvidence) throw new Error('Contanos cómo podemos verificar que el estudio es tuyo.');
+        if (!studioId) throw new Error('Elige el estudio que quieres reclamar.');
+        if (!cleanEvidence) throw new Error('Cuéntanos cómo podemos verificar que el estudio es tuyo.');
         if (cleanEvidence.length > 1000) throw new Error('La evidencia admite hasta 1000 caracteres.');
-        if (!termsVersion) throw new Error('Aceptá los Términos y la Política de Privacidad para reclamar el estudio.');
+        if (!termsVersion) throw new Error('Acepta los Términos y la Política de Privacidad para reclamar el estudio.');
         const draft = {
             studio_id: studioId,
             evidence: cleanEvidence,
@@ -433,11 +433,11 @@
         const { data: { session } } = await requireClient().auth.getSession();
         if (session) {
             if (email && session.user.email?.toLowerCase() !== String(email).trim().toLowerCase()) {
-                throw new Error('Hay otra cuenta abierta. Cerrá esa sesión antes de reclamar con un correo diferente.');
+                throw new Error('Hay otra cuenta abierta. Cierra esa sesión antes de reclamar con un correo diferente.');
             }
             return fileNow();
         }
-        if (!/^\S+@\S+\.\S+$/.test(String(email || '').trim())) throw new Error('Escribí un email válido.');
+        if (!/^\S+@\S+\.\S+$/.test(String(email || '').trim())) throw new Error('Escribe un email válido.');
         if (!password || password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
         const { data, error } = await client.auth.signUp({
             email: email.trim(), password,
@@ -447,16 +447,16 @@
             }
         });
         if (error) throw error;
-        if (!data?.user?.id) throw new Error('No pudimos crear tu cuenta. Intentá nuevamente.');
+        if (!data?.user?.id) throw new Error('No pudimos crear tu cuenta. Intenta nuevamente.');
         if (Array.isArray(data.user.identities) && !data.user.identities.length) {
-            throw new Error('Ya existe una cuenta con ese email. Iniciá sesión y volvé a reclamar el estudio.');
+            throw new Error('Ya existe una cuenta con ese email. Inicia sesión y vuelve a reclamar el estudio.');
         }
         if (!data.session) return { confirmationRequired: true, email: email.trim() };
         return fileNow();
     }
     async function requestStudioPasswordReset(email) {
         await ready();
-        if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('Escribí un email válido.');
+        if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('Escribe un email válido.');
         const { error } = await requireClient().auth.resetPasswordForEmail(email.trim(), {
             redirectTo: window.location.origin + appUrl('/studio/login?recovery=1')
         });
@@ -470,7 +470,7 @@
     async function sendStudioMagicLink(email) {
         await ready();
         const clean = String(email || '').trim().toLowerCase();
-        if (!/^\S+@\S+\.\S+$/.test(clean)) throw new Error('Escribí un email válido.');
+        if (!/^\S+@\S+\.\S+$/.test(clean)) throw new Error('Escribe un email válido.');
         let error = null;
         try {
             const res = await requireClient().auth.signInWithOtp({
@@ -483,18 +483,18 @@
         if (EC?.magicLinkOutcome) {
             const out = EC.magicLinkOutcome(error, clean);
             // studio-login.js muestra texto plano (textContent): sin entidades HTML.
-            return { ...out, message: out.ok ? 'Si ' + clean + ' tiene una cuenta, te enviamos un link de acceso. Revisá tu correo (también spam).' : out.message };
+            return { ...out, message: out.ok ? 'Si ' + clean + ' tiene una cuenta, te enviamos un link de acceso. Revisa tu correo (también spam).' : out.message };
         }
         if (error && !/signups? not allowed|user not found|otp_disabled/i.test(String(error.message || ''))) {
-            return { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Probá de nuevo en un momento.' };
+            return { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Prueba de nuevo en un momento.' };
         }
-        return { ok: true, kind: 'success', message: 'Si ' + clean + ' tiene una cuenta, te enviamos un link de acceso. Revisá tu correo.' };
+        return { ok: true, kind: 'success', message: 'Si ' + clean + ' tiene una cuenta, te enviamos un link de acceso. Revisa tu correo.' };
     }
     async function changePassword(password) {
         await ready();
         if (password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
         const { data: { session } } = await requireClient().auth.getSession();
-        if (!session) throw new Error('El enlace venció. Solicitá un nuevo correo de recuperación.');
+        if (!session) throw new Error('El enlace venció. Solicita un nuevo correo de recuperación.');
         const { error } = await client.auth.updateUser({ password });
         if (error) throw error;
     }

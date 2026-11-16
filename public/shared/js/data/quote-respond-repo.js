@@ -10,7 +10,7 @@
  *   context(quoteId)                       → contexto del diálogo
  *   availability(quoteId, {from,to,minutes}) → agenda real por día
  *   save(quoteId, payload)                 → guarda (o valida con validate_only)
- *   syncAgreement(quoteId)                 → alinea la seña tras el acuerdo
+ *   syncAgreement(quoteId)                 → alinea el anticipo tras el acuerdo
  *
  * Las respuestas rápidas guardadas (artist_message_templates, kind 'quote')
  * van por la capa PostgREST con la RLS del dueño:

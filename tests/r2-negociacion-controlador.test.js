@@ -198,7 +198,7 @@ test('artista: "Hacer otra propuesta" emite wo:quote-respond y, si nadie escucha
     }
 });
 
-test('artista: "editá el acuerdo" abre el cambio propuesto en vez de la edición directa', async () => {
+test('artista: "edita el acuerdo" abre el cambio propuesto en vez de la edición directa', async () => {
     const approved = baseState({ quote_status: 'client_approved', agreement: { approved: true, approved_at: null, version: 1 }, can: { counter: false, amend: true }, pending: null, proposals: [] });
     const b = browser({ pathname: '/my-quotations/detail', stateFor: () => approved });
     const host = makeEl({}, { children: [], insertBefore(el) { b.attached.add(el); if (el.id) b.byId[el.id] = el; } });

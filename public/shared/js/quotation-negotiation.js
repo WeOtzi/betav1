@@ -6,7 +6,7 @@
  *       color, idea). El artista ve el antes → después y acepta los cambios
  *       (la cotización queda aprobada por ambas partes) o hace otra propuesta.
  * P25 · Enmiendas del acuerdo: con el acuerdo aprobado, cliente o artista
- *       proponen cambios de precio, sesiones, seña o condiciones. Rigen solo
+ *       proponen cambios de precio, sesiones, anticipo o condiciones. Rigen solo
  *       cuando la otra parte los aprueba.
  *
  * Un solo archivo, tres partes:
@@ -56,7 +56,7 @@
         tattoo_idea_description: 'Descripción de la idea',
         final_budget_amount: 'Precio total',
         final_sessions: 'Sesiones',
-        artist_deposit_pct: 'Seña',
+        artist_deposit_pct: 'Anticipo',
         final_comment: 'Condiciones'
     };
     // Mismos límites que negociacion_propose (migración 20261116140000). La
@@ -245,7 +245,7 @@
 
     /**
      * Valores vigentes de los campos negociables.
-     * extras = { manualDepositPct } (seña de la cotización manual enviada).
+     * extras = { manualDepositPct } (anticipo de la cotización manual enviada).
      */
     function currentValues(kind, q, extras) {
         q = q || {};
@@ -307,7 +307,7 @@
             var p = raw == null ? '' : String(raw).trim().replace(/\s*%$/, '').replace(',', '.');
             var pct = null;
             if (p !== '') {
-                if (!/^\d{1,3}(\.\d{1,2})?$/.test(p) || Number(p) > 100) return fail('La seña es un porcentaje entre 0 y 100.', key);
+                if (!/^\d{1,3}(\.\d{1,2})?$/.test(p) || Number(p) > 100) return fail('El anticipo es un porcentaje entre 0 y 100.', key);
                 pct = Number(p) === 0 ? null : Number(p);
             }
             var before = current[key] == null ? null : Number(current[key]);
@@ -388,7 +388,7 @@
 
     /**
      * Valores de un formulario → input de normalizeChanges. Un dato que estaba
-     * vacío y sigue vacío no es un cambio (ni un error); vaciar la seña o las
+     * vacío y sigue vacío no es un cambio (ni un error); vaciar el anticipo o las
      * condiciones sí es un cambio válido.
      */
     function formInput(values, kind, current) {
@@ -430,7 +430,7 @@
         }
         if (key === 'artist_deposit_pct') {
             var pct = value == null || value === '' ? NaN : Number(value);
-            return isFinite(pct) && pct > 0 ? String(Math.round(pct * 100) / 100).replace('.', ',') + ' %' : 'Sin seña';
+            return isFinite(pct) && pct > 0 ? String(Math.round(pct * 100) / 100).replace('.', ',') + ' %' : 'Sin anticipo';
         }
         if (key === 'tattoo_style') return styleText(value) || 'Sin definir';
         if (key === 'final_comment') return hasValue(value) ? String(value).trim() : 'Sin condiciones';
@@ -704,9 +704,9 @@
                 '<input class="wo-input" id="' + id('price') + '" name="final_budget_amount" inputmode="decimal" autocomplete="off" value="' + esc(cur.final_budget_amount || '') + '"' + (paidHelp ? ' aria-describedby="' + id('price') + '-help"' : '') + '>', paidHelp)
             + fieldHtml(id('sessions'), 'Sesiones',
                 '<input class="wo-input" id="' + id('sessions') + '" name="final_sessions" type="number" inputmode="numeric" min="' + Math.max(LIMITS.sessionsMin, Number(limits.sessions_used) || 0) + '" max="' + LIMITS.sessionsMax + '" step="1" value="' + esc(cur.final_sessions || '') + '"' + (sessionsHelp ? ' aria-describedby="' + id('sessions') + '-help"' : '') + '>', sessionsHelp)
-            + fieldHtml(id('deposit'), 'Seña (%)',
-                '<input class="wo-input" id="' + id('deposit') + '" name="artist_deposit_pct" inputmode="decimal" autocomplete="off" value="' + esc(cur.artist_deposit_pct == null ? '' : String(cur.artist_deposit_pct).replace('.', ',')) + '" placeholder="Sin seña" aria-describedby="' + id('deposit') + '-help">',
-                'Porcentaje del precio total. Déjalo vacío si no hay seña.')
+            + fieldHtml(id('deposit'), 'Anticipo (%)',
+                '<input class="wo-input" id="' + id('deposit') + '" name="artist_deposit_pct" inputmode="decimal" autocomplete="off" value="' + esc(cur.artist_deposit_pct == null ? '' : String(cur.artist_deposit_pct).replace('.', ',')) + '" placeholder="Sin anticipo" aria-describedby="' + id('deposit') + '-help">',
+                'Porcentaje del precio total. Déjalo vacío si no hay anticipo.')
             + fieldHtml(id('terms'), 'Condiciones',
                 '<textarea class="wo-textarea wqn-textarea" id="' + id('terms') + '" name="final_comment" rows="2" maxlength="' + LIMITS.final_comment + '">' + esc(cur.final_comment || '') + '</textarea>', '', true)
             + fieldHtml(id('note'), 'Motivo del cambio (opcional)',
@@ -919,7 +919,7 @@
         // Sin aviso local: cuando aparece una propuesta de la otra parte el panel
         // ya quedó repintado, y el toast, el sonido y el push los manda el servidor
         // (negotiation_counter_proposed / negotiation_amendment_proposed) según la
-        // matriz de avisos. Un ping propio acá los duplicaba.
+        // matriz de avisos. Un ping propio aquí los duplicaba.
         render(ctx);
     }
 
@@ -1196,7 +1196,7 @@
         if (ctx) submitForm(ctx, form);
     }
 
-    // "Editá el acuerdo" del expediente del artista: con el acuerdo aprobado
+    // "Edita el acuerdo" del expediente del artista: con el acuerdo aprobado
     // ya no se edita directo (la base lo bloquea); se propone el cambio.
     function onEditAgreementCapture(event) {
         var target = event.target && event.target.closest ? event.target.closest('[data-action="edit-agreement"]') : null;

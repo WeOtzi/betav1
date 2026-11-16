@@ -114,8 +114,8 @@
             </div>
 
             <div class="tvs-share-cta">
-                <p class="tvs-share-note">¿Querés tatuarte durante esta gira? Contá tu idea y coordiná una cita.</p>
-                <a class="wo-btn wo-btn--accent wo-btn--hard" href="/quotation">Pedí tu cita →</a>
+                <p class="tvs-share-note">¿Quieres tatuarte durante esta gira? Cuenta tu idea y coordina una cita.</p>
+                <a class="wo-btn wo-btn--accent wo-btn--hard" href="/quotation">Pide tu cita →</a>
             </div>`;
     });
 })();

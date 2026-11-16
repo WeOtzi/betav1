@@ -118,7 +118,7 @@ test('COT-A-08: una vencida se vuelve a cotizar desde el resumen y el detalle', 
     assert.match(detail, /title: requote \? 'Volver a cotizar' : 'Aceptar y enviar presupuesto'/);
 });
 
-// ------------------------------------------------------------ seña (COT-A-09)
+// ------------------------------------------------------------ anticipo (COT-A-09)
 test('COT-A-09: depositPatch valida el porcentaje y calcula el monto', () => {
     assert.deepEqual(DM.depositPatch('', 1000).patch, { artist_deposit_pct: null, artist_deposit_amount: null });
     assert.deepEqual(DM.depositPatch('0', 1000).patch, { artist_deposit_pct: null, artist_deposit_amount: null });
@@ -127,16 +127,16 @@ test('COT-A-09: depositPatch valida el porcentaje y calcula el monto', () => {
     assert.equal(DM.depositPatch('150', 1000).ok, false);
     assert.equal(DM.depositPatch('-5', 1000).ok, false);
     assert.equal(DM.depositText(30, 300, 'USD'), '30 % · $300');
-    assert.equal(DM.depositText(null, null, 'USD'), 'Sin seña');
+    assert.equal(DM.depositText(null, null, 'USD'), 'Sin anticipo');
     assert.match(DM.historyEvents({ quote_status: 'responded', created_at: '2026-11-01T10:00:00Z', artist_responded_at: '2026-11-02T10:00:00Z', artist_budget_amount: 1000, artist_deposit_pct: 30 }, [], [], [], new Date('2026-11-03'))
-        .map((e) => e.text).join(' | '), /seña 30 %/);
+        .map((e) => e.text).join(' | '), /anticipo 30 %/);
 });
 
-test('COT-A-09: la seña está en los diálogos de respuesta y acuerdo y en el panel de pagos', () => {
+test('COT-A-09: el anticipo está en los diálogos de respuesta y acuerdo y en el panel de pagos', () => {
     const detail = read('public/shared/js/quotation-detail-figma.js');
     assert.equal((detail.match(/\$\{depositField\(q\)\}/g) || []).length, 2, 'respuesta y acuerdo');
     assert.equal((detail.match(/readDeposit\(data\.deposit_pct, value\)/g) || []).length, 2);
-    // Sin fila manual, la seña sale de quotations_db.artist_deposit_*.
+    // Sin fila manual, el anticipo sale de quotations_db.artist_deposit_*.
     const dep = PM.depositRequired(null, { artist_deposit_pct: 30, artist_deposit_amount: 150, artist_budget_currency: 'usd' });
     assert.deepEqual(dep, { amount: 150, currency: 'USD', pct: 30 });
     assert.equal(PM.depositRequired(null, { artist_deposit_amount: null }), null);

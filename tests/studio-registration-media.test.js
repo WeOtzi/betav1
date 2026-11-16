@@ -102,13 +102,13 @@ test('staged photos survive reload and stay separated by email and deployment pa
 test('unconfirmed and different-owner sessions cannot upload staged photos', async () => {
     const h = harness({ noSession: true });
     await h.api.stage(email, { cover: image() });
-    await assert.rejects(h.api.finish(studio, email), /Iniciá sesión/);
+    await assert.rejects(h.api.finish(studio, email), /Inicia sesión/);
     assert.equal(h.uploads.length, 0);
     const other = harness({ indexedDB: h.indexedDB, sessionEmail: 'other@example.test' });
-    await assert.rejects(other.api.finish(studio, email), /Iniciá sesión/);
+    await assert.rejects(other.api.finish(studio, email), /Inicia sesión/);
     assert.equal(other.uploads.length, 0);
     const wrongOwner = harness({ indexedDB: h.indexedDB });
-    await assert.rejects(wrongOwner.api.finish({ ...studio, user_id: 'another-owner' }, email), /Iniciá sesión/);
+    await assert.rejects(wrongOwner.api.finish({ ...studio, user_id: 'another-owner' }, email), /Inicia sesión/);
     assert.equal(wrongOwner.uploads.length, 0);
 });
 

@@ -123,7 +123,7 @@ test('P3: email del perfil profesional o de la bio, nunca inventado', () => {
     const fromBio = contact.extractProfileContact({}, { bio: 'Tatuador · turnos: juan.perez+tattoo@mail.com.ar ✉️' });
     assert.equal(fromBio.email, 'juan.perez+tattoo@mail.com.ar');
     assert.equal(fromBio.email_source, 'bio');
-    assert.equal(contact.extractProfileContact({}, { bio: 'escribime por DM' }).email, null);
+    assert.equal(contact.extractProfileContact({}, { bio: 'escríbeme por DM' }).email, null);
     assert.equal(contact.normalizeEmail('no es un email'), '');
 });
 

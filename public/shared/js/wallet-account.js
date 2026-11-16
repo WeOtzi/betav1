@@ -149,9 +149,9 @@
             note.hidden = false;
             note.textContent = 'Mostramos tus cobros a partir de tus cotizaciones. Los retiros y destinos se habilitan cuando el Wallet esté activo en tu cuenta.';
         } else if (M.hasOffPlatform && M.hasOffPlatform(state.movements)) {
-            // Grupo pagos: los pagos que registrás a mano son informativos.
+            // Grupo pagos: los pagos que registras a mano son informativos.
             note.hidden = false;
-            note.textContent = 'Los pagos que registrás desde tus cotizaciones figuran como «Cobrado por fuera»: los cobraste vos, no pasan por We Ötzi y no suman a tu saldo disponible.';
+            note.textContent = 'Los pagos que registras desde tus cotizaciones figuran como «Cobrado por fuera»: los cobraste tú, no pasan por We Ötzi y no suman a tu saldo disponible.';
         } else {
             note.hidden = true;
         }
@@ -180,7 +180,7 @@
         allBtn.textContent = state.showAllReleases ? 'Ver menos ←' : 'Ver todas →';
         allBtn.setAttribute('aria-expanded', String(state.showAllReleases));
         if (!list.length) {
-            wrap.innerHTML = '<p class="wal-empty">No tenés reservas con fondos pendientes de liberar.</p>';
+            wrap.innerHTML = '<p class="wal-empty">No tienes reservas con fondos pendientes de liberar.</p>';
             return;
         }
         wrap.innerHTML = visible.map((m, i) => {
@@ -219,7 +219,7 @@
             const ref = m.quoteId ? `Cotización ${m.quoteId}` : '';
             const how = m.source === 'quotation'
                 ? (m.agreedBalance ? `Saldo sin registrar ${M.formatMoney(m.agreedBalance, m.currency)}` : 'Total acordado')
-                : ((M.PAYMENT_METHOD_LABELS || {})[m.paymentMethod] || 'Registrado por vos');
+                : ((M.PAYMENT_METHOD_LABELS || {})[m.paymentMethod] || 'Registrado por ti');
             extra = [how, ref].filter(Boolean).join(' · ');
         } else if (m.kind === 'fee') {
             extra = m.detail || 'Comisión por servicio';
@@ -278,7 +278,7 @@
         const usable = state.destinations;
         const def = usable.find((d) => d.is_default) || usable[0] || null;
         if (!usable.length) {
-            select.innerHTML = `<option value="">${state.mode === 'derived' ? 'Wallet no activo todavía' : 'Agregá un destino de retiro'}</option>`;
+            select.innerHTML = `<option value="">${state.mode === 'derived' ? 'Wallet no activo todavía' : 'Agrega un destino de retiro'}</option>`;
         } else {
             select.innerHTML = usable.map((d) => `<option value="${esc(d.id)}">${esc(quickLabel(d))}</option>`).join('');
             // Sigue al destino predeterminado salvo que el artista haya elegido otro a mano.
@@ -375,7 +375,7 @@
             promoBtn.textContent = 'Ya estás en la lista';
         } else {
             done.hidden = true;
-            btn.textContent = 'Avisame cuando esté disponible';
+            btn.textContent = 'Avísame cuando esté disponible';
             promoBtn.textContent = 'Conocer más';
         }
     }
@@ -462,7 +462,7 @@
             console.error('[wallet] retiro:', err);
             const msg = /insufficient/i.test(err && err.message) ? 'El monto supera tu saldo disponible.'
                 : /not verified/i.test(err && err.message) ? 'El destino todavía no está verificado.'
-                : 'No pudimos registrar el retiro. Probá de nuevo.';
+                : 'No pudimos registrar el retiro. Prueba de nuevo.';
             $('wal-withdraw-dialog').close();
             showError('wal-quick-error', msg);
             toast(msg, false);
@@ -518,8 +518,8 @@
         identifierInput.value = '';
         identifierInput.required = !dest;
         identifierInput.placeholder = dest && M.destinationLast4(dest)
-            ? `Terminada en ${M.destinationLast4(dest)} · dejalo vacío para conservarla`
-            : 'Ingresá el identificador de la cuenta';
+            ? `Terminada en ${M.destinationLast4(dest)} · déjalo vacío para conservarla`
+            : 'Ingresa el identificador de la cuenta';
         $('wal-dest-dialog-title').textContent = dest ? 'Editar destino de retiro' : 'Agregar destino de retiro';
         $('wal-dest-submit').textContent = dest ? 'Guardar destino' : 'Agregar destino';
         renderMethods();
@@ -563,8 +563,8 @@
         } catch (err) {
             console.error('[wallet] destino:', err);
             showError('wal-dest-error', /tarjeta/.test(err && err.message)
-                ? 'No ingreses números de tarjeta. Usá el CBU, IBAN o alias de la cuenta.'
-                : 'No pudimos guardar el destino. Revisá los datos y probá de nuevo.');
+                ? 'No ingreses números de tarjeta. Usa el CBU, IBAN o alias de la cuenta.'
+                : 'No pudimos guardar el destino. Revisa los datos y prueba de nuevo.');
         } finally { btn.disabled = false; }
     }
 
@@ -591,7 +591,7 @@
         }
         if (btn.dataset.destDelete) {
             const dest = find(btn.dataset.destDelete);
-            if (!dest || !window.confirm(`¿Querés eliminar ${dest.label} de tus destinos de retiro?`)) return;
+            if (!dest || !window.confirm(`¿Quieres eliminar ${dest.label} de tus destinos de retiro?`)) return;
             btn.disabled = true;
             try {
                 await D.PayoutDestinations.remove(ctx.user.id, dest.id);
@@ -674,7 +674,7 @@
         event.preventDefault();
         showError('wal-card-error', '');
         const email = $('wal-card-email').value.trim().toLowerCase();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('wal-card-error', 'Ingresá un correo válido.'); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('wal-card-error', 'Ingresa un correo válido.'); return; }
         const btn = $('wal-card-submit');
         btn.disabled = true;
         try {
@@ -693,7 +693,7 @@
             toast('Listo, te avisamos cuando la We Ötzi Card esté disponible');
         } catch (err) {
             console.error('[wallet] lista de espera:', err);
-            showError('wal-card-error', 'No pudimos registrar tu interés. Probá de nuevo.');
+            showError('wal-card-error', 'No pudimos registrar tu interés. Prueba de nuevo.');
         } finally { btn.disabled = false; }
     }
 
