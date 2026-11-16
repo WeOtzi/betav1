@@ -214,7 +214,10 @@ test('textos legales y documentación: OpenAI es el proveedor de imágenes y sus
     const terms = read('public', 'legal', 'terms', 'index.html');
     assert.match(privacy, /<th scope="row">OpenAI<\/th>/);
     assert.doesNotMatch(privacy, /Gemini/, 'Gemini ya no procesa datos de la plataforma');
-    assert.match(privacy, /No le enviamos tu nombre, tu email ni tu dirección IP/);
+    // SCI-02: la negación vale para las imágenes, no para todo lo que se hace con OpenAI
+    // (el bot del chat de soporte usa la misma clave y sí envía el nombre de perfil).
+    assert.match(privacy, /Para generar imágenes no le enviamos tu nombre, tu email ni tu dirección IP/);
+    assert.doesNotMatch(privacy, /\. No le enviamos tu nombre/, 'sin una negación general sobre OpenAI');
     assert.match(terms, /inteligencia artificial de OpenAI \(GPT Image\)/);
     assert.doesNotMatch(terms, /Gemini/);
 
@@ -232,6 +235,15 @@ test('textos legales y documentación: OpenAI es el proveedor de imágenes y sus
     }
     assert.doesNotMatch(env, /sk-[A-Za-z0-9]{8,}|AIza[0-9A-Za-z_-]{10,}/, 'sin claves reales en el ejemplo');
     assert.match(deploy, /proxy PHP[^\n]*60 s/, 'DEPLOY.md avisa del corte del proxy a los 60 s');
+    // SCI-02: cargar OPENAI_API_KEY también enciende el bot del chat de soporte. El alta obliga a
+    // decidirlo antes, y lo que dice la guía tiene que seguir siendo cierto en server.js.
+    assert.match(deploy, /\*\*Chat de soporte con IA — decidir antes de cargar la clave\.\*\*/);
+    assert.match(deploy, /dejar `SUPPORT_CHAT_ENABLED=false`/);
+    assert.match(deploy, /sumar a la fila OpenAI de la política el chat de soporte/);
+    assert.match(env, /^SUPPORT_CHAT_ENABLED=false$/m);
+    assert.match(env, /cargarla lo ENCIENDE/);
+    assert.match(read('server.js'), /const SUPPORT_CHAT_ENABLED = \(process\.env\.SUPPORT_CHAT_ENABLED \|\| 'true'\) === 'true';/,
+        'si cambia el valor por defecto del chat de soporte, hay que actualizar el paso 4 del alta en DEPLOY.md');
     assert.match(technical, /POST \/api\/ai\/generate-image/);
     assert.match(read('docs', 'MAPA_APLICACION.md'), /\/api\/ai\/generate-image/);
 });
