@@ -131,6 +131,122 @@ test('CP2: "Cambios al acuerdo pendientes de aprobar" y "Sesión por confirmar"'
     }
 });
 
+// DB-07 / CF-02: las formas REALES de los frentes sesiones y negociación.
+test('CP2 con datos reales: client_confirmation, pedido de cambio del artista y propuestas pendientes', () => {
+    const approved = (over = {}) => responded({ quote_status: 'client_approved', final_budget_amount: '400000', ...over });
+    const future = '2026-12-01T15:00:00Z';
+    // Fila de la RPC list_client_quotation_sessions: una sesión propuesta sigue 'scheduled'.
+    const rpc = (over = {}) => ({ id: 's1', quotation_id: 7, session_number: 1, session_date: future, duration_hours: 3, status: 'scheduled', location: 'Estudio X', client_confirmation: 'confirmed', pending_change_by: null, ...over });
+    const overlay = (session, q = approved()) => Panel.statusOf(q, { now: NOW, sessions: [session] }).overlay;
+
+    assert.equal(overlay(rpc({ client_confirmation: 'pending' })), 'session_to_confirm');
+    assert.equal(Panel.statusOf(approved(), { now: NOW, sessions: [rpc({ client_confirmation: 'pending' })] }).label, 'Sesión por confirmar');
+    assert.equal(overlay(rpc({ client_confirmation: 'confirmed' })), null);
+    // El cliente ya pidió otra fecha: le toca al artista, no hay nada que confirmar.
+    assert.equal(overlay(rpc({ client_confirmation: 'change_requested' })), null);
+    // El artista pidió mover una sesión confirmada: responde el cliente.
+    assert.equal(overlay(rpc({ pending_change_by: 'artist' })), 'session_to_confirm');
+    assert.equal(overlay(rpc({ pending_change_by: 'client' })), null);
+    // Vista del servidor (WeotziData.SessionFlow): ya viene resuelto.
+    assert.equal(overlay(rpc({ needs_client_confirmation: true })), 'session_to_confirm');
+    // La RPC anterior a la migración (7 columnas) no marca nada.
+    const { client_confirmation: _c, pending_change_by: _p, ...old } = rpc();
+    assert.equal(overlay(old), null);
+    // Canceladas, realizadas o ya pasadas no piden confirmación aunque sigan 'pending'.
+    assert.equal(overlay(rpc({ client_confirmation: 'pending', status: 'cancelled' })), null);
+    assert.equal(overlay(rpc({ client_confirmation: 'pending', status: 'completed' })), null);
+    assert.equal(overlay(rpc({ client_confirmation: 'pending', session_date: '2026-10-01T10:00:00Z' })), null);
+    // Con la cotización cerrada no hay etiqueta.
+    assert.equal(overlay(rpc({ client_confirmation: 'pending' }), approved({ quote_status: 'cancelled' })), null);
+
+    // Negociación: lo que arma client-panel-ui.js desde quotation_proposals (pendiente).
+    const counter = Panel.statusOf(responded(), { now: NOW, counterBy: 'client' });
+    assert.deepEqual([counter.overlay, counter.label, counter.waitingOn], ['counter_by_client', 'Cambios propuestos por ti', 'artist']);
+    const byArtist = Panel.statusOf(approved(), { now: NOW, agreementChangePending: true, agreementChangeBy: 'artist' });
+    assert.deepEqual([byArtist.overlay, byArtist.label, byArtist.waitingOn], ['agreement_change', 'Cambios al acuerdo pendientes de aprobar', 'client']);
+    assert.equal(byArtist.hint, 'El artista propuso un cambio al acuerdo. Revísalo y responde.');
+    const byClient = Panel.statusOf(approved(), { now: NOW, agreementChangePending: true, agreementChangeBy: 'client' });
+    assert.deepEqual([byClient.overlay, byClient.waitingOn], ['agreement_change', 'artist']);
+    assert.equal(byClient.hint, 'Esperando que el artista apruebe tus cambios.');
+});
+
+test('DB-07: la RPC de sesiones del cliente devuelve la confirmación (migración 20261116150000 y su reversa)', () => {
+    const sql = read('supabase/migrations/20261116150000_sesiones_confirmacion_ubicacion.sql');
+    const at = sql.indexOf('drop function if exists public.list_client_quotation_sessions(integer[]);');
+    assert.ok(at > -1, 'cambia el tipo de retorno: se recrea, no alcanza con create or replace');
+    const block = sql.slice(at, sql.indexOf('-- Privilegios: funciones de trigger y RPC solo para el servidor.'));
+    assert.ok(at > sql.indexOf('create table if not exists public.quotation_session_change_requests'), 'después de crear la tabla que lee');
+    assert.match(block, /create function public\.list_client_quotation_sessions\(p_quotation_ids integer\[\]\)\s+returns table \(([^)]*)\)/);
+    const columns = block.match(/returns table \(([^)]*)\)/)[1].split(',').map((c) => c.trim().split(/\s+/)[0]);
+    assert.deepEqual(columns, ['id', 'quotation_id', 'session_number', 'session_date', 'duration_hours', 'status', 'location', 'client_confirmation', 'pending_change_by']);
+    assert.match(block, /language sql\s+stable\s+security definer\s+set search_path = public, pg_temp/);
+    assert.match(block, /s\.client_confirmation,/);
+    assert.match(block, /from public\.quotation_session_change_requests r\s+where r\.session_id = s\.id and r\.status = 'pending'\s+limit 1\) as pending_change_by/);
+    // Sigue acotada a las cotizaciones del cliente y sin columnas privadas del artista.
+    assert.match(block, /where \(select auth\.uid\(\)\) is not null/);
+    assert.match(block, /and q\.client_user_id = \(select auth\.uid\(\)\)/);
+    assert.doesNotMatch(block, /notes|photo_urls|google_event_id/);
+    assert.ok(block.includes('revoke all on function public.list_client_quotation_sessions(integer[]) from public, anon;'));
+    assert.ok(block.includes('grant execute on function public.list_client_quotation_sessions(integer[]) to authenticated;'));
+    assert.match(sql, /notify pgrst, 'reload schema';\s+commit;\s*$/);
+
+    // La reversa deja la versión de 7 columnas ANTES de quitar la tabla y la columna.
+    const down = read('supabase/rollbacks/20261116150000_sesiones_confirmacion_ubicacion.down.sql');
+    const restored = down.indexOf('create function public.list_client_quotation_sessions(p_quotation_ids integer[])');
+    assert.ok(restored > -1 && restored < down.indexOf('drop table if exists public.quotation_session_change_requests;'));
+    assert.ok(restored < down.indexOf('drop column if exists client_confirmation'));
+    const original = read('supabase/migrations/20261115170100_client_inbox_sessions.sql');
+    const body = (text, from) => text.slice(text.indexOf('as $$', from), text.indexOf('$$;', from));
+    assert.equal(body(down, restored), body(original, original.indexOf('list_client_quotation_sessions')), 'mismo cuerpo que 20261115170100');
+    assert.doesNotMatch(body(down, restored), /client_confirmation|pending_change_by/);
+
+    // El modelo lee esos nombres y el repo documenta la forma nueva.
+    const model = read('public/shared/js/client-panel-model.js');
+    assert.match(model, /pick\(s, \['client_confirmation', 'confirmation_status'/);
+    assert.match(model, /roleOf\(s\.pending_change_by\) === 'artist'/);
+});
+
+test('CF-02: el panel lee las propuestas pendientes por la capa de datos y repinta cuando cambian', () => {
+    const repo = read('public/shared/js/data/quotations-repo.js');
+    const method = repo.slice(repo.indexOf('const Proposals = {'), repo.indexOf('// ============== quotations_attachments'));
+    assert.match(method, /async listPendingByQuotationIds\(quotationIds\)/);
+    assert.match(method, /from\('quotation_proposals'\)\.select\('quotation_id,kind,proposed_by,status,created_at'\)/);
+    assert.match(method, /\.in\('quotation_id', chunk\)\.eq\('status', 'pending'\)/);
+    assert.match(method, /if \(isMissingProposals\(error\)\) return \[\];/, 'sin la migración de negociación no rompe');
+    assert.match(repo, /D\.Proposals = Proposals;/);
+    // Solo lectura: proponer y resolver sigue pasando por el servidor.
+    assert.doesNotMatch(method, /\.insert\(|\.update\(|\.delete\(/);
+
+    const dash = read('public/shared/js/client-dashboard.js');
+    // Un aviso (sesión nueva, cambio al acuerdo) recarga las etiquetas.
+    assert.match(dash, /renderQuotations\(\);\s+\/\/ El aviso puede traer una sesión por confirmar o un cambio al acuerdo\.\s+loadClientPanelExtras\(\);/);
+    // El detalle abierto solo se repinta si cambió su etiqueta.
+    assert.match(dash, /if \(currentQuotationId && openLabel\(\) !== labelBefore\) refreshOpenDetail\(currentQuotationId\);/);
+    // Confirmar o responder en "Mis sesiones" recalcula la etiqueta de las tarjetas.
+    assert.match(read('public/shared/js/client-sessions.js'), /typeof window\.loadClientPanelExtras === 'function'\) window\.loadClientPanelExtras\(\)/);
+    assert.match(read('public/client/dashboard/index.html'), /\/shared\/js\/client-sessions\.js\?v=20261116-r2b"/);
+});
+
+test('CF-02: "Próxima cita" no muestra como firme una sesión que falta confirmar', async () => {
+    const run = async (session) => {
+        const { context, nodes } = dashboard();
+        context.quotation = responded({ id: 7, quote_id: 'QN00007', quote_status: 'client_approved', final_budget_amount: '1' });
+        vm.runInContext('currentQuotations = [quotation]', context);
+        context.WeotziData.Sessions = { listForClient: async () => [session] };
+        await vm.runInContext('loadNextAppointment()', context);
+        return nodes.get('next-appointment');
+    };
+    const base = { quotation_id: 7, status: 'scheduled', session_date: '2099-01-05T15:00:00Z' };
+    const pending = await run({ ...base, client_confirmation: 'pending' });
+    assert.equal(pending.hidden, false);
+    assert.match(pending.innerHTML, /<p>[^<]* · por confirmar<\/p>/);
+    const confirmed = await run({ ...base, client_confirmation: 'confirmed' });
+    assert.equal(confirmed.hidden, false);
+    assert.doesNotMatch(confirmed.innerHTML, /por confirmar/);
+    // RPC anterior a la migración: sin la columna, se muestra como hasta ahora.
+    assert.doesNotMatch((await run(base)).innerHTML, /por confirmar/);
+});
+
 test('CP2: prioridad (primero lo que espera al cliente) y cotizaciones cerradas sin etiquetas nuevas', () => {
     const q = responded({ quote_status: 'client_approved' });
     const all = { now: NOW, counterBy: 'client', agreementChangePending: true, sessionToConfirm: true };

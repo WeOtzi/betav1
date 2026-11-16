@@ -270,7 +270,10 @@ async function loadNextAppointment() {
         const date = new Date(upcoming.session_date);
         const day = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'long' }).format(date);
         const time = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
-        renderNextAppointment(quote, `${day} · ${time}${quote.studio_name ? ` — ${quote.studio_name}` : ''}`);
+        // La RPC trae client_confirmation desde la migración 20261116150000: una
+        // sesión que el cliente todavía no confirmó no se muestra como cita firme.
+        const toConfirm = String(upcoming.client_confirmation || '').toLowerCase() === 'pending';
+        renderNextAppointment(quote, `${day} · ${time}${quote.studio_name ? ` — ${quote.studio_name}` : ''}${toConfirm ? ' · por confirmar' : ''}`);
     } catch (error) {
         console.error('Error loading next appointment:', error);
     }
@@ -366,14 +369,23 @@ function clientStatusPillHtml(quotation) {
         + (status.hint ? `<span class="cpn-status-hint">${escapeFeedHtml(status.hint)}</span>` : '');
 }
 
-// Sesiones del cliente para la etiqueta "Sesión por confirmar" (no bloquea).
+// Sesiones y propuestas pendientes del cliente para las etiquetas "Sesión por
+// confirmar", "Cambios propuestos por ti" y "Cambios al acuerdo pendientes de
+// aprobar" (no bloquea). Repinta solo si alguna etiqueta cambió.
 function loadClientPanelExtras() {
     const ui = panelUi();
     if (!ui || typeof ui.loadExtras !== 'function') return;
+    const openLabel = () => {
+        const open = currentQuotationId ? currentQuotations.find(q => q.quote_id === currentQuotationId) : null;
+        return open ? clientQuotationStatus(open).label : '';
+    };
+    const labelBefore = openLabel();
     Promise.resolve(ui.loadExtras(currentQuotations)).then(changed => {
         if (!changed) return;
         renderQuotations();
-        if (currentQuotationId) refreshOpenDetail(currentQuotationId);
+        // El detalle abierto solo se repinta si cambió SU etiqueta (no se pisa
+        // lo que el cliente esté escribiendo por un cambio en otra cotización).
+        if (currentQuotationId && openLabel() !== labelBefore) refreshOpenDetail(currentQuotationId);
     }).catch(() => { /* la etiqueta base ya está pintada */ });
 }
 
@@ -785,6 +797,8 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
                 currentQuotations = fresh || currentQuotations;
                 updateStats();
                 renderQuotations();
+                // El aviso puede traer una sesión por confirmar o un cambio al acuerdo.
+                loadClientPanelExtras();
                 // El detalle abierto solo se repinta si esa cotización cambió (no se
                 // pisa lo que el cliente esté escribiendo por un aviso de otra cosa).
                 const openAfter = currentQuotations.find(q => q.quote_id === currentQuotationId) || null;

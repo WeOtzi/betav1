@@ -27,9 +27,23 @@
  *                    · q.pending_agreement | q.pending_agreement_change (objeto o true)
  *                    · q.agreement_change_requested_at sin ..._decided_at
  *   Sesión           ctx.sessionToConfirm · ctx.sessions | ctx.sessionsByQuotationId[q.id]
- *                      (status proposed/pending_confirmation…, confirmation_status,
- *                       needs_confirmation, client_confirmed === false)
+ *                      Dato real (frente sesiones, migración 20261116150000):
+ *                        client_confirmation 'pending' (la sesión sigue 'scheduled')
+ *                        → por confirmar; 'confirmed' y 'change_requested' no.
+ *                        pending_change_by 'artist' → el artista pidió un cambio
+ *                        y le toca responder al cliente (RPC
+ *                        list_client_quotation_sessions).
+ *                        needs_client_confirmation === true → ya resuelto por
+ *                        quien cargó la sesión (WeotziData.SessionFlow:
+ *                        can.confirm || can.respond).
+ *                      Respaldo tolerante: confirmation_status, status
+ *                        proposed/pending_confirmation…, needs_confirmation,
+ *                        client_confirmed === false.
  *                    · q.session_confirmation_status | q.pending_session_confirmation
+ *   Negociación real (frente negociacion, quotation_proposals pendiente): la
+ *   página la pasa por ctx.counterBy (kind 'counter') y
+ *   ctx.agreementChangePending + ctx.agreementChangeBy (kind 'amendment');
+ *   ver client-panel-ui.js · extrasFor.
  *
  * Sin DOM ni red: lo usan las páginas y lo prueban los tests.
  * Expone window.WoClientPanel (o module.exports en Node).
@@ -79,7 +93,7 @@
         },
         agreement_change: {
             label: 'Cambios al acuerdo pendientes de aprobar', tone: 'cpn-warning', tag: 'wo-tag--highlight',
-            hint: 'El artista cambió el acuerdo. Revísalo y apruébalo.', waitingOn: 'client'
+            hint: 'El artista propuso un cambio al acuerdo. Revísalo y responde.', waitingOn: 'client'
         },
         session_to_confirm: {
             label: 'Sesión por confirmar', tone: 'cpn-warning', tag: 'wo-tag--highlight',
@@ -262,9 +276,15 @@
             var when = Date.parse(s.session_date);
             if (isFinite(when) && when < (now == null ? Date.now() : now) - DAY_MS) return false;
         }
-        var conf = pick(s, ['confirmation_status', 'client_confirmation_status', 'confirm_status']);
+        // Ya resuelto por quien cargó la sesión (puede confirmar o responder un cambio).
+        if (s.needs_client_confirmation === true) return true;
+        // El artista pidió un cambio de una sesión confirmada: responde el cliente.
+        if (roleOf(s.pending_change_by) === 'artist') return true;
+        // client_confirmation es la columna real: 'pending' cuenta; 'confirmed' y
+        // 'change_requested' (el cliente ya pidió otra fecha) no.
+        var conf = pick(s, ['client_confirmation', 'confirmation_status', 'client_confirmation_status', 'confirm_status']);
         if (conf !== undefined && conf !== null) return isPending(conf);
-        if (s.needs_confirmation === true || s.needs_client_confirmation === true || s.requires_confirmation === true) return true;
+        if (s.needs_confirmation === true || s.requires_confirmation === true) return true;
         if (s.client_confirmed === false || s.confirmed === false || s.is_confirmed === false) return true;
         return SESSION_PENDING.indexOf(status) !== -1;
     }

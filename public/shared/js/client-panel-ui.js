@@ -7,8 +7,11 @@
  *
  *   - Buscador de cotizaciones del dashboard (#cpn-quote-search, en vivo) y
  *     atajo "buscar por código" de los accesos rápidos (#cpn-quick-search).
- *   - Datos extra para las etiquetas de estado (sesiones del cliente → "Sesión
- *     por confirmar"), sin tocar "Tu actividad".
+ *   - Datos extra para las etiquetas de estado, sin tocar "Tu actividad":
+ *       · sesiones del cliente (RPC list_client_quotation_sessions, con
+ *         client_confirmation y pending_change_by) → "Sesión por confirmar";
+ *       · propuestas pendientes de negociación (quotation_proposals) →
+ *         "Cambios propuestos por ti" y "Cambios al acuerdo pendientes de aprobar".
  *   - Acciones de los estados vacíos ([data-cpn-action]).
  *   - Carga, si existen, de los módulos de otros frentes para los botones que
  *     el panel deja preparados: [data-wo-favorite] → el cargador de favoritos
@@ -25,6 +28,7 @@
     var state = {
         term: '',
         sessionsByQuotationId: {},
+        proposalByQuotationId: {},
         lastShown: [],
         modules: {}
     };
@@ -131,33 +135,87 @@
     }
 
     // ------------------------------------------------------------------
-    // Datos extra para las etiquetas (sesiones → "Sesión por confirmar")
+    // Datos extra para las etiquetas (sesiones y negociación)
     // ------------------------------------------------------------------
+    // Contexto que entiende WoClientPanel.statusOf:
+    //   sessions                → "Sesión por confirmar"
+    //   counterBy               → "Cambios propuestos por ti" (contrapropuesta pendiente)
+    //   agreementChangePending  → "Cambios al acuerdo pendientes de aprobar" (+ agreementChangeBy)
     function extrasFor(q) {
-        var sessions = q && q.id != null ? state.sessionsByQuotationId[q.id] : null;
-        return sessions ? { sessions: sessions } : {};
+        var out = {};
+        if (!q || q.id == null) return out;
+        var sessions = state.sessionsByQuotationId[q.id];
+        if (sessions) out.sessions = sessions;
+        var proposal = state.proposalByQuotationId[q.id];
+        if (proposal) {
+            if (proposal.kind === 'counter') out.counterBy = proposal.proposed_by;
+            else if (proposal.kind === 'amendment') {
+                out.agreementChangePending = true;
+                out.agreementChangeBy = proposal.proposed_by;
+            }
+        }
+        return out;
     }
 
-    // Devuelve true si alguna etiqueta cambió (el dashboard repinta).
+    // Etiquetas de la ronda 2 que hoy le tocan a cada cotización (para saber si cambió algo).
+    function overlaySignature(list) {
+        var M = model();
+        if (!M) return '';
+        return list.map(function (q) { return M.statusOf(q, extrasFor(q)).overlay || ''; }).join('|');
+    }
+
+    // Una lectura que falla no tumba la otra: se conserva lo que ya había.
+    function settle(label, promise) {
+        return Promise.resolve(promise).then(
+            function (rows) { return { ok: true, rows: rows || [] }; },
+            function (err) {
+                console.warn('[client-panel] no pudimos leer ' + label + ':', err && err.message);
+                return { ok: false, rows: [] };
+            }
+        );
+    }
+
+    // Devuelve true si alguna etiqueta cambió (el dashboard repinta): apareció
+    // una nueva o dejó de corresponder una que estaba pintada.
     function loadExtras(quotations) {
         var list = quotations || [];
         var ids = list.map(function (q) { return q.id; }).filter(function (id) { return id != null; });
         var D = window.WeotziData;
-        if (!ids.length || !D || !D.Sessions || typeof D.Sessions.listForClient !== 'function') {
+        var hasSessions = !!(D && D.Sessions && typeof D.Sessions.listForClient === 'function');
+        var hasProposals = !!(D && D.Proposals && typeof D.Proposals.listPendingByQuotationIds === 'function');
+        if (!ids.length || (!hasSessions && !hasProposals)) return Promise.resolve(false);
+        var before = overlaySignature(list);
+        var reads;
+        try {
+            reads = [
+                hasSessions ? settle('las sesiones', D.Sessions.listForClient(ids)) : Promise.resolve({ ok: false, rows: [] }),
+                // Sin la migración de negociación la tabla no existe: el repo devuelve [].
+                hasProposals ? settle('las propuestas pendientes', D.Proposals.listPendingByQuotationIds(ids)) : Promise.resolve({ ok: false, rows: [] })
+            ];
+        } catch (err) {
+            console.warn('[client-panel] no pudimos leer los datos extra:', err && err.message);
             return Promise.resolve(false);
         }
-        return Promise.resolve(D.Sessions.listForClient(ids)).then(function (rows) {
-            var map = {};
-            (rows || []).forEach(function (s) {
-                if (!s || s.quotation_id == null) return;
-                (map[s.quotation_id] = map[s.quotation_id] || []).push(s);
-            });
-            state.sessionsByQuotationId = map;
-            var M = model();
-            return !!M && list.some(function (q) { return M.statusOf(q, extrasFor(q)).overlay === 'session_to_confirm'; });
-        }).catch(function (err) {
-            console.warn('[client-panel] no pudimos leer las sesiones:', err && err.message);
-            return false;
+        return Promise.all(reads).then(function (results) {
+            if (results[0].ok) {
+                var sessions = {};
+                results[0].rows.forEach(function (s) {
+                    if (!s || s.quotation_id == null) return;
+                    (sessions[s.quotation_id] = sessions[s.quotation_id] || []).push(s);
+                });
+                state.sessionsByQuotationId = sessions;
+            }
+            if (results[1].ok) {
+                // Hay una sola propuesta pendiente por cotización; si llegaran dos, gana la más nueva.
+                var proposals = {};
+                results[1].rows.forEach(function (p) {
+                    if (!p || p.quotation_id == null || (p.status && p.status !== 'pending')) return;
+                    var prev = proposals[p.quotation_id];
+                    if (!prev || Date.parse(p.created_at || 0) >= Date.parse(prev.created_at || 0)) proposals[p.quotation_id] = p;
+                });
+                state.proposalByQuotationId = proposals;
+            }
+            return overlaySignature(list) !== before;
         });
     }
 

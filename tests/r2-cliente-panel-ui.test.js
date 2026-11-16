@@ -153,11 +153,85 @@ test('datos extra: las sesiones del cliente alimentan "Sesión por confirmar" si
     assert.equal(Panel.statusOf(quotations[0], ui.extrasFor(quotations[0])).overlay, null);
     assert.equal(Object.keys(ui.extrasFor(quotations[2])).length, 0);
 
+    // Misma respuesta: ninguna etiqueta cambió, no hace falta repintar.
+    assert.equal(await ui.loadExtras(quotations), false, 'sin cambios');
+    // La sesión se confirmó: la etiqueta pintada ya no corresponde, hay que repintar.
     window.WeotziData.Sessions.listForClient = async () => [{ quotation_id: 7, status: 'scheduled', session_date: '2099-01-01T10:00:00Z' }];
+    assert.equal(await ui.loadExtras(quotations), true, 'la etiqueta se va');
+    assert.equal(Panel.statusOf(quotations[1], ui.extrasFor(quotations[1])).overlay, null);
     assert.equal(await ui.loadExtras(quotations), false, 'nada por confirmar: no hace falta repintar');
     window.WeotziData.Sessions.listForClient = async () => { throw new Error('offline'); };
     assert.equal(await ui.loadExtras(quotations), false);
     assert.equal(await ui.loadExtras([]), false);
+});
+
+// DB-07 / CF-02: los datos reales de sesiones (client_confirmation) y de
+// negociación (quotation_proposals) llegan a las etiquetas de las tarjetas.
+test('datos extra reales: sesión por confirmar, contrapropuesta y cambio al acuerdo pendientes', async () => {
+    const { ui, window } = loadUi();
+    const base = { artist_responded_at: 'x', artist_budget_amount: '100', final_budget_amount: '100', quote_expires_at: '2099-01-01T00:00:00Z' };
+    const quotations = [
+        { id: 1, quote_id: 'QN1', quote_status: 'client_approved', ...base },
+        { id: 2, quote_id: 'QN2', quote_status: 'responded', ...base, final_budget_amount: null },
+        { id: 3, quote_id: 'QN3', quote_status: 'client_approved', ...base },
+        { id: 4, quote_id: 'QN4', quote_status: 'client_approved', ...base },
+        { id: 5, quote_id: 'QN5', quote_status: 'client_approved', ...base },
+        { id: 6, quote_id: 'QN6', quote_status: 'client_rejected', ...base },
+    ];
+    const asked = { sessions: null, proposals: null };
+    const future = '2099-01-02T10:00:00Z';
+    window.WeotziData = {
+        // Filas de la RPC list_client_quotation_sessions tras la migración 20261116150000.
+        Sessions: { listForClient: async (ids) => { asked.sessions = ids; return [
+            { quotation_id: 1, status: 'scheduled', session_date: future, client_confirmation: 'pending', pending_change_by: null },
+            { quotation_id: 5, status: 'scheduled', session_date: future, client_confirmation: 'confirmed', pending_change_by: 'artist' },
+            { quotation_id: 3, status: 'scheduled', session_date: future, client_confirmation: 'confirmed', pending_change_by: null },
+        ]; } },
+        // Filas de quotation_proposals con status 'pending' (una por cotización).
+        Proposals: { listPendingByQuotationIds: async (ids) => { asked.proposals = ids; return [
+            { quotation_id: 2, kind: 'counter', proposed_by: 'client', status: 'pending', created_at: '2026-11-16T10:00:00Z' },
+            { quotation_id: 3, kind: 'amendment', proposed_by: 'artist', status: 'pending', created_at: '2026-11-16T10:00:00Z' },
+            { quotation_id: 4, kind: 'amendment', proposed_by: 'client', status: 'pending', created_at: '2026-11-16T10:00:00Z' },
+            { quotation_id: 6, kind: 'counter', proposed_by: 'client', status: 'pending', created_at: '2026-11-16T10:00:00Z' },
+            { quotation_id: 1, kind: 'amendment', proposed_by: 'artist', status: 'accepted', created_at: '2026-11-16T10:00:00Z' },
+            null,
+        ]; } },
+    };
+    assert.equal(await ui.loadExtras(quotations), true);
+    assert.deepEqual(Array.from(asked.sessions), [1, 2, 3, 4, 5, 6]);
+    assert.deepEqual(Array.from(asked.proposals), [1, 2, 3, 4, 5, 6]);
+    const status = (i) => Panel.statusOf(quotations[i], ui.extrasFor(quotations[i]));
+    assert.deepEqual([status(0).overlay, status(0).label], ['session_to_confirm', 'Sesión por confirmar']);
+    assert.deepEqual([status(1).overlay, status(1).label, status(1).waitingOn], ['counter_by_client', 'Cambios propuestos por ti', 'artist']);
+    assert.deepEqual([status(2).overlay, status(2).label, status(2).waitingOn], ['agreement_change', 'Cambios al acuerdo pendientes de aprobar', 'client']);
+    assert.deepEqual([status(3).overlay, status(3).waitingOn], ['agreement_change', 'artist']);
+    assert.equal(status(4).overlay, 'session_to_confirm', 'el artista pidió mover la sesión');
+    assert.equal(status(5).overlay, null, 'una cotización rechazada no lleva etiquetas nuevas');
+    assert.deepEqual(JSON.parse(JSON.stringify(ui.extrasFor(quotations[1]))), { counterBy: 'client' });
+    assert.deepEqual(JSON.parse(JSON.stringify(ui.extrasFor(quotations[3]))), { agreementChangePending: true, agreementChangeBy: 'client' });
+    assert.deepEqual(Object.keys(ui.extrasFor({ quote_id: 'sin-id' })), []);
+
+    // Nada cambió: no se repinta. El artista responde la contrapropuesta: la etiqueta se va.
+    assert.equal(await ui.loadExtras(quotations), false);
+    const pending = await window.WeotziData.Proposals.listPendingByQuotationIds([]);
+    window.WeotziData.Proposals.listPendingByQuotationIds = async () => pending.filter((p) => p && p.quotation_id !== 2);
+    assert.equal(await ui.loadExtras(quotations), true);
+    assert.equal(status(1).overlay, null);
+    assert.equal(status(2).overlay, 'agreement_change');
+
+    // Si una lectura falla, la otra sigue y lo que ya había no se pierde.
+    window.WeotziData.Proposals.listPendingByQuotationIds = async () => { throw new Error('offline'); };
+    assert.equal(await ui.loadExtras(quotations), false);
+    assert.equal(status(2).overlay, 'agreement_change');
+    assert.equal(status(0).overlay, 'session_to_confirm');
+    window.WeotziData.Proposals.listPendingByQuotationIds = () => { throw new Error('síncrono'); };
+    assert.equal(await ui.loadExtras(quotations), false);
+
+    // Solo negociación (página sin el repo de sesiones) o solo sesiones: funciona igual.
+    const only = loadUi();
+    only.window.WeotziData = { Proposals: { listPendingByQuotationIds: async () => [{ quotation_id: 2, kind: 'counter', proposed_by: 'client', status: 'pending' }] } };
+    assert.equal(await only.ui.loadExtras(quotations), true);
+    assert.equal(Panel.statusOf(quotations[1], only.ui.extrasFor(quotations[1])).overlay, 'counter_by_client');
 });
 
 test('módulos de otros frentes: se piden una sola vez, solo si hay botones, y nunca si ya están en la página', () => {

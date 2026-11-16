@@ -21,6 +21,37 @@ drop function if exists public.sesiones_hold_confirms_session();
 drop function if exists public.sesiones_close_requests();
 drop function if exists public.sesiones_guard();
 
+-- La RPC del panel del cliente vuelve a la versión de 20261115170100 (7
+-- columnas), antes de quitar la tabla y la columna que lee la versión nueva.
+drop function if exists public.list_client_quotation_sessions(integer[]);
+create function public.list_client_quotation_sessions(p_quotation_ids integer[])
+returns table (
+  id uuid,
+  quotation_id integer,
+  session_number integer,
+  session_date timestamptz,
+  duration_hours numeric,
+  status text,
+  location text
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select s.id, s.quotation_id, s.session_number, s.session_date,
+         s.duration_hours, s.status, s.location
+  from public.quotation_sessions s
+  join public.quotations_db q on q.id = s.quotation_id
+  where (select auth.uid()) is not null
+    and s.quotation_id = any (coalesce(p_quotation_ids, '{}'::integer[]))
+    and q.client_user_id = (select auth.uid())
+  order by s.session_date asc;
+$$;
+
+revoke all on function public.list_client_quotation_sessions(integer[]) from public, anon;
+grant execute on function public.list_client_quotation_sessions(integer[]) to authenticated;
+
 drop table if exists public.quotation_session_disputes;
 drop table if exists public.quotation_session_feedback;
 drop table if exists public.quotation_session_change_requests;
@@ -46,5 +77,7 @@ alter table public.quotation_sessions
   drop column if exists location_kind,
   drop column if exists location_ref,
   drop column if exists location_place_id;
+
+notify pgrst, 'reload schema';
 
 commit;

@@ -10,7 +10,7 @@
  *   Attachments.* / Chat.* usan quotation_id = quotations_db.quote_id (text)
  *
  * Carga: DESPUES de postgrest-client.js. Expone window.WeotziData.{Quotations,
- * Notes, Sessions, Attachments, Chat, Realtime, Api}.
+ * Notes, Sessions, Proposals, Attachments, Chat, Realtime, Api}.
  */
 (function () {
     'use strict';
@@ -275,7 +275,9 @@
         },
         // Lado cliente: la tabla solo tiene policy del artista. La RPC security
         // definer (migración 20261115170100) devuelve columnas seguras (sin
-        // notes, photo_urls ni google_event_id) de cotizaciones propias.
+        // notes, photo_urls ni google_event_id) de cotizaciones propias. Desde
+        // la migración 20261116150000 trae además client_confirmation y
+        // pending_change_by (quién pidió el cambio pendiente de la sesión).
         async listForClient(quotationIds) {
             const ids = (quotationIds || []).map(Number).filter(Number.isInteger);
             if (!ids.length) return [];
@@ -312,6 +314,41 @@
         },
         async delete(sessionId) {
             await run('sessions.delete', (c) => c.from('quotation_sessions').delete().eq('id', sessionId));
+        },
+    };
+
+    // ================== quotation_proposals (key = int id) ==================
+    // Negociación (ronda 2 · migración 20261116140000): contrapropuestas del
+    // cliente (kind 'counter') y cambios al acuerdo (kind 'amendment'). Solo
+    // lectura: la RLS quotation_proposals_party_select deja ver las propias a
+    // cliente y artista; proponer y resolver pasa por el servidor
+    // (WeotziData.Negotiation → /api/negociacion).
+    function isMissingProposals(error) {
+        const cause = (error && error.cause) || {};
+        const text = [error && error.message, error && error.code, cause.message, cause.code].filter(Boolean).join(' ');
+        return /PGRST205|PGRST200|42P01|PREVIEW_UNSUPPORTED|does not exist|schema cache|No simulado/i.test(text);
+    }
+    const Proposals = {
+        // Propuestas pendientes de un lote de cotizaciones (panel del cliente:
+        // etiquetas "Cambios propuestos por ti" y "Cambios al acuerdo pendientes
+        // de aprobar"). Sin la migración aplicada la tabla no existe: [].
+        async listPendingByQuotationIds(quotationIds) {
+            const ids = (quotationIds || []).map(Number).filter(Number.isInteger);
+            const out = [];
+            for (let i = 0; i < ids.length; i += 60) {
+                const chunk = ids.slice(i, i + 60);
+                try {
+                    const { data } = await run('proposals.listPendingByQuotationIds', (c) =>
+                        c.from('quotation_proposals').select('quotation_id,kind,proposed_by,status,created_at')
+                            .in('quotation_id', chunk).eq('status', 'pending')
+                    );
+                    (data || []).forEach((row) => out.push(row));
+                } catch (error) {
+                    if (isMissingProposals(error)) return [];
+                    throw error;
+                }
+            }
+            return out;
         },
     };
 
@@ -582,6 +619,7 @@
     D.Quotations = Quotations;
     D.Notes = Notes;
     D.Sessions = Sessions;
+    D.Proposals = Proposals;
     D.Attachments = Attachments;
     D.Chat = Chat;
     D.StatusHistory = StatusHistory;

@@ -213,8 +213,10 @@
     async function done(message) {
         if (message) UI.toast(message);
         await load();
-        // La tarjeta "Próxima cita" del panel se recalcula con el dato nuevo.
+        // La tarjeta "Próxima cita" del panel se recalcula con el dato nuevo, y
+        // también la etiqueta "Sesión por confirmar" de las cotizaciones.
         try { if (typeof window.loadNextAppointment === 'function') window.loadNextAppointment(); } catch (_) { /* opcional */ }
+        try { if (typeof window.loadClientPanelExtras === 'function') window.loadClientPanelExtras(); } catch (_) { /* opcional */ }
     }
 
     async function handle(action, id) {

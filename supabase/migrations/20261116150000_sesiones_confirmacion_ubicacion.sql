@@ -29,6 +29,9 @@
 --      artist_booking_holds; no se toca confirm_artist_slot_hold).
 --   8) Google Calendar: el cambio de confirmación marca la agenda como sucia
 --      (trigger propio; no se tocan los de 20261115150000/160000).
+--   9) Panel del cliente: list_client_quotation_sessions (20261115170100)
+--      devuelve además client_confirmation y pending_change_by, para la
+--      etiqueta "Sesión por confirmar" y el aviso de "Próxima cita".
 --
 -- Las sesiones que ya existen quedan 'confirmed' (ya estaban acordadas).
 -- Reversa: supabase/rollbacks/20261116150000_sesiones_confirmacion_ubicacion.down.sql
@@ -816,6 +819,51 @@ begin
 end;
 $$;
 
+-- 9) Panel del cliente: la RPC de sesiones devuelve la confirmación ------------------
+-- list_client_quotation_sessions (20261115170100) devolvía 7 columnas: el
+-- panel del cliente (tarjetas de /client/dashboard, "Próxima cita" y
+-- /client/chats) no sabía si la sesión seguía por confirmar. Se suman:
+--   · client_confirmation  pending | confirmed | change_requested
+--   · pending_change_by    quién pidió el cambio que está pendiente
+--                          ('artist' = le toca responder al cliente), o null.
+-- Cambia el tipo de retorno: create or replace no alcanza, hay que recrearla
+-- (misma firma, mismos permisos). El código anterior ignora las columnas nuevas.
+drop function if exists public.list_client_quotation_sessions(integer[]);
+create function public.list_client_quotation_sessions(p_quotation_ids integer[])
+returns table (
+  id uuid,
+  quotation_id integer,
+  session_number integer,
+  session_date timestamptz,
+  duration_hours numeric,
+  status text,
+  location text,
+  client_confirmation text,
+  pending_change_by text
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select s.id, s.quotation_id, s.session_number, s.session_date,
+         s.duration_hours, s.status, s.location,
+         s.client_confirmation,
+         (select r.requested_by_role
+            from public.quotation_session_change_requests r
+           where r.session_id = s.id and r.status = 'pending'
+           limit 1) as pending_change_by
+  from public.quotation_sessions s
+  join public.quotations_db q on q.id = s.quotation_id
+  where (select auth.uid()) is not null
+    and s.quotation_id = any (coalesce(p_quotation_ids, '{}'::integer[]))
+    and q.client_user_id = (select auth.uid())
+  order by s.session_date asc;
+$$;
+
+revoke all on function public.list_client_quotation_sessions(integer[]) from public, anon;
+grant execute on function public.list_client_quotation_sessions(integer[]) to authenticated;
+
 -- Privilegios: funciones de trigger y RPC solo para el servidor.
 revoke all on function public.sesiones_guard() from public, anon, authenticated;
 revoke all on function public.sesiones_close_requests() from public, anon, authenticated;
@@ -834,5 +882,8 @@ grant execute on function public.sesiones_respond_change(uuid, uuid, boolean, te
 grant execute on function public.sesiones_withdraw_change(uuid, uuid) to service_role;
 grant execute on function public.sesiones_save_feedback(uuid, uuid, integer, text) to service_role;
 grant execute on function public.sesiones_open_dispute(uuid, uuid, text, text, text, text) to service_role;
+
+-- La API (PostgREST) tiene que volver a leer el tipo de retorno de la RPC.
+notify pgrst, 'reload schema';
 
 commit;
