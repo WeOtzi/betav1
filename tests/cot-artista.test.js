@@ -331,12 +331,17 @@ test('COT-A-12: resumen de completada a cliente y artista, solo si está complet
     ]);
     assert.equal(f.sent[0].payload.first_session_date, '2026-11-03T10:00:00Z');
     assert.equal(f.sent[1].payload.quotation_url, `${BASE}/my-quotations/detail?quote=QNabc`);
+    assert.deepEqual(f.sent.map((s) => s.options.actorUserId), [undefined, undefined], 'sin actor conocido no se inventa uno');
+    // EP-02: quien cerró la cotización no recibe el aviso push / in-app de su propia acción.
+    const closed = fakeSend();
+    await notices.notifyQuotationCompleted('QNabc', { useDefaults: false, baseUrl: BASE, sendEmail: closed.sendEmail, readQuote: async () => row, actorUserId: 'cli-1' });
+    assert.deepEqual(closed.sent.map((s) => s.options.actorUserId), ['cli-1', 'cli-1']);
     const g = fakeSend();
     const skip = await notices.notifyQuotationCompleted('QNabc', { useDefaults: false, baseUrl: BASE, sendEmail: g.sendEmail, readQuote: async () => ({ ...row, quote_status: 'artist_completed' }) });
     assert.equal(skip.skipped, true);
     assert.equal(g.sent.length, 0);
     const server = read('server.js');
-    assert.match(server, /await QuotationsRepo\.markCompletedByClient\(quotation\.id, caller\.id, completedAt\);\s*\n[^\n]*cot-artista-notices[^\n]*\n\s*cotNotices\.inBackground\('completed', \(\) => cotNotices\.notifyQuotationCompleted\(quotation\.quote_id/);
+    assert.match(server, /await QuotationsRepo\.markCompletedByClient\(quotation\.id, caller\.id, completedAt\);\s*\n[^\n]*cot-artista-notices[^\n]*\n\s*cotNotices\.inBackground\('completed', \(\) => cotNotices\.notifyQuotationCompleted\(quotation\.quote_id, \{ baseUrl: applicationBase\(req\), actorUserId: caller\.id \}\)/);
 });
 
 test('COT-A-05/20: aviso de sesión valida el evento y manda una copia por rol', async () => {
@@ -375,6 +380,7 @@ test('COT-A-11: el acuerdo se avisa al cliente, solo por el artista y en client_
     const [{ eventId, payload, options }] = f.sent;
     assert.equal(eventId, 'artist_confirmed_agreement');
     assert.equal(options.idempotencyKey, 'agreement:QNabc');
+    assert.equal(options.actorUserId, 'art-1', 'EP-02: el artista que registró el acuerdo no recibe su propio aviso');
     assert.equal(payload.artist_email, '');
     assert.equal(payload.dashboard_url, `${BASE}/client/dashboard`);
     assert.equal(payload.first_session_date, '2026-12-01T18:30:00Z');
