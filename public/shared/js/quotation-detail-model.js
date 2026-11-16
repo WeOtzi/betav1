@@ -306,10 +306,14 @@
     function showsSessions(stage) { return WITH_SESSIONS.indexOf(stage) !== -1; }
 
     // Botones de la barra de comandos por estado (frames 801:576–584).
-    function commandActions(stage) {
+    // `quote` es opcional. REQ-13 (parte B): en una respondida cuyo cliente tiene cuenta no
+    // se ofrece "Agendar" (ahí registraba el acuerdo por su cuenta): lo aprueba el cliente.
+    function commandActions(stage, quote) {
         switch (stage) {
             case 'pending': return ['accept', 'reject', 'schedule', 'contact'];
             case 'responded':
+                if (quote && quote.client_user_id) return ['contact'];
+                return ['schedule', 'contact'];
             case 'approved':
             case 'in_progress': return ['schedule', 'contact'];
             case 'ready': return ['markReady', 'contact'];

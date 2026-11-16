@@ -329,6 +329,7 @@ Alta (una sola vez):
 1. Crear la clave en la consola de OpenAI (conviene un proyecto propio con límite de gasto mensual) y cargar `OPENAI_API_KEY` en el `.env` del servidor. Si la clave es **restringida**, necesita permiso de **imágenes** (generar) y de **lectura de modelos** (lo usa el chequeo de salud): sin el segundo, el chequeo informa `HTTP 401` aunque las imágenes se generen bien.
 2. **Verificar la organización en OpenAI** si la consola lo pide: los modelos GPT Image pueden exigirlo. Sin esa verificación la API responde 403 y la plataforma muestra "No pudimos generar la imagen" (`502 ai_error`); el motivo queda en el log: `[ai-image] generación: provider HTTP 403 …`.
 3. **Espera del proxy — obligatorio antes de cargar la clave.** Una imagen puede tardar hasta dos minutos y el proxy PHP público cortaba cada pedido a los 60 s: sin este paso, toda imagen que tarde más de 60 s se genera y **se paga**, pero el navegador recibe un error y la persona reintenta (y vuelve a pagar). Elegir una:
+   - **Estado en beta (16 nov 2026): hecho con la opción (a).** El proxy instalado (`~/domains/weotzi.com/public_html/beta/proxy.php`) ya espera 150 s en las tres rutas de imágenes y `AI_IMAGE_TIMEOUT_MS` quedó en `120000`. Respaldo del anterior en `~/weotzi-deploy/backups/`. Probado con una imagen real de 51 s; no se pudo forzar una de más de 60 s.
    - **(a) Recomendada: actualizar el proxy instalado.** `deployments/hostinger/proxy.php` espera 150 s solo en las tres rutas de imágenes (`/api/ai/generate-image`, su alias `/api/gemini/generate-image` y `/api/quotations/ai-reference`) y sigue en 60 s para el resto; si igual se vence, responde un `504 ai_timeout` en JSON. El proxy de beta **se copia a mano** y el instalado conecta por socket Unix, así que no hay que pisarlo con este archivo: trasladarle el bloque `$isAiImage` / `$timeoutSeconds` / `set_time_limit`, el `CURLOPT_TIMEOUT => $timeoutSeconds` y la respuesta 504, conservando su conexión al socket. Dejar antes una copia del proxy actual.
    - **(b) Si no se puede tocar el proxy:** cargar `AI_IMAGE_TIMEOUT_MS=55000` en el `.env` (el servidor corta antes que el proxy, con un 504 claro) y, si hay muchos cortes, `AI_IMAGE_QUALITY=low`. Las imágenes que tarden más de 55 s no llegan.
 4. **Chat de soporte con IA — decidir antes de cargar la clave.** `OPENAI_API_KEY` es también la clave del bot del chat de soporte. Si `SUPPORT_CHAT_ENABLED` no vale `false` (sin la variable, el servidor lo toma como `true`), cargar la clave **enciende el bot**: a OpenAI le llegan los mensajes que la persona escribe en ese chat, su nombre de perfil y la página en la que está. Desde la versión 1.1 (16 nov 2026) la política de privacidad lo declara en la sección 6, fila OpenAI, junto con la generación de imágenes. Revisar el `.env` de producción y elegir una:
@@ -436,6 +437,32 @@ Antes del deploy, elegir una:
 
 **Comprobar** después: con un artista verificado, el expediente muestra el contacto;
 con uno sin verificar y un cliente sin cuenta, el candado no menciona el chat.
+
+### El acuerdo necesita la aprobación del cliente con cuenta (2.5.1, REQ-13 B)
+
+`20261117100000_acuerdo_requiere_aprobacion_del_cliente.sql` va **después del
+código 2.5.1**, como el resto. Es la función `negociacion_quotation_guard` ya
+aplicada con una regla más: el artista no pasa una cotización respondida a
+`client_approved` desde el navegador si la cotización tiene una cuenta de
+cliente vinculada (`client_user_id`). Con la 2.5.0 todavía sirviendo, el artista
+no ve el motivo: al confirmar, el diálogo muestra "No pudimos guardar. Prueba
+nuevamente." (ese código no muestra el texto que llega de la base) y el turno
+apartado ya quedó reservado. Por eso la migración no va antes del código.
+
+**Para volver atrás, al revés:** primero
+`supabase/rollbacks/20261117100000_acuerdo_requiere_aprobacion_del_cliente.down.sql`
+y después el código 2.5.0. La 2.5.1 sin la regla sigue sin ofrecer la acción; la
+2.5.0 con la regla puesta reserva el turno apartado y después falla.
+
+**Comprobar** con el código y la migración puestos: en una respondida con
+cliente con cuenta, la barra del expediente no muestra "Agendar" y ni el
+expediente ni la lista ofrecen el estado "Confirmada"; los dos dicen por qué en
+una nota junto al estado. (El botón "Agendar" del resumen de la lista sigue
+llevando al calendario, como antes.) El cliente la acepta desde su panel y
+recién ahí "Agendar" abre "Agendar sesión 1 de N". En una respondida sin cuenta vinculada,
+"Agendar" abre "Confirmar acuerdo y agendar" como antes. Una cotización manual o
+una "Nueva cita" creada con el correo de un cliente registrado se comporta como
+"con cuenta".
 
 ### Limpieza de `session_logs` (SEG-03)
 

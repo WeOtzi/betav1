@@ -178,10 +178,12 @@ crea fila.
 `quote-status-priority.js` monta una franja debajo de la identidad:
 
 - **Estado**: el actual más las transiciones del artista
-  (`WoQuotationsViewModel.statusOptions`, subconjunto del trigger vivo
+  (`WoQuotationsViewModel.statusOptionsFor(quote)`, subconjunto del trigger vivo
   `fn_quotation_status_change`). `responded` abre el diálogo de la propuesta,
   `client_approved` el del acuerdo, `artist_completed` y `cancelled` pasan por
-  sus acciones (avisan al cliente).
+  sus acciones (avisan al cliente). En una respondida con cuenta de cliente
+  vinculada no se ofrece `client_approved`: el acuerdo lo aprueba el cliente en
+  la app (2.5.1, ver [NEGOCIACION_COTIZACION.md](NEGOCIACION_COTIZACION.md)).
 - **Prioridad**: `quotations_db.priority` (`high` / `medium` / `low`), la misma
   columna que ya muestra y filtra el listado `/my-quotations`.
 

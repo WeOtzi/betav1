@@ -689,8 +689,15 @@ test('P5: la franja muestra el estado con las transiciones del artista y la prio
         'responded selected|Respondida', 'client_approved|Confirmada · registrar acuerdo', 'cancelled|Cancelada · retirar propuesta',
     ]);
     assert.match(html, /<option value="high" selected>Alta<\/option><option value="medium">Media<\/option><option value="low">Baja<\/option>/);
-    assert.match(html, /Puedes modificar la propuesta mientras no esté aprobada por ambas partes\./);
+    // REQ-13 B: sin cuenta del cliente, el artista registra el acuerdo; la nota se lo dice.
+    assert.match(html, /Puedes modificar la propuesta mientras no esté aprobada\. El cliente no tiene cuenta: cuando cierren el trato, registra el acuerdo con «Agendar»\./);
     assert.match(html, /<button type="button" class="qsp-btn" data-qsp-propose>Modificar propuesta<\/button>/);
+    // REQ-13 B: con cuenta del cliente no se ofrece "Confirmada": la aprueba él en la app.
+    strip.render({ quote: { id: 7, quote_id: 'QT-7', quote_status: 'responded', priority: 'high', client_user_id: 'c0ffee00-0000-4000-8000-000000000001' }, stage: 'responded', readOnly: false });
+    assert.doesNotMatch(strip.box().html, /<option value="client_approved"/);
+    assert.match(strip.box().html, /<option value="cancelled">Cancelada · retirar propuesta<\/option>/);
+    assert.match(strip.box().html, /El acuerdo y el saldo acordado se activan cuando el cliente la acepta en la app\./);
+    assert.match(strip.box().html, /data-qsp-propose>Modificar propuesta<\/button>/, 'la propuesta se sigue pudiendo modificar');
 
     // Aprobada por ambos: sin botón de propuesta y con el saldo ya activo.
     strip.render({ quote: { id: 7, quote_id: 'QT-7', quote_status: 'client_approved', priority: 'medium' }, stage: 'approved', readOnly: false });

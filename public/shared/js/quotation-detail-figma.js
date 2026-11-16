@@ -180,7 +180,18 @@
         if (!overlay) return;
         overlay.remove();
         document.removeEventListener('keydown', overlay._onKey);
-        if (overlay._returnFocus && overlay._returnFocus.focus) overlay._returnFocus.focus();
+        const opener = overlay._returnFocus;
+        // Solo si adoptQuote re-pintó el expediente con ESTE diálogo abierto (el control que lo
+        // abrió quedó oculto o fue reemplazado): el foco va al estado o al contacto en vez de
+        // perderse en <body>. Los dos están arriba, donde se abre ese diálogo.
+        if (overlay._repainted && opener) {
+            const usable = (el) => !!(el && el.focus && !el.disabled && el.isConnected !== false
+                && el.getClientRects && el.getClientRects().length);
+            const target = [opener, document.getElementById('qsp-status'), document.getElementById('qd-contact')].find(usable);
+            if (target) { target.focus(); return; }
+        }
+        // En cualquier otro caso, como siempre: vuelve al control que abrió el diálogo.
+        if (opener && opener.focus) opener.focus();
     }
     // openDialog({ title, intro, body, submitLabel, submitClass, cancelLabel, onSubmit(form, data) })
     // onSubmit puede lanzar Error(mensaje) para mostrarlo dentro del diálogo.
@@ -420,7 +431,7 @@
         if (quote.short_code && quote.quote_id) reference.title = quote.quote_id;
         status.textContent = meta.tag;
         status.className = `qd-status qd-status--${meta.tone}`;
-        const actions = M.commandActions(v.stage);
+        const actions = M.commandActions(v.stage, quote);
         const toggle = {
             'qd-accept': actions.includes('accept'),
             'qd-reject': actions.includes('reject'),
@@ -1200,6 +1211,34 @@
             return false;
         }
     }
+    // REQ-13 (parte B, decisión del dueño 16 nov 2026): si la cotización tiene una cuenta de
+    // cliente vinculada (client_user_id), el acuerdo queda aprobado cuando el cliente acepta la
+    // propuesta en la app; el artista ya no lo registra por su cuenta. Sin cuenta vinculada
+    // sigue igual. Una manual creada con el correo de un cliente registrado nace vinculada y
+    // también espera al cliente. La base aplica la misma regla.
+    function clientApprovalRequired(q) {
+        const vm = VM();
+        return !!(vm && vm.needsClientApproval && vm.needsClientApproval(q));
+    }
+    function clientApprovalMessage() {
+        const vm = VM();
+        return (vm && vm.CLIENT_APPROVAL_MESSAGE) || 'El acuerdo queda aprobado cuando el cliente acepta tu propuesta en la app.';
+    }
+    // La base es la última defensa. Su rechazo llega como `[etiqueta] mensaje`, que el diálogo
+    // no muestra: se reconoce este motivo (y solo este) para explicarlo en vez del genérico.
+    function isClientApprovalRejection(error) {
+        const text = String((error && error.cause && error.cause.message) || (error && error.message) || '');
+        return !!error && error.code === '42501' && text.indexOf('El cliente tiene cuenta en We Ötzi') !== -1;
+    }
+    // La fila recién leída reemplaza a la de la última carga y el expediente de fondo se
+    // vuelve a pintar (deja de ofrecer «Agendar» y cambia la nota del estado).
+    function adoptQuote(row) {
+        state.quote = row;
+        try { buildScenario(); render(); } catch (error) { console.warn('[quotation-detail] render', error); }
+        // El diálogo abierto lo recuerda: al cerrarse no devuelve el foco a un control que ya no se ve.
+        const host = document.getElementById('qd-dialog-root');
+        Array.from((host && host.children) || []).forEach((overlay) => { overlay._repainted = true; });
+    }
     function openAgreementDialog(edit) {
         if (!guardWrite()) return;
         const q = state.quote;
@@ -1212,6 +1251,7 @@
                 if (panel && !panel.hidden && typeof panel.scrollIntoView === 'function') panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return;
             }
+            if (clientApprovalRequired(q)) { showToast(clientApprovalMessage(), { error: true }); return; }
             showAgreementDialog(false);
         });
     }
@@ -1268,14 +1308,35 @@
                 // REQ-13: el cliente pudo proponer cambios con el diálogo ya abierto. Se vuelve a
                 // mirar ANTES de reservar el turno, para no dejarlo tomado si el acuerdo no se guarda.
                 if (!edit && await clientCounterPending(q)) throw userError(COUNTER_PENDING_MESSAGE);
+                // REQ-13 B: el cliente pudo vincular su cuenta con el expediente o el diálogo ya
+                // abiertos (un invitado que se registra reclama la cotización). state.quote es la
+                // última carga, así que la fila se relee ANTES de reservar el turno. Si la
+                // relectura falla, decide la base.
+                if (!edit) {
+                    const fresh = await findQuote().catch(() => null);
+                    // Sin relectura vale lo último que se sabe de ESTA cotización: un corte
+                    // anterior en este mismo diálogo ya pudo traer la fila con la cuenta.
+                    const known = state.quote && String(state.quote.id) === String(q.id) ? state.quote : q;
+                    const current = fresh && String(fresh.id) === String(q.id) ? fresh : known;
+                    if (clientApprovalRequired(current)) {
+                        if (current !== state.quote) adoptQuote(current);
+                        throw userError(clientApprovalMessage());
+                    }
+                }
                 // Turnos: con turno apartado, la primera sesión se agenda desde el apartado
                 // (crea la sesión y bloquea el turno). Si choca, no se guarda nada. El aviso
                 // al cliente es el del acuerdo (from_agreement: sin booking_slot_confirmed).
                 const slotBooking = heldStart && first
                     ? await window.WoSlotHold.confirmFor(q, { starts_at: first, minutes, from_agreement: true })
                     : null;
-                await updateQuote(patch);
-                syncAgreementExtras();
+                try {
+                    await updateQuote(patch);
+                    syncAgreementExtras();
+                } catch (error) {
+                    // REQ-13 B: si la base rechaza el acuerdo por la cuenta del cliente, se dice el motivo.
+                    if (!edit && isClientApprovalRejection(error)) throw userError(clientApprovalMessage());
+                    throw error;
+                }
                 let created = null;
                 let placePending = false;
                 const chosen = askPlace && place ? place.read() : null;
@@ -1353,6 +1414,10 @@
         if (!guardWrite()) return false;
         const vm = VM();
         const from = state.quote.quote_status;
+        if (next === 'client_approved' && clientApprovalRequired(state.quote)) {
+            showToast(clientApprovalMessage(), { error: true });
+            return false;
+        }
         if (!vm || !next || next === from || !vm.canTransition(from, next)) {
             showToast('Ese cambio de estado no está permitido desde el estado actual.', { error: true });
             return false;

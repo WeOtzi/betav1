@@ -87,11 +87,55 @@ responde `42501` ("El acuerdo ya está aprobado por ambas partes…"). El enlace
 ### El artista registra el acuerdo (REQ-13)
 
 El artista puede pasar una cotización respondida a `client_approved` desde el
-expediente ("Confirmar acuerdo y agendar"): es el camino para lo que se
-acordó por fuera de la app.
+expediente ("Confirmar acuerdo y agendar") **solo si la cotización no tiene una
+cuenta de cliente vinculada** (`client_user_id` vacío): es el camino para lo
+que se acordó por fuera de la app. Si hay una cuenta vinculada, el acuerdo lo
+aprueba el cliente.
+
+- **Qué cuenta como "con cuenta".** La regla mira `client_user_id`, no el
+  origen. Quedan sin vínculo las cotizaciones de invitado y las manuales cuyo
+  correo no coincide con una cuenta de cliente. Una cotización manual o una
+  "Nueva cita" creada con el correo de un cliente registrado nace vinculada
+  (`create_manual_quotation`) y también espera la aprobación del cliente, que la
+  ve y la acepta en su panel. Una sin vínculo (de invitado o manual) pasa a
+  estar vinculada cuando esa persona se registra o entra con ese correo
+  confirmado (`POST /api/client/quotations/claim`), o cuando acepta la propuesta
+  desde su panel (la decisión la reclama y la aprueba en un paso).
+
+- **Con cliente con cuenta, no (2.5.1, decisión del dueño del 16 nov 2026).**
+  El acuerdo queda aprobado cuando el cliente acepta la propuesta en la app, o
+  cuando el artista acepta los cambios que propuso el cliente: solo así
+  "aprobada por ambas partes" es cierto y el saldo acordado se activa con las
+  dos aprobaciones. El expediente no ofrece "Agendar" ni el estado "Confirmada"
+  en una respondida con cliente con cuenta (`WoQuotationsViewModel.needsClientApproval`),
+  y la base lo rechaza con `42501` ("El cliente tiene cuenta en We Ötzi: el
+  acuerdo queda aprobado cuando acepta tu propuesta en la app. Pídele que la
+  acepte desde su panel."), migración `20261117100000`. La lista y el
+  expediente lo explican en una nota junto al estado. Una vez aprobada,
+  "Agendar" abre "Agendar sesión N de M" (`openScheduleDialog`), igual que
+  antes de la 2.5.1; no pasa por "Confirmar acuerdo y agendar".
+- **Página abierta con datos viejos.** Al confirmar el acuerdo, el expediente
+  relee la cotización antes de reservar el turno apartado: si el cliente vinculó
+  su cuenta mientras tanto, corta ahí con el mismo aviso y vuelve a pintar la
+  pantalla. Si aun así el pedido llega a la base (falló la relectura, o el
+  vínculo entró en ese instante), el diálogo muestra el motivo que devuelve
+  (`isClientApprovalRejection`), no el genérico; en ese caso el turno apartado
+  ya quedó reservado, igual que en la 2.5.0.
+- **Límite conocido.** `create_manual_quotation` vincula por correo sin
+  comprobar que la cuenta lo haya confirmado; el reclamo
+  (`POST /api/client/quotations/claim`), la decisión del cliente y
+  `link_quotation_contact` sí lo comprueban. (Las rutas que vinculan a la cuenta
+  que tiene la sesión iniciada, como ocultar o completar una cotización, no lo
+  miran, pero ahí la cuenta ya pudo entrar.) Si la cuenta vinculada por una
+  manual no puede entrar, el artista no puede cerrar esa cotización: la cancela
+  y la crea de nuevo sin correo. Al 16 nov 2026 no hay cuentas sin confirmar.
 
 - **Con una contrapropuesta del cliente pendiente, no.** Primero la resuelve:
-  la acepta, envía otra propuesta o mantiene la suya. El expediente lo avisa
+  la acepta, envía otra propuesta o mantiene la suya. Una contrapropuesta solo
+  existe con cliente con cuenta, así que desde la 2.5.1 resolverla no habilita
+  "Confirmar acuerdo y agendar": si el artista la acepta, el acuerdo queda
+  aprobado por el servidor; si envía otra propuesta o mantiene la suya, espera
+  la aceptación del cliente. El expediente lo avisa
   antes de abrir el diálogo y antes de reservar el turno, y la base lo rechaza
   con `42501` ("El cliente propuso cambios: acéptalos, envía otra propuesta o
   mantén la tuya antes de registrar el acuerdo."). Antes, registrar el acuerdo
@@ -100,12 +144,10 @@ acordó por fuera de la app.
 - La regla solo frena al artista que escribe desde el navegador. El servidor
   (aceptar la contrapropuesta, o el cliente que acepta la propuesta original)
   no pasa por ella.
-- **Pendiente de decisión del dueño.** Sin contrapropuesta pendiente, el
-  artista todavía puede registrar el acuerdo de una cotización cuyo cliente
-  tiene cuenta, sin que ese cliente lo apruebe en la app, y queda sellada como
-  aprobada por ambas partes. Si eso no debe pasar: extender la misma regla a
-  `old.client_user_id is not null` y quitar `client_approved` de las opciones
-  del artista cuando la cotización tiene cliente con cuenta.
+- **Turnos pedidos por el cliente.** Con cliente con cuenta, el artista
+  responde con su propuesta (ahí puede reservar el turno pedido) y el cliente la
+  acepta en la app. Ya no hay un "aceptar y registrar el acuerdo" de un solo
+  paso para esos clientes.
 
 ## Chat cerrado tras el rechazo
 
