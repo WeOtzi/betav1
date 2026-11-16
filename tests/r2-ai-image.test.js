@@ -455,6 +455,56 @@ test('timeout: un valor enorme se acota en vez de cortar al instante', async () 
     assert.ok(!warnings.includes('TimeoutOverflowWarning'), 'el temporizador nunca se arma con un valor fuera de rango');
 });
 
+test('proxy PHP: las rutas de imágenes esperan más que el servidor, y el resto sigue en 60 s (SCI-01, OAI-01)', () => {
+    // Antes: proxy 60 s para todo y servidor 120 s. Lo que tardaba 60-120 s se pagaba y se perdía.
+    const proxy = read('deployments', 'hostinger', 'proxy.php');
+    const pattern = proxy.match(/\$isAiImage = preg_match\('#(.+)#i', \$requestPath\) === 1;/);
+    assert.ok(pattern, 'el proxy reconoce las rutas de imágenes por su path');
+    const isAiImage = new RegExp(pattern[1], 'i');
+    const slowPaths = [...require('../lib/routes/ai-image').PATHS, '/api/quotations/ai-reference'];
+    for (const p of slowPaths) {
+        assert.match(read('lib', 'routes', p.includes('quotations') ? 'cot-form.js' : 'ai-image.js'), new RegExp(`'${p}'`), `${p} existe en el servidor`);
+        for (const variant of [p, `${p}/`, p.toUpperCase(), `/beta${p}`]) assert.ok(isAiImage.test(variant), variant);
+    }
+    for (const other of ['/', '/api/quotations/intake', '/api/quotations/ai-reference/x', '/api/quotations/ai-reference-x', '/api/ai/generate-image/x',
+        '/x/api/ai/generate-image', '/api/support/chat', '/api/ai', '/quotation']) {
+        assert.ok(!isAiImage.test(other), `${other} conserva la espera normal`);
+    }
+    assert.match(proxy, /\$requestPath = \(string\) parse_url\(\$requestUri, PHP_URL_PATH\);/, 'se compara el path, sin el query string');
+
+    const seconds = proxy.match(/\$timeoutSeconds = \$isAiImage \? (\d+) : (\d+);/);
+    assert.ok(seconds);
+    const [aiSeconds, restSeconds] = [Number(seconds[1]), Number(seconds[2])];
+    assert.equal(restSeconds, 60, 'el resto de los pedidos no cambia');
+    assert.ok(aiSeconds * 1000 >= aiImage.DEFAULT_TIMEOUT_MS + 20000,
+        `el proxy (${aiSeconds} s) espera al menos 20 s más que el servidor (${aiImage.DEFAULT_TIMEOUT_MS} ms): el 504 propio llega antes que el corte`);
+    assert.match(proxy, /CURLOPT_TIMEOUT => \$timeoutSeconds,/);
+    assert.doesNotMatch(proxy, /CURLOPT_TIMEOUT => \d/, 'sin un límite fijo para todas las rutas');
+    assert.match(proxy, /set_time_limit\(\$timeoutSeconds \+ \d+\)/);
+
+    // Si igual se vence, el navegador recibe el mismo 504 en JSON que da el servidor (los consumidores muestran data.error).
+    const timeoutError = require('../lib/routes/ai-image').ERRORS.timeout;
+    assert.deepEqual(timeoutError.slice(0, 2), [504, 'ai_timeout']);
+    assert.match(proxy, /if \(\$isAiImage && \$waitedOut\) \{[\s\S]*http_response_code\(504\);[\s\S]*'code' => 'ai_timeout',/);
+    assert.ok(proxy.includes(`'error' => '${timeoutError[2]}',`), 'mismo mensaje que el servidor');
+    assert.match(proxy, /header\('Content-Type: application\/json; charset=utf-8'\);/);
+    // Sin PHP en el entorno de tests: al menos que el archivo quede balanceado.
+    for (const [open, close] of [['(', ')'], ['[', ']'], ['{', '}']]) {
+        assert.equal(proxy.split(open).length, proxy.split(close).length, `${open}${close} balanceados`);
+    }
+
+    // La guía de despliegue lo pide como paso obligatorio del alta, con la alternativa de 55 s.
+    const deploy = read('deployments', 'DEPLOY.md');
+    const section = deploy.indexOf('## Variables de entorno · IA de imágenes (OpenAI)');
+    assert.ok(section > 0);
+    const alta = deploy.slice(deploy.indexOf('Alta (una sola vez):', section), deploy.indexOf('Notas:', section));
+    assert.match(alta, /\*\*Espera del proxy — obligatorio antes de cargar la clave\.\*\*/);
+    assert.match(alta, new RegExp(`espera ${aiSeconds} s solo en las tres rutas de imágenes`));
+    assert.match(alta, /se copia a mano/);
+    assert.match(alta, /`AI_IMAGE_TIMEOUT_MS=55000`/);
+    assert.match(read('.env.example'), new RegExp(`${aiSeconds} s con el proxy del\\n# repo`));
+});
+
 test('base64 inválido, imagen que no es imagen o demasiado grande: provider (502)', async () => {
     const run = (b64) => aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: async () => okReply(b64) });
     const html = Buffer.from('<html><script>alert(1)</script></html>').toString('base64');
