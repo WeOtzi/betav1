@@ -245,9 +245,10 @@ const GROUP_COLLAPSED_COUNT = 4;
 let openStyleGroup = 'tecnica';
 const expandedStyleGroups = new Set();
 
-// Size mapping for filter matching
+// Size mapping for filter matching. "Micro" (hasta 5 cm, ronda 2) entra en el
+// filtro "Pequeño": sin esto quedaba fuera de todos los filtros de tamaño.
 const SIZE_MAP = {
-    'small': ['pequeño', 'pequeno', 'small'],
+    'small': ['micro', 'pequeño', 'pequeno', 'small'],
     'medium': ['mediano', 'medium'],
     'large': ['grande', 'large', 'media_manga', 'media manga'],
     'xlarge': ['muy_grande', 'muy grande', 'manga_completa', 'manga completa', 'espalda_completa', 'espalda completa', 'pecho_completo', 'pecho completo', 'xlarge']
@@ -1464,6 +1465,8 @@ function sizeLabelFor(request) {
     if (/\(.+\)/.test(String(request.tattoo_size || ''))) return String(request.tattoo_size).trim();
     const raw = String(request.tattoo_size || '').toLowerCase().replace(/\s+/g, '_');
     if (!raw) return 'No especificado';
+    // "Micro" se filtra como "Pequeño", pero la ficha lo nombra tal cual.
+    if (raw === 'micro') return 'Micro (hasta 5 cm)';
     const key = Object.keys(SIZE_MAP).find(k =>
         SIZE_MAP[k].some(s => raw.includes(s.replace(/\s+/g, '_')) || raw.includes(s))
     );

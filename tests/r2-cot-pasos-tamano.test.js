@@ -192,3 +192,64 @@ test('manifiesto de assets: cubre exactamente las fotos que lee el código', () 
     assert.deepEqual([...paths].sort(), [...sizeImgs, ...zonePhotos].sort());
     assert.match(map, /var ASSET_BASE = '\/shared\/assets\/ronda2\/cot-pasos\/';/);
 });
+
+// REQ-03 (P12): "Micro" y los rangos del cotizador llegan también al
+// pre-cotizador y al filtro de tamaño del Job Board.
+test('pre-cotizador: ofrece Micro y los mismos rangos en cm que el cotizador', () => {
+    const ctx = wizard();
+    const shared = JSON.parse(JSON.stringify(ctx.WeotziQuotationShared.TATTOO_SIZE_OPTIONS));
+    const figma = JSON.parse(vm.runInContext('JSON.stringify(FIGMA_SIZE_OPTIONS)', ctx));
+    assert.equal(shared[0].label, 'Micro');
+    assert.equal(shared[0].subtitle, 'Hasta 5 cm');
+    assert.deepEqual(shared.map((o) => o.value),
+        ['micro', 'pequeño', 'mediano', 'grande', 'muy_grande', 'media_manga', 'manga_completa', 'espalda_completa', 'pecho_completo']);
+    // Un mismo tamaño no se describe con dos rangos distintos.
+    for (const value of ['micro', 'pequeño', 'mediano', 'grande', 'muy_grande']) {
+        assert.equal(shared.find((o) => o.value === value).subtitle, figma.find((o) => o.value === value).subtitle, value);
+    }
+    // Todo lo que ofrece el select lo entiende el estimador.
+    for (const option of shared) {
+        const key = estimator.normalizeText(option.value).replace(/\s+/g, '_');
+        assert.ok(estimator.SIZE_SESSION_RULES[key], `el estimador no conoce "${option.value}"`);
+    }
+    // pre-quote.js arma el select con esta lista ("Micro · Hasta 5 cm").
+    assert.ok(read('public', 'shared', 'js', 'pre-quote.js').includes('(shared.TATTOO_SIZE_OPTIONS || []).map('));
+});
+
+test('job board: una solicitud "Micro" entra en el filtro "Pequeño" y la ficha la nombra', () => {
+    const js = read('public', 'shared', 'js', 'job-board-feed.js');
+    const pick = (re) => { const m = js.match(re); assert.ok(m, String(re)); return m[0]; };
+    // El predicado del filtro de tamaño, tal como está en el archivo.
+    const predicate = "if (!validSizes.some(s => requestSize.includes(s.replace(/\\s+/g, '_')) || requestSize.includes(s))) return false;";
+    assert.ok(js.includes(predicate), 'el filtro sigue comparando así');
+    const context = vm.createContext({});
+    vm.runInContext([
+        pick(/const SIZE_MAP = \{[\s\S]*?\n\};/),
+        pick(/const SIZE_LABELS = \{[\s\S]*?\n\};/),
+        pick(/function toTitleCase\(str\) \{[\s\S]*?\n\}/),
+        pick(/function sizeLabelFor\(request\) \{[\s\S]*?\n\}/),
+        'function inFilter(size, tattooSize) {',
+        "    const requestSize = (tattooSize || '').toLowerCase().replace(/\\s+/g, '_');",
+        '    const validSizes = SIZE_MAP[size] || [];',
+        '    ' + predicate,
+        '    return true;',
+        '}',
+        'globalThis.api = { SIZE_MAP, inFilter, sizeLabelFor };'
+    ].join('\n'), context);
+    const { SIZE_MAP, inFilter, sizeLabelFor } = context.api;
+    assert.ok(Array.from(SIZE_MAP.small).includes('micro'));
+
+    // Ningún tamaño que guarda el cotizador queda fuera de los filtros.
+    const ctx = wizard();
+    const stored = JSON.parse(vm.runInContext('JSON.stringify(FIGMA_SIZE_OPTIONS.map((o) => toTitleCase(o.value)))', ctx));
+    const buckets = Object.fromEntries(stored.map((value) => [value, Object.keys(SIZE_MAP).filter((size) => inFilter(size, value))]));
+    for (const value of stored) assert.ok(buckets[value].length >= 1, `"${value}" no entra en ningún filtro de tamaño`);
+    assert.deepEqual(buckets.Micro, ['small']);
+    assert.deepEqual(buckets['Pequeño'], ['small']);
+    assert.deepEqual(buckets['Media Manga'], ['large']);
+    assert.deepEqual(buckets['Manga Completa'], ['xlarge']);
+
+    assert.equal(sizeLabelFor({ tattoo_size: 'Micro' }), 'Micro (hasta 5 cm)');
+    assert.equal(sizeLabelFor({ tattoo_size: 'Pequeño' }), 'Pequeño (menos de 10 cm)');
+    assert.equal(sizeLabelFor({ tattoo_size: '' }), 'No especificado');
+});
