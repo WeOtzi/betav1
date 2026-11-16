@@ -299,6 +299,54 @@ test('P27: sedes del artista — estudios con todas sus sedes activas, lugares v
     assert.deepEqual(manager, []);
 });
 
+// REQ-02: las sedes de un mismo estudio en la misma ciudad son opciones distintas.
+test('P27: un estudio con varias sedes en la misma ciudad ofrece todas, cada una con su etiqueta', () => {
+    const studios = [{ id: 's1', name: 'Palermo Tattoo Club', city: 'Buenos Aires', country: 'Argentina' }];
+    const studioLocations = [
+        { id: 'l1', studio_id: 's1', label: 'Sede principal', locality: 'Palermo Soho', city: 'Buenos Aires', country: 'Argentina', is_primary: true, is_active: true, sort_order: 0 },
+        { id: 'l2', studio_id: 's1', label: 'Sucursal San Telmo', locality: 'San Telmo', city: 'Buenos Aires', country: 'Argentina', is_active: true, sort_order: 1 },
+        { id: 'l3', studio_id: 's1', label: 'Sucursal Recoleta', locality: 'Recoleta', city: 'Buenos Aires', country: 'Argentina', is_active: true, sort_order: 2 }
+    ];
+    const options = cotForm.buildLocationOptions({
+        artist: { studio_id: null }, studios, studioLocations,
+        memberships: [{ studio_id: 's1', location_id: null, role: 'resident' }],
+        // Un lugar suelto con el mismo estudio y ciudad sigue sin repetirse.
+        tattooLocations: [{ id: 't1', period_type: 'current', studio_name: 'Palermo Tattoo Club', city: 'Buenos Aires', agenda_status: 'open' }],
+        trips: [{ id: 'v1', share_enabled: true, status: 'confirmado', city: 'Buenos Aires', country: 'Argentina', start_date: '2027-02-01', end_date: '2027-02-10', event_name: 'Palermo Tattoo Club' }]
+    }, { today: '2026-11-15' });
+    assert.deepEqual(options.map((o) => [o.key, o.label]), [
+        ['studio_location:l1', 'Palermo Tattoo Club · Sede principal · Buenos Aires'],
+        ['studio_location:l2', 'Palermo Tattoo Club · Sucursal San Telmo · Buenos Aires'],
+        ['studio_location:l3', 'Palermo Tattoo Club · Sucursal Recoleta · Buenos Aires'],
+        ['trip:v1', 'Palermo Tattoo Club · Buenos Aires · Argentina']
+    ]);
+    assert.equal(new Set(options.map((o) => o.label)).size, options.length, 'ninguna etiqueta repetida');
+    assert.ok(options.length > 1, 'el cotizador muestra el selector (script.js lo pinta con más de una opción)');
+    // Cada sede guarda su propio id: es lo que lee el frente sesiones al agendar.
+    assert.equal(cotForm.preferredLocationColumns(cotForm.findLocationOption(options, 'studio_location:l3')).preferred_location_ref, 'l3');
+
+    // Dos sedes con la misma etiqueta y ciudad: se distinguen por el barrio.
+    const twins = cotForm.buildLocationOptions({
+        artist: { studio_id: 's1' }, studios,
+        studioLocations: [
+            { id: 'a', studio_id: 's1', label: 'Sede', locality: 'Almagro', city: 'Buenos Aires', is_primary: true, is_active: true },
+            { id: 'b', studio_id: 's1', label: 'Sede', locality: 'Palermo', city: 'Buenos Aires', is_active: true },
+            { id: 'c', studio_id: 's1', label: 'Sede', locality: null, city: 'Pilar', is_active: true }
+        ]
+    }, { today: '2026-11-15' });
+    assert.deepEqual(twins.map((o) => o.label), [
+        'Palermo Tattoo Club · Sede · Almagro · Buenos Aires',
+        'Palermo Tattoo Club · Sede · Palermo · Buenos Aires',
+        'Palermo Tattoo Club · Sede · Pilar'
+    ]);
+    // La misma sede por dos membresías (residente + invitado con fechas) no se duplica.
+    const twice = cotForm.buildLocationOptions({
+        artist: {}, studios, studioLocations,
+        memberships: [{ studio_id: 's1', location_id: null, role: 'resident' }, { studio_id: 's1', location_id: 'l2', role: 'guest', started_at: '2027-01-05T00:00:00Z', ends_on: '2027-01-20' }]
+    }, { today: '2026-11-15' });
+    assert.deepEqual(twice.map((o) => o.key), ['studio_location:l1', 'studio_location:l2', 'studio_location:l3']);
+});
+
 test('P27: el servidor guarda la sede de SU lista (la llave del navegador no trae datos)', () => {
     const options = cotForm.buildLocationOptions(SOURCES, { today: '2026-11-15' });
     const chosen = cotForm.findLocationOption(options, 'studio_location:l2');
