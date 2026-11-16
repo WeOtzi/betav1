@@ -154,6 +154,63 @@ test('EM-N3: las preferencias del cliente se respetan (y el artista sigue recibi
     assert.equal(prefs.resolvePreference({ postulaciones: { email: false } }, 'postulaciones', 'email', { defaults: prefs.CLIENT_NOTIF_DEFAULTS }), false);
 });
 
+// EP-03: los correos nuevos de cotización (negociación, propuesta reenviada y
+// hoja vinculada) llevan el pie "Gestionar notificaciones": respetan el toggle.
+test('EP-03: "Cotizaciones → Email" apagado silencia los correos nuevos de negociación', async () => {
+    const tables = (email) => ({
+        artists_db: [{ user_id: 'artist-1', email: 'mateo.artista@example.com' }],
+        clients_db: [{ user_id: 'client-1', email: 'lucia.cliente@example.com' }],
+        user_preferences: [
+            { user_id: 'artist-1', notification_prefs: { cotizaciones: { email, push: true }, mensajes: { email: true } } },
+            { user_id: 'client-1', notification_prefs: { cotizaciones: { email, push: true }, mensajes: { email: true } } }
+        ]
+    });
+    const artist = { role: 'artist', user_id: 'artist-1', email: 'mateo.artista@example.com' };
+    const client = { role: 'client', user_id: 'client-1', email: 'lucia.cliente@example.com' };
+    const toArtist = ['negotiation_counter_proposed', 'negotiation_amendment_proposed', 'negotiation_amendment_accepted',
+        'negotiation_amendment_rejected', 'negotiation_proposal_withdrawn', 'shared_quotation_linked'];
+    const toClient = ['artist_updated_quotation_proposal', 'negotiation_counter_accepted', 'negotiation_counter_declined',
+        'negotiation_amendment_proposed', 'negotiation_amendment_accepted', 'negotiation_amendment_rejected', 'negotiation_proposal_withdrawn'];
+
+    const off = { query: fakeQuery(tables(false)) };
+    const on = { query: fakeQuery(tables(true)) };
+    for (const eventId of toArtist) {
+        assert.deepEqual(await prefs.allowRecipient(eventId, artist, off), { allowed: false, kind: 'cotizaciones' }, `${eventId} → artista`);
+        assert.equal((await prefs.allowRecipient(eventId, artist, on)).allowed, true, `${eventId} → artista con el toggle encendido`);
+    }
+    for (const eventId of toClient) {
+        assert.deepEqual(await prefs.allowRecipient(eventId, client, off), { allowed: false, kind: 'cotizaciones' }, `${eventId} → cliente`);
+        assert.equal((await prefs.allowRecipient(eventId, client, on)).allowed, true, `${eventId} → cliente con el toggle encendido`);
+    }
+
+    // Camino de sendEmail con un solo destinatario (recipient_role en el payload).
+    const single = (eventId, who) => prefs.applyEmailPreferences(eventId,
+        { recipient_role: who.role, recipient_email: who.email, recipient_user_id: who.user_id }, off);
+    assert.deepEqual(await single('negotiation_counter_proposed', artist), { skip: true, payload: { recipient_role: 'artist', recipient_email: artist.email, recipient_user_id: 'artist-1' }, kind: 'cotizaciones', reason: 'notification_pref' });
+    assert.equal((await single('negotiation_amendment_proposed', client)).skip, true);
+    assert.equal((await single('artist_updated_quotation_proposal', client)).skip, true);
+    assert.equal((await single('shared_quotation_linked', artist)).skip, true);
+    assert.equal((await prefs.applyEmailPreferences('negotiation_counter_accepted',
+        { recipient_role: 'client', recipient_email: client.email, recipient_user_id: 'client-1' }, on)).skip, false);
+
+    // Cada correo de categoría "quotations" de estos frentes tiene su tipo para el rol que lo recibe:
+    // si alguien suma uno nuevo con el pie de preferencias, tiene que entrar en la matriz.
+    const { getSpec } = require('../lib/email-render');
+    for (const file of ['negociacion', 'cot-respuesta', 'cot-detalle']) {
+        for (const eventId of Object.keys(require(`../services/email-events/${file}`))) {
+            const spec = getSpec(eventId);
+            assert.equal(spec.category, 'quotations', eventId);
+            const roles = ['artist', 'client'].filter((role) => prefs.kindForRecipient(eventId, role) === 'cotizaciones');
+            assert.ok(roles.length >= 1, `${eventId}: sin tipo en la matriz de preferencias`);
+            if (spec.audience === 'artist' || spec.audience === 'client') assert.ok(roles.includes(spec.audience), `${eventId}: falta el rol ${spec.audience}`);
+            else assert.deepEqual(roles, ['artist', 'client'], `${eventId}: lo recibe cualquiera de las dos partes`);
+        }
+    }
+    // Las confirmaciones transaccionales siguen saliendo siempre.
+    assert.deepEqual(await prefs.allowRecipient('client_quotation_submitted', client, off), { allowed: true, kind: null });
+    assert.deepEqual(await prefs.allowRecipient('session_confirmation_requested', client, off), { allowed: true, kind: null });
+});
+
 test('inbox: avisa al otro participante con ventana de 15 min y no si ya leyó', async () => {
     const tables = {
         inbox_messages: { id: '4a1f2c3d-5e6f-4a7b-8c9d-0e1f2a3b4c5d', thread_id: 'th-1', sender_user_id: 'artist-1', body: 'Hola <b>Estudio</b>', created_at: '2026-11-14T12:00:00Z' },
