@@ -1154,6 +1154,8 @@
                 }));
                 await reloadAll();
                 showToast('Respuesta enviada al cliente.');
+                // Feedback de la beta: encuesta corta tras enviar la propuesta (sale una sola vez).
+                if (window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('propuesta_enviada', { delay: 2000 });
             },
         });
     }
@@ -1376,6 +1378,8 @@
                     ? 'Acuerdo confirmado y primera sesión agendada. No pudimos guardar el lugar: elígelo desde la sesión.'
                     : 'Acuerdo confirmado y primera sesión agendada.';
                 showToast(edit ? 'Acuerdo actualizado.' : done, edit ? {} : { link: { href: calendarUrl(first, { session: created && created.id, quote: true }), label: 'Ver en el calendario →' } });
+                // Feedback de la beta: encuesta de la primera sesión agendada (sale una sola vez por persona).
+                if (!edit && window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('primera_sesion_agendada', { delay: 2000 });
             },
         });
         if (askPlace) place = flow.mountLocation(overlay.querySelector('[data-ws-location-slot]'), { quoteId: q.quote_id });
@@ -1523,6 +1527,8 @@
                 noticeSession('session_scheduled', created && created.id);
                 await reloadAll();
                 showToast(awaitsClient ? 'Sesión propuesta. Te avisamos cuando el cliente la confirme.' : 'Sesión agendada.', { link: { href: calendarUrl(date, { session: created && created.id, quote: true }), label: 'Ver en el calendario →' } });
+                // Feedback de la beta: encuesta de la primera sesión agendada (sale una sola vez por persona).
+                if (window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('primera_sesion_agendada', { delay: 2000 });
             },
         });
         if (flow) place = flow.mountLocation(overlay.querySelector('[data-ws-location-slot]'), { quoteId: q.quote_id });

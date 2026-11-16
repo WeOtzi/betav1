@@ -6893,6 +6893,7 @@ require('./lib/routes/verif-artista').register(app, { resolveBearerUser, getActi
 require('./lib/routes/verif-estudio').register(app); // verificación de estudios
 require('./lib/routes/denuncias').register(app); // ── denuncias (ronda 2): denuncias → tickets de soporte
 require('./lib/routes/soporte-disputas').register(app); // ── disputas (ronda 2 · P28): cola de soporte y cierre de las disputas de sesión
+require('./lib/routes/feedback').register(app); // ── feedback de la beta: botón "Comentarios", encuestas cortas y cola de soporte
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {

@@ -303,6 +303,29 @@
         const done = decision === 'accept' ? `Aprobaste a ${name}: ya está en tu equipo.` : `Rechazaste la solicitud de ${name}.`;
         status('success', done + (mailed ? ' Le avisamos por email.' : ' La decisión quedó guardada; no pudimos confirmar el email.'));
         await Promise.all([loadRequests(), loadMembers()]);
+        if (decision === 'accept') askFirstArtistSurvey();
+    }
+
+    // Feedback de la beta: encuesta del primer tatuador sumado al equipo. Sale
+    // una sola vez por persona (wo-feedback.js lo recuerda en el servidor).
+    function askFirstArtistSurvey() {
+        if (window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('primer_tatuador_equipo', { delay: 1500 });
+    }
+
+    // La invitación la acepta el artista desde su cuenta: el estudio lo nota
+    // cuando el equipo pasa de 0 a 1 o más tatuadores activos (sin contar al dueño).
+    function trackTeamGrowth() {
+        const st = studio();
+        if (!st || !st.id) return;
+        const active = state.members.filter(m => m.status === 'active'
+            && (m.artist_user_id || (m.artists_db || {}).user_id) !== st.user_id).length;
+        const key = 'wo_fb_team:' + st.id;
+        let previous = null;
+        try {
+            previous = window.localStorage.getItem(key);
+            window.localStorage.setItem(key, String(active));
+        } catch (_) { /* sin almacenamiento: queda la aprobación de solicitudes */ }
+        if (previous === '0' && active > 0) askFirstArtistSurvey();
     }
 
     function avatar(a) {
@@ -326,6 +349,7 @@
         state.members = rows || [];
         state.ctx.publishSummary && state.ctx.publishSummary('roster', 'ready', state.members);
         renderMembers();
+        trackTeamGrowth();
     }
 
     function visibleMembers() {

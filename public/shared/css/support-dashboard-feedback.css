@@ -1,0 +1,54 @@
+/* ============================================================================
+   Support Dashboard · pestaña FEEDBACK (beta cerrada)
+   Estilos propios de public/shared/js/support-dashboard-feedback.js. La tabla,
+   el buscador, el drawer y los botones reutilizan support-dashboard-reports.css
+   (rpq-*); aquí van el resumen, las columnas y las etiquetas de estado/tipo.
+   ========================================================================== */
+
+.fbq-summary{padding:16px 0 4px}
+.fbq-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.fbq-card{padding:14px 16px;border:2px solid currentColor;min-width:0}
+.fbq-card-title{margin:0 0 8px;font-family:'Space Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.fbq-big{margin:0;font-family:'Space Mono',ui-monospace,monospace;font-size:32px;font-weight:700;line-height:1.1}
+.fbq-counts{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.fbq-counts li{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.fbq-counts strong{font-family:'Space Mono',ui-monospace,monospace}
+
+.fbq-surveys{margin-top:12px;overflow-x:auto}
+.fbq-table{width:100%;border-collapse:collapse;font-size:14px}
+.fbq-table caption{text-align:left;padding:0 0 8px;font-family:'Space Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.fbq-table th,.fbq-table td{padding:8px 12px;border-bottom:1px solid rgba(128,128,128,.45);text-align:left;vertical-align:top}
+.fbq-table thead th{border-bottom:2px solid currentColor;font-family:'Space Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.fbq-table tbody th{font-weight:700}
+.fbq-table tbody th .rpq-muted{display:block;font-weight:400}
+.fbq-table td{font-family:'Space Mono',ui-monospace,monospace;white-space:nowrap}
+
+.fbq-toolbar .fbq-date{display:inline-flex;align-items:center;gap:6px;font-family:'Space Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.fbq-toolbar .fbq-date .rpq-input{min-width:0;width:auto}
+
+.fbq-head,.fbq-row{grid-template-columns:150px 130px minmax(0,1.1fr) minmax(0,2fr) minmax(0,1fr) 120px}
+.fbq-msg{overflow-wrap:anywhere}
+
+.fbq-badge,.fbq-kind{display:inline-block;padding:2px 8px;border:2px solid currentColor;font-family:'Space Mono',ui-monospace,monospace;
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;line-height:1.4;white-space:nowrap}
+.fbq-badge--new{background:var(--yellow-300,#F2B519);border-color:var(--yellow-300,#F2B519);color:#24211D}
+.fbq-badge--seen{background:transparent}
+.fbq-badge--in_progress{background:var(--blue-400,#0055FF);border-color:var(--blue-400,#0055FF);color:#FCFCFC}
+.fbq-badge--done{background:var(--system-success,#1E9F74);border-color:var(--system-success,#1E9F74);color:#FCFCFC}
+.fbq-badge--wontfix{opacity:.65}
+.fbq-kind{border-width:1px;font-weight:600}
+.fbq-kind--bug{border-color:var(--red-300,#E63A1F);color:var(--red-300,#E63A1F)}
+.fbq-row .rpq-cell .rpq-muted{display:block}
+
+.fbq-pager{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:16px 0}
+.fbq-pager .rpq-btn:disabled{opacity:.45;cursor:not-allowed}
+
+@media (max-width:900px){
+  .fbq-head{display:none}
+  .fbq-row{display:flex;flex-wrap:wrap;gap:8px 16px;padding:16px 12px}
+  .fbq-row>.fbq-msg{flex:1 1 100%;order:5}
+}
+@media (max-width:600px){
+  .fbq-pager{justify-content:space-between}
+  .fbq-toolbar .fbq-date{flex:1 1 140px}
+}
