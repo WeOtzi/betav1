@@ -94,18 +94,24 @@
     function statusSelect(quote) {
         const options = quote.is_archived
             ? [{ value: quote.quote_status, label: VM.statusView(quote.quote_status).label }]
-            : VM.statusOptions(quote.quote_status);
+            : (VM.statusOptionsFor ? VM.statusOptionsFor(quote) : VM.statusOptions(quote.quote_status));
         const tone = VM.statusView(quote.quote_status).tone;
         return `
             <label class="qs-select-field">
                 <span class="qs-select-label">Estado</span>
                 <span class="qs-select qs-select--${esc(tone)}">
-                    <select id="qs-status" ${options.length < 2 ? 'disabled' : ''} aria-label="Estado de la cotización">
+                    <select id="qs-status" ${options.length < 2 ? 'disabled' : ''} aria-label="Estado de la cotización"${approvalNote(quote) ? ' aria-describedby="qs-status-note"' : ''}>
                         ${options.map((o) => `<option value="${esc(o.value)}"${o.value === quote.quote_status ? ' selected' : ''}>${esc(o.label)}</option>`).join('')}
                     </select>
                     <i data-wo-icon="chevron-down" aria-hidden="true"></i>
                 </span>
             </label>`;
+    }
+
+    // REQ-13 B: sin la opción «aprobada» en el selector, la lista dice por qué.
+    function approvalNote(quote) {
+        if (!quote || quote.is_archived || !VM.needsClientApproval || !VM.needsClientApproval(quote)) return '';
+        return '<p class="qs-muted qs-approval-note" id="qs-status-note">El cliente tiene cuenta: el acuerdo queda aprobado cuando acepta tu propuesta en la app.</p>';
     }
 
     function prioritySelect(quote) {
@@ -215,6 +221,7 @@
                         ${statusSelect(quote)}
                         ${prioritySelect(quote)}
                     </div>
+                    ${approvalNote(quote)}
                 </div>
 
                 <div class="qs-body">
@@ -436,6 +443,11 @@
     async function onStatusChange(value) {
         const quote = current;
         if (!quote || value === quote.quote_status) return;
+        // REQ-13 B: con cliente con cuenta, el acuerdo lo aprueba el cliente en la app.
+        if (value === 'client_approved' && VM.needsClientApproval && VM.needsClientApproval(quote)) {
+            page().toast(VM.CLIENT_APPROVAL_MESSAGE, 'error');
+            return render(false);
+        }
         if (!VM.canTransition(quote.quote_status, value)) {
             page().toast('Ese cambio de estado no está permitido.', 'error');
             return render(false);

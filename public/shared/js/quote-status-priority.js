@@ -7,8 +7,9 @@
  * ({ quote, stage, readOnly, user }).
  *
  *   Estado      selector con el estado actual y SOLO las transiciones que el
- *               artista puede hacer (WoQuotationsViewModel.statusOptions, que
- *               replica el trigger vivo fn_quotation_status_change). El cambio
+ *               artista puede hacer (WoQuotationsViewModel.statusOptionsFor, que
+ *               replica el trigger vivo fn_quotation_status_change; con cuenta
+ *               de cliente vinculada no ofrece client_approved). El cambio
  *               lo aplica WoQuotationDetailActions.changeStatus: las
  *               transiciones que piden datos abren su diálogo (propuesta,
  *               acuerdo) y las que avisan al cliente pasan por su acción.
@@ -52,7 +53,8 @@
     function statusOptions(quote) {
         var vm = VM();
         var current = quote.quote_status;
-        var list = vm ? vm.statusOptions(current).map(function (o) { return o.value; }) : [current];
+        // REQ-13 B: con cliente con cuenta no se ofrece "aprobada" (la aprueba el cliente).
+        var list = vm ? (vm.statusOptionsFor ? vm.statusOptionsFor(quote) : vm.statusOptions(current)).map(function (o) { return o.value; }) : [current];
         if (list.indexOf(current) === -1) list.unshift(current);
         return list.map(function (value) {
             var label = value === current ? (STATUS_LABELS[value] || value) : (TARGET_LABELS[value] || STATUS_LABELS[value] || value);
@@ -71,7 +73,13 @@
         if (detail.readOnly) return 'Vista de estado simulada: los cambios están deshabilitados.';
         if (detail.stage === 'dispute') return 'Hay una disputa abierta: el estado no cambia hasta que se resuelva.';
         if (model && model.approvedByBoth(quote)) return 'Aprobada por ambas partes: el saldo acordado ya está activo.';
-        if (quote.quote_status === 'responded') return 'Puedes modificar la propuesta mientras no esté aprobada por ambas partes. El saldo acordado se activa solo cuando el cliente la aprueba.';
+        if (quote.quote_status === 'responded') {
+            var vm = VM();
+            // REQ-13 B: con cuenta, aprueba el cliente en la app; sin cuenta, el artista registra el acuerdo.
+            return vm && vm.needsClientApproval && vm.needsClientApproval(quote)
+                ? 'Puedes modificar la propuesta mientras el cliente no la acepte. El acuerdo y el saldo acordado se activan cuando el cliente la acepta en la app.'
+                : 'Puedes modificar la propuesta mientras no esté aprobada. El cliente no tiene cuenta: cuando cierren el trato, registra el acuerdo con «Agendar».';
+        }
         if (quote.quote_status === 'pending') return 'Responde con tu presupuesto y las fechas que ofreces para que el cliente pueda aprobar la propuesta.';
         // P23: el rechazo del cliente es definitivo, no se ofrece volver a cotizar.
         if (quote.quote_status === 'client_rejected') return 'El cliente rechazó la propuesta y la cotización quedó finalizada.';

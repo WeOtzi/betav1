@@ -426,6 +426,25 @@
             && (DB_STATUS_TRANSITIONS[from] || []).indexOf(to) !== -1;
     }
 
+    // REQ-13 (parte B, decisión del dueño 16 nov 2026): si el cliente tiene cuenta, el
+    // acuerdo queda aprobado cuando ÉL acepta la propuesta en la app (o cuando el artista
+    // acepta los cambios que propuso el cliente). El artista ya no lo registra por su
+    // cuenta: solo así "aprobada por ambas partes" es cierto. "Tener cuenta" es tener
+    // client_user_id cargado, sea cual sea el origen: sin vínculo (de invitado, o manual
+    // cuyo correo no es de un cliente registrado) el artista lo sigue registrando como
+    // siempre; una manual creada con el correo de un cliente registrado nace vinculada
+    // (create_manual_quotation) y también espera al cliente.
+    // La base aplica la misma regla (negociacion_quotation_guard, 20261117100000).
+    var CLIENT_APPROVAL_MESSAGE = 'El cliente tiene cuenta en We Ötzi: el acuerdo queda aprobado cuando acepta tu propuesta en la app. Pídele que la acepte desde su panel.';
+    function needsClientApproval(quote) {
+        return !!(quote && quote.quote_status === 'responded' && quote.client_user_id);
+    }
+    function canTransitionFor(quote, to) {
+        if (!quote) return false;
+        if (to === 'client_approved' && needsClientApproval(quote)) return false;
+        return canTransition(quote.quote_status, to);
+    }
+
     var RESPOND_NEEDS_DIALOG = true;
 
     // URL del detalle con el diálogo "Aceptar y enviar presupuesto" abierto.
@@ -451,6 +470,14 @@
         var list = [status].concat(STATUS_TRANSITIONS[status] || []);
         return list.filter(function (v, i) { return v && list.indexOf(v) === i; })
             .map(function (value) { return { value: value, label: statusView(value).label }; });
+    }
+
+    // Igual que statusOptions, pero para una cotización concreta: con cliente con cuenta
+    // no se ofrece "aprobada" (la aprueba el cliente). Ver needsClientApproval.
+    function statusOptionsFor(quote) {
+        var list = statusOptions(quote && quote.quote_status);
+        if (!needsClientApproval(quote)) return list;
+        return list.filter(function (o) { return o.value !== 'client_approved'; });
     }
 
     // Acciones del pie del resumen según el estado (equivalen a las del detalle).
@@ -528,6 +555,9 @@
         expiryEnabled: expiryEnabled,
         expirySummary: expirySummary,
         canTransition: canTransition,
+        canTransitionFor: canTransitionFor,
+        needsClientApproval: needsClientApproval,
+        CLIENT_APPROVAL_MESSAGE: CLIENT_APPROVAL_MESSAGE,
         respondUrl: respondUrl,
         agreementUrl: agreementUrl,
         dialogUrlFor: dialogUrlFor,
@@ -557,6 +587,7 @@
         timelineSteps: timelineSteps,
         stageBadge: stageBadge,
         statusOptions: statusOptions,
+        statusOptionsFor: statusOptionsFor,
         summaryActions: summaryActions,
         amountEntry: amountEntry,
         heroCopy: heroCopy,

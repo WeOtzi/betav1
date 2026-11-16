@@ -2900,6 +2900,7 @@ html.qs-open { overflow: hidden; }
 }
 
 .qs-selects { display: flex; gap: calc(var(--space-2) + 2px); margin-top: calc(var(--space-2) + 2px); }
+.qs-controls .qs-approval-note { margin-top: var(--space-2); color: var(--text-muted); }
 
 .qs-select-field { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 
