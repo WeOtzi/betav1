@@ -870,3 +870,25 @@ test('textos nuevos en español neutro (tuteo, sin voseo)', () => {
     const routes = read('lib', 'routes', 'perfil.js');
     for (const msg of routes.match(/error: '[^']+'/g) || []) assert.doesNotMatch(msg, voseo, msg);
 });
+
+test('despliegue: el correo Most Wanted nace apagado y la guía dice cuándo encenderlo (EP-14)', async () => {
+    const env = read('.env.example');
+    assert.match(env, /^MOST_WANTED_EMAILS=off$/m, 'el ejemplo lo trae apagado');
+    assert.match(env, /^MOST_WANTED_INTERVAL_HOURS=12$/m);
+    // El valor del ejemplo apaga de verdad el aviso y no el cálculo de la insignia.
+    const value = env.match(/^MOST_WANTED_EMAILS=(.*)$/m)[1];
+    const muted = fakeTrending();
+    const off = createProfileRoutes({ publicDir, env: { ...ENV, MOST_WANTED_EMAILS: value }, repo: fakeRepo([ARTIST]), trending: muted, sendEmail: async () => { throw new Error('no debería enviarse'); }, log: quiet });
+    assert.equal(await off.notifyPendingAwards(), 0);
+    assert.deepEqual(muted.calls.claimed, [], 'tampoco toma el aviso: al encenderlo, sale');
+    assert.equal(mostWantedIntervalMs({ MOST_WANTED_INTERVAL_HOURS: env.match(/^MOST_WANTED_INTERVAL_HOURS=(.*)$/m)[1] }), 12 * 60 * 60 * 1000);
+    const deploy = read('deployments', 'DEPLOY.md');
+    const at = deploy.indexOf('### Correo "Tu perfil es Most Wanted" (EP-14)');
+    assert.ok(at > deploy.indexOf('## Ronda 2 · orden de despliegue y migraciones'), 'va en la sección de la ronda 2');
+    const section = deploy.slice(at, deploy.indexOf('\n---\n', at));
+    assert.match(section, /MOST_WANTED_EMAILS=off/);
+    assert.match(section, /20261116180000_perfil_insignias_most_wanted\.sql/);
+    assert.match(section, /from public\.artist_trend_scores\s+where most_wanted;/);
+    assert.match(section, /artist_most_wanted_awarded/);
+    assert.match(section, /\/api\/perfil\/most-wanted\/recalculate/);
+});

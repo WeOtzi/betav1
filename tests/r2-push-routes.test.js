@@ -294,6 +294,30 @@ test('documentación: claves VAPID en .env.example y DEPLOY.md, con el comando p
     assert.doesNotMatch(script, /writeFile/, 'la clave privada no se guarda en ningún archivo');
 });
 
+test('despliegue: el push:false que 2.4.0 guardaba en la matriz del cliente se limpia con el paso de la guía (EP-13)', () => {
+    const prefs = require('../lib/notification-prefs');
+    const client = { defaults: prefs.CLIENT_NOTIF_DEFAULTS };
+    // Lo que dejaba 2.4.0 al tocar un toggle de Email: push:false en los tres eventos.
+    const legacy = { mensajes: { email: true, push: false }, cotizaciones: { email: false, push: false }, postulaciones: { email: true, push: false } };
+    for (const kind of Object.keys(legacy)) assert.equal(prefs.resolvePreference(legacy, kind, 'push', client), false, `${kind}: el false heredado manda`);
+    // El paso de la guía quita solo esa clave: vuelve el valor por defecto y el Email queda igual.
+    const cleaned = Object.fromEntries(Object.entries(legacy).map(([kind, row]) => [kind, { email: row.email }]));
+    for (const kind of Object.keys(cleaned)) assert.equal(prefs.resolvePreference(cleaned, kind, 'push', client), true, kind);
+    assert.equal(prefs.resolvePreference(cleaned, 'cotizaciones', 'email', client), false);
+
+    const deploy = read('deployments', 'DEPLOY.md');
+    const at = deploy.indexOf('### Avisos push heredados de 2.4.0 en la matriz del cliente (EP-13)');
+    assert.ok(at > deploy.indexOf('## Ronda 2 · orden de despliegue y migraciones'), 'va en la sección de la ronda 2');
+    const section = deploy.slice(at, deploy.indexOf('\n### ', at + 5));
+    for (const kind of Object.keys(legacy)) {
+        assert.ok(section.includes(`(up.notification_prefs #>> '{${kind},push}') = 'false'`), `cuenta ${kind}`);
+        assert.ok(section.includes(`#- '{${kind},push}'`), `limpia ${kind}`);
+    }
+    assert.match(section, /join public\.clients_db c on c\.user_id = up\.user_id/);
+    assert.match(section, /up\.updated_at < '<fecha y hora del deploy/);
+    assert.match(section, /begin; … rollback;/);
+});
+
 test('los textos nuevos del servidor van en español neutro (sin voseo)', () => {
     const voseo = /\b(tenés|querés|podés|sabés|hacé|probá|activá|iniciá|ingresá|revisá|respondé|elegí|mirá|volvé|permití|agregá|intentá|esperá|contanos|escribinos|avisanos)\b/i;
     for (const file of [['lib', 'routes', 'push.js'], ['lib', 'push-dispatch.js'], ['lib', 'web-push.js'], ['lib', 'repos', 'push.js'], ['scripts', 'generate-vapid-keys.js']]) {

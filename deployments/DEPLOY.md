@@ -470,6 +470,89 @@ la API. Los tokens de sesión que llegan por la dirección quedan en la misma
 fila, que sí se vacía; el resto no se revisó entrada por entrada. Si se quiere
 borrar también, es vaciar `log_data` de las filas anteriores al deploy.
 
+### Avisos push heredados de 2.4.0 en la matriz del cliente (EP-13)
+
+En 2.4.0 el panel del cliente guardaba `push: false` en los tres eventos de su
+matriz (mensajes, cotizaciones, postulaciones) cada vez que tocaba un toggle de
+Email, porque el push todavía no existía. El código nuevo lee ese `false` como
+una elección de la persona: ese cliente no recibiría avisos dentro de la app ni
+push. Al 2026-11-16 no hay ninguna fila así en la base viva (5 clientes con
+preferencias guardadas, 0 con `push: false`); solo aparece si alguien guarda la
+matriz en producción entre hoy y el deploy.
+
+1. **Justo antes de publicar el código**, contar en `flbgmlvfiejfttlawnfu`:
+
+   ```sql
+   select count(*)
+     from public.user_preferences up
+     join public.clients_db c on c.user_id = up.user_id
+    where (up.notification_prefs #>> '{mensajes,push}') = 'false'
+       or (up.notification_prefs #>> '{cotizaciones,push}') = 'false'
+       or (up.notification_prefs #>> '{postulaciones,push}') = 'false';
+   ```
+
+2. Si da 0, no hay nada que hacer.
+3. Si da más de 0, limpiar el valor heredado **en la misma ventana del deploy**
+   (después, un `false` puede ser alguien que apagó el push a propósito con la
+   matriz nueva). Reemplazar la fecha por la hora en que quedó sirviendo el código
+   nuevo y probarlo antes dentro de `begin; … rollback;`:
+
+   ```sql
+   update public.user_preferences up
+      set notification_prefs = up.notification_prefs
+            #- '{mensajes,push}' #- '{cotizaciones,push}' #- '{postulaciones,push}'
+     from public.clients_db c
+    where c.user_id = up.user_id
+      and up.updated_at < '<fecha y hora del deploy, con zona>'
+      and ((up.notification_prefs #>> '{mensajes,push}') = 'false'
+        or (up.notification_prefs #>> '{cotizaciones,push}') = 'false'
+        or (up.notification_prefs #>> '{postulaciones,push}') = 'false')
+      and not exists (select 1 from public.artists_db a where a.user_id = up.user_id);
+   ```
+
+   Quita solo la clave `push` de esos tres eventos: el Email y el resto de las
+   preferencias quedan igual, y sin la clave vale el valor por defecto (encendido).
+   No toca a quien además tiene perfil de artista: `mensajes` y `cotizaciones` se
+   comparten con la matriz del artista, que en 2.4.0 ya dejaba apagar el Push a
+   mano. Esas filas, si las hay, se revisan una por una.
+4. Comprobar: el conteo del paso 1 da 0 (o solo las filas de artistas que se
+   dejaron a propósito).
+
+### Correo "Tu perfil es Most Wanted" (EP-14) — decisión del dueño antes de encenderlo
+
+Con la migración `20261116180000_perfil_insignias_most_wanted.sql` aplicada, el
+servidor recalcula la insignia **a los 3 minutos de cada arranque** y después cada
+`MOST_WANTED_INTERVAL_HOURS` (12 por defecto). A cada ganador nuevo le manda el
+correo `artist_most_wanted_awarded`, salvo `MOST_WANTED_EMAILS=off`. El umbral es
+bajo para una beta cerrada (puntaje de 12 o más con 2 señales: 2 cotizaciones y 1
+visita ya dan 13) y el correo es de la cuenta: no pasa por la matriz de
+notificaciones, así que el artista no lo puede silenciar.
+
+1. **Antes del primer arranque con esa migración aplicada**, cargar en el `.env`
+   del servidor `MOST_WANTED_EMAILS=off` y reiniciar PM2 con `--update-env`. Como
+   en esta ronda el código va primero y las migraciones después, lo más simple es
+   cargarla antes de desplegar el código.
+2. La insignia se sigue calculando y mostrando con el correo apagado. Después del
+   primer ciclo, revisar quién la ganó:
+
+   ```sql
+   select artist_user_id, zone_label, score, signals
+     from public.artist_trend_scores
+    where most_wanted;
+   ```
+
+3. Decidir con el dueño si el correo se enciende (quitar la variable o poner
+   `MOST_WANTED_EMAILS=on`). Al encenderlo, el ciclo siguiente les avisa a los
+   ganadores que todavía no recibieron el aviso de su racha.
+4. Comprobar tras el deploy: el log no muestra `eventId=artist_most_wanted_awarded`
+   y la bitácora de correos no tiene filas de ese evento.
+
+`MOST_WANTED_INTERVAL_HOURS=0` apaga solo el ciclo del proceso de Node: la insignia
+se sigue recalculando con el job `recalculate-most-wanted` de `pg_cron` (todos los
+días 03:40 UTC) y con `POST /api/perfil/most-wanted/recalculate` (`X-Cron-Token`).
+Ese endpoint también avisa a los ganadores, y respeta `MOST_WANTED_EMAILS=off`.
+Detalle en [docs/PERFIL_INSIGNIAS.md](../docs/PERFIL_INSIGNIAS.md).
+
 ---
 
 ## Reglas para el agente
