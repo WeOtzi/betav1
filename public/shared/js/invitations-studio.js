@@ -221,11 +221,13 @@
         return { canRequest: true, note: '' };
     }
 
+    // La base ya aplicada levanta estos mensajes en voseo: se reconocen las dos formas y lo
+    // que se muestra va siempre en tuteo (neutral-es.js, si está cargado).
     function joinErrorMessage(error) {
         const text = String((error && error.message) || '');
-        if (/Ya tenés una solicitud|vínculo abierto/i.test(text)) return 'Ya tenés una solicitud o un vínculo abierto con este estudio.';
-        if (/Esperá unos días/i.test(text)) return 'Esperá unos días antes de volver a pedir el alta en este estudio.';
-        if (/[áéíóúñ]/.test(text) && text.length < 200) return text;
+        if (/Ya (?:tenés|tienes) una solicitud|vínculo abierto/i.test(text)) return 'Ya tienes una solicitud o un vínculo abierto con este estudio.';
+        if (/Esper[aá] unos días/i.test(text)) return 'Espera unos días antes de volver a pedir el alta en este estudio.';
+        if (/[áéíóúñ]/.test(text) && text.length < 200) return window.WoNeutralEs ? window.WoNeutralEs.neutralize(text) : text;
         return 'No pudimos enviar tu solicitud. Prueba de nuevo.';
     }
 

@@ -2699,6 +2699,8 @@ function togglePassword(inputId) {
 }
 
 function showToast(message, type = 'info') {
+    // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+    if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message);
     let container = document.getElementById('toast-container');
     if (!container) {
         container = document.createElement('div');

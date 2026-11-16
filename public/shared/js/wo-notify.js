@@ -388,17 +388,30 @@
     }
 
     /* ------------------------------ recibir un aviso ------------------------------ */
+    // Español neutro: un aviso puede traer texto que la base todavía levanta en
+    // voseo. neutral-es.js (lo carga config-manager.js) lo pasa a tuteo antes de
+    // pintarlo; sin el módulo el texto queda como vino.
+    function neutral(text) {
+        var N = window.WoNeutralEs;
+        if (!N || typeof N.neutralize !== 'function') return text;
+        try { return N.neutralize(text); } catch (e) { return text; }
+    }
     function normalize(raw) {
         if (!raw || typeof raw !== 'object') return null;
-        var title = String(raw.title == null ? '' : raw.title).replace(/\s+/g, ' ').trim().slice(0, 160);
+        var title = neutral(String(raw.title == null ? '' : raw.title).replace(/\s+/g, ' ').trim()).slice(0, 160);
         if (!title) return null;
+        var tag = String(raw.tag == null ? '' : raw.tag).slice(0, 120);
+        var kind = String(raw.kind == null ? '' : raw.kind).slice(0, 40);
+        var body = String(raw.body == null ? '' : raw.body).replace(/\s+/g, ' ').trim();
+        // El cuerpo de un aviso de mensajes puede citar lo que escribió la otra persona: no se toca.
+        if (kind !== 'mensajes' && !/^(chat|inbox):/.test(tag)) body = neutral(body);
         return {
             id: raw.id ? String(raw.id).slice(0, 64) : '',
             title: title,
-            body: String(raw.body == null ? '' : raw.body).replace(/\s+/g, ' ').trim().slice(0, 400),
+            body: body.slice(0, 400),
             url: typeof raw.url === 'string' && INTERNAL_PATH.test(raw.url) ? raw.url.slice(0, 600) : '',
-            tag: String(raw.tag == null ? '' : raw.tag).slice(0, 120),
-            kind: String(raw.kind == null ? '' : raw.kind).slice(0, 40)
+            tag: tag,
+            kind: kind
         };
     }
     function shownIds() {

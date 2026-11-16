@@ -35,13 +35,20 @@
             || /does not exist|schema cache|could not find the (table|function)|no simulad/i.test(msg);
     }
 
-    // Mensaje legible de un error de la RPC (los raise del SQL ya vienen en voseo).
+    // Texto de la base a tuteo (neutral-es.js); sin el módulo cargado queda como vino.
+    function neutral(value) {
+        var N = root.WoNeutralEs;
+        return N && typeof N.neutralize === 'function' ? N.neutralize(value) : value;
+    }
+
+    // Mensaje legible de un error de la RPC. Los raise del SQL ya aplicado vienen en
+    // voseo y neutral-es.js los pasa a tuteo: se reconocen las dos formas.
     function friendly(err, fallback) {
         var cause = (err && err.cause) || {};
         var msg = String(cause.message || (err && err.message) || '').replace(/^\[[^\]]+\]\s*/, '');
         if (isMissing(err)) return 'El registro de pagos todavía no está activo en tu cuenta.';
-        if (/JWT|not authenticated|Iniciá sesión/i.test(msg)) return 'Tu sesión venció. Volvé a iniciar sesión.';
-        if (msg && /[áéíóúñ¿]|Elegí|Ingresá|Usá|Subilo|No encontramos|Solo podés|no puede|demasiados/i.test(msg)) return msg;
+        if (/JWT|not authenticated|Inici[aá] sesión/i.test(msg)) return 'Tu sesión venció. Vuelve a iniciar sesión.';
+        if (msg && /[áéíóúñ¿]|Elegí|Ingresá|Usá|Subilo|\b(?:Elige|Ingresa|Usa)\b|No encontramos|Solo (?:podés|puedes)|no puede|demasiados/i.test(msg)) return neutral(msg);
         return fallback || 'No pudimos guardar el pago. Prueba de nuevo.';
     }
 

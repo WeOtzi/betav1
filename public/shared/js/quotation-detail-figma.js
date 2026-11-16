@@ -160,6 +160,8 @@
     function showToast(message, opts = {}) {
         const toast = document.getElementById('qd-toast');
         if (!toast) return;
+        // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message);
         toast.innerHTML = `<span>${esc(message)}</span>${opts.link ? `<a href="${esc(opts.link.href)}">${esc(opts.link.label)}</a>` : ''}`;
         toast.classList.toggle('is-error', !!opts.error);
         toast.hidden = false;

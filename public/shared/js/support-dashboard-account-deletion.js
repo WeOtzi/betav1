@@ -85,12 +85,21 @@
             .some((v) => String(v || '').toLowerCase().indexOf(t) >= 0);
     }
 
+    // Texto que escribe la base (errores de las RPC y bloqueos de account_deletion_blockers):
+    // las funciones ya aplicadas siguen en voseo y neutral-es.js lo pasa a tuteo antes de
+    // mostrarlo. Sin el módulo cargado el texto queda como vino.
+    function neutral(value) {
+        const N = root && root.WoNeutralEs;
+        return N && typeof N.neutralize === 'function' ? N.neutralize(value) : value;
+    }
+
     function errorText(err) {
         const cause = (err && err.cause) || {};
         const msg = String(cause.message || (err && err.message) || '').replace(/^\[[^\]]+\]\s*/, '');
         if (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202') return MSG.rpcMissing;
         if (/Solo soporte|42501|permission denied/i.test(msg) || cause.code === '42501') return 'Tu usuario no tiene acceso de soporte para esta acción.';
-        if (msg && /[áéíóúñ]|Escribí|No encontramos|Todavía|Esta solicitud|Acción/i.test(msg)) return msg;
+        // Se reconocen el voseo de la base ya aplicada y el tuteo.
+        if (msg && /[áéíóúñ]|Escribí|Escribe|No encontramos|Todavía|Esta solicitud|Acción/i.test(msg)) return neutral(msg);
         return MSG.generic;
     }
 
@@ -382,7 +391,7 @@ textarea.adq-input{min-height:88px;resize:vertical}
         const marks = { block: 'Bloquea', check: 'Revisar', warn: 'Aviso' };
         return '<ul class="adq-checklist">' + live.map((i) => {
             const sev = marks[i.severity] ? i.severity : 'block';
-            return `<li><span class="adq-mark adq-mark--${sev}">${marks[sev]}</span><strong>${esc(i.label)}</strong><span>${esc(i.detail || '')}${i.href ? ' <span class="adq-muted">' + esc(i.href) + '</span>' : ''}</span></li>`;
+            return `<li><span class="adq-mark adq-mark--${sev}">${marks[sev]}</span><strong>${esc(neutral(i.label))}</strong><span>${esc(neutral(i.detail || ''))}${i.href ? ' <span class="adq-muted">' + esc(i.href) + '</span>' : ''}</span></li>`;
         }).join('') + '</ul>' + (blocking(live).length ? '' : '<p class="adq-ok">Sin bloqueos: se puede aprobar.</p>');
     }
 

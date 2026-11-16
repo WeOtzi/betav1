@@ -2145,8 +2145,9 @@
         const { data, error } = await D.StudioMemberships.requestMembership({ studioId, role: 'resident' });
         if (error) {
             const text = String(error.message || '');
-            if (/Esperá unos días/i.test(text)) return `Guardamos tu modalidad. Esperá unos días antes de volver a pedir el alta en ${name}.`;
-            if (/Ya tenés/i.test(text)) return `Ya tenés una solicitud o vínculo abierto con ${name}.`;
+            // La base ya aplicada responde en voseo: se reconocen las dos formas.
+            if (/Esper[aá] unos días/i.test(text)) return `Guardamos tu modalidad. Espera unos días antes de volver a pedir el alta en ${name}.`;
+            if (/Ya (?:tenés|tienes)/i.test(text)) return `Ya tienes una solicitud o vínculo abierto con ${name}.`;
             console.warn('[account] solicitud de alta:', error);
             return `Guardamos tu modalidad, pero no pudimos enviar tu solicitud a ${name}. Pídela desde Invitaciones.`;
         }

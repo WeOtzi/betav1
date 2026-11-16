@@ -74,7 +74,8 @@
     // Ficha sin dueño con el mismo nombre: "Ese estudio ya está en We Ötzi: reclamalo desde el registro."
     function isClaimableError(err) {
         const code = errorCode(err);
-        return (!code || code === '23514') && /reclamalo/i.test(String(err?.message || ''));
+        // …o "reclámalo" si el mensaje ya pasó por neutral-es.js: se reconocen las dos formas.
+        return (!code || code === '23514') && /recl[aá]malo/i.test(String(err?.message || ''));
     }
     // Faltó aceptar los Términos (migración 20261115210000).
     function isTermsError(err) {

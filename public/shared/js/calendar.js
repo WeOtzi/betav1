@@ -2209,6 +2209,8 @@
     }
 
     function showToast(message, isError = false) {
+        // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message);
         window.clearTimeout(state.toastTimer);
         el['calendar-toast'].textContent = message;
         el['calendar-toast'].classList.toggle('is-error', !!isError);

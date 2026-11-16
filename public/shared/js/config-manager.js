@@ -1820,6 +1820,30 @@ modesScript.defer = true;
 document.head.appendChild(modesScript);
 
 // ---------------------------------------------------------------------------
+// Español neutro en tiempo de ejecución: neutral-es.js pasa a tuteo los mensajes
+// que las funciones de la base ya aplicadas todavía levantan en voseo. Carga
+// única aquí; lo usan data/postgrest-client.js (run) y los avisos (wo-notify.js
+// y los helpers de toast/estado). Si no llega a cargar, el texto se muestra tal
+// como vino.
+// ---------------------------------------------------------------------------
+(function () {
+  'use strict';
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    if (window.WoNeutralEs || window.__woNeutralEsLoader) return;
+    var me = document.currentScript;
+    var match = me && me.src ? /^(.*\/shared\/)js\/[^\/?#]+(?:[?#].*)?$/.exec(me.src) : null;
+    if (!match) return;
+    window.__woNeutralEsLoader = true;
+    var s = document.createElement('script');
+    s.src = match[1] + 'js/neutral-es.js';
+    s.async = false;
+    s.setAttribute('data-wo-neutral-es', '');
+    (document.head || document.documentElement).appendChild(s);
+  } catch (err) { /* mejora progresiva: nunca bloquea la página */ }
+})();
+
+// ---------------------------------------------------------------------------
 // Avisos push / in-app (frente push): toast + sonido + Web Push. Carga única
 // aquí porque config-manager.js está en todas las páginas con sesión; sin
 // sesión wo-notify.js no hace nada. Opt-out: <html data-wo-notify="off">.

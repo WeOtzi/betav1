@@ -2940,7 +2940,7 @@ async function handleProfileSave(e) {
                         body: JSON.stringify({ kind: 'membership_request_created', membership_id: reqData.membership_id })
                     }).catch(() => {});
                 }
-            } else if (!/Ya tenés/i.test(String(reqError.message || ''))) {
+            } else if (!/Ya (?:tenés|tienes)/i.test(String(reqError.message || ''))) {
                 console.warn('[dashboard] solicitud de alta:', reqError);
             }
         }

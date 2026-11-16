@@ -99,6 +99,30 @@ cliente por **inyección de dependencia** para tests (p.ej. `resolveArtistAuthSt
 
 ---
 
+## Mensajes de la base en español neutro
+
+Las funciones de Postgres ya aplicadas levantan sus mensajes en voseo y esas
+migraciones no se editan. `public/shared/js/neutral-es.js` (UMD:
+`window.WoNeutralEs` y `require`) los pasa a tuteo en tiempo de ejecución y es la
+**fuente de verdad del diccionario voseo → tuteo** en el repo.
+
+- **Dónde actúa:** `lib/postgrest.js` (cuerpo de error de PostgREST, también
+  `rpcAsCaller`), `WeotziData.run` (mensaje y `cause.message/details/hint`), los
+  avisos (`wo-notify.js` y los `showToast`/`showStatus` más usados) y los mapeos
+  de error que dejan ver el texto de la base. En el navegador lo carga
+  `config-manager.js`; si no llegó a cargar, el texto se muestra como vino.
+- **Regex sobre mensajes de la base:** el mensaje puede llegar en voseo (ruta sin
+  neutralizar) o en tuteo, así que la aguja acepta las dos formas
+  (`/Ya (?:tenés|tienes)/i`, `/recl[aá]malo/i`).
+- **Mensajes nuevos** (`raise exception` en una migración nueva): se escriben en
+  tuteo. Si una función aplicada usa una forma que el diccionario no trae, se
+  agrega en `neutral-es.js`; `tests/neutral-es.test.js` falla si algún
+  `raise exception` de `supabase/migrations` conserva voseo después de `neutralize()`.
+- **No toca** inglés, identificadores, `{{variables}}`, valores entre «», nombres
+  propios ni pretéritos en primera persona ("ya subí el comprobante").
+
+---
+
 ## Cómo agregar un dominio o un método nuevo
 
 1. **Servidor:** agregá el método con nombre en `lib/repos/<dominio>.js` (o creá el

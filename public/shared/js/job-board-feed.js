@@ -2114,6 +2114,8 @@ function closeLoginModal() {
 let toastTimeout = null;
 
 function showToast(message, type) {
+    // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+    if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message);
     const existing = document.getElementById('jb-toast');
     if (existing) existing.remove();
     if (toastTimeout) clearTimeout(toastTimeout);

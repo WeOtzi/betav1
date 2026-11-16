@@ -211,15 +211,23 @@
         return doc ? normalizeStatus(doc.status) : 'missing';
     }
 
+    // Texto que escribe la base: las funciones ya aplicadas siguen en voseo y neutral-es.js
+    // lo pasa a tuteo antes de mostrarlo. Sin el módulo cargado el texto queda como vino.
+    function neutral(value) {
+        const N = root && root.WoNeutralEs;
+        return N && typeof N.neutralize === 'function' ? N.neutralize(value) : value;
+    }
+
     function errorText(err) {
         const cause = (err && err.cause) || {};
         const msg = String(cause.message || (err && err.message) || '').replace(/^\[[^\]]+\]\s*/, '');
         if (/support_list_verification_requests|support_set_artist_verification_state|p_note/i.test(msg) && (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202')) return MSG.rpcMissingVerif;
         if (/support_settle_artist_withdrawal/i.test(msg) && (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202')) return MSG.rpcMissingWd;
         if (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202') return MSG.rpcMissing;
-        if (/Ese retiro|referencia/i.test(msg)) return msg;
+        if (/Ese retiro|referencia/i.test(msg)) return neutral(msg);
         if (/Solo soporte|42501|permission denied/i.test(msg) || cause.code === '42501') return 'Tu usuario no tiene acceso de soporte para esta acción.';
-        if (msg && /[áéíóúñ]|Escribí|No encontramos|Decisión|Estado/i.test(msg)) return msg;
+        // Se reconocen el voseo de la base ya aplicada y el tuteo.
+        if (msg && /[áéíóúñ]|Escribí|Escribe|No encontramos|Decisión|Estado/i.test(msg)) return neutral(msg);
         return MSG.generic;
     }
 

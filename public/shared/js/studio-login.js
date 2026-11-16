@@ -11,6 +11,8 @@
     let busy = false;
 
     function showStatus(kind, message, focus) {
+        // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message);
         status.className = 'studio-status studio-status-' + kind;
         status.textContent = message;
         status.hidden = false;

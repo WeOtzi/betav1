@@ -98,13 +98,21 @@
         return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
     }
 
+    // Texto que escribe la base (errores de las RPC y pendientes de account_deletion_blockers):
+    // las funciones ya aplicadas siguen en voseo y neutral-es.js lo pasa a tuteo antes de
+    // mostrarlo. Sin el módulo cargado el texto queda como vino.
+    function neutral(value) {
+        const N = root && root.WoNeutralEs;
+        return N && typeof N.neutralize === 'function' ? N.neutralize(value) : value;
+    }
+
     function errorText(err) {
         const cause = (err && err.cause) || {};
         const msg = String(cause.message || (err && err.message) || '').replace(/^\[[^\]]+\]\s*/, '');
         if (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202') return MSG.unavailable;
         // La base todavía responde en voseo desde funciones ya aplicadas: se reconocen las dos formas.
         if (/23505|ya (?:tenés|tienes) una solicitud/i.test(msg) || cause.code === '23505') return 'Ya tienes una solicitud de baja abierta.';
-        if (msg && /[áéíóúñ]|Inici[áa]|No encontramos|Esta solicitud/i.test(msg)) return msg;
+        if (msg && /[áéíóúñ]|Inici[áa]|No encontramos|Esta solicitud/i.test(msg)) return neutral(msg);
         return MSG.generic;
     }
 
@@ -116,8 +124,8 @@
             const href = safeHref(i.href);
             const sr = sev === 'warn' ? 'Aviso' : (sev === 'check' ? 'Revisión manual' : 'Bloqueo');
             return '<li class="ad-item ad-item--' + sev + '"><span class="ad-item-mark" aria-hidden="true"></span>'
-                + '<p class="ad-item-label"><span class="wo-sr-only">' + sr + ': </span>' + esc(i.label) + '</p>'
-                + '<p class="ad-item-detail">' + esc(i.detail || '')
+                + '<p class="ad-item-label"><span class="wo-sr-only">' + sr + ': </span>' + esc(neutral(i.label)) + '</p>'
+                + '<p class="ad-item-detail">' + esc(neutral(i.detail || ''))
                 + (href ? ' <a href="' + esc(href) + '">Ver →</a>' : '') + '</p></li>';
         }).join('') + '</ul>';
     }

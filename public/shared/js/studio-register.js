@@ -264,6 +264,8 @@
         card.hidden = false;
     }
     function showStatus(kind, message, field) {
+        // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message);
         const el = $('wizard-status');
         el.className = 'sr-status'; el.dataset.kind = kind; el.textContent = message; el.hidden = false;
         if (field) { field.setAttribute('aria-invalid', 'true'); field.setAttribute('aria-describedby', 'wizard-status'); field.focus(); }
@@ -600,7 +602,7 @@
             if (!value('reg-name')) $('reg-name').value = state.name || '';
             currentStep = 1; renderStep();
             matchState = { key: '', matches: [], decision: null };
-            resolveMatches({ force: true }).then(() => showStatus('error', '«' + (state.name || 'Ese estudio') + '» ya figura en We Ötzi, así que no pudimos crear el estudio. Si es tuyo, reclamalo; si no, cambia el nombre.'));
+            resolveMatches({ force: true }).then(() => showStatus('error', '«' + (state.name || 'Ese estudio') + '» ya figura en We Ötzi, así que no pudimos crear el estudio. Si es tuyo, reclámalo; si no, cambia el nombre.'));
         } else if (state.kind === 'registration_conflict') {
             if (state.code === 'terms') {
                 currentStep = 5; maxStep = 5; renderStep();
@@ -1058,7 +1060,7 @@
                 currentStep = 1; renderStep();
                 matchState = { key: '', matches: [], decision: null };
                 await resolveMatches({ force: true });
-                showStatus('error', code === '23505' ? message : '«' + value('reg-name') + '» ya figura en We Ötzi, así que no pudimos crear el estudio. Si es tuyo, reclamalo; si no, cambia el nombre.');
+                showStatus('error', code === '23505' ? message : '«' + value('reg-name') + '» ya figura en We Ötzi, así que no pudimos crear el estudio. Si es tuyo, reclámalo; si no, cambia el nombre.');
             } else if (code === '23P01') {
                 currentStep = 3; renderStep(); showStatus('error', message);
             } else if (window.WeOtziStudioAuth.isTermsError?.(err)) {

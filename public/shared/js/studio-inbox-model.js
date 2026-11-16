@@ -332,18 +332,25 @@
         return null;
     }
 
+    // Texto de la base a tuteo (neutral-es.js); sin el módulo cargado queda como vino.
+    function neutral(value) {
+        var N = typeof window !== 'undefined' ? window.WoNeutralEs : null;
+        return N && typeof N.neutralize === 'function' ? N.neutralize(value) : value;
+    }
+
     /** Traduce los errores de las RPC (que pueden venir en inglés) a copy del panel. */
     function friendlyError(error) {
         var source = error && error.cause && error.cause.message ? error.cause : error;
         var msg = text(source && (source.message || source.details || source)).replace(/^\[[^\]]+\]\s*/, '');
         if (/authentication required/i.test(msg)) return 'Tu sesión venció. Vuelve a ingresar.';
-        if (/thread not found|No tenés acceso/i.test(msg)) return 'No encontramos esa conversación en tu estudio.';
+        // La base ya aplicada responde en voseo: se reconocen las dos formas.
+        if (/thread not found|No (?:tenés|tienes) acceso/i.test(msg)) return 'No encontramos esa conversación en tu estudio.';
         if (/message content is required/i.test(msg)) return 'Escribe un mensaje.';
         if (/attachment is too large/i.test(msg)) return 'El archivo supera el límite de 15 MB.';
         // Los errores propios de las RPC del estudio ya vienen en español.
         var spanish = /[áéíóúñ¿¡]|\b(la|el|de|no|ya|tu|por|para|una)\b/i.test(msg);
         var technical = /\b(the|is|must|violates|permission|denied|function|relation|column|duplicate|syntax|null)\b/i.test(msg);
-        if (spanish && !technical && msg.length < 200) return msg;
+        if (spanish && !technical && msg.length < 200) return neutral(msg);
         return 'No pudimos completar la acción. Intenta nuevamente.';
     }
 

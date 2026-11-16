@@ -159,6 +159,8 @@
     function showStatus(elId, kind, msg) {
         const el = document.getElementById(elId);
         if (!el) return;
+        // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+        if (window.WoNeutralEs) msg = window.WoNeutralEs.neutralize(msg);
         el.className = 'studio-status studio-status-' + kind;
         el.textContent = msg;
         el.hidden = false;

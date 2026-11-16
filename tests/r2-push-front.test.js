@@ -200,6 +200,26 @@ test('WoNotify.ping muestra un toast con enlace real al destino, sin interpretar
     assert.doesNotMatch(read('public', 'shared', 'js', 'wo-notify.js'), /innerHTML|insertAdjacentHTML|document\.write/);
 });
 
+// Español neutro: la base ya aplicada todavía puede levantar texto en voseo (neutral-es.js).
+test('con neutral-es.js cargado el aviso se pinta en tuteo; el cuerpo de un mensaje no se toca', async () => {
+    const b = browser();
+    b.window.WoNeutralEs = require('../public/shared/js/neutral-es.js');
+    b.window.WoNotify.ping({ title: 'Tenés una propuesta nueva', body: 'Revisá la seña pedida y respondé desde We Ötzi.', url: '/artist/quotations', tag: 'quote:WO-7', kind: 'cotizaciones' });
+    b.window.WoNotify.ping({ title: 'Acá Tattoo te escribió', body: 'vos sabés que la seña ya la pagué', url: '/artist/inbox?quote=WO-8', tag: 'chat:WO-8', kind: 'mensajes' });
+    await tick();
+    const shown = toasts(b).map(t => [t.querySelector('.wo-ntf-title').textContent, t.querySelector('.wo-ntf-body').textContent]);
+    assert.deepEqual(shown.find(([title]) => /propuesta/.test(title)), ['Tienes una propuesta nueva', 'Revisa el anticipo pedido y responde desde We Ötzi.']);
+    // Nombre propio en el título y palabras de la otra persona en el cuerpo: quedan como llegaron.
+    assert.deepEqual(shown.find(([title]) => /Tattoo/.test(title)), ['Acá Tattoo te escribió', 'vos sabés que la seña ya la pagué']);
+    assert.equal(b.events.find(e => e.type === 'wo:notify' && e.detail.kind === 'cotizaciones').detail.title, 'Tienes una propuesta nueva');
+
+    // Sin el módulo (no llegó a cargar) el aviso se muestra como vino.
+    const plain = browser();
+    plain.window.WoNotify.ping({ title: 'Tenés una propuesta nueva', kind: 'cotizaciones' });
+    await tick();
+    assert.equal(toasts(plain)[0].querySelector('.wo-ntf-title').textContent, 'Tenés una propuesta nueva');
+});
+
 // CF-10: la conversación a la vista se reconoce por ?quote= / ?thread= de la dirección.
 test('el aviso de la conversación que ya está en pantalla no muestra toast; el de otra sí', async () => {
     const chat = (id) => ({ title: `Mensaje de ${id}`, url: `/artist/inbox?quote=${id}`, tag: `chat:${id}`, kind: 'mensajes' });
