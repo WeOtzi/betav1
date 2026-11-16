@@ -194,6 +194,7 @@ begin
          and other.source = 'flash'
          and other.flash_snapshot ->> 'id' = v_flash_id
          and other.quote_status = any (v_reserved)
+         and not public.cot_cliente_is_wizard_draft(other.quote_status, other.artist_responded_at, other.artist_budget_amount, other.final_budget_amount)
     ) then
       perform public.fn_flash_set_available(new.artist_id, v_flash_id, true);
     end if;
@@ -255,6 +256,7 @@ begin
        and other.flash_snapshot is not null
        and other.flash_snapshot ->> 'id' = v_flash_id
        and other.quote_status = any (v_reserved)
+       and not public.cot_cliente_is_wizard_draft(other.quote_status, other.artist_responded_at, other.artist_budget_amount, other.final_budget_amount)
   ) then
     raise exception 'Este flash ya se reservó con otra solicitud. Escríbele al artista para elegir otro diseño.'
       using errcode = 'P0001';
@@ -355,6 +357,7 @@ begin
             and q.flash_snapshot is not null
             and q.flash_snapshot ->> 'id' = feed.item ->> 'id'
             and q.quote_status = any (v_reserved)
+            and not public.cot_cliente_is_wizard_draft(q.quote_status, q.artist_responded_at, q.artist_budget_amount, q.final_budget_amount)
        )
   ) then
     return new;
@@ -376,6 +379,7 @@ begin
                          and q.flash_snapshot is not null
                          and q.flash_snapshot ->> 'id' = feed.item ->> 'id'
                          and q.quote_status = any (v_reserved)
+                         and not public.cot_cliente_is_wizard_draft(q.quote_status, q.artist_responded_at, q.artist_budget_amount, q.final_budget_amount)
                     )
                  then jsonb_set(feed.item, '{flash,available}', 'false'::jsonb, true)
                else feed.item
