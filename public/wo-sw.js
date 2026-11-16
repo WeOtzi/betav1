@@ -8,7 +8,9 @@
  *   push              → si We Ötzi está a la vista y con foco, el aviso se
  *                       muestra dentro de la app (toast + sonido, mensaje
  *                       'wo-push' a la página); si no, notificación del
- *                       sistema.
+ *                       sistema. En Safari (WebKit) la notificación del
+ *                       sistema sale SIEMPRE: con foco va muda y se retira
+ *                       sola a los pocos segundos (ver IS_WEBKIT).
  *   notificationclick → enfoca la pestaña que ya está en ese destino o abre
  *                       una nueva. Solo rutas internas de la app.
  *   pushsubscriptionchange → el navegador rotó la suscripción: se renueva y se
@@ -22,6 +24,28 @@
 var ICON_PATH = 'shared/assets/ronda2/push/icon-192.webp';
 var BADGE_PATH = 'shared/assets/ronda2/push/badge-96.webp';
 var assetChecks = {};
+
+// WebKit exige una notificación visible por cada push (userVisibleOnly): a los
+// tres push sin notificación revoca la suscripción. Con la app en foco no
+// mostrábamos ninguna, así que alguien chateando perdía el push al tercer
+// mensaje. En iPhone y iPad todos los navegadores son WebKit y la app instalada
+// no lleva "Safari" en el user agent: por eso se mira el dispositivo y el motor.
+var IS_WEBKIT = (function () {
+    var ua = (self.navigator && self.navigator.userAgent) || '';
+    return /iPad|iPhone|iPod/.test(ua) || (/AppleWebKit/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Android/i.test(ua));
+})();
+var FOCUSED_NOTICE_MS = 4000;
+
+// Retira la notificación que se mostró con la app en foco (el aviso ya se vio
+// dentro de la app). Si no se puede, queda en el centro de notificaciones.
+function closeLater(tag) {
+    return new Promise(function (resolve) { setTimeout(resolve, FOCUSED_NOTICE_MS); })
+        .then(function () { return self.registration.getNotifications({ tag: tag }); })
+        .then(function (list) {
+            (list || []).forEach(function (item) { try { item.close(); } catch (e) { /* ya cerrada */ } });
+        })
+        .catch(function () { /* navegador sin getNotifications */ });
+}
 
 self.addEventListener('install', function () { self.skipWaiting(); });
 self.addEventListener('activate', function (event) { event.waitUntil(self.clients.claim()); });
@@ -81,7 +105,7 @@ self.addEventListener('push', function (event) {
             // shown=true: ya hay notificación del sistema; la página no repite el sonido.
             try { client.postMessage({ type: 'wo-push', notification: notification, shown: !focused }); } catch (e) { /* pestaña cerrándose */ }
         });
-        if (focused) return undefined;
+        if (focused && !IS_WEBKIT) return undefined;
         return Promise.all([optionalAsset(ICON_PATH), optionalAsset(BADGE_PATH)]).then(function (assets) {
             var options = {
                 body: notification.body,
@@ -92,6 +116,16 @@ self.addEventListener('push', function (event) {
             if (notification.tag) { options.tag = notification.tag; options.renotify = true; }
             if (assets[0]) options.icon = assets[0];
             if (assets[1]) options.badge = assets[1];
+            if (focused) {
+                // Solo WebKit llega acá con foco: la página ya muestra el toast y hace
+                // sonar el aviso, así que la notificación obligatoria sale muda, sin
+                // volver a avisar, y se cierra sola.
+                options.silent = true;
+                options.renotify = false;
+                if (!options.tag) options.tag = 'wo-focus:' + (notification.id || notification.ts);
+                return self.registration.showNotification(notification.title, options)
+                    .then(function () { return closeLater(options.tag); });
+            }
             return self.registration.showNotification(notification.title, options);
         });
     }));

@@ -599,18 +599,33 @@ test('los toggles "Push" de la matriz funcionan en la cuenta del artista y del c
 });
 
 // ---------------------------------------------------------------- P24 · service worker
-function serviceWorker({ scope = 'https://beta.weotzi.com/', windows = [], assetOk = false } = {}) {
+const UA_CHROME = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+const UA_SAFARI_MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15';
+// App instalada en iPhone: WebKit sin "Safari" ni "Version" en el user agent.
+const UA_IOS_APP = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
+function serviceWorker({ scope = 'https://beta.weotzi.com/', windows = [], assetOk = false, userAgent = UA_CHROME, getNotifications = true } = {}) {
     const listeners = {};
     const shown = [];
+    const closed = [];
     const opened = [];
     const fetched = [];
+    const timers = [];
     const self = {
+        navigator: userAgent === null ? undefined : { userAgent },
         registration: { scope, showNotification: async (title, options) => { shown.push({ title, options }); }, pushManager: { subscribe: async () => null } },
         clients: { matchAll: async () => windows, openWindow: async (url) => { opened.push(url); }, claim: async () => {} },
         addEventListener: (type, fn) => { listeners[type] = fn; },
         skipWaiting() {}
     };
-    const context = { self, URL, Promise, JSON, Date, Number, String, console, fetch: async (url, opts) => { fetched.push({ url, opts }); return { ok: assetOk }; } };
+    // Las notificaciones a la vista, por etiqueta (lo que devuelve el navegador).
+    if (getNotifications) {
+        self.registration.getNotifications = async ({ tag } = {}) => shown
+            .filter((n) => !closed.includes(n) && (!tag || n.options.tag === tag))
+            .map((n) => ({ tag: n.options.tag, close() { closed.push(n); } }));
+    }
+    const context = { self, URL, Promise, JSON, Date, Number, String, console,
+        setTimeout: (fn, ms) => { timers.push(ms); setImmediate(fn); return timers.length; },
+        fetch: async (url, opts) => { fetched.push({ url, opts }); return { ok: assetOk }; } };
     vm.runInNewContext(read('public', 'wo-sw.js'), context, { filename: 'wo-sw.js' });
     async function fire(type, event) {
         let pending = Promise.resolve();
@@ -618,7 +633,7 @@ function serviceWorker({ scope = 'https://beta.weotzi.com/', windows = [], asset
         await pending;
     }
     const push = (data) => fire('push', { data: { json: () => data, text: () => JSON.stringify(data) } });
-    return { listeners, shown, opened, fetched, fire, push };
+    return { listeners, shown, closed, timers, opened, fetched, fire, push };
 }
 const windowClient = (extra = {}) => {
     const posted = [];
@@ -655,10 +670,17 @@ test('service worker: con la app a la vista el aviso va a la página (toast) y n
     const sw = serviceWorker({ windows: [focused, windowClient({ visibilityState: 'hidden', focused: false })] });
     await sw.push({ title: 'Nueva propuesta', url: '/client/dashboard?quote=WO-1' });
     assert.equal(sw.shown.length, 0, 'con foco en la app no hay notificación del sistema');
+    assert.equal(sw.timers.length, 0);
     assert.equal(focused.posted.length, 1);
     assert.equal(focused.posted[0].type, 'wo-push');
     assert.equal(focused.posted[0].shown, false);
     assert.equal(focused.posted[0].notification.title, 'Nueva propuesta');
+    // Firefox y un service worker sin navigator se comportan igual que Chrome.
+    for (const userAgent of ['Mozilla/5.0 (X11; Linux x86_64; rv:132.0) Gecko/20100101 Firefox/132.0', null]) {
+        const other = serviceWorker({ windows: [windowClient()], userAgent });
+        await other.push({ title: 'Nueva propuesta' });
+        assert.equal(other.shown.length, 0, String(userAgent));
+    }
 
     // Visible pero sin foco (otra app encima): notificación del sistema + toast sin sonido.
     const visible = windowClient({ focused: false });
@@ -667,6 +689,63 @@ test('service worker: con la app a la vista el aviso va a la página (toast) y n
     assert.equal(sw2.shown.length, 1);
     assert.equal(visible.posted[0].shown, true);
     assert.match(read('public', 'shared', 'js', 'wo-notify.js'), /data\.type === 'wo-push'\) present\(data\.notification, \{ shown: data\.shown === true \}\)/);
+});
+
+// EP-07: WebKit revoca la suscripción a los tres push sin notificación visible
+// (userVisibleOnly). Con la app en foco no se mostraba ninguna.
+test('EP-07: en Safari el push con la app en foco también muestra la notificación, muda, y la retira', async () => {
+    for (const userAgent of [UA_SAFARI_MAC, UA_IOS_APP]) {
+        const focused = windowClient();
+        const sw = serviceWorker({ windows: [focused], userAgent });
+        await sw.push({ id: '0f0f0f0f-0000-4000-8000-000000000002', title: 'Mateo te escribió', body: 'Hola', url: '/client/chats?quote=WO-1', tag: 'chat:WO-1' });
+        assert.equal(sw.shown.length, 1, 'la notificación del sistema sale igual');
+        assert.equal(sw.shown[0].title, 'Mateo te escribió');
+        assert.equal(sw.shown[0].options.silent, true, 'muda: el sonido lo pone la página');
+        assert.equal(sw.shown[0].options.renotify, false);
+        assert.equal(sw.shown[0].options.tag, 'chat:WO-1');
+        assert.deepEqual({ ...sw.shown[0].options.data }, { url: '/client/chats?quote=WO-1', id: '0f0f0f0f-0000-4000-8000-000000000002' });
+        assert.deepEqual(sw.timers, [4000], 'se retira sola a los 4 s, dentro de waitUntil');
+        assert.equal(sw.closed.length, 1);
+        // La página conserva su toast y su sonido.
+        assert.equal(focused.posted.length, 1);
+        assert.equal(focused.posted[0].shown, false);
+
+        // Cuatro mensajes seguidos con foco: cuatro notificaciones (ninguna silenciosa para WebKit).
+        for (let i = 0; i < 3; i += 1) await sw.push({ title: 'Otro mensaje', tag: 'chat:WO-1' });
+        assert.equal(sw.shown.length, 4);
+        assert.equal(sw.closed.length, 4);
+
+        // Sin etiqueta se usa una propia para poder retirarla; no toca otras notificaciones.
+        const untagged = serviceWorker({ windows: [windowClient()], userAgent });
+        await untagged.push({ id: 'abc', title: 'Sin etiqueta' });
+        assert.equal(untagged.shown[0].options.tag, 'wo-focus:abc');
+        assert.equal(untagged.closed.length, 1);
+
+        // Sin foco (app cerrada o de fondo) Safari se comporta como el resto: con sonido y sin retirarla.
+        const away = serviceWorker({ windows: [windowClient({ focused: false })], userAgent });
+        await away.push({ title: 'Nueva propuesta', tag: 'quote:1' });
+        assert.equal(away.shown.length, 1);
+        assert.equal(away.shown[0].options.silent, undefined);
+        assert.equal(away.shown[0].options.renotify, true);
+        assert.equal(away.timers.length, 0);
+        assert.equal(away.closed.length, 0);
+
+        // Un WebKit sin getNotifications muestra igual la notificación (no se puede retirar).
+        const old = serviceWorker({ windows: [windowClient()], userAgent, getNotifications: false });
+        await old.push({ title: 'Hola' });
+        assert.equal(old.shown.length, 1);
+    }
+    // Chrome en iPhone también es WebKit; Chrome, Edge y Android no.
+    const ios = serviceWorker({ windows: [windowClient()], userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/130.0.6723.90 Mobile/15E148 Safari/604.1' });
+    await ios.push({ title: 'Hola' });
+    assert.equal(ios.shown.length, 1);
+    for (const userAgent of [UA_CHROME,
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0',
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36']) {
+        const other = serviceWorker({ windows: [windowClient()], userAgent });
+        await other.push({ title: 'Hola' });
+        assert.equal(other.shown.length, 0, userAgent);
+    }
 });
 
 test('service worker: tocar la notificación abre el destino exacto dentro de la app', async () => {
