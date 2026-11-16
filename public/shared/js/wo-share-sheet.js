@@ -1,10 +1,11 @@
 /* ============================================================================
    WE ÖTZI — Hoja "Compartir" (perfil público del artista)
    ----------------------------------------------------------------------------
-   Diálogo nativo (<dialog>, foco atrapado y Escape) con todas las formas de
+   Diálogo nativo (<dialog>, foco atrapado y Escape) con las formas de
    compartir un enlace: copiar, menú nativo del teléfono (navigator.share),
-   WhatsApp, Instagram / historias, Facebook, X, Telegram, LinkedIn, mail y
-   código QR descargable. Lo usa el perfil público (dueño y visitantes).
+   WhatsApp, historia de Instagram, Facebook, X y código QR descargable. Lo usa
+   el perfil público (dueño y visitantes). Ronda 2 (nota N8): sin Mail,
+   Telegram ni LinkedIn, e Instagram arma una historia.
 
    Uso:
      WoShareSheet.open({
@@ -12,19 +13,25 @@
        name,                        // nombre visible en la vista previa
        heading,                     // título del diálogo ("Compartir perfil")
        trigger,                     // botón que lo abrió (vuelve el foco)
+       story: { artist, prefs },    // datos para la historia (wo-share-cards.js)
        onShare(channel),            // telemetría / onboarding (opcional)
        extra: { label, href }       // enlace secundario (opcional)
      });
 
-   Instagram no acepta enlaces por URL: en el teléfono se abre el menú nativo
-   (ahí aparecen Instagram e Historias); en la compu se copia el enlace y se
-   abre Instagram. window.open y navigator.share se llaman dentro del mismo
-   click (Safari iOS bloquea los que llegan después de una promesa).
+   Instagram no acepta enlaces por URL. Con `story` y wo-share-cards.js se
+   compone una imagen vertical 1080×1920 al abrir la hoja; al tocar Instagram:
+     · teléfono con navigator.canShare({ files }): se comparte la imagen directo
+       a Instagram u otra app (el enlace queda copiado para el sticker);
+     · escritorio: se descarga la imagen, se copia el enlace y se muestran los
+       pasos para subirla a la historia.
+   navigator.share, window.open y la copia se llaman dentro del mismo click
+   (Safari iOS bloquea los que llegan después de una promesa): por eso la
+   imagen se prepara antes, al abrir.
    ============================================================================ */
 (function (root) {
     'use strict';
 
-    var state = { opts: null, dialog: null, qrOpen: false };
+    var state = { opts: null, dialog: null, qrOpen: false, storyOpen: false, story: null };
 
     function esc(v) {
         return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -43,18 +50,16 @@
         try { return !!(root.matchMedia && root.matchMedia('(pointer: coarse)').matches); } catch (e) { return false; }
     }
 
-    /** Enlaces de cada red (función pura, se testea en Node). */
-    function networkLinks(url, text, title) {
+    /** Redes con enlace directo (función pura, se testea en Node). */
+    var NETWORKS = ['whatsapp', 'instagram', 'facebook', 'x', 'qr'];
+    function networkLinks(url, text) {
         var u = encodeURIComponent(url || '');
         var t = encodeURIComponent(text || '');
         var msg = encodeURIComponent((text ? text + ': ' : '') + (url || ''));
         return {
             whatsapp: 'https://wa.me/?text=' + msg,
             facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + u,
-            x: 'https://twitter.com/intent/tweet?url=' + u + (text ? '&text=' + t : ''),
-            telegram: 'https://t.me/share/url?url=' + u + (text ? '&text=' + t : ''),
-            linkedin: 'https://www.linkedin.com/sharing/share-offsite/?url=' + u,
-            mail: 'mailto:?subject=' + encodeURIComponent(title || 'We Ötzi') + '&body=' + encodeURIComponent((text ? text + ':\n' : '') + (url || ''))
+            x: 'https://twitter.com/intent/tweet?url=' + u + (text ? '&text=' + t : '')
         };
     }
 
@@ -121,15 +126,18 @@
         return String(o.fileName || o.name || 'perfil').toLowerCase()
             .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'perfil';
     }
+    function download(href, name) {
+        var a = document.createElement('a');
+        a.href = href;
+        a.download = name;
+        a.rel = 'noopener';
+        document.body.appendChild(a); a.click(); a.remove();
+    }
     function downloadQr() {
         var canvas = state.dialog.querySelector('.wss-qr-canvas');
         if (!canvas) return;
         try {
-            var a = document.createElement('a');
-            a.href = canvas.toDataURL('image/png');
-            a.download = 'qr-' + fileSlug() + '.png';
-            a.rel = 'noopener';
-            document.body.appendChild(a); a.click(); a.remove();
+            download(canvas.toDataURL('image/png'), 'qr-' + fileSlug() + '.png');
             announce('Descargamos el código QR.');
             track('qr_download');
         } catch (e) { announce('No pudimos descargar el código QR.'); }
@@ -142,10 +150,165 @@
         panel.hidden = !state.qrOpen;
         if (btn) btn.setAttribute('aria-expanded', String(state.qrOpen));
         if (state.qrOpen) {
+            if (state.storyOpen) toggleStory(false);
             var ok = drawQr(panel.querySelector('.wss-qr-canvas'), state.opts.url, 480);
             panel.querySelector('[data-qr-fallback]').hidden = ok;
             panel.querySelector('[data-qr-download]').hidden = !ok;
             track('qr');
+        }
+    }
+
+    /* ---------------------- historia de Instagram ----------------------- */
+    function cards() { return root.WoShareCards || null; }
+    function hasStory() { return !!(state.opts && state.opts.story && cards()); }
+
+    // Compone la imagen apenas se abre la hoja: al tocar Instagram ya está lista.
+    function prepareStory() {
+        var C = cards();
+        var o = state.opts;
+        if (!C || !o || !o.story) { state.story = null; return; }
+        var s = { status: 'loading', blob: null, file: null, canvas: null, downloaded: false, promise: null };
+        state.story = s;
+        var input = {};
+        Object.keys(o.story).forEach(function (key) { input[key] = o.story[key]; });
+        input.url = o.url;
+        s.promise = C.renderStory(input).then(function (canvas) {
+            return C.toBlob(canvas, 'image/jpeg', 0.92).then(function (blob) {
+                s.canvas = canvas;
+                s.blob = blob;
+                try { s.file = new File([blob], C.storyFileName(o.fileName || o.name), { type: 'image/jpeg' }); }
+                catch (e) { s.file = null; }
+                s.status = 'ready';
+            });
+        }).catch(function () {
+            s.status = 'error';
+        }).then(function () {
+            if (state.story === s) paintStory();
+            return s;
+        });
+    }
+
+    function canShareStoryFile() {
+        var s = state.story;
+        var nav = root.navigator;
+        if (!s || s.status !== 'ready' || !s.file || !nav || typeof nav.share !== 'function' || typeof nav.canShare !== 'function') return false;
+        try { return nav.canShare({ files: [s.file] }) === true; } catch (e) { return false; }
+    }
+
+    function setStoryNote(msg) {
+        var note = state.dialog && state.dialog.querySelector('[data-story-note]');
+        if (note) { note.textContent = msg || ''; note.hidden = !msg; }
+        if (msg) announce(msg);
+    }
+
+    function paintStory() {
+        var panel = state.dialog && state.dialog.querySelector('[data-share-story]');
+        var s = state.story;
+        if (!panel || !s) return;
+        var canvas = panel.querySelector('.wss-story-canvas');
+        var wait = panel.querySelector('[data-story-wait]');
+        var shareBtn = panel.querySelector('[data-share-act="story-share"]');
+        var saveBtn = panel.querySelector('[data-share-act="story-download"]');
+        var ready = s.status === 'ready';
+        if (wait) {
+            wait.hidden = ready;
+            wait.textContent = s.status === 'error'
+                ? 'No pudimos crear la imagen en este navegador. Copia el enlace y pégalo en tu historia.'
+                : 'Preparando tu historia…';
+        }
+        if (canvas) {
+            canvas.hidden = !ready;
+            if (ready && s.canvas) {
+                try { canvas.getContext('2d').drawImage(s.canvas, 0, 0, canvas.width, canvas.height); }
+                catch (e) { canvas.hidden = true; }
+            }
+        }
+        if (saveBtn) saveBtn.disabled = !ready;
+        if (shareBtn) shareBtn.hidden = !(ready && isTouch() && canShareStoryFile());
+    }
+
+    function toggleStory(force) {
+        var panel = state.dialog && state.dialog.querySelector('[data-share-story]');
+        var btn = state.dialog && state.dialog.querySelector('[data-net="instagram"]');
+        if (!panel) return;
+        state.storyOpen = typeof force === 'boolean' ? force : !state.storyOpen;
+        panel.hidden = !state.storyOpen;
+        if (btn) btn.setAttribute('aria-expanded', String(state.storyOpen));
+        if (state.storyOpen) {
+            if (state.qrOpen) toggleQr(false);
+            paintStory();
+        }
+    }
+
+    // Tiene que correr dentro del click (gesto del usuario).
+    function shareStoryFile() {
+        var s = state.story;
+        root.navigator.share({ files: [s.file], title: (state.opts && state.opts.title) || '' }).then(function () {
+            track('story');
+            setStoryNote('Listo. Agrega el sticker de enlace en tu historia y pega el enlace: ya está copiado.');
+        }).catch(function (e) {
+            if (e && e.name !== 'AbortError') setStoryNote('No pudimos abrir el menú para compartir. Descarga la imagen y súbela a tu historia.');
+        });
+    }
+
+    function downloadStory() {
+        var s = state.story;
+        if (!s || s.status !== 'ready' || !s.blob) return false;
+        var C = cards();
+        try {
+            var href = URL.createObjectURL(s.blob);
+            download(href, C ? C.storyFileName((state.opts && (state.opts.fileName || state.opts.name)) || '') : 'historia.jpg');
+            setTimeout(function () { URL.revokeObjectURL(href); }, 2000);
+            s.downloaded = true;
+            track('story');
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function shareInstagram() {
+        var o = state.opts;
+        track('instagram');
+        // El enlace va al portapapeles en el mismo click: se pega en el sticker de enlace.
+        var copied = copy(o.url);
+        var copiedNote = function (ok, extra) {
+            return (ok ? 'Copiamos el enlace. ' : 'Copia el enlace de arriba. ') + extra;
+        };
+
+        if (!hasStory()) {
+            // Sin compositor de historias: se abre Instagram con el enlace copiado.
+            try { root.open('https://www.instagram.com/', '_blank', 'noopener'); } catch (e) { /* bloqueado */ }
+            copied.then(function () { announce(copiedNote(true, 'Pégalo en tu historia, en tu bio o en un mensaje de Instagram.')); })
+                .catch(function () { announce(copiedNote(false, 'Pégalo en tu historia, en tu bio o en un mensaje de Instagram.')); });
+            return;
+        }
+
+        // Teléfono: la imagen ya está lista → menú del sistema (Instagram, historias, otras apps).
+        if (isTouch() && canShareStoryFile()) {
+            shareStoryFile();
+            toggleStory(true);
+            copied.catch(function () { /* el enlace sigue visible arriba */ });
+            return;
+        }
+
+        toggleStory(true);
+        var s = state.story;
+        var touch = isTouch();
+        var steps = touch
+            ? 'Toca "Compartir historia" o guarda la imagen y súbela a tu historia.'
+            : 'Sube la imagen a tu historia y pega el enlace con el sticker de enlace.';
+        copied.then(function () { setStoryNote(copiedNote(true, steps)); })
+            .catch(function () { setStoryNote(copiedNote(false, steps)); });
+
+        // Escritorio: la imagen se descarga sola (una vez) en cuanto está lista.
+        if (!touch && s && !s.downloaded) {
+            if (s.status === 'ready') downloadStory();
+            else if (s.promise) {
+                s.promise.then(function (done) {
+                    if (state.story === done && state.storyOpen && done.status === 'ready' && !done.downloaded) downloadStory();
+                });
+            }
         }
     }
 
@@ -159,17 +322,6 @@
             if (e && e.name !== 'AbortError') announce('No pudimos abrir el menú para compartir.');
         });
         return true;
-    }
-
-    function shareInstagram() {
-        if (isTouch() && nativeShare()) { track('instagram'); return; }
-        // Escritorio: se pide la copia y se abre Instagram en el mismo click.
-        var pending = copy(state.opts.url);
-        try { root.open('https://www.instagram.com/', '_blank', 'noopener'); } catch (e) { /* bloqueado */ }
-        pending.then(function () {
-            announce('Copiamos el enlace: pegalo en tu bio, en una historia o en un mensaje de Instagram.');
-        }).catch(function () { announce('Copiá el enlace de arriba y pegalo en Instagram.'); });
-        track('instagram');
     }
 
     function onClick(e) {
@@ -187,11 +339,20 @@
                     setTimeout(function () { label.textContent = 'Copiar enlace'; }, 2000);
                 }
                 track('copy');
-            }).catch(function () { announce('No pudimos copiar. Seleccioná el enlace y copialo a mano.'); });
+            }).catch(function () { announce('No pudimos copiar. Selecciona el enlace y cópialo a mano.'); });
             return;
         }
         if (act === 'native') { nativeShare(); return; }
         if (act === 'qr-download') { downloadQr(); return; }
+        if (act === 'story-share') {
+            if (canShareStoryFile()) shareStoryFile();
+            return;
+        }
+        if (act === 'story-download') {
+            if (downloadStory()) setStoryNote('Descargamos la imagen. Súbela a tu historia y pega el enlace con el sticker de enlace.');
+            else setStoryNote('La imagen todavía no está lista. Intenta de nuevo en unos segundos.');
+            return;
+        }
         if (net === 'instagram') { e.preventDefault(); shareInstagram(); return; }
         if (net === 'qr') { e.preventDefault(); toggleQr(); return; }
         if (net) track(net); // los <a> de redes navegan solos
@@ -200,28 +361,47 @@
     /* ------------------------------ render ------------------------------ */
     function render() {
         var o = state.opts;
-        var links = networkLinks(o.url, o.text, o.title);
+        var links = networkLinks(o.url, o.text);
+        var story = hasStory();
         var nets = [
             ['whatsapp', 'WhatsApp', 'message-circle', links.whatsapp],
-            ['instagram', 'Instagram', 'instagram', null],
+            ['instagram', story ? 'Historia' : 'Instagram', 'instagram', null],
             ['facebook', 'Facebook', 'facebook', links.facebook],
             ['x', 'X', 'twitter', links.x],
-            ['telegram', 'Telegram', 'send', links.telegram],
-            ['linkedin', 'LinkedIn', 'linkedin', links.linkedin],
-            ['mail', 'Mail', 'mail', links.mail],
             ['qr', 'Código QR', 'grid', null]
         ];
         var netsHtml = nets.map(function (n) {
             var label = '<span>' + esc(n[1]) + '</span>';
             if (!n[3]) {
-                var extra = n[0] === 'qr' ? ' aria-expanded="false" aria-controls="wss-qr"' : '';
+                var extra = n[0] === 'qr'
+                    ? ' aria-expanded="false" aria-controls="wss-qr"'
+                    : (story ? ' aria-expanded="false" aria-controls="wss-story" aria-label="Compartir en una historia de Instagram"' : '');
                 return '<li><button type="button" class="wss-net" data-net="' + n[0] + '"' + extra + '>' + icon(n[2]) + label + '</button></li>';
             }
-            var target = n[0] === 'mail' ? '' : ' target="_blank" rel="noopener noreferrer"';
-            var sr = n[0] === 'mail' ? '' : '<span class="wo-sr-only"> (se abre en otra pestaña)</span>';
-            return '<li><a class="wss-net" data-net="' + n[0] + '" href="' + esc(n[3]) + '"' + target + '>' + icon(n[2]) + label + sr + '</a></li>';
+            return '<li><a class="wss-net" data-net="' + n[0] + '" href="' + esc(n[3]) + '" target="_blank" rel="noopener noreferrer">'
+                + icon(n[2]) + label + '<span class="wo-sr-only"> (se abre en otra pestaña)</span></a></li>';
         }).join('');
         var initials = String(o.name || 'WÖ').trim().split(/\s+/).slice(0, 2).map(function (p) { return p.charAt(0); }).join('').toUpperCase() || 'Ö';
+        var storyHtml = !story ? '' :
+            '<div class="wss-story" id="wss-story" data-share-story hidden>' +
+                '<div class="wss-story-preview">' +
+                    '<canvas class="wss-story-canvas" width="270" height="480" role="img" aria-label="Vista previa de la historia de ' + esc(o.name || 'este perfil') + '" hidden></canvas>' +
+                    '<p class="wss-story-wait" data-story-wait>Preparando tu historia…</p>' +
+                '</div>' +
+                '<div class="wss-story-side">' +
+                    '<p class="wss-story-title">Historia de Instagram</p>' +
+                    '<ol class="wss-story-steps">' +
+                        '<li>Guarda o comparte la imagen.</li>' +
+                        '<li>Súbela a tu historia.</li>' +
+                        '<li>Agrega el sticker de enlace y pega el enlace.</li>' +
+                    '</ol>' +
+                    '<p class="wss-story-note" data-story-note hidden></p>' +
+                    '<div class="wss-story-actions">' +
+                        '<button type="button" class="wo-btn wo-btn--accent wo-btn--hard wo-btn--s" data-share-act="story-share" hidden>' + icon('share-2') + '<span>Compartir historia</span></button>' +
+                        '<button type="button" class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--s" data-share-act="story-download" disabled>' + icon('download') + '<span>Descargar imagen</span></button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
 
         state.dialog.innerHTML =
             '<div class="wss-head">' +
@@ -243,6 +423,7 @@
                     : '') +
                 '<p class="wss-label" id="wss-nets-label">Compartir en</p>' +
                 '<ul class="wss-nets" aria-labelledby="wss-nets-label">' + netsHtml + '</ul>' +
+                storyHtml +
                 '<div class="wss-qr" id="wss-qr" data-share-qr hidden>' +
                     '<canvas class="wss-qr-canvas" width="240" height="240" role="img" aria-label="Código QR de ' + esc(prettyUrl(o.url)) + '"></canvas>' +
                     '<p class="wss-qr-note" data-qr-fallback hidden>No pudimos generar el código QR en este navegador.</p>' +
@@ -282,8 +463,11 @@
         if (!opts || !opts.url) return;
         state.opts = opts;
         state.qrOpen = false;
+        state.storyOpen = false;
+        state.story = null;
         var d = ensureDialog();
         render();
+        prepareStory();
         document.documentElement.classList.add('wss-open');
         if (typeof d.showModal === 'function') {
             if (!d.open) d.showModal();
@@ -301,7 +485,7 @@
         else { state.dialog.removeAttribute('open'); document.documentElement.classList.remove('wss-open'); }
     }
 
-    var api = { open: open, close: close, networkLinks: networkLinks, copy: copy };
+    var api = { open: open, close: close, networkLinks: networkLinks, copy: copy, NETWORKS: NETWORKS };
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.WoShareSheet = api;
 }(typeof self !== 'undefined' ? self : this));

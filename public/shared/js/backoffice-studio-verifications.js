@@ -80,7 +80,7 @@
         const n = String(note == null ? '' : note).trim();
         if (decision !== 'approve' && decision !== 'reject') return 'Decisión inválida.';
         if (n.length > NOTE_MAX) return 'La nota admite hasta ' + NOTE_MAX + ' caracteres.';
-        if (decision === 'reject' && n.length < NOTE_MIN) return 'Contale al estudio qué tiene que corregir (al menos 3 caracteres).';
+        if (decision === 'reject' && n.length < NOTE_MIN) return 'Cuéntale al estudio qué tiene que corregir (al menos 3 caracteres).';
         return null;
     }
 
@@ -220,7 +220,7 @@
     async function request(path, opts) {
         const o = opts || {};
         const auth = await authHeaders();
-        if (!auth) return { ok: false, status: 401, data: { error: 'No hay sesión de superadmin activa. Iniciá sesión de nuevo en /backoffice/login.' } };
+        if (!auth) return { ok: false, status: 401, data: { error: 'No hay sesión de superadmin activa. Inicia sesión de nuevo en /backoffice/login.' } };
         try {
             const res = await root.fetch(path, {
                 method: o.method || 'GET',
@@ -228,10 +228,10 @@
                 body: o.body ? JSON.stringify(o.body) : undefined
             });
             const data = await res.json().catch(() => ({}));
-            if (res.status === 404 && !data.error) data.error = 'El servidor todavía no tiene esta función: actualizá el deploy.';
+            if (res.status === 404 && !data.error) data.error = 'El servidor todavía no tiene esta función: actualiza el deploy.';
             return { ok: res.ok && data.success !== false, status: res.status, data };
         } catch (_) {
-            return { ok: false, status: 0, data: { error: 'No pudimos conectarnos con el servidor. Revisá tu conexión e intentá de nuevo.' } };
+            return { ok: false, status: 0, data: { error: 'No pudimos conectarnos con el servidor. Revisa tu conexión e intenta de nuevo.' } };
         }
     }
 
@@ -303,7 +303,7 @@
         });
         form.querySelectorAll('button').forEach(b => { b.disabled = false; });
         if (!res.ok) { formError(form, (res.data && res.data.error) || 'No pudimos guardar la decisión.'); return; }
-        toast((decision === 'approve' ? 'Estudio verificado' : 'Corrección pedida') + (res.data.email_sent ? ' · email enviado' : ' · el email no salió (revisá Email Routing)'), res.data.email_sent ? 'success' : 'warning');
+        toast((decision === 'approve' ? 'Estudio verificado' : 'Corrección pedida') + (res.data.email_sent ? ' · email enviado' : ' · el email no salió (revisa Email Routing)'), res.data.email_sent ? 'success' : 'warning');
         load();
     }
 
@@ -312,12 +312,12 @@
     async function revokeStudio(form, studioId, endpoint) {
         const note = form.querySelector('[name="note"]').value.trim();
         if (!UUID_RE.test(String(studioId || ''))) { formError(form, 'ID de estudio inválido.'); return false; }
-        if (note.length < NOTE_MIN || note.length > NOTE_MAX) { formError(form, 'Escribí el motivo (entre ' + NOTE_MIN + ' y ' + NOTE_MAX + ' caracteres).'); return false; }
+        if (note.length < NOTE_MIN || note.length > NOTE_MAX) { formError(form, 'Escribe el motivo (entre ' + NOTE_MIN + ' y ' + NOTE_MAX + ' caracteres).'); return false; }
         if (typeof root.confirm === 'function' && !root.confirm('¿Retirar el sello de verificado? El estudio deja de mostrarlo y recibe el motivo por email.')) return false;
         formError(form, '');
         const res = await request((endpoint || state.endpoint) + '/studios/' + encodeURIComponent(studioId) + '/revoke', { method: 'POST', body: { note } });
         if (!res.ok) { formError(form, (res.data && res.data.error) || 'No pudimos retirar el sello.'); return false; }
-        toast('Sello retirado' + (res.data.email_sent ? ' · email enviado' : ' · el email no salió (revisá Email Routing)'), res.data.email_sent ? 'success' : 'warning');
+        toast('Sello retirado' + (res.data.email_sent ? ' · email enviado' : ' · el email no salió (revisa Email Routing)'), res.data.email_sent ? 'success' : 'warning');
         return true;
     }
 
@@ -329,7 +329,7 @@
     // Ficha del estudio en el backoffice (#section-studio-detail): el toggle
     // "Verificado" quedó de solo lectura, así que un estudio verificado SIN
     // solicitud aprobada (p. ej. marcado a mano antes de la cola) se puede
-    // des-verificar desde acá. Sin <form> anidado: la ficha ya es un form.
+    // des-verificar desde aquí. Sin <form> anidado: la ficha ya es un form.
     // ---------------------------------------------------------------
     const detail = { box: null };
 

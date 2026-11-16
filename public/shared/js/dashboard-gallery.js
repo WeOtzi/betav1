@@ -40,6 +40,26 @@
 
   var NEW_IMPORT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
   var TITLE_MAX = 60;
+  // Ronda 2 (N3): pie de foto por trabajo. Misma limpieza que
+  // public/shared/js/gallery-caption.js (si está cargado, se usa ese módulo).
+  var CAPTION_MAX = 2200;
+  function captionModule() {
+    if (typeof window !== 'undefined' && window.WoGalleryCaption) return window.WoGalleryCaption;
+    if (typeof module === 'object' && module.exports && typeof require === 'function') {
+      try { return require('./gallery-caption.js'); } catch (_) { return null; }
+    }
+    return null;
+  }
+  function cleanCaption(value) {
+    var mod = captionModule();
+    if (mod) return mod.sanitizeCaption(value);
+    if (typeof value !== 'string') return '';
+    var text = value.replace(/\r\n?/g, '\n').replace(/\t/g, ' ')
+      .replace(/[\u0000-\u0009\u000B-\u001F\u007F-\u009F‪-‮⁦-⁩﻿]/g, '')
+      .replace(/\n{3,}/g, '\n\n').trim();
+    var points = Array.from(text);
+    return points.length > CAPTION_MAX ? points.slice(0, CAPTION_MAX).join('').trim() : text;
+  }
   var PENDING_HINT = 'Se muestra en tu perfil público cuando valides tu Instagram';
 
   /* ---------------------------------------------------------------- puras --- */
@@ -164,6 +184,11 @@
       out[k] = raw[k];
     });
     if (out.title != null) out.title = String(out.title).trim().slice(0, TITLE_MAX);
+    // Pie de foto: solo texto plano saneado (ronda 2 · N3).
+    if (out.caption != null) {
+      var cap = cleanCaption(out.caption);
+      if (cap) out.caption = cap; else delete out.caption;
+    }
     if (out.duration != null) {
       var d = Math.round(Number(out.duration));
       if (isFinite(d) && d > 0) out.duration = d; else delete out.duration;
@@ -177,6 +202,108 @@
 
   /* ------------------------------------------------------------------ DOM --- */
   function icon(name) { return '<i data-wo-icon="' + name + '" aria-hidden="true"></i>'; }
+
+  /* -------------------------------------------- pie de foto (ronda 2 · N3) --- */
+  var CAPTION_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true">' +
+    '<path d="M4 6h16M4 12h16M4 18h9"/></svg>';
+
+  // Devuelve una copia del feed con el pie del ítem `index` cambiado.
+  function setCaption(list, index, value) {
+    var next = Array.isArray(list) ? list.slice() : [];
+    if (index < 0 || index >= next.length || !next[index]) return next;
+    var patched = Object.assign({}, next[index]);
+    var clean = cleanCaption(value);
+    if (clean) patched.caption = clean; else delete patched.caption;
+    next[index] = patched;
+    return next;
+  }
+
+  function ensureCaptionStyles() {
+    if (typeof document === 'undefined' || document.getElementById('wod-gal-caption-styles')) return;
+    var style = document.createElement('style');
+    style.id = 'wod-gal-caption-styles';
+    style.textContent = [
+      '.wod-gal-cap{flex:none;display:grid;place-items:center;width:28px;height:28px;padding:0;border:var(--border-hairline,1px) solid transparent;background:none;color:var(--neutral-300,#b9ae98);cursor:pointer}',
+      '.wod-gal-cap.has-caption{color:var(--yellow-300,#f2b519)}',
+      '.wod-gal-cap:hover{color:var(--neutral-100,#faf8f3);border-color:currentColor}',
+      '.wod-gal-cap:focus-visible{outline:none;box-shadow:0 0 0 2px var(--yellow-300,#f2b519)}',
+      '.wod-gal-capdlg{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:var(--space-4,16px);background:color-mix(in srgb,var(--neutral-500,#24211d) 72%,transparent);box-sizing:border-box}',
+      '.wod-gal-capdlg-card{display:flex;flex-direction:column;gap:var(--space-3,12px);width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:var(--space-6,24px);background:var(--surface-card,#fff);border:var(--border-strong-width,2px) solid var(--border-strong,#24211d);box-shadow:var(--shadow-hard,6px 6px 0 #24211d);box-sizing:border-box}',
+      '.wod-gal-capdlg-title{margin:0;font-family:var(--font-display,"Archivo Black",sans-serif);font-size:20px;line-height:1.2;color:var(--text-heading,#001125)}',
+      '.wod-gal-capdlg-lead{margin:0;font-family:var(--font-body,sans-serif);font-size:14px;line-height:1.4;color:var(--text-muted,#5a5449)}',
+      '.wod-gal-capdlg-label{font-family:var(--font-mono,monospace);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-body,#24211d)}',
+      '.wod-gal-capdlg-input{width:100%;min-height:120px;padding:var(--space-3,12px);box-sizing:border-box;resize:vertical;background:var(--surface-input,#faf8f3);border:var(--border-hairline,1px) solid var(--neutral-500,#24211d);border-radius:0;font-family:var(--font-body,sans-serif);font-size:15px;line-height:1.4;color:var(--text-body,#24211d)}',
+      '.wod-gal-capdlg-input:focus{outline:none;background:var(--white,#fff);border-width:var(--border-strong-width,2px);padding:calc(var(--space-3,12px) - 1px)}',
+      '.wod-gal-capdlg-foot{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3,12px);flex-wrap:wrap}',
+      '.wod-gal-capdlg-count{font-family:var(--font-mono,monospace);font-size:11px;letter-spacing:.06em;color:var(--text-muted,#5a5449)}',
+      '.wod-gal-capdlg-actions{display:flex;gap:var(--space-2,8px);margin-left:auto}',
+      '.wod-gal-capdlg-btn{min-height:44px;padding:0 var(--space-5,20px);border:var(--border-strong-width,2px) solid var(--border-strong,#24211d);border-radius:0;background:transparent;font-family:var(--font-mono,monospace);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-body,#24211d);cursor:pointer}',
+      '.wod-gal-capdlg-btn.is-primary{background:var(--yellow-300,#f2b519);color:var(--ink,#001125)}',
+      '.wod-gal-capdlg-btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--surface-card,#fff),0 0 0 4px var(--ink,#001125)}',
+      '@media (max-width:480px){.wod-gal-capdlg-card{padding:var(--space-4,16px)}.wod-gal-capdlg-actions{width:100%}.wod-gal-capdlg-btn{flex:1}}'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  // Diálogo "Pie de foto". onSave(texto saneado) se llama solo si cambió.
+  function openCaptionDialog(item, label, onSave) {
+    if (typeof document === 'undefined' || !item) return null;
+    ensureCaptionStyles();
+    var previous = document.querySelector('.wod-gal-capdlg');
+    if (previous) previous.remove();
+    var lastFocus = document.activeElement;
+    var before = cleanCaption(item.caption);
+    var overlay = document.createElement('div');
+    overlay.className = 'wod-gal-capdlg';
+    overlay.innerHTML =
+      '<div class="wod-gal-capdlg-card" role="dialog" aria-modal="true" aria-labelledby="wod-gal-capdlg-title">' +
+        '<h2 class="wod-gal-capdlg-title" id="wod-gal-capdlg-title">Pie de foto</h2>' +
+        '<p class="wod-gal-capdlg-lead">' + esc(label || 'Este trabajo') + '. El pie se muestra junto a la foto en tu perfil público.' +
+          (isFromInstagram(item) ? ' Lo trajimos de Instagram: puedes cambiarlo.' : '') + '</p>' +
+        '<label class="wod-gal-capdlg-label" for="wod-gal-capdlg-input">Texto del pie</label>' +
+        '<textarea class="wod-gal-capdlg-input" id="wod-gal-capdlg-input" maxlength="' + CAPTION_MAX + '" placeholder="Cuenta algo de este trabajo: estilo, zona, sesiones…"></textarea>' +
+        '<div class="wod-gal-capdlg-foot">' +
+          '<span class="wod-gal-capdlg-count" aria-live="polite"></span>' +
+          '<div class="wod-gal-capdlg-actions">' +
+            '<button type="button" class="wod-gal-capdlg-btn" data-cap-cancel>Cancelar</button>' +
+            '<button type="button" class="wod-gal-capdlg-btn is-primary" data-cap-save>Guardar</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    var area = overlay.querySelector('textarea');
+    var count = overlay.querySelector('.wod-gal-capdlg-count');
+    area.value = before;
+    function paint() { count.textContent = Array.from(area.value).length + ' / ' + CAPTION_MAX; }
+    function close() {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey, true);
+      if (lastFocus && document.contains(lastFocus)) { try { lastFocus.focus(); } catch (_) { /* foco opcional */ } }
+    }
+    function save() {
+      var value = cleanCaption(area.value);
+      close();
+      if (value !== before && typeof onSave === 'function') onSave(value);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); return; }
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); save(); return; }
+      if (e.key !== 'Tab') return;
+      var focusables = overlay.querySelectorAll('textarea, button');
+      var first = focusables[0];
+      var last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+    area.addEventListener('input', paint);
+    overlay.addEventListener('mousedown', function (e) { if (e.target === overlay) close(); });
+    overlay.querySelector('[data-cap-cancel]').addEventListener('click', close);
+    overlay.querySelector('[data-cap-save]').addEventListener('click', save);
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(overlay);
+    paint();
+    setTimeout(function () { try { area.focus(); area.setSelectionRange(area.value.length, area.value.length); } catch (_) { /* foco opcional */ } }, 30);
+    return overlay;
+  }
 
   function cellMarkup(item, index, total, now) {
     var name = itemTitle(item);
@@ -211,6 +338,9 @@
       '<div class="wod-gal-bar">' +
         '<button type="button" class="wod-gal-name" data-gal-action="rename" title="Cambiar el nombre" aria-label="Cambiar el nombre de ' +
           esc(label) + '"><span>' + esc(shown) + '</span></button>' +
+        // Ronda 2 (N3): pie de foto (el de Instagram llega precargado).
+        '<button type="button" class="wod-gal-cap' + (cleanCaption(item.caption) ? ' has-caption' : '') + '" data-gal-action="caption" title="Pie de foto" aria-label="' +
+          (cleanCaption(item.caption) ? 'Editar el pie de foto de ' : 'Agregar un pie de foto a ') + esc(label) + '">' + CAPTION_ICON + '</button>' +
         '<button type="button" class="gallery-item-delete wod-gal-del" data-gal-action="delete" aria-label="Eliminar ' + esc(label) + '">' + icon('trash-2') + '</button>' +
       '</div>' +
     '</div>';
@@ -229,6 +359,7 @@
     var c = counts(list, opts.max, opts.maxVideos);
     var now = opts.now || new Date();
     grid.setAttribute('role', 'list');
+    ensureCaptionStyles();
     grid.innerHTML = list.map(function (item, i) { return cellMarkup(item, i, list.length, now); }).join('') +
       (c.free > 0 ? dropzoneMarkup(c.free) : '');
 
@@ -339,6 +470,17 @@
       var i = indexOf(actionEl);
       if (i < 0) return;
       if (action === 'delete') { if (api.deleteAt) api.deleteAt(i); }
+      else if (action === 'caption') {
+        // Ronda 2 (N3): pie de foto del trabajo (también el de Instagram).
+        var current = feed();
+        if (!current[i]) return;
+        openCaptionDialog(current[i], itemTitle(current[i]) || 'Trabajo ' + (i + 1), function (value) {
+          save(setCaption(feed(), i, value), value ? 'Pie de foto guardado.' : 'Pie de foto quitado.').then(function () {
+            var again = grid.querySelector('.wod-gal-cell[data-index="' + i + '"] .wod-gal-cap');
+            if (again) again.focus();
+          });
+        });
+      }
       else if (action === 'feature') move(i, 0, false);
       else if (action === 'rename') startRename(actionEl.closest('.wod-gal-cell'), i);
     });
@@ -426,6 +568,11 @@
     quotaLabel: quotaLabel,
     freeLabel: freeLabel,
     moveItem: moveItem,
+    // ronda 2 · N3
+    CAPTION_MAX: CAPTION_MAX,
+    cleanCaption: cleanCaption,
+    setCaption: setCaption,
+    openCaptionDialog: openCaptionDialog,
     pickExtras: pickExtras,
     cellMarkup: cellMarkup,
     render: render,

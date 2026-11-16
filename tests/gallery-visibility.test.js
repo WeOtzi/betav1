@@ -548,5 +548,5 @@ test('la fila de insignias de la galería se apila a la derecha en celdas angost
     const html = read('public/artist/dashboard/index.html');
     const link = html.match(/href="\/shared\/css\/dashboard-figma-final\.css\?v=([^"]+)"/);
     assert.ok(link, 'link a dashboard-figma-final.css con ?v=');
-    assert.notEqual(link[1], '20261028-figma-final-r2', 'subí el ?v= al cambiar la hoja');
+    assert.notEqual(link[1], '20261028-figma-final-r2', 'sube el ?v= al cambiar la hoja');
 });

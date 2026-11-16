@@ -72,7 +72,7 @@
         const id = 'yp' + (++uid);
         const min = opts.min || 1900;
         const max = opts.max || new Date().getFullYear();
-        const placeholder = opts.placeholder || 'Elegí el año';
+        const placeholder = opts.placeholder || 'Elige el año';
         const triggerId = opts.triggerId || id + '-trigger';
         let start = pageStart(Number(input.value) || max, min, max);
         let focusYear = null;
@@ -82,7 +82,7 @@
         host.innerHTML = '<button type="button" class="wo-input sr-picker-trigger" id="' + esc(triggerId) + '" aria-haspopup="dialog" aria-expanded="false" aria-controls="' + id + '-pop"' +
             (opts.labelledBy ? ' aria-labelledby="' + esc(opts.labelledBy) + ' ' + esc(triggerId) + '"' : '') + '>' +
             '<span data-value></span><span class="sr-picker-icon" aria-hidden="true">' + calendarIcon() + '</span></button>' +
-            '<div class="sr-picker-pop sr-year-pop" id="' + id + '-pop" role="dialog" aria-modal="false" aria-label="' + esc(opts.dialogLabel || 'Elegí el año de fundación') + '" hidden>' +
+            '<div class="sr-picker-pop sr-year-pop" id="' + id + '-pop" role="dialog" aria-modal="false" aria-label="' + esc(opts.dialogLabel || 'Elige el año de fundación') + '" hidden>' +
             '<div class="sr-year-head"><button type="button" class="sr-year-nav" data-prev aria-label="Años anteriores">‹</button>' +
             '<strong data-range aria-live="polite"></strong>' +
             '<button type="button" class="sr-year-nav" data-next aria-label="Años siguientes">›</button></div>' +
@@ -181,7 +181,7 @@
         let unbind = null;
         host.classList.add('sr-picker', 'sr-multi');
         // Campo arriba y chips abajo: el campo queda alineado con los de la misma fila.
-        host.innerHTML = '<div class="sr-multi-field"><input type="text" class="wo-input sr-multi-input" id="' + esc(opts.inputId || id + '-input') + '" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="' + id + '-list" autocomplete="off" maxlength="40" placeholder="' + esc(opts.placeholder || 'Buscá o escribí un idioma') + '"' +
+        host.innerHTML = '<div class="sr-multi-field"><input type="text" class="wo-input sr-multi-input" id="' + esc(opts.inputId || id + '-input') + '" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="' + id + '-list" autocomplete="off" maxlength="40" placeholder="' + esc(opts.placeholder || 'Busca o escribe un idioma') + '"' +
             (opts.labelledBy ? ' aria-labelledby="' + esc(opts.labelledBy) + '"' : '') + '>' +
             '<ul class="sr-picker-pop sr-multi-list" id="' + id + '-list" role="listbox" aria-multiselectable="true" aria-label="Idiomas" hidden></ul></div>' +
             '<ul class="sr-chips" data-chips aria-label="Idiomas elegidos"></ul>';
@@ -223,7 +223,7 @@
             const current = values();
             chips.innerHTML = current.map(lang => '<li class="sr-chip">' + esc(lang) + '<button type="button" data-remove="' + esc(lang) + '" aria-label="Quitar ' + esc(lang) + '">×</button></li>').join('');
             chips.hidden = !current.length;
-            field.placeholder = current.length >= MAX_LANGUAGES ? 'Máximo ' + MAX_LANGUAGES + ' idiomas' : (opts.placeholder || 'Buscá o escribí un idioma');
+            field.placeholder = current.length >= MAX_LANGUAGES ? 'Máximo ' + MAX_LANGUAGES + ' idiomas' : (opts.placeholder || 'Busca o escribe un idioma');
             if (!list.hidden) renderList();
         }
         function open() {

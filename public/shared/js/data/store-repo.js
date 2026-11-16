@@ -111,7 +111,7 @@
         'return_policy', 'pickup_address', 'authorship_attested_at'];
 
     // El emulador del demo no aplica los defaults de la base: en el preview se
-    // completan acá para que las páginas lean filas con la forma real.
+    // completan aquí para que las páginas lean filas con la forma real.
     const PREVIEW_PRODUCT_DEFAULTS = {
         status: 'draft', description: null, category: null, tags: [], currency: 'USD', price_amount: null,
         license_personal_price: null, license_artist_price: null, license_exclusive_price: null,
@@ -315,7 +315,7 @@
         return client.storage.from(bucket);
     }
     function uploadError(error, label) {
-        const err = new Error('No pudimos subir el archivo. Probá de nuevo.');
+        const err = new Error('No pudimos subir el archivo. Prueba de nuevo.');
         err.cause = error;
         err.label = label;
         return err;
@@ -439,7 +439,7 @@
             if (!sellerId) throw validationError('store.createProduct: falta el vendedor');
             if (kind !== 'merch' && kind !== 'design') throw validationError('store.createProduct: tipo inválido');
             const patch = cleanProductPatch(f);
-            if (!textOrNull(patch.title)) throw validationError('Poné un título de al menos 2 caracteres.');
+            if (!textOrNull(patch.title)) throw validationError('Pon un título de al menos 2 caracteres.');
             let row = Object.assign({ seller_type: sellerType, seller_id: sellerId, kind, status: 'draft' }, patch);
             if (isPreviewEnv()) row = Object.assign({}, PREVIEW_PRODUCT_DEFAULTS, row, { status: 'draft' });
             const { data } = await run('store.createProduct', (c) =>
@@ -464,7 +464,7 @@
         },
 
         // El guard del SQL valida el checklist al pasar a active y que retired
-        // sea final. El emulador no tiene guard: en el preview se espeja acá.
+        // sea final. El emulador no tiene guard: en el preview se espeja aquí.
         async setProductStatus(id, status) {
             if (!id) throw validationError('store.setProductStatus: falta el producto');
             if (PRODUCT_STATUSES.indexOf(status) === -1) throw validationError('store.setProductStatus: estado inválido');
@@ -533,7 +533,7 @@
             const inserts = [];
             desired.forEach((v, index) => {
                 const label = textOrNull(v && v.label, 60);
-                if (!label) throw validationError('Cada variante necesita un nombre, por ejemplo «Talle M».');
+                if (!label) throw validationError('Cada variante necesita un nombre, por ejemplo «Talla M».');
                 const clean = {
                     label,
                     size: textOrNull(v.size, 20),
@@ -603,7 +603,7 @@
             if (!path || isPreviewEnv() || isDemoPath(path)) return true;
             const { error } = await storageBucket(PREVIEW_BUCKET).remove([path]);
             if (error) {
-                const err = new Error('No pudimos borrar la imagen. Probá de nuevo.');
+                const err = new Error('No pudimos borrar la imagen. Prueba de nuevo.');
                 err.cause = error;
                 throw err;
             }
@@ -880,7 +880,7 @@
         },
 
         // Marcados needs_support (pago duplicado o informado y vencido) y con
-        // funds_hold. El emulador del demo no filtra jsonb: ahí se filtra acá.
+        // funds_hold. El emulador del demo no filtra jsonb: ahí se filtra aquí.
         async listFlaggedOrders() {
             const preview = isPreviewEnv();
             const [held, flagged] = await Promise.all([

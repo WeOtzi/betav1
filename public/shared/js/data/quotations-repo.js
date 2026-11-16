@@ -10,7 +10,7 @@
  *   Attachments.* / Chat.* usan quotation_id = quotations_db.quote_id (text)
  *
  * Carga: DESPUES de postgrest-client.js. Expone window.WeotziData.{Quotations,
- * Notes, Sessions, Attachments, Chat, Realtime, Api}.
+ * Notes, Sessions, Proposals, Attachments, Chat, Realtime, Api}.
  */
 (function () {
     'use strict';
@@ -62,8 +62,8 @@
         // Listado del cliente: propias por user_id o email, no ocultas. FIX
         // (doc §4-B): el email se escapa con orValue para no romper el .or().
         async listForClient(userId, email, select = '*') {
-            const { data } = await run('quotations.listForClient', (c) =>
-                c.from('quotations_db').select(select)
+            const { data } = await runWithCode('quotations.listForClient', select, (c, cols) =>
+                c.from('quotations_db').select(cols)
                     .or(`client_user_id.eq.${userId},client_email.ilike.${orValue(email)}`)
                     .is('client_deleted_at', null)
                     .order('created_at', { ascending: false })
@@ -187,12 +187,14 @@
         // la RLS no deja ver ni reclamar filas ajenas (CC-02).
 
         // ---- cotización manual del artista (Figma final 801:556 · /my-quotations/new) ----
-        // Contactos de clientes de cotizaciones anteriores del artista (buscador
-        // "Buscar cliente por nombre, correo o teléfono"). Incluye archivadas.
-        async listClientContactsForArtist(artistUserId, limit = 300) {
-            const { data } = await run('quotations.listClientContactsForArtist', (c) =>
+        // Nombres de clientes de cotizaciones anteriores del artista (respaldo del
+        // buscador de clientes). SIN datos de contacto: el email, WhatsApp e Instagram
+        // los entrega solo el servidor según la regla P20/P23
+        // (WeotziData.QuotationInfo.clientContacts → GET /api/cot-detalle/client-contacts).
+        async listClientNamesForArtist(artistUserId, limit = 300) {
+            const { data } = await run('quotations.listClientNamesForArtist', (c) =>
                 c.from('quotations_db')
-                    .select('client_full_name, client_email, client_whatsapp, client_instagram, client_city_residence, created_at')
+                    .select('client_full_name, client_city_residence, created_at')
                     .eq('artist_id', artistUserId)
                     .order('created_at', { ascending: false })
                     .limit(limit)
@@ -212,30 +214,73 @@
             return data || null;
         },
 
+        // P17: otras cotizaciones que este artista recibió del mismo contacto
+        // (mismo correo o teléfono). La RPC quotation_same_contact (migración
+        // 20261116110200) limita al artista a las suyas y no expone el correo ni
+        // el teléfono: solo dice cuál coincide. Devuelve filas { quote_id,
+        // short_code, quote_status, created_at, tattoo_idea_description,
+        // same_email, same_phone }. Sin la migración (PGRST202 / 42883) → [].
+        async listSameContact(quoteId) {
+            if (!quoteId) return [];
+            try {
+                const { data } = await run('quotations.listSameContact', (c) =>
+                    c.rpc('quotation_same_contact', { p_quote_id: String(quoteId) })
+                );
+                return Array.isArray(data) ? data : [];
+            } catch (error) {
+                const code = String((error && error.code) || (error && error.cause && error.cause.code) || '');
+                if (code === 'PGRST202' || code === '42883') return [];
+                throw error;
+            }
+        },
+
         // Inbox (deep link ?quote= sin mensajes previos + tarjeta de cotización).
         // Columnas para el chat: sin datos de salud ni contacto del cliente.
         // La RLS del artista ("Artists can view own quotations") acota.
         async getForArtistByQuoteId(quoteId, select = CHAT_QUOTE_COLUMNS) {
-            const { data } = await run('quotations.getForArtistByQuoteId', (c) =>
-                c.from('quotations_db').select(select).eq('quote_id', quoteId).maybeSingle()
+            const { data } = await runWithCode('quotations.getForArtistByQuoteId', select, (c, cols) =>
+                c.from('quotations_db').select(cols).eq('quote_id', quoteId).maybeSingle()
             );
             return data || null;
         },
         // Lado cliente (clients_select_own_quotations acota a las propias).
         async getForClientByQuoteId(quoteId, select = CHAT_QUOTE_COLUMNS) {
-            const { data } = await run('quotations.getForClientByQuoteId', (c) =>
-                c.from('quotations_db').select(select).eq('quote_id', quoteId).maybeSingle()
+            const { data } = await runWithCode('quotations.getForClientByQuoteId', select, (c, cols) =>
+                c.from('quotations_db').select(cols).eq('quote_id', quoteId).maybeSingle()
             );
             return data || null;
         },
     };
 
     // Columnas de quotations_db que necesita el chat (lista, banner y tarjeta).
-    const CHAT_QUOTE_COLUMNS = 'id, quote_id, artist_id, artist_name, artist_username, client_user_id, client_full_name, ' +
+    // short_code es el código corto que ve el cliente (buscador y encabezado).
+    const CHAT_QUOTE_COLUMNS = 'id, quote_id, short_code, artist_id, artist_name, artist_username, client_user_id, client_full_name, ' +
         'quote_status, tattoo_style, tattoo_body_part, tattoo_size, tattoo_estimated_sessions, final_budget_amount, ' +
         'final_budget_currency, final_sessions, artist_budget_amount, artist_budget_currency, artist_session_minutes, ' +
         'artist_responded_at, client_deleted_at, created_at, updated_at';
     Quotations.CHAT_COLUMNS = CHAT_QUOTE_COLUMNS;
+
+    // short_code llega con la migración 20261116110000. Si la base todavía no
+    // tiene la columna (42703 / PGRST204), la lectura se repite sin ella para
+    // no perder la lista: el código corto es un dato más, no una condición.
+    function selectColumns(select) {
+        return String(select || '').split(',').map((c) => c.trim()).filter(Boolean);
+    }
+    function isMissingShortCode(error) {
+        const cause = (error && error.cause) || {};
+        const text = [error && error.code, error && error.message, cause.code, cause.message, cause.details].filter(Boolean).join(' ');
+        return /42703|PGRST204/.test(text) && /short_code/.test(text);
+    }
+    async function runWithCode(label, select, build) {
+        try {
+            return await run(label, (c) => build(c, select));
+        } catch (error) {
+            const columns = selectColumns(select);
+            const reduced = columns.filter((c) => c !== 'short_code');
+            if (reduced.length === columns.length || !reduced.length || !isMissingShortCode(error)) throw error;
+            return run(label, (c) => build(c, reduced.join(', ')));
+        }
+    }
 
     // ===================== quotation_notes (key = int id) =====================
     const Notes = {
@@ -273,7 +318,9 @@
         },
         // Lado cliente: la tabla solo tiene policy del artista. La RPC security
         // definer (migración 20261115170100) devuelve columnas seguras (sin
-        // notes, photo_urls ni google_event_id) de cotizaciones propias.
+        // notes, photo_urls ni google_event_id) de cotizaciones propias. Desde
+        // la migración 20261116150000 trae además client_confirmation y
+        // pending_change_by (quién pidió el cambio pendiente de la sesión).
         async listForClient(quotationIds) {
             const ids = (quotationIds || []).map(Number).filter(Number.isInteger);
             if (!ids.length) return [];
@@ -313,6 +360,41 @@
         },
     };
 
+    // ================== quotation_proposals (key = int id) ==================
+    // Negociación (ronda 2 · migración 20261116140000): contrapropuestas del
+    // cliente (kind 'counter') y cambios al acuerdo (kind 'amendment'). Solo
+    // lectura: la RLS quotation_proposals_party_select deja ver las propias a
+    // cliente y artista; proponer y resolver pasa por el servidor
+    // (WeotziData.Negotiation → /api/negociacion).
+    function isMissingProposals(error) {
+        const cause = (error && error.cause) || {};
+        const text = [error && error.message, error && error.code, cause.message, cause.code].filter(Boolean).join(' ');
+        return /PGRST205|PGRST200|42P01|PREVIEW_UNSUPPORTED|does not exist|schema cache|No simulado/i.test(text);
+    }
+    const Proposals = {
+        // Propuestas pendientes de un lote de cotizaciones (panel del cliente:
+        // etiquetas "Cambios propuestos por ti" y "Cambios al acuerdo pendientes
+        // de aprobar"). Sin la migración aplicada la tabla no existe: [].
+        async listPendingByQuotationIds(quotationIds) {
+            const ids = (quotationIds || []).map(Number).filter(Number.isInteger);
+            const out = [];
+            for (let i = 0; i < ids.length; i += 60) {
+                const chunk = ids.slice(i, i + 60);
+                try {
+                    const { data } = await run('proposals.listPendingByQuotationIds', (c) =>
+                        c.from('quotation_proposals').select('quotation_id,kind,proposed_by,status,created_at')
+                            .in('quotation_id', chunk).eq('status', 'pending')
+                    );
+                    (data || []).forEach((row) => out.push(row));
+                } catch (error) {
+                    if (isMissingProposals(error)) return [];
+                    throw error;
+                }
+            }
+            return out;
+        },
+    };
+
     // ============== quotations_attachments (key = text quote_id) ==============
     const Attachments = {
         async listByQuoteIds(quoteIds) {
@@ -348,6 +430,8 @@
                 row.attachment_name = attachment.name || null;
                 row.attachment_mime = attachment.type || null;
                 row.attachment_size = attachment.size ?? null;
+                // Mensaje de voz (ronda 2 · 20261116160000): la base exige la duración.
+                if (attachment.durationMs != null) row.attachment_duration_ms = Math.round(Number(attachment.durationMs) || 0);
             }
             const { data } = await run('chat.sendMessage', (c) =>
                 c.from('chat_messages').insert(row).select('*')
@@ -367,7 +451,11 @@
         // migración 20261115170000). Ruta <quote_id>/<user_id>/<ts>-<nombre>.
         async uploadAttachment(quoteId, userId, file) {
             const model = window.WeotziInboxChat;
-            const check = model ? model.validateAttachment(file) : { ok: !!file, error: 'Elegí un archivo.' };
+            // Los mensajes de voz (audio grabado en el chat) tienen su propio
+            // formato y tope: los valida wo-voice.js antes de subir.
+            const extras = window.WeotziInboxExtras;
+            const isVoice = !!(file && extras && extras.isVoiceMime(file.type) && file.size <= extras.VOICE_MAX_BYTES);
+            const check = isVoice ? { ok: true } : (model ? model.validateAttachment(file) : { ok: !!file, error: 'Elige un archivo.' });
             if (!check.ok) throw new Error(check.error);
             const path = model
                 ? model.chatAttachmentPath(quoteId, userId, file.name, Date.now())
@@ -386,6 +474,26 @@
             const { data, error } = await client.storage.from('chat-attachments').createSignedUrl(path, expiresIn);
             if (error) throw error;
             return data?.signedUrl || null;
+        },
+        // Limpieza de un adjunto que no llegó a enviarse (best effort).
+        async removeAttachment(path) {
+            const client = D.getClient();
+            if (!client || !path) return;
+            try { await client.storage.from('chat-attachments').remove([path]); } catch (_) { /* queda huérfano */ }
+        },
+        // Mensajes automáticos recientes (ronda 2 · 20261116160200) de los chats
+        // del usuario (RLS). El inbox los usa para saber si lo último de un hilo
+        // fue un automático del artista. Sin la columna devuelve [].
+        async listRecentAuto(limit = 200) {
+            try {
+                const { data } = await run('chat.listRecentAuto', (c) =>
+                    c.from('chat_messages').select('quotation_id,created_at,auto_kind').not('auto_kind', 'is', null)
+                        .order('created_at', { ascending: false }).limit(limit)
+                );
+                return data || [];
+            } catch (_) {
+                return [];
+            }
         },
         // Marca como leidos los mensajes NO leidos enviados por `fromSenderType`.
         async markRead(quoteId, fromSenderType) {
@@ -554,6 +662,7 @@
     D.Quotations = Quotations;
     D.Notes = Notes;
     D.Sessions = Sessions;
+    D.Proposals = Proposals;
     D.Attachments = Attachments;
     D.Chat = Chat;
     D.StatusHistory = StatusHistory;

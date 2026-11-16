@@ -132,9 +132,9 @@ async function loadClientProfile() {
     if (!currentClient) return;
 
     // El Figma del dashboard no tiene card de "Centro de cuenta": el acceso es el
-    // tile Ö de la topbar. Acá sólo se pintan el saludo del hero y ese tile.
+    // tile Ö de la topbar. Aquí sólo se pintan el saludo del hero y ese tile.
 
-    // Saludo del hero (voseo, según hora local)
+    // Saludo del hero (según hora local)
     const greetingEl = document.getElementById('hero-greeting');
     if (greetingEl) {
         const hour = new Date().getHours();
@@ -189,7 +189,9 @@ async function loadQuotations() {
         // Render quotations
         renderQuotations();
         loadNextAppointment();
+        if (window.WoClientSessions) window.WoClientSessions.mount({ onOpenQuote: viewQuotationDetail }); // ── sesiones (ronda 2) ── panel "Mis sesiones"
         openQuotationFromQuery();
+        loadClientPanelExtras();
         
         // Load unread message counts
         await loadUnreadCounts();
@@ -268,7 +270,10 @@ async function loadNextAppointment() {
         const date = new Date(upcoming.session_date);
         const day = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'long' }).format(date);
         const time = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
-        renderNextAppointment(quote, `${day} · ${time}${quote.studio_name ? ` — ${quote.studio_name}` : ''}`);
+        // La RPC trae client_confirmation desde la migración 20261116150000: una
+        // sesión que el cliente todavía no confirmó no se muestra como cita firme.
+        const toConfirm = String(upcoming.client_confirmation || '').toLowerCase() === 'pending';
+        renderNextAppointment(quote, `${day} · ${time}${quote.studio_name ? ` — ${quote.studio_name}` : ''}${toConfirm ? ' · por confirmar' : ''}`);
     } catch (error) {
         console.error('Error loading next appointment:', error);
     }
@@ -300,25 +305,92 @@ function renderQuotations() {
     // CC-13: los borradores del cotizador (in_progress sin respuesta del
     // artista) no son cotizaciones "En proceso": se muestran aparte.
     const drafts = currentQuotations.filter(isClientWizardDraft);
-    const filtered = currentQuotations.filter(q => quotationMatchesFilter(q, currentFilter));
-    const draftsHtml = drafts.length && (currentFilter === 'all' || currentFilter === 'active') ? renderDraftsNotice(drafts) : '';
+    // cliente-panel (ronda 2): buscador por código corto, artista, estilo o zona.
+    const searchTerm = clientPanelSearchTerm();
+    const panel = panelModel();
+    const filtered = currentQuotations
+        .filter(q => quotationMatchesFilter(q, currentFilter))
+        .filter(q => !searchTerm || !panel || panel.matchesSearch(q, searchTerm, clientPanelExtras(q)));
+    const draftsHtml = drafts.length && !searchTerm && (currentFilter === 'all' || currentFilter === 'active') ? renderDraftsNotice(drafts) : '';
+    const ui = panelUi();
+    if (ui && typeof ui.afterRender === 'function') ui.afterRender({ shown: filtered });
 
     if (filtered.length === 0) {
-        listContainer.innerHTML = draftsHtml + `
+        const emptyKind = searchTerm ? 'quotations-search' : (currentFilter !== 'all' ? 'quotations-filter' : 'quotations');
+        listContainer.innerHTML = draftsHtml + (panel
+            ? panel.emptyHtml(panel.emptyState(emptyKind, { term: searchTerm }), { variant: 'dashboard' })
+            : `
             <div class="empty-state">
                 <i data-wo-icon="file-text"></i>
                 <h3>Sin cotizaciones</h3>
-                <p>Todavía no tenés cotizaciones${currentFilter !== 'all' ? ' en este estado' : ''}</p>
+                <p>Todavía no tienes cotizaciones${currentFilter !== 'all' ? ' en este estado' : ''}</p>
             </div>
-        `;
+        `);
         return;
     }
 
     listContainer.innerHTML = draftsHtml + filtered.map(q => renderQuotationCard(q)).join('');
 }
 
+// ---- Panel del cliente · ronda 2 (frente cliente-panel) ----
+// El modelo puro (client-panel-model.js · WoClientPanel) centraliza etiquetas de
+// estado, código corto y buscador; client-panel-ui.js (WoClientPanelUi) guarda
+// el término buscado y los datos extra. Todo es opcional: sin esos scripts el
+// listado sigue funcionando con el modelo anterior.
+function panelModel() {
+    return (typeof window !== 'undefined' && window.WoClientPanel) || null;
+}
+
+function panelUi() {
+    return (typeof window !== 'undefined' && window.WoClientPanelUi) || null;
+}
+
+function clientPanelSearchTerm() {
+    const ui = panelUi();
+    return ui && typeof ui.getSearch === 'function' ? String(ui.getSearch() || '') : '';
+}
+
+function clientPanelExtras(q) {
+    const ui = panelUi();
+    return ui && typeof ui.extrasFor === 'function' ? ui.extrasFor(q) : {};
+}
+
+// Código visible de la cotización: el corto si existe, si no el quote_id.
+function clientQuoteCode(q) {
+    const panel = panelModel();
+    if (panel) return panel.quoteCode(q);
+    return String((q && (q.short_code || q.quote_id)) || '');
+}
+
+// Etiqueta de estado (+ aclaración de a quién le toca) del detalle abierto.
+function clientStatusPillHtml(quotation) {
+    const status = clientQuotationStatus(quotation);
+    return `<span class="quotation-status ${escapeFeedHtml(status.tone)}">${escapeFeedHtml(status.label)}</span>`
+        + (status.hint ? `<span class="cpn-status-hint">${escapeFeedHtml(status.hint)}</span>` : '');
+}
+
+// Sesiones y propuestas pendientes del cliente para las etiquetas "Sesión por
+// confirmar", "Cambios propuestos por ti" y "Cambios al acuerdo pendientes de
+// aprobar" (no bloquea). Repinta solo si alguna etiqueta cambió.
+function loadClientPanelExtras() {
+    const ui = panelUi();
+    if (!ui || typeof ui.loadExtras !== 'function') return;
+    const openLabel = () => {
+        const open = currentQuotationId ? currentQuotations.find(q => q.quote_id === currentQuotationId) : null;
+        return open ? clientQuotationStatus(open).label : '';
+    };
+    const labelBefore = openLabel();
+    Promise.resolve(ui.loadExtras(currentQuotations)).then(changed => {
+        if (!changed) return;
+        renderQuotations();
+        // El detalle abierto solo se repinta si cambió SU etiqueta (no se pisa
+        // lo que el cliente esté escribiendo por un cambio en otra cotización).
+        if (currentQuotationId && openLabel() !== labelBefore) refreshOpenDetail(currentQuotationId);
+    }).catch(() => { /* la etiqueta base ya está pintada */ });
+}
+
 // ---- Estados del cliente (cot-cliente · CC-13) ----
-// La lógica vive en client-quote-proposal.js (WoClientQuoteProposal); acá hay
+// La lógica vive en client-quote-proposal.js (WoClientQuoteProposal); aquí hay
 // un respaldo mínimo por si el script no cargó.
 const CLIENT_STATUS_FALLBACK = {
     draft: 'Borrador sin enviar', pending: 'Esperando al artista', responded: 'Propuesta recibida',
@@ -338,6 +410,10 @@ function isClientWizardDraft(q) {
 }
 
 function clientQuotationStatus(q) {
+    // cliente-panel (ronda 2): mismo estado que /client/requests y /client/chats
+    // (key = estado base; label/tone suman los estados nuevos si hay datos).
+    const panel = panelModel();
+    if (panel) return panel.statusOf(q, clientPanelExtras(q));
     const ui = proposalUi();
     if (ui) return ui.statusOf(q);
     let key = isClientWizardDraft(q) ? 'draft' : (q && q.quote_status === 'en_progreso' ? 'in_progress' : (q && q.quote_status));
@@ -359,7 +435,7 @@ function renderDraftsNotice(drafts) {
     const count = drafts.length;
     return `
         <div class="client-drafts-notice" role="note">
-            <p><strong>${count === 1 ? 'Tenés una cotización sin enviar' : `Tenés ${count} cotizaciones sin enviar`}.</strong>
+            <p><strong>${count === 1 ? 'Tienes una cotización sin enviar' : `Tienes ${count} cotizaciones sin enviar`}.</strong>
             El artista todavía no la${count === 1 ? '' : 's'} recibió.</p>
             <a class="wo-btn wo-btn--ghost wo-btn--s" href="/quotation">Continuar cotización</a>
         </div>`;
@@ -383,12 +459,17 @@ function renderQuotationCard(quotation) {
     const styleInfo = escapeFeedHtml(formatClientQuotationStyle(quotation.tattoo_style));
     const ui = proposalUi();
     const proposal = ui && ['responded', 'client_approved'].includes(status.key) ? ui.proposalOf(quotation) : null;
-    const waiting = !!(ui && ui.canDecide(quotation));
+    // Si el cliente propuso cambios, le toca al artista: no se le pide respuesta.
+    const waiting = !!(ui && ui.canDecide(quotation)) && status.waitingOn !== 'artist';
+    // cliente-panel (ronda 2): código corto visible (el quote_id real sigue en
+    // data-quote-id) y aviso cuando los cambios o la sesión esperan al cliente.
+    const quoteCode = escapeFeedHtml(clientQuoteCode(quotation));
+    const needsReview = !waiting && status.waitingOn === 'client';
 
     return `
         <div class="quotation-card" data-quote-id="${quoteId}">
             <div class="quotation-header">
-                <span class="quotation-id">${quoteId}</span>
+                <span class="quotation-id">${quoteCode}</span>
                 <span class="quotation-status ${escapeFeedHtml(status.tone)}">${escapeFeedHtml(status.label)}</span>
             </div>
             <div class="quotation-body">
@@ -415,13 +496,15 @@ function renderQuotationCard(quotation) {
                 </div>
                 ${proposal && proposal.amountText ? `<p class="quotation-proposal-line">${proposal.isFinal ? 'Total acordado' : 'Propuesta'}: <strong>${escapeFeedHtml(proposal.amountText)}</strong>${waiting ? ' · <span class="quotation-proposal-cta">Esperando tu respuesta</span>' : ''}</p>` : ''}
             </div>
+            ${status.hint ? `<p class="cpn-status-hint">${escapeFeedHtml(status.hint)}</p>` : ''}
             <div class="quotation-footer">
                 <button type="button" class="wo-btn wo-btn--s" data-quote-id="${quoteId}" onclick="openChat(this.dataset.quoteId)">
                     Chat <span class="unread-badge" id="unread-${quoteId}" style="display: none;">0</span>
                 </button>
-                <button type="button" class="wo-btn ${waiting ? 'wo-btn--accent' : 'wo-btn--ghost'} wo-btn--s" data-quote-id="${quoteId}" onclick="viewQuotationDetail(this.dataset.quoteId)">
-                    ${waiting ? 'Ver propuesta' : 'Ver detalle'}
+                <button type="button" class="wo-btn ${waiting || needsReview ? 'wo-btn--accent' : 'wo-btn--ghost'} wo-btn--s" data-quote-id="${quoteId}" onclick="viewQuotationDetail(this.dataset.quoteId)">
+                    ${waiting ? 'Ver propuesta' : (needsReview ? 'Revisar' : 'Ver detalle')}
                 </button>
+                ${window.WoQuoteReuse ? window.WoQuoteReuse.buttonHtml(quotation) : ''}
                 <button type="button" class="wo-btn wo-btn--ghost wo-btn--s btn-borrar" data-quote-id="${quoteId}" onclick="hideQuotation(this.dataset.quoteId)">
                     Borrar
                 </button>
@@ -435,7 +518,7 @@ function renderQuotationCard(quotation) {
 // ============================================
 
 async function hideQuotation(quoteId) {
-    if (!confirm('¿Seguro que querés borrar esta cotización?')) {
+    if (!confirm('¿Seguro que quieres borrar esta cotización?')) {
         return;
     }
 
@@ -513,7 +596,7 @@ function formatRelative(dateStr) {
     const then = new Date(dateStr).getTime();
     if (Number.isNaN(then)) return '';
     const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
-    if (mins < 1) return 'Recién';
+    if (mins < 1) return 'Hace un momento';
     if (mins < 60) return `Hace ${mins}m`;
     const hours = Math.round(mins / 60);
     if (hours < 24) return `Hace ${hours}h`;
@@ -534,12 +617,80 @@ const FEED_STATUS_EVENTS = {
     expired: { icon: 'clock', text: (artist) => `La propuesta de ${artist} venció` }
 };
 
+// Ronda 2 · P26: cada fila de actividad es un enlace al destino exacto
+// (cotización, conversación o postulación). Los destinos salen del modelo
+// compartido notification-feed-model.js, que se carga bajo demanda: si no
+// llega, las filas se muestran igual, sin enlace.
+let feedModelPromise = null;
+function loadFeedModel() {
+    if (window.WoNotificationFeedModel) return Promise.resolve(window.WoNotificationFeedModel);
+    if (!feedModelPromise) {
+        feedModelPromise = new Promise((resolve) => {
+            try {
+                const script = document.createElement('script');
+                script.src = '/shared/js/notification-feed-model.js';
+                script.onload = () => resolve(window.WoNotificationFeedModel || null);
+                script.onerror = () => resolve(null);
+                document.head.appendChild(script);
+            } catch (_) {
+                resolve(null);
+            }
+        });
+    }
+    return feedModelPromise;
+}
+
+// EP-08: contrapropuestas, cambios al acuerdo y novedades de sesiones solo
+// existían como un aviso de 9 segundos. "Tu actividad" las toma de los avisos
+// que el servidor ya guarda (user_notifications, RLS de dueño). El repositorio
+// lo carga wo-notify.js; si todavía no llegó, se pide aquí. Sin él, o sin la
+// tabla, la actividad se muestra igual con el resto de las filas.
+let noticesRepoPromise = null;
+function loadNoticesRepo() {
+    const ready = () => {
+        const repo = typeof WeotziData !== 'undefined' && WeotziData ? WeotziData.Notifications : null;
+        return repo && typeof repo.listStored === 'function' ? repo : null;
+    };
+    if (ready()) return Promise.resolve(ready());
+    if (!noticesRepoPromise) {
+        noticesRepoPromise = new Promise((resolve) => {
+            try {
+                const script = document.createElement('script');
+                script.src = '/shared/js/data/notifications-repo.js';
+                script.onload = () => resolve(ready());
+                script.onerror = () => resolve(null);
+                document.head.appendChild(script);
+            } catch (_) {
+                resolve(null);
+            }
+        });
+    }
+    return noticesRepoPromise;
+}
+
+async function storedNoticeEvents(feedModel) {
+    if (!feedModel || typeof feedModel.clientNoticeEvents !== 'function' || !currentClient || !currentClient.user_id) return [];
+    try {
+        const repo = await loadNoticesRepo();
+        if (!repo) return [];
+        const stored = await repo.listStored(currentClient.user_id, {
+            role: 'client', eventIds: feedModel.STORED_NOTICE_EVENTS.client, days: feedModel.STORED_NOTICE_DAYS, limit: 12
+        });
+        return feedModel.clientNoticeEvents(stored);
+    } catch (error) {
+        console.warn('No pudimos cargar los avisos guardados:', error && error.message);
+        return [];
+    }
+}
+
 async function loadActivityFeed() {
     const container = document.getElementById('activity-feed');
     if (!container) return;
     if (dashboardReference) { renderActivityFeed(dashboardReference.events); return; }
 
     try {
+        const feedModel = await loadFeedModel();
+        const link = (source, data) => (feedModel ? feedModel.clientActivityLink(source, data) : {});
         const events = [];
         const quoteIds = currentQuotations.map(q => q.quote_id).filter(Boolean);
         const artistByQuote = {};
@@ -560,7 +711,8 @@ async function loadActivityFeed() {
                 events.push({
                     at: row.changed_at,
                     icon: spec.icon,
-                    text: spec.text(artistByQuote[row.quote_id] || 'El artista')
+                    text: spec.text(artistByQuote[row.quote_id] || 'El artista'),
+                    ...link('status', { quoteId: row.quote_id, status: row.new_status, at: row.changed_at })
                 });
             });
 
@@ -577,7 +729,8 @@ async function loadActivityFeed() {
                     events.push({
                         at: row.artist_responded_at,
                         icon: 'message-square',
-                        text: `${artistByQuote[row.quote_id] || 'El artista'} respondió tu disputa`
+                        text: `${artistByQuote[row.quote_id] || 'El artista'} respondió tu disputa`,
+                        ...link('dispute', { quoteId: row.quote_id, at: row.artist_responded_at })
                     });
                 });
             } catch (_) { /* sin disputas visibles */ }
@@ -599,10 +752,14 @@ async function loadActivityFeed() {
                 events.push({
                     at: row.created_at,
                     icon: 'mail',
-                    text: `Nuevo mensaje de ${artistByQuote[row.quotation_id] || 'un artista'}`
+                    text: `Nuevo mensaje de ${artistByQuote[row.quotation_id] || 'un artista'}`,
+                    ...link('message', { quoteId: row.quotation_id, at: row.created_at })
                 });
             });
         }
+
+        // EP-08: negociación y sesiones (avisos guardados), aunque no haya cotizaciones cargadas.
+        (await storedNoticeEvents(feedModel)).forEach(event => events.push(event));
 
         // Postulaciones recibidas en el job board
         jbRequests.forEach(req => {
@@ -610,7 +767,8 @@ async function loadActivityFeed() {
                 events.push({
                     at: app.created_at,
                     icon: 'briefcase',
-                    text: 'Recibiste una propuesta en tu publicación'
+                    text: 'Recibiste una propuesta en tu publicación',
+                    ...link('proposal', { requestId: req.id, applicationId: app.id, at: app.created_at })
                 });
             });
         });
@@ -632,21 +790,87 @@ function renderActivityFeed(events) {
         .slice(0, FEED_MAX_ROWS);
 
     if (rows.length === 0) {
-        container.innerHTML = '<p class="client-feed-empty">Todavía no hay movimientos. Cuando un artista te responda o recibas una propuesta, lo vas a ver acá.</p>';
+        container.innerHTML = '<p class="client-feed-empty">Todavía no hay movimientos. Cuando un artista te responda o recibas una propuesta, lo vas a ver aquí.</p>';
         return;
     }
 
-    container.innerHTML = rows.map(row => `
-        <div class="client-feed-row">
-            <span class="client-feed-icon"><i data-wo-icon="${row.icon}"></i></span>
+    // P26: con destino, la fila es un enlace real (se puede abrir en otra
+    // pestaña); sin destino queda como texto.
+    container.innerHTML = rows.map(row => {
+        const href = typeof row.href === 'string' && /^\/([^/\\]|$)/.test(row.href) ? row.href : '';
+        const inner = `
+            <span class="client-feed-icon"><i data-wo-icon="${escapeFeedHtml(row.icon)}"></i></span>
             <span class="client-feed-text">${escapeFeedHtml(row.text)}</span>
-            <span class="client-feed-time">${escapeFeedHtml(formatRelative(row.at))}</span>
-        </div>
-    `).join('');
+            <span class="client-feed-time">${escapeFeedHtml(formatRelative(row.at))}</span>`;
+        if (!href) return `<div class="client-feed-row">${inner}</div>`;
+        return `<a class="client-feed-row" href="${escapeFeedHtml(href)}"${row.quoteId ? ` data-feed-quote="${escapeFeedHtml(row.quoteId)}" data-feed-ver="${escapeFeedHtml(row.ver || '')}"` : ''}${row.noticeId ? ` data-feed-notice="${escapeFeedHtml(row.noticeId)}"` : ''}>${inner}
+            <span class="client-feed-go" aria-hidden="true"><i data-wo-icon="arrow-right"></i></span></a>`;
+    }).join('');
+    if (window.WoIcons && typeof window.WoIcons.hydrate === 'function') window.WoIcons.hydrate(container);
+
+    // La cotización se abre en esta misma página (sin recargar) y se resalta
+    // la parte que anuncia la fila; el enlace real queda para "abrir en otra pestaña".
+    if (container.dataset && !container.dataset.feedLinksBound && typeof container.addEventListener === 'function') {
+        container.dataset.feedLinksBound = '1';
+        container.addEventListener('click', (event) => {
+            // EP-08: abrir un aviso guardado lo marca leído (mejor esfuerzo; no frena el enlace).
+            const notice = event.target && event.target.closest ? event.target.closest('a[data-feed-notice]') : null;
+            if (notice) {
+                try {
+                    const repo = typeof WeotziData !== 'undefined' && WeotziData ? WeotziData.Notifications : null;
+                    if (repo && typeof repo.markRead === 'function') Promise.resolve(repo.markRead(notice.dataset.feedNotice)).catch(() => {});
+                } catch (_) { /* nunca rompe la navegación */ }
+            }
+            const row = event.target && event.target.closest ? event.target.closest('a[data-feed-quote]') : null;
+            if (!row || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            const quoteId = row.dataset.feedQuote;
+            if (!currentQuotations.some(q => q.quote_id === quoteId)) return;
+            event.preventDefault();
+            Promise.resolve(viewQuotationDetail(quoteId)).then(() => {
+                if (row.dataset.feedVer && window.WoNotify && typeof window.WoNotify.focusArrival === 'function') {
+                    window.WoNotify.focusArrival(row.dataset.feedVer);
+                }
+            });
+        });
+    }
+}
+
+// Un aviso nuevo (wo-notify.js: mensaje, respuesta del artista, propuesta…)
+// refresca el feed y los contadores sin recargar la página.
+let feedRefreshTimer = null;
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('wo:notify', () => {
+        if (dashboardReference || !currentClient) return;
+        clearTimeout(feedRefreshTimer);
+        feedRefreshTimer = setTimeout(async () => {
+            try {
+                const { data: { session } } = await _supabase.auth.getSession();
+                if (!session) return;
+                const openBefore = currentQuotations.find(q => q.quote_id === currentQuotationId) || null;
+                const fresh = await WeotziData.Quotations.listForClient(session.user.id, currentClient.email);
+                currentQuotations = fresh || currentQuotations;
+                updateStats();
+                renderQuotations();
+                // El aviso puede traer una sesión por confirmar o un cambio al acuerdo.
+                loadClientPanelExtras();
+                // El detalle abierto solo se repinta si esa cotización cambió (no se
+                // pisa lo que el cliente esté escribiendo por un aviso de otra cosa).
+                const openAfter = currentQuotations.find(q => q.quote_id === currentQuotationId) || null;
+                if (openBefore && openAfter && (openBefore.quote_status !== openAfter.quote_status
+                    || openBefore.updated_at !== openAfter.updated_at)) refreshOpenDetail(currentQuotationId);
+                await loadUnreadCounts();
+                await loadJobBoardRequests();
+                updateStats();
+                loadActivityFeed();
+            } catch (error) {
+                console.warn('No pudimos refrescar la actividad:', error && error.message);
+            }
+        }, 1200);
+    });
 }
 
 // ============================================
-// Artistas para vos
+// Artistas para ti
 // Orden real por artist_index (el mismo ranking que usa el marketplace).
 // Badges derivados de datos reales: cercanía por ciudad/país del cliente,
 // guest activo en artist_tattoo_locations y el flag is_recommended.
@@ -730,7 +954,7 @@ async function loadSuggestedArtists() {
             let badge = '';
             if (artist.badge === 'reco') badge = '<span class="client-suggested-badge client-suggested-badge--reco">Recomendado</span>';
             else if (artist.badge === 'guest') badge = '<span class="client-suggested-badge client-suggested-badge--guest">Guest artist</span>';
-            else if (isNear || artist.badge === 'near') badge = '<span class="client-suggested-badge client-suggested-badge--near">Cerca de vos</span>';
+            else if (isNear || artist.badge === 'near') badge = '<span class="client-suggested-badge client-suggested-badge--near">Cerca de ti</span>';
             else if (guestNow.has(artist.user_id)) badge = '<span class="client-suggested-badge client-suggested-badge--guest">Guest artist</span>';
             else if (artist.is_recommended) badge = '<span class="client-suggested-badge client-suggested-badge--reco">Recomendado</span>';
 
@@ -746,7 +970,14 @@ async function loadSuggestedArtists() {
             const href = dashboardReference ? '/marketplace/' : `/artist/profile?artist=${encodeURIComponent(artist.username || '')}`;
             const name = escapeFeedHtml(artist.name || artist.username || 'Artista');
 
+            // cliente-panel (ronda 2): hueco del corazón de favoritos (lo activa
+            // wo-favorites.js; vacío no se ve). Va fuera del <a> de la tarjeta.
+            const favorite = !dashboardReference && artist.user_id
+                ? `<button type="button" class="cpn-fav cpn-fav--media" data-wo-favorite data-kind="artist" data-id="${escapeFeedHtml(artist.user_id)}" data-label="${name}" data-image="${escapeFeedHtml(artist.profile_picture || '')}"></button>`
+                : '';
+
             return `
+                <article class="cpn-suggested-item">
                 <a class="client-suggested-card" href="${href}">
                     <div class="client-suggested-media">
                         <span class="client-photo-placeholder" aria-hidden="true"><img src="/shared/assets/client-dashboard/image-placeholder.svg" width="28" height="29.1" alt=""><strong>Foto</strong><span>or <u>browse files</u></span></span>
@@ -760,10 +991,14 @@ async function loadSuggestedArtists() {
                     ${place ? `<p class="client-suggested-place"><i data-wo-icon="map-pin"></i>${escapeFeedHtml(place)}</p>` : ''}
                     ${styles ? `<div class="client-suggested-styles">${styles}</div>` : ''}
                 </a>
+                ${favorite}
+                </article>
             `;
         }).join('');
 
         section.hidden = false;
+        const suggestedUi = panelUi();
+        if (suggestedUi && typeof suggestedUi.ensureModules === 'function') suggestedUi.ensureModules(grid);
     } catch (error) {
         console.error('Error loading suggested artists:', error);
     }
@@ -808,12 +1043,11 @@ async function viewQuotationDetail(quoteId) {
     const e = escapeFeedHtml;
     const styleInfo = e(formatClientQuotationStyle(quotation.tattoo_style, true));
     const referencesUrl = safeHttpUrl(quotation.tattoo_references);
-    const status = clientQuotationStatus(quotation);
     const sessionCost = quotation.artist_session_cost_amount
         ? `${quotation.artist_session_cost_amount} ${quotation.artist_session_cost_currency || ''}`.trim() : '–';
 
     detailContent.innerHTML = `
-        <p class="quotation-detail-status"><span class="quotation-status ${e(status.tone)}">${e(status.label)}</span></p>
+        <p class="quotation-detail-status"><span class="cpn-status-slot" data-cpn-status>${clientStatusPillHtml(quotation)}</span></p>
 
         <div id="quote-proposal-slot">${renderProposalBlock(quotation)}</div>
 
@@ -911,7 +1145,9 @@ async function viewQuotationDetail(quoteId) {
     `;
 
     // Update modal title
-    document.getElementById('modal-quote-id').textContent = quoteId;
+    document.getElementById('modal-quote-id').textContent = clientQuoteCode(quotation) || quoteId;
+    const panelUiRef = panelUi();
+    if (panelUiRef && typeof panelUiRef.ensureModules === 'function') panelUiRef.ensureModules(detailContent);
 
     // Load chat messages
     await loadChatMessages(quoteId);
@@ -922,8 +1158,9 @@ async function viewQuotationDetail(quoteId) {
 
     // Subscribe to chat for this quotation
     subscribeToChatMessages(quoteId);
+    syncChatComposer(quotation);
 
-    // Desglose manual + seña/pagos (lecturas con la RLS del cliente).
+    // Desglose manual + anticipo/pagos (lecturas con la RLS del cliente).
     enrichProposal(quotation);
 }
 
@@ -972,11 +1209,9 @@ function refreshOpenDetail(quoteId) {
     if (currentQuotationId !== quoteId) return;
     const quotation = currentQuotations.find(q => q.quote_id === quoteId);
     const detail = document.getElementById('quotation-detail-content');
-    const pill = detail && detail.querySelector ? detail.querySelector('.quotation-detail-status') : null;
-    if (quotation && pill) {
-        const status = clientQuotationStatus(quotation);
-        pill.innerHTML = `<span class="quotation-status ${escapeFeedHtml(status.tone)}">${escapeFeedHtml(status.label)}</span>`;
-    }
+    const pill = detail && detail.querySelector ? (detail.querySelector('[data-cpn-status]') || detail.querySelector('.quotation-detail-status')) : null;
+    if (quotation && pill) pill.innerHTML = clientStatusPillHtml(quotation);
+    if (quotation) syncChatComposer(quotation);
     rerenderProposal(quoteId);
 }
 
@@ -1072,14 +1307,14 @@ async function handleProposalAction(button) {
             done.className = 'cqp-feedback is-success';
             done.setAttribute('role', 'status');
             done.textContent = decision === 'approve'
-                ? 'Listo: aceptaste la propuesta. Le avisamos al artista; coordiná el turno y la seña por el chat.'
+                ? 'Listo: aceptaste la propuesta. Le avisamos al artista; coordina el turno y el anticipo por el chat.'
                 : 'Listo: rechazaste la propuesta. Le avisamos al artista.';
             note.appendChild(done);
         }
     } catch (error) {
         console.error('Error deciding quotation:', error);
         buttons.forEach(b => { b.disabled = false; });
-        setProposalFeedback(box, error && error.message ? error.message : 'No pudimos guardar tu respuesta. Probá de nuevo.', true);
+        setProposalFeedback(box, error && error.message ? error.message : 'No pudimos guardar tu respuesta. Prueba de nuevo.', true);
         if (error && (error.status === 409 || error.status === 410)) {
             // El estado cambió (o venció): recargamos para mostrar el real y
             // dejamos visible el motivo debajo del bloque actualizado.
@@ -1162,7 +1397,7 @@ function renderReviewWorkflowPanel(quotation) {
     if (quotation.quote_status === 'artist_completed') {
         return `
             <div class="review-completion-panel">
-                <p>El artista marcó el trabajo como terminado. Confirmá el cierre si el servicio se entregó correctamente.</p>
+                <p>El artista marcó el trabajo como terminado. Confirma el cierre si el servicio se entregó correctamente.</p>
                 <div class="review-completion-actions">
                     <button type="button" class="review-finalize-btn" onclick="acceptQuotationCompletion('${quotation.quote_id}')">Aceptar finalización</button>
                 </div>
@@ -1174,7 +1409,7 @@ function renderReviewWorkflowPanel(quotation) {
         const studioId = quotation.studio_id || quotation.artist_studio_id || quotation.artist_studio_user_id || '';
         return `
             <div class="review-completion-panel">
-                <p>Trabajo finalizado. Podés dejar reseñas verificadas de esta experiencia.</p>
+                <p>Trabajo finalizado. Puedes dejar reseñas verificadas de esta experiencia.</p>
                 <div class="review-completion-actions">
                     ${quotation.artist_id ? `<button type="button" class="review-write-btn" onclick="openQuotationArtistReview('${quotation.quote_id}')">Reseñar artista</button>` : ''}
                     ${studioId ? `<button type="button" class="review-write-btn" onclick="openQuotationStudioReview('${quotation.quote_id}')">Reseñar estudio</button>` : ''}
@@ -1190,7 +1425,7 @@ async function acceptQuotationCompletion(quoteId) {
     const quotation = currentQuotations.find(q => q.quote_id === quoteId);
     if (!quotation) return;
 
-    if (!confirm('¿Confirmás que el trabajo se finalizó correctamente?')) return;
+    if (!confirm('¿Confirmas que el trabajo se finalizó correctamente?')) return;
 
     try {
         const { data: { session } } = await _supabase.auth.getSession();
@@ -1274,7 +1509,7 @@ async function loadChatMessages(quoteId) {
         if (!messages || messages.length === 0) {
             chatContainer.innerHTML = `
                 <div class="chat-empty">
-                    <p>Iniciá la conversación con el artista</p>
+                    <p>Inicia la conversación con el artista</p>
                 </div>
             `;
             return;
@@ -1309,11 +1544,50 @@ async function markMessagesAsRead(quoteId) {
     }
 }
 
+// Rechazar la propuesta cierra la conversación para los dos: el artista ya no
+// puede responder y la base tampoco deja escribir (policy
+// chat_closed_after_client_rejection, migración 20261116140000).
+const CHAT_CLOSED_REJECTED_NOTE = 'Rechazaste esta propuesta y la conversación quedó cerrada. Si quieres retomar la idea, inicia una cotización nueva.';
+
+function isChatClosedForClient(quotation) {
+    return !!quotation && String(quotation.quote_status || '').toLowerCase() === 'client_rejected';
+}
+
+// Habilita o cierra el redactor del detalle según el estado de la cotización.
+function syncChatComposer(quotation) {
+    const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('chat-send-btn');
+    if (!input || !sendBtn) return;
+    const closed = isChatClosedForClient(quotation);
+    input.disabled = closed;
+    sendBtn.disabled = closed;
+    let note = document.getElementById('chat-closed-note');
+    if (closed && !note) {
+        const container = input.closest ? input.closest('.chat-input-container') : null;
+        if (container && container.parentNode) {
+            note = document.createElement('p');
+            note.id = 'chat-closed-note';
+            note.className = 'chat-closed-note';
+            note.setAttribute('role', 'status');
+            container.parentNode.insertBefore(note, container);
+        }
+    }
+    if (note) {
+        note.textContent = closed ? CHAT_CLOSED_REJECTED_NOTE : '';
+        note.hidden = !closed;
+    }
+}
+
 async function sendChatMessage() {
     const input = document.getElementById('chat-input');
     const message = input.value.trim();
     
     if (!message || !currentQuotationId) return;
+    const openQuotation = currentQuotations.find(q => q.quote_id === currentQuotationId) || null;
+    if (isChatClosedForClient(openQuotation)) {
+        syncChatComposer(openQuotation);
+        return;
+    }
     
     const sendBtn = document.getElementById('chat-send-btn');
     sendBtn.disabled = true;
@@ -1342,7 +1616,7 @@ async function sendChatMessage() {
         console.error('Error sending message:', error);
         alert('Error al enviar el mensaje');
     } finally {
-        sendBtn.disabled = false;
+        sendBtn.disabled = isChatClosedForClient(currentQuotations.find(q => q.quote_id === currentQuotationId) || null);
     }
 }
 
@@ -1400,6 +1674,8 @@ function buildChatMessageEl(msg) {
     time.className = 'time';
     time.textContent = formatTime(msg.created_at);
     messageEl.appendChild(time);
+    // Ronda 2 (inbox): saludo o ausencia automática del artista.
+    if (msg.auto_kind) time.appendChild(document.createTextNode(' · Mensaje automático'));
     return messageEl;
 }
 
@@ -1610,7 +1886,7 @@ function handleAvatarPreview(event) {
     
     // Validate file type
     if (!file.type.startsWith('image/')) {
-        alert('Elegí una imagen.');
+        alert('Elige una imagen.');
         return;
     }
 
@@ -1646,7 +1922,7 @@ async function handleProfileUpdate(event) {
     try {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session) {
-            alert('Sesión expirada. Iniciá sesión de nuevo.');
+            alert('Sesión expirada. Inicia sesión de nuevo.');
             window.location.href = '/client/login';
             return;
         }
@@ -1681,7 +1957,7 @@ async function handleProfileUpdate(event) {
                 if (uploadError) {
                     console.error('Upload error:', uploadError);
                     if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('not found')) {
-                        alert('El almacenamiento de fotos no esta configurado. Contacta al administrador.');
+                        alert('El almacenamiento de fotos no está configurado. Contacta al administrador.');
                     } else {
                         throw uploadError;
                     }
@@ -1744,7 +2020,7 @@ async function handleProfileUpdate(event) {
 
     } catch (error) {
         console.error('Error updating profile:', error);
-        alert('No se pudieron guardar los cambios. Probá de nuevo.');
+        alert('No se pudieron guardar los cambios. Prueba de nuevo.');
         saveBtn.textContent = originalText;
         saveBtn.disabled = false;
     }
@@ -1769,6 +2045,9 @@ document.addEventListener('keydown', (e) => {
 
 let jbRequests = [];
 let jbCurrentRequest = null;
+// cliente-panel (ronda 2): contraofertas pendientes de mis postulaciones, para
+// que la etiqueta de la solicitud diga lo mismo que en /client/requests.
+let jbPendingOffers = [];
 
 // El Figma del dashboard no embebe la lista de cotizaciones: se llega desde el
 // nav (COTIZACIONES / JOB BOARD) y desde los contadores. Este helper revela el
@@ -1853,17 +2132,43 @@ async function loadJobBoardRequests() {
 
         updateStats();
         renderJobBoardRequests();
+        loadJbPendingOffers();
     } catch (err) {
         console.error('Error loading JB requests:', err);
         container.innerHTML = '<div class="empty-state"><i data-wo-icon="alert-triangle"></i><p>Error al cargar solicitudes</p></div>';
     }
 }
 
+// No bloquea el listado: si hay contraofertas pendientes, repinta las etiquetas.
+async function loadJbPendingOffers() {
+    const repo = WeotziData.JobBoard && WeotziData.JobBoard.CounterOffers;
+    if (!repo || typeof repo.listPendingByApplications !== 'function') return;
+    const ids = [];
+    jbRequests.forEach(r => {
+        if (r.status === 'closed' || r.status === 'expired') return;
+        (r.job_board_applications || []).forEach(a => {
+            if (a.id && a.status !== 'withdrawn' && a.status !== 'rejected') ids.push(a.id);
+        });
+    });
+    try {
+        const before = jbPendingOffers.length;
+        jbPendingOffers = ids.length ? await repo.listPendingByApplications(ids) : [];
+        if (jbPendingOffers.length || before) renderJobBoardRequests();
+    } catch (err) {
+        console.warn('No pudimos leer las contraofertas pendientes:', err && err.message);
+    }
+}
+
 function renderJobBoardRequests() {
     const container = document.getElementById('jb-requests-list');
+    // cliente-panel (ronda 2): mismas etiquetas que /client/requests, datos
+    // escapados y un solo lugar para ver y elegir postulaciones (/client/requests).
+    const panel = panelModel();
 
     if (jbRequests.length === 0) {
-        container.innerHTML = `
+        container.innerHTML = panel
+            ? panel.emptyHtml(panel.emptyState('requests'), { variant: 'dashboard' })
+            : `
             <div class="empty-state">
                 <i data-wo-icon="radio"></i>
                 <h3>Sin solicitudes</h3>
@@ -1873,53 +2178,57 @@ function renderJobBoardRequests() {
         return;
     }
 
+    const legacyLabels = { draft: 'Borrador', open: 'Abierta', in_review: 'En revisión', accepted: 'Aceptada', closed: 'Cerrada', expired: 'Expirada' };
+    const e = escapeFeedHtml;
+
     container.innerHTML = jbRequests.map(req => {
-        const statusLabels = {
-            'draft': 'Borrador',
-            'open': 'Abierta',
-            'in_review': 'En revisión',
-            'accepted': 'Aceptada',
-            'closed': 'Cerrada',
-            'expired': 'Expirada'
-        };
-        const pendingApps = (req.job_board_applications || []).filter(a => a.status === 'pending' || a.status === 'viewed').length;
-        const totalApps = (req.job_board_applications || []).length;
-        const thumbnail = req.job_board_attachments?.[0]?.file_url;
-        const styles = escapeFeedHtml(formatClientQuotationStyle(req.tattoo_style));
+        const status = panel
+            ? panel.requestStatusOf(req, { pendingOffers: jbPendingOffers })
+            : { label: legacyLabels[req.status] || 'En revisión', tone: 'jb-' + String(req.status || '').replace(/[^a-z_]/g, '') };
+        const apps = (req.job_board_applications || []).filter(a => a.status !== 'withdrawn');
+        const unseen = apps.filter(a => a.status === 'pending').length;
+        const thumbnail = safeHttpUrl(req.job_board_attachments?.[0]?.file_url);
+        const styles = e(formatClientQuotationStyle(req.tattoo_style));
+        const idea = String(req.tattoo_idea_description || '').trim();
+        const title = idea ? idea.substring(0, 60) + (idea.length > 60 ? '…' : '') : 'Sin descripción';
+        const code = panel ? panel.requestCode(req) : (req.request_code || '');
+        const budget = req.client_budget_min && req.client_budget_max
+            ? '$' + req.client_budget_min + ' – $' + req.client_budget_max + ' ' + (req.client_budget_currency || 'USD')
+            : 'Sin definir';
 
         return `
-        <div class="quotation-card" data-request-id="${req.id}" onclick="viewJBRequestDetail('${req.id}')">
+        <div class="quotation-card" data-request-id="${e(req.id)}">
             <div class="quotation-header">
-                <span class="quotation-id">${req.request_code}</span>
-                <span class="quotation-status jb-${req.status}">${statusLabels[req.status] || req.status}</span>
+                <span class="quotation-id">${e(code)}</span>
+                <span class="quotation-status ${e(status.tone)}">${e(status.label)}</span>
             </div>
             <div class="quotation-body">
                 <div class="quotation-artist">
-                    ${thumbnail ? `<img src="${thumbnail}" alt="">` : '<div class="artist-avatar">JB</div>'}
+                    ${thumbnail ? `<img src="${e(thumbnail)}" alt="">` : '<div class="artist-avatar">JB</div>'}
                     <div class="artist-info">
-                        <h4>${req.tattoo_idea_description ? req.tattoo_idea_description.substring(0, 60) + (req.tattoo_idea_description.length > 60 ? '…' : '') : 'Sin descripción'}</h4>
-                        <p>${req.tattoo_body_part || ''} ${styles ? '· ' + styles : ''}</p>
+                        <h4>${e(title)}</h4>
+                        <p>${e(req.tattoo_body_part || '')} ${styles ? '· ' + styles : ''}</p>
                     </div>
                 </div>
                 <div class="quotation-details">
                     <div class="detail-item">
                         <div class="detail-label">Zona</div>
-                        <div class="detail-value">${req.tattoo_body_part || '–'}</div>
+                        <div class="detail-value">${e(req.tattoo_body_part || '–')}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Presupuesto</div>
-                        <div class="detail-value">${req.client_budget_min && req.client_budget_max ? '$' + req.client_budget_min + ' – $' + req.client_budget_max + ' ' + (req.client_budget_currency || 'USD') : 'Sin definir'}</div>
+                        <div class="detail-value">${e(budget)}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Postulaciones</div>
-                        <div class="detail-value">${totalApps} (${pendingApps} nuevas)</div>
+                        <div class="detail-value">${apps.length}${unseen ? ` (${unseen} sin ver)` : ''}</div>
                     </div>
                 </div>
             </div>
             <div class="quotation-footer">
-                <button class="wo-btn wo-btn--ghost wo-btn--s" onclick="event.stopPropagation(); viewJBRequestDetail('${req.id}')">
-                    Ver postulaciones
-                </button>
+                <a class="wo-btn wo-btn--ghost wo-btn--s" href="/client/requests?id=${encodeURIComponent(req.id)}">
+                    ${apps.length ? 'Ver postulaciones' : 'Ver solicitud'}
+                </a>
             </div>
         </div>`;
     }).join('');
@@ -1939,7 +2248,7 @@ async function viewJBRequestDetail(requestId) {
     const applications = req.job_board_applications || [];
 
     if (applications.length === 0) {
-        contentEl.innerHTML = '<div class="jb-modal-empty"><p>Todavía no hay postulaciones para esta solicitud.</p><p class="hint">Compartí el enlace del Job Board para atraer más artistas.</p></div>';
+        contentEl.innerHTML = '<div class="jb-modal-empty"><p>Todavía no hay postulaciones para esta solicitud.</p><p class="hint">Comparte el enlace del Job Board para atraer más artistas.</p></div>';
         modal.style.display = 'flex';
         return;
     }
@@ -1994,12 +2303,12 @@ async function viewJBRequestDetail(requestId) {
 }
 
 async function acceptApplication(applicationId, requestId) {
-    if (!confirm('¿Aceptás esta postulación? Se crea una cotización con este artista y las demás postulaciones se rechazan.')) return;
+    if (!confirm('¿Aceptas esta postulación? Se crea una cotización con este artista y las demás postulaciones se rechazan.')) return;
 
     try {
         const { data: { session } } = await _supabase.auth.getSession();
         if (!session?.access_token) {
-            alert('Tu sesión expiró. Recargá la página e iniciá sesión de nuevo.');
+            alert('Tu sesión expiró. Recarga la página e inicia sesión de nuevo.');
             return;
         }
 
@@ -2043,7 +2352,7 @@ async function acceptApplication(applicationId, requestId) {
 }
 
 async function rejectApplication(applicationId, requestId) {
-    if (!confirm('¿Rechazás esta postulación?')) return;
+    if (!confirm('¿Rechazas esta postulación?')) return;
 
     try {
         const { error } = await WeotziData

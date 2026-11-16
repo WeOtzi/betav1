@@ -5,7 +5,7 @@
 // tanto lib/routes/verif-artista.js los registra si faltan (ensureEmailEvents).
 //
 // profile_verified y profile_verification_denied (al artista) ya existen en
-// services/email-event-mapping.js con webhook n8n en vivo; acá solo se suma el
+// services/email-event-mapping.js con webhook n8n en vivo; aquí solo se suma el
 // aviso a soporte cuando un artista pide la verificación.
 
 module.exports = {
@@ -28,10 +28,10 @@ module.exports = {
             audience: 'admin',
             category: 'account',
             subject: d => `Verificación pendiente: ${d.artist_name || 'artista'}`,
-            preheader: d => `${d.artist_name || 'Un artista'} pidió verificar su perfil. Revisalo en la cola de soporte.`,
+            preheader: d => `${d.artist_name || 'Un artista'} pidió verificar su perfil. Revísalo en la cola de soporte.`,
             eyebrow: 'Verificación de artistas',
             headline: d => `${d.artist_name || 'Un artista'} pidió la verificación`,
-            intro: () => 'Ya cargó su documento de identidad y su comprobante de domicilio. Revisá los documentos y aprobá o denegá la verificación con un motivo: el artista recibe el resultado por email y en su panel.',
+            intro: () => 'Ya cargó su documento de identidad y su comprobante de domicilio. Revisa los documentos y aprueba o deniega la verificación con un motivo: el artista recibe el resultado por email y en su panel.',
             rows: d => [
                 ['Artista', d.artist_name || '-'],
                 ['Usuario', d.artist_username || '-'],

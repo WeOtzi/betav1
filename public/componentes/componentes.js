@@ -431,7 +431,7 @@
       </section>`).join("") + `
       <div class="docs-empty-search" data-empty-search hidden>
         <h2>Sin coincidencias</h2>
-        <p>Probá con el nombre del componente, su custom element o el ID del nodo Figma.</p>
+        <p>Prueba con el nombre del componente, su custom element o el ID del nodo Figma.</p>
       </div>`;
 
     if (nav) nav.innerHTML = [...groups].map(([category, entries]) => `

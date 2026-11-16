@@ -90,23 +90,23 @@
         if (amount == null) return 'A definir';
         return currencySymbol(currency) + groupThousands(amount);
     }
-    // COT-A-09: seña opcional de la respuesta/acuerdo. Vacío o 0 → sin seña
+    // COT-A-09: anticipo opcional de la respuesta/acuerdo. Vacío o 0 → sin anticipo
     // (columnas en null). { ok, patch } o { ok: false, error }.
     function depositPatch(rawPct, total) {
         var raw = rawPct == null ? '' : String(rawPct).trim();
         if (!raw) return { ok: true, patch: { artist_deposit_pct: null, artist_deposit_amount: null } };
         var pct = numberFrom(raw);
-        if (pct == null || pct < 0 || pct > 100) return { ok: false, error: 'La seña tiene que ser un porcentaje entre 0 y 100.' };
+        if (pct == null || pct < 0 || pct > 100) return { ok: false, error: 'El anticipo tiene que ser un porcentaje entre 0 y 100.' };
         if (pct === 0) return { ok: true, patch: { artist_deposit_pct: null, artist_deposit_amount: null } };
         var base = numberFrom(total);
         var amount = base != null && base > 0 ? Math.round(base * pct) / 100 : null;
         return { ok: true, patch: { artist_deposit_pct: Math.round(pct * 100) / 100, artist_deposit_amount: amount } };
     }
-    // "30 % · $150" · "Sin seña".
+    // "30 % · $150" · "Sin anticipo".
     function depositText(pct, amount, currency) {
         var p = numberFrom(pct);
         var a = numberFrom(amount);
-        if ((p == null || p <= 0) && (a == null || a <= 0)) return 'Sin seña';
+        if ((p == null || p <= 0) && (a == null || a <= 0)) return 'Sin anticipo';
         var parts = [];
         if (p != null && p > 0) parts.push(String(p).replace('.', ',') + ' %');
         if (a != null && a > 0) parts.push(money(a, currency));
@@ -185,6 +185,14 @@
     }
     function preferredDateLabel(quote) {
         var flexible = isFlexible(quote && quote.client_flexible_dates);
+        // Ronda 2 (cot-form · P14): rango tentativo del cliente en ISO
+        // (preferred_date_from / preferred_date_to); el texto queda de respaldo.
+        var from = toDate(quote && quote.preferred_date_from);
+        if (from) {
+            var to = toDate(quote && quote.preferred_date_to);
+            var range = dayMonthYear(from) + (to && to.getTime() !== from.getTime() ? ' – ' + dayMonthYear(to) : '');
+            return range + (flexible ? ' · flexible' : '');
+        }
         var date = toDate(quote && quote.client_preferred_date);
         if (!date) return flexible ? 'Flexible' : 'Sin fecha';
         return dayMonthYear(date) + (flexible ? ' · flexible' : '');
@@ -201,7 +209,7 @@
         completed: { tag: 'Completado', tone: 'completed' },
         dispute: { tag: 'En disputa', tone: 'dispute' },
         rejected: { tag: 'Rechazada', tone: 'rejected' },
-        cancelled: { tag: 'Rechazada por vos', tone: 'rejected' },
+        cancelled: { tag: 'Rechazada por ti', tone: 'rejected' },
         expired: { tag: 'Vencida', tone: 'expired' },
         draft: { tag: 'Borrador', tone: 'expired' }
     };
@@ -451,7 +459,7 @@
         var dur = durationShort(q.artist_session_minutes);
         if (dur) parts.push(dur);
         var depositPct = numberFrom(q.artist_deposit_pct);
-        if (depositPct != null && depositPct > 0) parts.push('seña ' + String(depositPct).replace('.', ',') + ' %');
+        if (depositPct != null && depositPct > 0) parts.push('anticipo ' + String(depositPct).replace('.', ',') + ' %');
         return parts.length ? 'Respuesta enviada: ' + parts.join(' · ') + '.' : 'Respuesta enviada al cliente.';
     }
     function agreementSummary(quote, sessions) {
@@ -479,7 +487,7 @@
         artist_completed: 'Entrega enviada al cliente para su aprobación.',
         completed: 'Cliente aprobó la entrega. Cotización completada.',
         client_rejected: 'El cliente rechazó la propuesta.',
-        cancelled: 'Solicitud rechazada por vos.',
+        cancelled: 'Solicitud rechazada por ti.',
         expired: 'La cotización venció sin respuesta.'
     };
 
@@ -519,7 +527,7 @@
             : 'Solicitud creada por el cliente desde el cotizador.', 'created');
         if (q.artist_viewed_at) {
             var priority = PRIORITY[String(q.priority || '').toLowerCase()];
-            push(q.artist_viewed_at, 'Vista por vos.' + (priority ? ' Prioridad asignada: ' + priority + '.' : ''), 'viewed');
+            push(q.artist_viewed_at, 'Vista por ti.' + (priority ? ' Prioridad asignada: ' + priority + '.' : ''), 'viewed');
         }
 
         var rows = (Array.isArray(history) ? history : []).filter(function (h) { return h && h.new_status && h.new_status !== 'pending' && h.new_status !== 'in_progress_draft'; });
@@ -813,6 +821,234 @@
         return lines.join('\n');
     }
 
+    /* ------------------- datos del cliente y referencias (ronda 2) ------------------- */
+    // Frente cot-detalle: lo que el artista necesita ver de la solicitud (N10)
+    // y las referencias con el comentario del cliente (P13). Sin DOM.
+
+    // Edad a partir de la fecha de nacimiento (YYYY-MM-DD). null si no es válida.
+    function ageFromBirthDate(value, now) {
+        var match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value == null ? '' : value));
+        if (!match) return null;
+        var year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+        var today = toDate(now) || new Date();
+        var age = today.getFullYear() - year;
+        if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) age -= 1;
+        return age >= 0 && age <= 120 ? age : null;
+    }
+    // { years, minor }: la fecha de nacimiento manda; si falta, la edad declarada.
+    function clientAge(quote, now) {
+        var q = quote || {};
+        var years = ageFromBirthDate(q.client_birth_date, now);
+        if (years == null) {
+            var declared = parseInt(String(q.client_age == null ? '' : q.client_age).trim(), 10);
+            years = Number.isFinite(declared) && declared >= 0 && declared <= 120 ? declared : null;
+        }
+        return { years: years, minor: years != null && years < 18 };
+    }
+    function triState(value) {
+        if (value === true || /^(true|si|sí|yes|1)$/i.test(String(value == null ? '' : value).trim())) return true;
+        if (value === false || /^(false|no|0)$/i.test(String(value == null ? '' : value).trim())) return false;
+        return null;
+    }
+    function yesNoLabel(value) {
+        var v = triState(value);
+        return v === true ? 'Sí' : (v === false ? 'No' : 'Sin indicar');
+    }
+    function plainText(value) {
+        return String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+    }
+    // "ninguna", "no", "n/a", "-" → el cliente declaró que no tiene.
+    function declaresNone(text) {
+        return /^(no|ninguna?|ningun[oa]s?|nada|n\/?a|sin|-+|—)\.?$/i.test(plainText(text));
+    }
+    // Ficha del cliente que el artista ve SIEMPRE (salud, edad, cover up).
+    // Cada dato: { key, label, value, alert, highlight, wide, tag }. `alert` =
+    // requiere cuidado (menor de edad, salud, alergias); `highlight` = dato que
+    // cambia el trabajo (cover up).
+    function clientFacts(quote, now) {
+        var q = quote || {};
+        var age = clientAge(q, now);
+        var health = plainText(q.client_health_conditions);
+        var allergies = plainText(q.client_allergies);
+        var cover = triState(q.tattoo_is_cover_up);
+        return [
+            { key: 'age', label: 'Edad', value: age.years == null ? 'Sin indicar' : age.years + (age.years === 1 ? ' año' : ' años'), alert: age.minor, tag: age.minor ? 'Menor de edad' : '' },
+            { key: 'cover_up', label: 'Cover up', value: yesNoLabel(q.tattoo_is_cover_up), alert: false, highlight: cover === true, tag: '' },
+            { key: 'first_tattoo', label: 'Primer tatuaje', value: yesNoLabel(q.tattoo_is_first_tattoo), alert: false, tag: '' },
+            { key: 'health', label: 'Condiciones médicas', value: health || 'Sin indicar', alert: !!health && !declaresNone(health), wide: true, tag: '' },
+            { key: 'allergies', label: 'Alergias', value: allergies || 'Sin indicar', alert: !!allergies && !declaresNone(allergies), wide: true, tag: '' }
+        ];
+    }
+    function isManualQuote(quote) {
+        return !!quote && (quote.source === 'manual' || quote.quotation_medium === 'manual');
+    }
+    // "Whatsapp, Instagram" · '["WhatsApp","Email"]' → "WhatsApp · Instagram".
+    function contactPreferenceLabel(value) {
+        var raw = value;
+        if (typeof raw === 'string' && raw.trim().charAt(0) === '[') {
+            try { raw = JSON.parse(raw); } catch (_) { /* texto plano */ }
+        }
+        var list = Array.isArray(raw) ? raw : String(raw == null ? '' : raw).split(/[,;/|]+/);
+        var seen = {};
+        return list.map(function (item) {
+            var text = plainText(item);
+            if (/whats|wsp|wpp/i.test(text)) return 'WhatsApp';
+            if (/insta|\big\b/i.test(text)) return 'Instagram';
+            if (/mail|correo/i.test(text)) return 'Email';
+            if (/cualquier/i.test(text)) return 'Cualquiera';
+            return text;
+        }).filter(function (text) {
+            if (!text || seen[text]) return false;
+            seen[text] = true;
+            return true;
+        }).join(' · ');
+    }
+    // Filas de contacto con su enlace (mailto / wa.me / instagram). El contacto
+    // llega del servidor (GET /api/cot-detalle/quotations/:id/info), que decide
+    // si corresponde mostrarlo; aquí solo se da formato.
+    function contactRows(contact) {
+        var c = contact || {};
+        var rows = [];
+        var email = plainText(c.email);
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) rows.push({ key: 'email', label: 'Email', value: email, href: 'mailto:' + email });
+        else if (email) rows.push({ key: 'email', label: 'Email', value: email, href: '' });
+        var whatsapp = plainText(c.whatsapp);
+        if (whatsapp) {
+            var digits = whatsapp.replace(/[^0-9]/g, '');
+            rows.push({ key: 'whatsapp', label: 'WhatsApp', value: whatsapp, href: digits.length >= 7 && digits.length <= 15 ? 'https://wa.me/' + digits : '' });
+        }
+        var instagram = plainText(c.instagram);
+        if (instagram) {
+            var handle = instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/^@+/, '').replace(/[/?#].*$/, '');
+            var valid = /^[A-Za-z0-9._]{1,30}$/.test(handle);
+            rows.push({ key: 'instagram', label: 'Instagram', value: valid ? '@' + handle : instagram, href: valid ? 'https://www.instagram.com/' + handle + '/' : '' });
+        }
+        var preference = contactPreferenceLabel(c.preference);
+        if (preference) rows.push({ key: 'preference', label: 'Prefiere que le escriban por', value: preference, href: '' });
+        return rows;
+    }
+
+    var AI_MARK_RE = /(^|[^a-z0-9])(ai|ia|gen|generated|generada|gemini)([^a-z0-9]|$)/i;
+    function truthy(value) {
+        return value === true || value === 1 || /^(true|1|si|sí|yes)$/i.test(String(value == null ? '' : value));
+    }
+    // ¿La referencia fue generada con IA? Acepta las marcas que puede dejar el
+    // cotizador: banderas (ai, is_ai, ai_generated, generated), origen
+    // (source/origin/kind/type = 'ai' | 'ia' | 'generated' | 'gemini') o el
+    // tipo de adjunto ('ai_reference', 'reference_ai', 'generated_reference').
+    function isAiReference(entry) {
+        if (!entry || typeof entry !== 'object') return false;
+        if (truthy(entry.ai) || truthy(entry.is_ai) || truthy(entry.ai_generated) || truthy(entry.is_ai_generated) || truthy(entry.generated)) return true;
+        var marks = [entry.source, entry.origin, entry.kind, entry.type, entry.attachment_type, entry.generated_by];
+        return marks.some(function (mark) { return typeof mark === 'string' && AI_MARK_RE.test(mark.replace(/_/g, ' ')); });
+    }
+    function noteOf(entry) {
+        if (entry == null) return '';
+        if (typeof entry === 'string') return entry.trim();
+        if (typeof entry !== 'object') return '';
+        var text = entry.note != null ? entry.note : (entry.comment != null ? entry.comment
+            : (entry.text != null ? entry.text : (entry.caption != null ? entry.caption : entry.description)));
+        return typeof text === 'string' ? text.trim() : '';
+    }
+    // Nombre de archivo (con extensión) de una ruta o URL; '' si no lo tiene
+    // (p. ej. un enlace de Drive .../view), para no confundir archivos distintos.
+    function fileKey(value) {
+        var raw = String(value == null ? '' : value).split(/[?#]/)[0];
+        try { raw = decodeURIComponent(raw); } catch (_) { /* se usa tal cual */ }
+        var name = raw.split('/').pop().toLowerCase();
+        return /\.[a-z0-9]{2,5}$/.test(name) ? name : '';
+    }
+    function entryUrl(entry) {
+        if (typeof entry === 'string') return entry;
+        if (!entry || typeof entry !== 'object') return '';
+        return entry.google_drive_url || entry.file_url || entry.public_url || entry.url || entry.src || '';
+    }
+    function entryIndex(entry) {
+        if (!entry || typeof entry !== 'object') return null;
+        var raw = entry.index != null ? entry.index : (entry.position != null ? entry.position : null);
+        if (raw != null && Number.isFinite(Number(raw))) return Number(raw);
+        if (entry.sort_order != null && Number.isFinite(Number(entry.sort_order))) return Number(entry.sort_order) - 1;
+        return null;
+    }
+    /**
+     * Referencias de la solicitud con SU comentario y su marca de IA (P13).
+     * Fuentes, en orden: quotations_attachments (referencias), después
+     * quotations_db.reference_images. Los comentarios salen de
+     * quotation_intake_extras.reference_notes en cualquiera de sus formatos:
+     *   · ["nota 1", "nota 2"]                      alineadas por posición
+     *   · [{ note|comment|text, path|url|file_name, index, ai }]   por archivo o posición
+     * y también del propio adjunto / imagen si trae note|comment|caption.
+     * Devuelve [{ url, name, note, ai, index }] sin duplicados.
+     */
+    function referenceItems(quote, attachments, extras) {
+        var q = quote || {};
+        var notes = extras && Array.isArray(extras.reference_notes) ? extras.reference_notes : [];
+        var byFile = {};
+        var byIndex = {};
+        notes.forEach(function (entry, position) {
+            if (entry && typeof entry === 'object') {
+                var key = fileKey(entry.path || entry.file_name || entry.name || entryUrl(entry));
+                if (key) byFile[key] = entry;
+                var idx = entryIndex(entry);
+                byIndex[idx != null ? idx : position] = entry;
+            } else {
+                byIndex[position] = entry;
+            }
+        });
+        var images = (Array.isArray(q.reference_images) ? q.reference_images : []).filter(function (item) { return !!entryUrl(item); });
+        var imageIndex = {};
+        images.forEach(function (item, position) {
+            var key = fileKey(entryUrl(item));
+            if (key && imageIndex[key] == null) imageIndex[key] = position;
+        });
+
+        var items = [];
+        var seenUrl = {};
+        var seenFile = {};
+        function push(url, name, source, position) {
+            if (!url || seenUrl[url]) return;
+            // `source` es el adjunto o la imagen; una URL suelta no trae nota propia.
+            var own = source && typeof source === 'object' ? source : null;
+            var key = fileKey(url);
+            var ownKey = own ? fileKey(own.file_name || '') : '';
+            if ((key && seenFile[key]) || (ownKey && seenFile[ownKey])) return;
+            seenUrl[url] = true;
+            if (key) seenFile[key] = true;
+            if (ownKey) seenFile[ownKey] = true;
+            var entry = (key && byFile[key]) || (ownKey && byFile[ownKey]) || (position != null ? byIndex[position] : null);
+            items.push({
+                url: url,
+                name: name,
+                note: noteOf(own) || noteOf(entry),
+                ai: isAiReference(own) || isAiReference(entry),
+                index: items.length
+            });
+        }
+        (Array.isArray(attachments) ? attachments : [])
+            .filter(Boolean)
+            .slice()
+            .sort(function (a, b) { return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0); })
+            .forEach(function (a) {
+                var url = entryUrl(a);
+                // Posición de la nota: la de la imagen equivalente en reference_images
+                // (mismo archivo) o el sort_order del adjunto (1 = primera).
+                var key = fileKey(url);
+                var nameKey = fileKey(a.file_name || '');
+                var position = (key && imageIndex[key] != null) ? imageIndex[key]
+                    : ((nameKey && imageIndex[nameKey] != null) ? imageIndex[nameKey] : entryIndex(a));
+                push(url, a.file_name || '', a, position);
+            });
+        images.forEach(function (item, position) {
+            push(entryUrl(item), (item && typeof item === 'object' && (item.file_name || item.name)) || '', item, position);
+        });
+        // Los nombres técnicos del cotizador (ref_1_1731600000000.jpg) se
+        // muestran como "Referencia N"; los nombres reales se conservan.
+        return items.map(function (item, i) {
+            var technical = !item.name || /^ref_\d{1,2}_\d{10,14}\./i.test(item.name);
+            return { url: item.url, name: technical ? 'Referencia ' + (i + 1) : item.name, note: item.note, ai: item.ai, index: i };
+        });
+    }
+
     return {
         DAY: DAY,
         MONTHS: MONTHS,
@@ -824,6 +1060,10 @@
         minutesFrom: minutesFrom, splitMinutes: splitMinutes, durationLong: durationLong, durationShort: durationShort,
         hoursLabel: hoursLabel, sessionsLabel: sessionsLabel, initials: initials, styleName: styleName,
         bodyZone: bodyZone, isFlexible: isFlexible, preferredDateLabel: preferredDateLabel,
+        // datos del cliente y referencias (ronda 2 · cot-detalle)
+        ageFromBirthDate: ageFromBirthDate, clientAge: clientAge, yesNoLabel: yesNoLabel, clientFacts: clientFacts,
+        isManualQuote: isManualQuote, contactPreferenceLabel: contactPreferenceLabel, contactRows: contactRows,
+        isAiReference: isAiReference, referenceItems: referenceItems,
         // estados
         STAGE_META: STAGE_META, deriveStage: deriveStage, stageMeta: stageMeta, isPreAgreement: isPreAgreement,
         showsAgreement: showsAgreement, showsSessions: showsSessions, commandActions: commandActions,

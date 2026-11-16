@@ -141,7 +141,7 @@
 .mk-featured--studios .mk-featured-eyebrow::before{background:var(--blue-500)}
 .mk-featured--studios .mk-featured-sub{color:var(--neutral-500)}
 
-/* ---------- Artistas para vos (Figma 286:12794) ---------- */
+/* ---------- Artistas para ti (Figma 286:12794) ---------- */
 .mk-foryou{margin-top:var(--space-12)}
 .mk-foryou-title{font-family:var(--font-display);font-size:var(--h2-size);line-height:var(--h2-lh);letter-spacing:var(--h2-track);color:var(--ink);margin:0}
 .mk-foryou-sub{font-family:var(--font-mono);font-size:var(--meta-s-size);letter-spacing:var(--meta-s-track);text-transform:uppercase;color:var(--text-faint);margin:var(--space-2) 0 0}
@@ -198,6 +198,7 @@
 .mk-card-fav{position:absolute;top:var(--space-2);right:var(--space-2);z-index:2;display:inline-flex;align-items:center;justify-content:center;
   width:var(--space-8);height:var(--space-8);padding:0;background:transparent;border:0;border-radius:var(--radius-none);
   color:var(--white);cursor:pointer}
+.mk-card-fav[hidden]{display:none}
 .mk-card-fav [data-wo-icon]{width:18px;height:18px}
 .mk-card-fav.is-fav svg{fill:currentColor}
 
@@ -248,7 +249,7 @@
 }
 @media (max-width:480px){
   .mk-grid{grid-template-columns:1fr}
-  /* Topbar a 375px: marca + tile + menú; Cotizá y Log out viven en el menú */
+  /* Topbar a 375px: marca + tile + menú; Cotiza y Log out viven en el menú */
   .mk-topbar .mk-topbar-cta,.mk-topbar .mk-logout{display:none}
   .mk-results-tools{gap:var(--space-3)}
   .mk-seg-btn{padding:var(--space-2) var(--space-3)}

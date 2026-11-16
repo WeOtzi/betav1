@@ -71,14 +71,14 @@ test('los pasos siguen el orden, los ids y los títulos del contrato', () => {
     assert.equal(NEW_WINDOW_DAYS, 14);
     const result = computeSteps({});
     assert.deepEqual(result.steps.map((s) => [s.id, s.title]), [
-        ['perfil', 'Completá tu perfil'],
-        ['portafolio', 'Validá tu Instagram y tu portafolio'],
-        ['compartir', 'Compartí tu perfil en Instagram'],
-        ['retiro', 'Configurá un medio de retiro'],
-        ['disponibilidad', 'Configurá tu disponibilidad'],
-        ['notificaciones', 'Configurá tus notificaciones'],
-        ['verificacion', 'Completá la verificación'],
-        ['configuracion', 'Completá la configuración']
+        ['perfil', 'Completa tu perfil'],
+        ['portafolio', 'Valida tu Instagram y tu portafolio'],
+        ['compartir', 'Comparte tu perfil en Instagram'],
+        ['retiro', 'Configura un medio de retiro'],
+        ['disponibilidad', 'Configura tu disponibilidad'],
+        ['notificaciones', 'Configura tus notificaciones'],
+        ['verificacion', 'Completa la verificación'],
+        ['configuracion', 'Completa la configuración']
     ]);
     const withInstagram = computeSteps({ instagram: { available: true, status: 'none' } });
     assert.deepEqual(withInstagram.steps.map((s) => s.checks.map((c) => c.id + (c.optional ? '?' : ''))), [

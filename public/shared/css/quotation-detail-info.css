@@ -1,0 +1,268 @@
+/* ============================================================================
+   We Ötzi · Expediente de cotización — datos del cliente, contacto y exportación
+   Ronda 2 · frente cot-detalle. Complementa quotation-detail-figma.css (se
+   carga después). Lo pintan quotation-detail-figma.js (referencias con
+   comentario) y quotation-detail-info.js (ficha del cliente, contacto según
+   verificación, compartir/exportar y perfil del cliente).
+   Solo tokens del DS Bauhaus (ds/tokens.css).
+   ========================================================================== */
+
+/* ---------------------- identidad · "Ver perfil del cliente" ---------------------- */
+.qd-identity { grid-template-columns: 88px minmax(0, 1fr) auto; }
+.qd-identity-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+.qd-identity-actions:empty { display: none; }
+
+/* ----------------------- referencias con comentario (P13) ----------------------- */
+.qd-ref { min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.qd-ref.is-ai .qd-reference-card.has-image { border: var(--border-strong-width) dashed var(--blue-400); }
+.qd-ref-ai {
+    align-self: flex-start;
+    padding: 3px var(--space-2);
+    background: var(--info-bg);
+    color: var(--info-fg);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    font-weight: var(--weight-bold);
+    letter-spacing: 0.06em;
+    line-height: 1.35;
+    text-transform: uppercase;
+}
+.qd-ref-note {
+    margin: 0;
+    display: grid;
+    gap: 2px;
+    color: var(--neutral-500);
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    white-space: pre-line;
+}
+.qd-ref-note .qd-label { color: var(--neutral-400); white-space: normal; }
+.qd-ref-note.is-empty { color: var(--neutral-400); font-size: 12px; }
+
+/* ------------------------- ficha del cliente + contacto ------------------------- */
+.qdi {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    border-bottom: var(--border-strong-width) solid var(--ink);
+}
+.qdi-panel {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-8) calc(var(--space-1) * 9);
+}
+.qdi-client { border-right: var(--border-strong-width) solid var(--ink); }
+.qdi-contact { background: var(--sand-050); }
+.qdi .qd-section-label,
+.qdi-share .qd-section-label { margin: 0; font-weight: var(--weight-medium); }
+.qdi .qd-label,
+.qdi-profile .qd-label { color: var(--neutral-400); }
+
+.qdi-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.qdi-flag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px var(--space-2);
+    background: var(--neutral-200);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    font-weight: var(--weight-bold);
+    letter-spacing: 0.1em;
+    line-height: 1.4;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.qdi-flag--alert { background: var(--red-400); color: var(--white); }
+
+.qdi-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-5);
+    margin: 0;
+    padding: var(--space-5) 0;
+    border-block: var(--border-hairline) solid var(--figma-sand-border);
+}
+.qdi-fact { min-width: 0; display: grid; gap: var(--space-1); align-content: start; margin: 0; }
+.qdi-fact dd {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+}
+.qdi-fact.is-wide { grid-column: 1 / -1; }
+.qdi-fact.is-wide dd {
+    color: var(--neutral-500);
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: var(--weight-medium);
+    line-height: 1.5;
+}
+.qdi-fact.is-alert { padding-left: var(--space-3); border-left: var(--border-rule-width) solid var(--red-300); }
+.qdi-fact.is-highlight { padding-left: var(--space-3); border-left: var(--border-rule-width) solid var(--yellow-300); }
+.qdi-fact.is-alert dd { color: var(--red-700); }
+
+.qdi-note { margin: 0; color: var(--neutral-400); font-size: 12.5px; line-height: 1.5; }
+.qdi-note--alert { color: var(--red-700); font-weight: var(--weight-semibold); }
+.qdi-muted { margin: 0; color: var(--neutral-400); font-size: var(--body-s-size); line-height: 1.5; }
+
+.qdi-contact-list { display: grid; gap: var(--space-3); margin: 0; }
+.qdi-contact-row { min-width: 0; display: grid; gap: 2px; }
+.qdi-contact-row dd {
+    margin: 0;
+    color: var(--ink);
+    font-size: var(--body-m-size);
+    font-weight: var(--weight-semibold);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.qdi-contact-row a { color: var(--blue-500); text-decoration: underline; text-underline-offset: 2px; }
+.qdi-contact-row a:hover { color: var(--ink); }
+.qdi-contact-row a:focus-visible,
+.qdi-share .qd-btn:focus-visible,
+.qdi .qd-btn:focus-visible,
+.qd-identity-actions .qd-btn:focus-visible { outline: var(--border-strong-width) solid var(--blue-400); outline-offset: 2px; }
+
+/* Mismo contacto (P17): otras cotizaciones del mismo correo o teléfono. */
+.qdi-same {
+    display: grid;
+    gap: var(--space-2);
+    padding-top: var(--space-4);
+    border-top: var(--border-hairline) solid var(--figma-sand-border);
+}
+.qdi-same .qd-label { margin: 0; }
+.qdi-same-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.qdi-same-list li { min-width: 0; display: grid; gap: 2px; }
+.qdi-same-list a {
+    justify-self: start;
+    color: var(--blue-500);
+    font-family: var(--font-mono);
+    font-size: var(--body-s-size);
+    font-weight: var(--weight-bold);
+    letter-spacing: 0.06em;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    overflow-wrap: anywhere;
+}
+.qdi-same-list a:hover { color: var(--ink); }
+.qdi-same-list a:focus-visible { outline: var(--border-strong-width) solid var(--blue-400); outline-offset: 2px; }
+.qdi-same-list span { color: var(--neutral-500); font-size: var(--body-s-size); line-height: 1.4; }
+
+.qdi-locked { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.qdi-lock { width: 40px; height: 40px; display: grid; place-items: center; background: var(--neutral-500); color: var(--yellow-300); }
+.qdi-lock svg { width: 18px; height: 18px; }
+.qdi-locked strong {
+    display: block;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.2;
+}
+.qdi-locked p { margin: var(--space-2) 0 var(--space-4); color: var(--neutral-500); font-size: var(--body-s-size); line-height: 1.55; }
+.qdi-locked p:last-child { margin-bottom: 0; }
+
+/* ---------------------------- compartir y exportar ---------------------------- */
+.qdi-share {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+    padding: var(--space-6) calc(var(--space-1) * 9);
+    border-bottom: var(--border-strong-width) solid var(--ink);
+}
+.qdi-share-copy { min-width: 0; display: grid; gap: var(--space-1); }
+.qdi-share-lead { margin: 0; color: var(--neutral-500); font-size: var(--body-s-size); line-height: 1.5; }
+.qdi-share-status {
+    min-height: 1.4em;
+    margin: 0;
+    color: var(--neutral-400);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+}
+.qdi-share-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.qdi-share-actions .qd-btn[aria-busy="true"] { cursor: progress; }
+.qdi-report { border-color: transparent; color: var(--red-700); }
+.qdi-report:hover { background: var(--red-100); }
+
+/* ------------------------------ perfil del cliente ------------------------------ */
+.qdi-profile { max-width: 540px; }
+.qdi-profile-head { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: var(--space-4); align-items: center; }
+.qdi-profile-head .wo-modal-title { margin: 0 0 var(--space-1); overflow-wrap: anywhere; }
+.qdi-profile-photo {
+    width: 72px;
+    height: 72px;
+    display: grid;
+    place-items: center;
+    object-fit: cover;
+    background: var(--yellow-300);
+    color: var(--neutral-500);
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 1;
+}
+.qdi-profile-meta {
+    margin: 0;
+    color: var(--neutral-400);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    line-height: 1.5;
+    text-transform: uppercase;
+}
+.qdi-profile-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-4);
+    margin: var(--space-5) 0 var(--space-3);
+    padding: var(--space-4) 0;
+    border-block: var(--border-hairline) solid var(--figma-sand-border);
+}
+.qdi-profile-stats div { min-width: 0; display: grid; gap: var(--space-1); align-content: start; }
+.qdi-profile-stats dd { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: 24px; line-height: 1.1; }
+.qdi-profile-reviews { display: grid; gap: var(--space-3); margin: var(--space-4) 0; }
+.qdi-profile-reviews .qd-section-label { margin: 0; }
+.qdi-profile-reviews ul { list-style: none; display: grid; gap: var(--space-3); margin: 0; padding: 0; }
+.qdi-profile-reviews li { display: grid; gap: var(--space-1); padding-bottom: var(--space-3); border-bottom: var(--border-hairline) solid var(--neutral-200); }
+.qdi-profile-reviews li p { margin: 0; color: var(--neutral-500); font-size: var(--body-s-size); line-height: 1.5; overflow-wrap: anywhere; }
+.qdi-profile-reviews small {
+    color: var(--neutral-400);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.qdi-stars { color: var(--yellow-400); font-size: 14px; letter-spacing: 2px; }
+.qdi-stars i { color: var(--neutral-200); font-style: normal; }
+
+/* -------------------------------- responsive -------------------------------- */
+@media (max-width: 1100px) {
+    .qdi-panel { padding-inline: var(--space-5); }
+    .qdi-share { flex-direction: column; align-items: flex-start; padding-inline: var(--space-5); }
+    .qdi-share-actions { justify-content: flex-start; }
+}
+
+@media (max-width: 768px) {
+    .qd-identity { grid-template-columns: 64px minmax(0, 1fr); }
+    .qd-identity-actions { grid-column: 1 / -1; justify-content: flex-start; }
+    .qdi { grid-template-columns: minmax(0, 1fr); }
+    .qdi-client { border-right: 0; border-bottom: var(--border-strong-width) solid var(--ink); }
+    .qdi-panel { padding-block: var(--space-6); }
+    .qdi-share-actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .qdi-share-actions .qd-btn { min-height: var(--control-h-md); white-space: normal; text-align: center; }
+    .qdi-locked .qd-btn,
+    .qd-identity-actions .qd-btn { min-height: var(--control-h-md); }
+}
+
+@media (max-width: 480px) {
+    .qdi-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .qdi-profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .qdi-profile-head { grid-template-columns: 56px minmax(0, 1fr); }
+    .qdi-profile-photo { width: 56px; height: 56px; font-size: 20px; }
+}

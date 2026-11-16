@@ -144,14 +144,14 @@
         fixtures.rpcs.get_artist_public_profile_preferences = () => ({ show_reviews: true, show_studio: true, show_availability: true, show_portfolio: true });
         fixtures.rpcs.check_email_registered = args => store.rows('clients_db').some(c => c.email === (args.email_to_check || args.p_email)) || store.rows('artists_db').some(a => a.email === (args.email_to_check || args.p_email));
         fixtures.rpcs.complete_studio_registration = (args, st, ctx) => {
-            if (!ctx.userId || ctx.userId !== session?.user.id) throw new Error('Confirmá tu correo e iniciá sesión para completar el registro.');
+            if (!ctx.userId || ctx.userId !== session?.user.id) throw new Error('Confirma tu correo e inicia sesión para completar el registro.');
             const existing = st.rows('studios').find(row => row.user_id === ctx.userId);
             if (existing) return clone(existing);
             const profile = args.p_profile || {};
             const name = String(profile.name || '').trim();
             const locations = args.p_locations;
             if (name.length < 2 || name.length > 160) throw new Error('El nombre debe tener entre 2 y 160 caracteres.');
-            if (!Array.isArray(locations) || locations.length < 1 || locations.length > 30) throw new Error('Agregá entre 1 y 30 sedes.');
+            if (!Array.isArray(locations) || locations.length < 1 || locations.length > 30) throw new Error('Agrega entre 1 y 30 sedes.');
             if (locations.some(row => !row || !String(row.formatted_address || '').trim())) throw new Error('La dirección de cada sede es obligatoria.');
             let primaryIndex = 0;
             locations.forEach((row, index) => { if (row.is_primary === true) primaryIndex = index; });
@@ -195,7 +195,7 @@
     }
     async function login(options, signup) {
         const email = String(options && options.email || '').trim().toLowerCase();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || String(options && options.password || '').length < 8) return { data: { session: null, user: null }, error: { code: 'PREVIEW_INPUT', message: 'En preview usá un correo ficticio válido y una contraseña de 8 o más caracteres.' } };
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || String(options && options.password || '').length < 8) return { data: { session: null, user: null }, error: { code: 'PREVIEW_INPUT', message: 'En preview usa un correo ficticio válido y una contraseña de 8 o más caracteres.' } };
         const st = await ready;
         const studio = st.rows('studios').find(row => row.user_id === identityId(email));
         const metadata = Object.assign({}, options.options && options.options.data, studio ? { user_type: 'studio', name: studio.name, full_name: studio.name } : {});
@@ -231,7 +231,7 @@
         signOut: async options => { if (options && options.scope === 'others') return { error: error('La preview no controla sesiones de otros dispositivos.', 'auth.signOutOthers') }; publishSession(null, 'SIGNED_OUT'); return { error: null }; },
         onAuthStateChange: callback => { listeners.add(callback); Promise.resolve().then(() => callback('INITIAL_SESSION', clone(session))); return { data: { subscription: { unsubscribe: () => listeners.delete(callback) } } }; },
         updateUser: async values => {
-            if (!session) return { data: { user: null }, error: { message: 'Iniciá la sesión ficticia.' } };
+            if (!session) return { data: { user: null }, error: { message: 'Inicia la sesión ficticia.' } };
             if (values.password || values.email) return { data: null, error: error('Cambio de contraseña/correo no simulado; requiere el entorno real.', 'auth.updateCredentials') };
             const next = clone(session); next.user.user_metadata = Object.assign(next.user.user_metadata, values.data || {}); publishSession(next, 'USER_UPDATED');
             return { data: { user: clone(next.user) }, error: null };
@@ -317,7 +317,7 @@
         const st = await ready;
         if (path === '/api/account/testing' && method === 'GET') return json({ enabled: false, preview: true });
         if (path === '/api/account/mode' && method === 'POST') {
-            if (!session) return json({ error: 'Iniciá la sesión ficticia.', preview: true }, 401);
+            if (!session) return json({ error: 'Inicia la sesión ficticia.', preview: true }, 401);
             if (!input || !['artist', 'client'].includes(input.mode)) return json({ error: 'Modo no válido.', preview: true }, 400);
             await ensureProfiles(session.user); writeStorage('mode', input.mode);
             return json({ success: true, mode: input.mode, url: scoped('/' + input.mode + '/dashboard/'), redirect: scoped('/' + input.mode + '/dashboard/'), preview: true });
@@ -327,7 +327,7 @@
         if (path === '/api/quotations/intake' && method === 'POST') {
             if (!input || !['draft', 'submit'].includes(input.mode) || !/^[\da-f-]{36}$/i.test(input.submission_key || '')) return json({ error: 'Solicitud de prueba no válida.', preview: true }, 400);
             const q = input.quotation || {};
-            if (input.mode === 'submit' && (!q.client_full_name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.client_email || '') || !q.tattoo_idea_description || !q.tattoo_style || !q.tattoo_body_part || !q.tattoo_size)) return json({ error: 'Completá nombre, correo, idea, estilo, zona y tamaño.', preview: true }, 400);
+            if (input.mode === 'submit' && (!q.client_full_name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.client_email || '') || !q.tattoo_idea_description || !q.tattoo_style || !q.tattoo_body_part || !q.tattoo_size)) return json({ error: 'Completa nombre, correo, idea, estilo, zona y tamaño.', preview: true }, 400);
             const quoteId = 'PREVIEW-' + input.submission_key;
             let row = st.rows('quotations_db').find(item => item.quote_id === quoteId);
             const artist = st.rows('artists_db').find(item => item.user_id === q.artist_id);
@@ -387,7 +387,7 @@
         banner.style.cssText = 'position:fixed;left:16px;top:16px;width:44px;height:44px;z-index:2147483647;font:12px/1.4 sans-serif;color:#181818';
         const toggle = document.createElement('button'); toggle.type = 'button'; toggle.id = 'weotzi-preview-eye';
         toggle.setAttribute('aria-controls', 'weotzi-preview-controls');
-        toggle.title = 'Arrastrá para mover. También podés usar las flechas del teclado.';
+        toggle.title = 'Arrastra para mover. También puedes usar las flechas del teclado.';
         toggle.style.cssText = 'all:initial;box-sizing:border-box;display:grid;place-items:center;width:44px;height:44px;border:1px solid #181818;border-radius:50%;background:#ffdd57;color:#181818;box-shadow:0 2px 8px #0003;cursor:grab;touch-action:none;user-select:none';
         toggle.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
         const panel = document.createElement('div'); panel.id = 'weotzi-preview-controls';

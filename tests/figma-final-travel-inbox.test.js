@@ -173,7 +173,7 @@ test('Inbox preview fixtures cover every sidebar category and the exact Spot con
     assert.equal(costa.context.start_date, '2026-09-01');
     assert.equal(costa.context.end_date, '2026-09-15');
     const bodies = tables.inbox_messages.filter((message) => message.thread_id === 'costa').map((message) => message.body);
-    assert.deepEqual(bodies, ['Confirmo mi interés en la próxima residencia de septiembre.', 'Perfecto, mandanos tus fechas confirmadas']);
+    assert.deepEqual(bodies, ['Confirmo mi interés en la próxima residencia de septiembre.', 'Perfecto, mándanos tus fechas confirmadas']);
 });
 
 test('Inbox fixtures: every application has its thread and Zorro Rojo keeps only the first contact', () => {

@@ -4,7 +4,7 @@
 //   - Toma ?unirse=<token> (o el que guardó /artist/join-studio) y lo
 //     conserva en localStorage para que sobreviva al borrador y a recargas.
 //   - Valida el enlace (GET /api/studio-invite/:token) y muestra el aviso
-//     "Te sumás a <Estudio> · <Sede>". En el wizard precarga el estudio y la
+//     "Te sumas a <Estudio> · <Sede>". En el wizard precarga el estudio y la
 //     sede y bloquea el campo de estudio mientras el enlace está activo.
 //   - register.js manda el token en el finalize (el servidor lo revalida y
 //     fuerza estudio y sede) y llama a afterFinalize(respuesta).
@@ -99,10 +99,10 @@
         banner.id = 'wo-studio-invite-banner';
         banner.setAttribute('role', 'status');
         if (invalid) {
-            banner.innerHTML = `<p>${esc(message)} Podés registrarte igual y elegir tu estudio en el formulario.</p>`;
+            banner.innerHTML = `<p>${esc(message)} Puedes registrarte igual y elegir tu estudio en el formulario.</p>`;
         } else {
             const loc = data.location ? [data.location.label, data.location.city].filter(Boolean).join(' · ') : '';
-            banner.innerHTML = `<p><strong>Te sumás a ${esc(data.studio && data.studio.name)}</strong>${loc ? ' · ' + esc(loc) : ''}
+            banner.innerHTML = `<p><strong>Te sumas a ${esc(data.studio && data.studio.name)}</strong>${loc ? ' · ' + esc(loc) : ''}
                 con su enlace de invitación${data.requires_approval ? ': el estudio aprueba tu alta cuando termines.' : '.'}</p>
                 <button type="button" class="wo-studio-invite-dismiss">No es mi estudio</button>`;
             banner.querySelector('.wo-studio-invite-dismiss').addEventListener('click', () => {
@@ -161,7 +161,7 @@
         }
         const name = data.studio_name || 'el estudio';
         if (data.membership_status === 'active') {
-            note.textContent = `Ya formás parte del equipo de ${name}.`;
+            note.textContent = `Ya formas parte del equipo de ${name}.`;
         } else if (data.studio_invite_status === 'failed') {
             note.textContent = `El enlace de invitación ya no servía: enviamos tu solicitud a ${name} y te avisamos cuando responda.`;
         } else {

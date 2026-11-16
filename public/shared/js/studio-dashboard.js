@@ -63,7 +63,7 @@
             try { await load(); }
             catch (error) {
                 publishSummary(area, 'error', undefined, error);
-                showStatus(statusId, 'error', error.message || 'No se pudo cargar esta sección. Recargá la página para intentar nuevamente.');
+                showStatus(statusId, 'error', error.message || 'No se pudo cargar esta sección. Recarga la página para intentar nuevamente.');
             }
         }
     });
@@ -90,9 +90,9 @@
             const title = roster.querySelector('.studio-h1');
             if (title) title.innerHTML = 'Solicitudes <span class="accent">de cambio</span>';
             const help = roster.querySelector('.studio-panel-content > .studio-help');
-            if (help) help.textContent = 'Respondé los pedidos de cambio de las invitaciones del estudio. Como manager podés ajustar sede, fechas, duración y mensaje; el rol manager y el reparto los define el dueño.';
+            if (help) help.textContent = 'Responde los pedidos de cambio de las invitaciones del estudio. Como manager puedes ajustar sede, fechas, duración y mensaje; el rol manager y el reparto los define el dueño.';
             const aside = roster.querySelector('.studio-context');
-            if (aside) aside.innerHTML = '<h3>Acceso de manager</h3><p>Entrás como manager de ' + escapeHtml(current.name || 'este estudio') + '. Ves los mensajes del estudio y las solicitudes de cambio; el resto del panel lo administra el dueño.</p>';
+            if (aside) aside.innerHTML = '<h3>Acceso de manager</h3><p>Entras como manager de ' + escapeHtml(current.name || 'este estudio') + '. Ves los mensajes del estudio y las solicitudes de cambio; el resto del panel lo administra el dueño.</p>';
         }
         const heading = document.querySelector('.studio-workspace-heading p');
         if (heading) heading.textContent = 'Acceso de manager: mensajes y solicitudes de cambio del equipo.';
@@ -159,6 +159,8 @@
     function showStatus(elId, kind, msg) {
         const el = document.getElementById(elId);
         if (!el) return;
+        // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+        if (window.WoNeutralEs) msg = window.WoNeutralEs.neutralize(msg);
         el.className = 'studio-status studio-status-' + kind;
         el.textContent = msg;
         el.hidden = false;
@@ -216,14 +218,14 @@
             window.WeOtziUploader.attach(document.getElementById('p-cover'), {
                 supabase, bucket: 'studio-photos', designSystem: true,
                 pathPrefix: pathPrefix + '/cover',
-                placeholder: 'pegá una URL de portada',
+                placeholder: 'pega una URL de portada',
                 accept: 'image/*'
             });
 
             window.WeOtziUploader.attach(document.getElementById('p-logo'), {
                 supabase, bucket: 'studio-photos', designSystem: true,
                 pathPrefix: pathPrefix + '/logo',
-                placeholder: 'pegá una URL del logo',
+                placeholder: 'pega una URL del logo',
                 accept: 'image/*'
             });
 
@@ -275,7 +277,7 @@
             try {
                 if (update.name.length < 2) throw new Error('El nombre debe tener al menos 2 caracteres.');
                 if (update.founded_year && (update.founded_year < 1900 || update.founded_year > new Date().getFullYear())) {
-                    throw new Error('Revisá el año de fundación.');
+                    throw new Error('Revisa el año de fundación.');
                 }
                 const { error } = await WeotziData.Studios.updateProfile(studio.id, update);
                 if (error) throw error;
@@ -297,7 +299,7 @@
     async function loadSedes() {
         if (!window.WeOtziStudioSedes) {
             publishSummary('locations', 'error', undefined, new Error('No se pudo cargar el módulo de sedes.'));
-            showStatus('sedes-status', 'error', 'No pudimos cargar el panel de sedes. Recargá la página.');
+            showStatus('sedes-status', 'error', 'No pudimos cargar el panel de sedes. Recarga la página.');
             return;
         }
         await window.WeOtziStudioSedes.mount({
@@ -331,7 +333,7 @@
         }
         publishSummary('spots', 'ready', list || []);
         if (!list || list.length === 0) {
-            container.innerHTML = '<p class="wo-help">Aún no publicaste spots. Tocá "Nuevo spot" para empezar.</p>';
+            container.innerHTML = '<p class="wo-help">Aún no publicaste spots. Toca "Nuevo spot" para empezar.</p>';
             return;
         }
         container.innerHTML = list.map(s => `
@@ -438,7 +440,7 @@
                 <div class="wo-field studio-form-full">
                     <label class="wo-label" for="sp-cover">Imagen del spot (opcional)</label>
                     <input id="sp-cover" class="wo-input" type="url" value="${escapeAttr(existing?.cover_image || '')}">
-                    <span class="wo-help">Si no subís nada, se usa la portada del estudio.</span>
+                    <span class="wo-help">Si no subes nada, se usa la portada del estudio.</span>
                 </div>
                 </div>
                 <div class="studio-actions">
@@ -458,7 +460,7 @@
                 bucket: 'studio-spot-attachments', designSystem: true,
                 pathPrefix: studio.id + '/' + (existing?.id || 'new'),
                 accept: 'image/*',
-                placeholder: 'pegá una URL'
+                placeholder: 'pega una URL'
             });
         }
     }
@@ -666,11 +668,11 @@
             if (error) {
                 if (error.code === '23505') return 'El artista ya tenía un vínculo abierto con tu estudio en ese rol.';
                 console.warn('[studio-dashboard] invitación desde el spot:', error.message);
-                return 'No pudimos crear la invitación al equipo: invitalo desde Equipo.';
+                return 'No pudimos crear la invitación al equipo: invítalo desde Equipo.';
             }
             if (inserted && inserted.id) {
                 await WeotziData.StudioMemberships.saveInvitationDetails(inserted.id, {
-                    message: 'Aceptamos tu postulación a «' + (spotRow.title || 'nuestro spot') + '». Confirmá la invitación para sumarte al equipo.',
+                    message: 'Aceptamos tu postulación a «' + (spotRow.title || 'nuestro spot') + '». Confirma la invitación para sumarte al equipo.',
                     proposed_start_date: spotRow.start_date || null,
                     proposed_end_date: spotRow.end_date || null
                 });
@@ -678,7 +680,7 @@
             return 'Le enviamos al artista la invitación para sumarse a tu equipo.';
         } catch (inviteErr) {
             console.warn('[studio-dashboard] invitación desde el spot:', inviteErr);
-            return 'No pudimos crear la invitación al equipo: invitalo desde Equipo.';
+            return 'No pudimos crear la invitación al equipo: invítalo desde Equipo.';
         }
     }
 
@@ -726,7 +728,7 @@
     // -------------------------------------------------------------
     async function loadRoster() {
         const team = window.WeOtziStudioTeam;
-        if (!team) throw new Error('No pudimos cargar el módulo de equipo. Recargá la página.');
+        if (!team) throw new Error('No pudimos cargar el módulo de equipo. Recarga la página.');
         await team.init({
             studio,
             supabase,

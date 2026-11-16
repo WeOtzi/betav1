@@ -24,6 +24,9 @@
     const _supabase = window._supabase;
     const D = window.WeotziData || {};
     const M = window.WeotziInboxChat;
+    // Ronda 2 (inbox-extras-model.js): mensajes de voz, mensajes rápidos y la
+    // marca "Mensaje automático" de las respuestas automáticas del artista.
+    const X = window.WeotziInboxExtras || null;
 
     const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
     const DAY_MS = 24 * 60 * 60 * 1000;
@@ -33,9 +36,11 @@
     const FILE_ACCEPT = IMAGE_ACCEPT + ',application/pdf,text/plain';
 
     // Estado de la cotización → etiqueta y variante de tag (banner del proyecto).
+    // cliente-panel (ronda 2): la fuente es WoClientPanel.statusOf (mismo modelo
+    // que el dashboard); este mapa queda como respaldo si el script no cargó.
     const STATUS_TAGS = {
-        pending:          { label: 'Esperando cotización', cls: 'wo-tag--soft' },
-        responded:        { label: 'Esperando tu respuesta', cls: 'wo-tag--highlight' },
+        pending:          { label: 'Esperando al artista', cls: 'wo-tag--soft' },
+        responded:        { label: 'Propuesta recibida', cls: 'wo-tag--highlight' },
         // Mismas etiquetas que el panel del cliente (client-quote-proposal.js · CC-13).
         client_approved:  { label: 'Aceptada',             cls: 'wo-tag--active' },
         in_progress:      { label: 'En curso',             cls: 'wo-tag--info' },
@@ -46,6 +51,12 @@
         cancelled:        { label: 'Cancelada',            cls: 'wo-tag--archived' },
         expired:          { label: 'Vencida',              cls: 'wo-tag--archived' },
     };
+    // Rechazar una propuesta cierra la conversación para los dos: el artista no
+    // puede responder (artist-inbox.js) y la base tampoco deja escribir (policy
+    // chat_closed_after_client_rejection, migración 20261116140000).
+    const REJECTED_CLOSED_REASON = 'Rechazaste esta propuesta y la conversación quedó cerrada. Si quieres retomar la idea, inicia una cotización nueva.';
+    const CLOSED_FALLBACK_REASON = 'Esta conversación está cerrada.';
+
     const APPLICATION_TAGS = {
         pending:     { label: 'Propuesta recibida', cls: 'wo-tag--highlight' },
         shortlisted: { label: 'Preseleccionada',    cls: 'wo-tag--info' },
@@ -76,6 +87,8 @@
     let sending = false;
     let openSeq = 0;
     let refreshTimer = null;
+    let voiceRecorder = null;    // grabador de mensajes de voz (wo-voice.js)
+    let quickReplies = null;     // panel de mensajes rápidos (wo-quick-replies.js)
     const signedUrls = new Map();
 
     const $ = (id) => document.getElementById(id);
@@ -112,7 +125,7 @@
             D.Chat.listThreadsForClient(uid),
             D.Inbox && D.Inbox.listClientThreads ? D.Inbox.listClientThreads() : Promise.resolve([]),
             D.Quotations && D.Quotations.listForClient
-                ? D.Quotations.listForClient(uid, userEmail, D.Quotations.CHAT_COLUMNS || '*')
+                ? D.Quotations.listForClient(uid, userEmail, statusColumns(D.Quotations.CHAT_COLUMNS))
                 : Promise.resolve([]),
         ]);
         const value = (r, fallback) => {
@@ -124,6 +137,15 @@
         inboxThreads = value(results[1], []);
         quotes = value(results[2], []).filter(q => q.client_user_id === uid);
         rows = buildRows();
+    }
+
+    // Columnas del chat + las que necesita la etiqueta de estado del panel
+    // (vencimiento y disputa), sin repetir ninguna.
+    function statusColumns(base) {
+        if (!base) return '*';
+        const cols = String(base).split(',').map(c => c.trim()).filter(Boolean);
+        ['quote_expires_at', 'dispute_status'].forEach(c => { if (!cols.includes(c)) cols.push(c); });
+        return cols.join(', ');
     }
 
     async function loadAll({ initial = false } = {}) {
@@ -180,6 +202,7 @@
 
     function quoteRow(t) {
         const name = t.artist_name || t.artist_username || 'Artista';
+        const rejected = String(t.quote_status || '').toLowerCase() === 'client_rejected';
         return {
             key: 'quote:' + t.quote_id,
             source: 'quote',
@@ -188,11 +211,12 @@
             name,
             username: t.artist_username || '',
             artistId: t.artist_id || null,
-            preview: t.last_message || (t.synthetic ? 'Todavía no hay mensajes · Escribí el primero' : ''),
+            preview: t.last_message || (t.synthetic ? 'Todavía no hay mensajes · Escribe el primero' : ''),
             lastAt: t.last_message_at,
             lastFromArtist: t.last_message_sender === 'artist',
             unread: Number(t.unread_for_client) || 0,
-            closed: false,
+            closed: rejected,
+            closedReason: rejected ? REJECTED_CLOSED_REASON : '',
             quote: t,
         };
     }
@@ -301,10 +325,18 @@
         else if (activeTab === 'cotizaciones') list = list.filter(r => r.source === 'quote' && !hasReservation(r));
         if (searchTerm) {
             const q = searchTerm.toLocaleLowerCase('es');
-            list = list.filter(r => [r.name, r.username, affiliationOf(r), r.preview]
+            list = list.filter(r => [r.name, r.username, affiliationOf(r), r.preview, searchCodeOf(r)]
                 .filter(Boolean).join(' ').toLocaleLowerCase('es').includes(q));
         }
         return list;
+    }
+
+    // Código por el que también se puede buscar la conversación: el corto de
+    // la cotización si existe (cot-form), el quote_id o el código del pedido.
+    function searchCodeOf(r) {
+        if (r.source !== 'quote') return (r.inbox && r.inbox.context && r.inbox.context.request_code) || '';
+        const P = window.WoClientPanel;
+        return [P ? P.shortCode(r.quote) : (r.quote.short_code || ''), r.id].filter(Boolean).join(' ');
     }
 
     function renderList() {
@@ -319,8 +351,8 @@
             const copy = $('cch-list-empty-copy');
             if (copy) {
                 if (searchTerm) copy.textContent = 'No encontramos conversaciones para tu búsqueda.';
-                else if (activeTab === 'sin-leer') copy.textContent = 'No tenés mensajes sin leer.';
-                else if (activeTab === 'reservas') copy.textContent = 'Todavía no tenés reservas con sesión programada.';
+                else if (activeTab === 'sin-leer') copy.textContent = 'No tienes mensajes sin leer.';
+                else if (activeTab === 'reservas') copy.textContent = 'Todavía no tienes reservas con sesión programada.';
                 else if (activeTab === 'cotizaciones') copy.textContent = 'No hay conversaciones de cotizaciones.';
                 else copy.textContent = 'No hay conversaciones que coincidan con este filtro.';
             }
@@ -378,6 +410,7 @@
         currentKey = key;
         messages = [];
         clearPendingFiles();
+        resetThreadExtras();
         removeThreadChannel();
         updateUrl(row);
 
@@ -388,7 +421,7 @@
 
         paintHead(row);
         paintBanner(row);
-        setComposerEnabled(!row.closed);
+        setComposerEnabled(!row.closed, row.closedReason);
         renderList();
 
         const messagesEl = $('cch-messages');
@@ -407,7 +440,7 @@
             console.error('[chats] error cargando mensajes:', err);
             if (seq === openSeq) {
                 messagesEl.textContent = '';
-                messagesEl.appendChild(el('div', 'cch-messages-empty', 'No pudimos cargar los mensajes. Recargá la página.'));
+                messagesEl.appendChild(el('div', 'cch-messages-empty', 'No pudimos cargar los mensajes. Recarga la página.'));
             }
             return;
         }
@@ -416,6 +449,7 @@
         messages = [];
         list.forEach(addMessage);
         renderMessages();
+        toggleTurnTag(turnPending(row));
         subscribeThread(row);
 
         // Marcar leídos los mensajes del artista y apagar el badge.
@@ -467,11 +501,22 @@
         } else {
             profile.classList.add('wo-hidden');
         }
-        toggleTurnTag(r.lastFromArtist && !r.synthetic);
+        toggleTurnTag(turnPending(r));
     }
 
     function toggleTurnTag(show) {
         $('cch-head-turn').classList.toggle('wo-hidden', !show);
+    }
+
+    // "Esperando tu respuesta": lo último del hilo lo escribió el artista. Un
+    // mensaje automático (saludo o ausencia) no espera respuesta del cliente.
+    function turnPending(r) {
+        if (!r || r.synthetic) return false;
+        if (r.key === currentKey && messages.length) {
+            const last = messages[messages.length - 1];
+            return Boolean(last && !last.mine && !last.system && !last.auto);
+        }
+        return Boolean(r.lastFromArtist);
     }
 
     function paintBanner(r) {
@@ -502,6 +547,8 @@
         const style = styleNameOf(t);
         const part = String(t.tattoo_body_part || '').trim();
         const meta = [];
+        const P = window.WoClientPanel;
+        if (P && P.hasShortCode(t)) meta.push('Código ' + P.shortCode(t));
         if (part) meta.push(part);
         if (style) meta.push(style);
         if (t.tattoo_size) meta.push(String(t.tattoo_size).trim());
@@ -511,7 +558,7 @@
         if (session) meta.push('próxima sesión ' + DAY_FMT.format(new Date(session.session_date)));
         $('cch-banner-meta').textContent = meta.join(' · ');
 
-        const info = STATUS_TAGS[t.quote_status] || { label: 'En revisión', cls: 'wo-tag--soft' };
+        const info = quoteStatusTag(t);
         tag.className = 'wo-tag cch-tag-s ' + info.cls;
         tag.textContent = info.label;
 
@@ -522,6 +569,19 @@
             link.textContent = t.quote_status === 'responded' ? 'Ver propuesta →' : 'Ver cotización →';
         }
         renderReferences(referencesByQuote[r.id] || []);
+    }
+
+    // Etiqueta del estado igual a la del panel (/client/dashboard). Una
+    // conversación con mensajes nunca se muestra como borrador sin enviar.
+    function quoteStatusTag(t) {
+        const P = window.WoClientPanel;
+        if (!P) return STATUS_TAGS[t.quote_status] || { label: 'En revisión', cls: 'wo-tag--soft' };
+        // La próxima sesión ya cargada para "Reservas" alimenta "Sesión por confirmar".
+        const session = t.quotation_id_int != null ? sessionsByQid[t.quotation_id_int] : null;
+        const ctx = session ? { sessions: [session] } : {};
+        let status = P.statusOf(t, ctx);
+        if (status.key === 'draft' && t.last_message_at) status = P.statusOf(Object.assign({}, t, { quote_status: 'en_progreso' }), ctx);
+        return { label: status.label, cls: status.tag };
     }
 
     function styleNameOf(t) {
@@ -549,7 +609,8 @@
         const host = $('cch-banner-refs');
         if (!host) return;
         host.textContent = '';
-        const refs = (list || []).slice(0, 3);
+        // N11 (ronda 2 · cot-form): el cliente puede mandar hasta 4 referencias; se muestran todas.
+        const refs = (list || []).slice(0, 4);
         host.classList.toggle('wo-hidden', !refs.length);
         refs.forEach((ref, index) => {
             const link = document.createElement('a');
@@ -586,8 +647,10 @@
             mine: m.sender_type === 'client',
             body: m.message || '',
             at: m.created_at,
+            auto: m.auto_kind || null,
             attachment: m.attachment_path ? {
                 source: 'chat', path: m.attachment_path, name: m.attachment_name, mime: m.attachment_mime,
+                durationMs: m.attachment_duration_ms || null,
             } : null,
         };
     }
@@ -600,8 +663,10 @@
             system,
             body: m.body || '',
             at: m.created_at,
+            auto: m.auto_kind || null,
             attachment: m.attachment_path ? {
                 source: 'inbox', path: m.attachment_path, name: m.attachment_name, mime: m.attachment_mime,
+                durationMs: m.attachment_duration_ms || null,
             } : null,
         };
     }
@@ -634,7 +699,7 @@
         if (!items.length) {
             const row = findRow(currentKey);
             host.appendChild(el('div', 'cch-messages-empty', row && row.synthetic
-                ? 'Todavía no hay mensajes. Escribile al artista para empezar la conversación.'
+                ? 'Todavía no hay mensajes. Escríbele al artista para empezar la conversación.'
                 : 'Todavía no hay mensajes en esta conversación.'));
             return;
         }
@@ -657,7 +722,9 @@
     function messageEl(m) {
         if (m.system) return el('div', 'cch-system', m.body);
         const wrap = el('div', 'cch-msg-wrap ' + (m.mine ? 'cch-msg-wrap--out' : 'cch-msg-wrap--in'));
-        if (m.attachment) wrap.appendChild(attachmentEl(m.attachment));
+        // Ronda 2: saludo o ausencia que el artista dejó configurados.
+        if (m.auto) wrap.appendChild(el('span', 'wo-auto-tag cch-auto-tag', X ? X.AUTO_LABEL : 'Mensaje automático'));
+        if (m.attachment) wrap.appendChild(attachmentEl(m.attachment, m.mine));
         if (m.body) wrap.appendChild(el('div', 'cch-msg ' + (m.mine ? 'cch-msg--out' : 'cch-msg--in'), m.body));
         const time = el('time', 'cch-msg-time', m.at ? TIME_FMT.format(new Date(m.at)) : '');
         if (m.at) time.dateTime = m.at;
@@ -665,7 +732,15 @@
         return wrap;
     }
 
-    function attachmentEl(a) {
+    function attachmentEl(a, mine) {
+        // Ronda 2: un adjunto de audio es un mensaje de voz (reproductor inline).
+        if (X && window.WoVoice && X.isAudioAttachment(a.mime)) {
+            return window.WoVoice.player(a.source + ':' + a.path, {
+                durationMs: a.durationMs,
+                className: 'cch-voice ' + (mine ? 'cch-voice--out' : 'cch-voice--in'),
+                getUrl: () => signedUrl(a.source, a.path),
+            });
+        }
         const isImage = String(a.mime || '').startsWith('image/');
         const button = document.createElement('button');
         button.type = 'button';
@@ -793,12 +868,136 @@
     // ENVÍO
     // ============================================
 
-    function setComposerEnabled(enabled) {
+    function setComposerEnabled(enabled, reason) {
         $('cch-input').disabled = !enabled;
         $('cch-attach').disabled = !enabled;
         $('cch-reference').disabled = !enabled;
-        $('cch-input').placeholder = enabled ? 'Escribí un mensaje…' : 'Esta conversación está cerrada.';
+        if ($('cch-voice')) $('cch-voice').disabled = !enabled;
+        if ($('cch-quick')) $('cch-quick').disabled = !enabled;
+        const why = enabled ? '' : (reason || CLOSED_FALLBACK_REASON);
+        $('cch-input').placeholder = enabled ? 'Escribe un mensaje…' : CLOSED_FALLBACK_REASON;
+        paintClosedNote(why);
         syncSend();
+    }
+
+    // Motivo del cierre, a la vista sobre el redactor (el placeholder de una
+    // línea no alcanza para explicarlo).
+    function paintClosedNote(text) {
+        const form = $('cch-composer');
+        let note = $('cch-closed-note');
+        if (!note) {
+            if (!text || !form || !form.parentNode) return;
+            note = el('p', 'cch-closed-note');
+            note.id = 'cch-closed-note';
+            note.setAttribute('role', 'status');
+            form.parentNode.insertBefore(note, form);
+        }
+        note.textContent = text || '';
+        note.hidden = !text;
+    }
+
+    // Al cambiar de hilo: se descarta una grabación en curso, se frena el
+    // audio que estuviera sonando y se cierra el panel de mensajes rápidos.
+    function resetThreadExtras() {
+        if (voiceRecorder) voiceRecorder.reset();
+        if (quickReplies) quickReplies.close();
+        if (window.WoVoice) window.WoVoice.resetPlayers();
+    }
+
+    // Aviso breve (confirmaciones). Los errores van al composer (role="alert").
+    function notify(message, tone) {
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message); // la base todavía puede responder en voseo
+        if (tone === 'error') {
+            showComposerError(message);
+            return;
+        }
+        let toast = document.querySelector('.cch-toast');
+        if (!toast) {
+            toast = el('div', 'cch-toast');
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.hidden = false;
+        clearTimeout(toast._hideTimer);
+        toast._hideTimer = setTimeout(() => { toast.hidden = true; }, 3600);
+    }
+
+    // Ronda 2 · P8/P9: micrófono y mensajes rápidos del composer.
+    function wireExtras() {
+        const form = $('cch-composer');
+        const usable = () => {
+            const row = findRow(currentKey);
+            return Boolean(row && !row.closed && !sending);
+        };
+        if (window.WoVoice && $('cch-voice')) {
+            voiceRecorder = window.WoVoice.attachRecorder({
+                form,
+                button: $('cch-voice'),
+                canRecord: usable,
+                onSend: sendVoiceMessage,
+                onError: (message) => showComposerError(message),
+            });
+        } else if ($('cch-voice')) {
+            $('cch-voice').hidden = true;
+        }
+        if (window.WoQuickReplies && $('cch-quick')) {
+            quickReplies = window.WoQuickReplies.attach({
+                role: 'client',
+                getUserId: () => uid,
+                button: $('cch-quick'),
+                form,
+                input: $('cch-input'),
+                canUse: usable,
+                notify,
+            });
+        } else if ($('cch-quick')) {
+            $('cch-quick').hidden = true;
+        }
+    }
+
+    // Mensaje de voz: sube el audio al bucket del hilo y guarda el mensaje. Si
+    // la base lo rechaza, el archivo subido se borra. Los errores vuelven al
+    // grabador (wo-voice.js), que conserva la grabación para reintentar.
+    async function sendVoiceMessage(voice) {
+        const row = findRow(currentKey);
+        if (!row || row.closed || sending) throw new Error('conversación no disponible');
+        const fromQuote = row.source === 'quote';
+        const repo = fromQuote ? D.Chat : D.Inbox;
+        let uploaded = null;
+        sending = true;
+        syncSend();
+        $('cch-composer-error').classList.add('wo-hidden');
+        try {
+            uploaded = await repo.uploadAttachment(row.id, uid, voice.file);
+            const saved = fromQuote
+                ? await D.Chat.sendMessage({
+                    quoteId: row.id, senderType: 'client', senderId: uid, message: '',
+                    attachment: Object.assign({}, uploaded, { durationMs: voice.durationMs }),
+                })
+                : await D.Inbox.sendVoiceMessage({ threadId: row.id, attachment: uploaded, durationMs: voice.durationMs });
+            const message = firstRow(saved);
+            if (message && currentKey === row.key) {
+                addMessage(fromQuote ? adaptQuoteMessage(message) : adaptInboxMessage(message));
+                renderMessages();
+                toggleTurnTag(false);
+            }
+            touchRow(row, X ? X.VOICE_LABEL : 'Mensaje de voz');
+            if (row.synthetic) {
+                row.synthetic = false;
+                if (row.quote) row.quote.synthetic = false;
+                scheduleRefresh();
+            }
+        } catch (err) {
+            // Solo se limpia si la base respondió con un rechazo (con un corte
+            // de red el mensaje pudo haberse guardado).
+            if (uploaded && uploaded.path && err && err.code && repo.removeAttachment) repo.removeAttachment(uploaded.path);
+            throw err;
+        } finally {
+            sending = false;
+            syncSend();
+        }
     }
 
     function syncSend() {
@@ -878,8 +1077,8 @@
             console.error('[chats] error enviando mensaje:', err);
             renderMessages();
             showComposerError(files.length
-                ? 'No pudimos enviar todos los adjuntos. Los pendientes siguen acá para reintentar.'
-                : 'No pudimos enviar el mensaje. Probá de nuevo.');
+                ? 'No pudimos enviar todos los adjuntos. Los pendientes siguen aquí para reintentar.'
+                : 'No pudimos enviar el mensaje. Prueba de nuevo.');
         } finally {
             sending = false;
             syncSend();
@@ -889,6 +1088,11 @@
 
     function firstRow(saved) {
         return M ? M.firstRow(saved) : (Array.isArray(saved) ? saved[0] : saved);
+    }
+
+    // Texto de la lista para un mensaje que es solo un adjunto.
+    function attachmentPreview(mime) {
+        return X && X.isAudioAttachment(mime) ? X.VOICE_LABEL : 'Archivo adjunto';
     }
 
     function touchRow(row, preview) {
@@ -934,11 +1138,11 @@
         if (!addMessage(message)) return;
         renderMessages();
         if (fromArtist) {
-            toggleTurnTag(true);
+            toggleTurnTag(!message.auto);
             markRead(row);
             row.lastFromArtist = true;
         }
-        row.preview = preview || (message.attachment ? 'Archivo adjunto' : row.preview);
+        row.preview = preview || (message.attachment ? attachmentPreview(message.attachment.mime) : row.preview);
         row.lastAt = message.at;
         renderList();
     }
@@ -964,7 +1168,7 @@
             scheduleRefresh(); // conversación nueva: refrescar la lista completa
             return;
         }
-        r.preview = m.message || 'Archivo adjunto';
+        r.preview = m.message || attachmentPreview(m.attachment_mime);
         r.lastAt = m.created_at;
         r.lastFromArtist = true;
         r.unread += 1;
@@ -1051,6 +1255,7 @@
             const button = e.target.closest('.cch-attachment');
             if (button) openAttachment(button);
         });
+        wireExtras();
 
         $('cch-back').addEventListener('click', () => {
             $('cch-shell').classList.remove('is-thread-open');

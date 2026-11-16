@@ -104,8 +104,10 @@ test('la salida no expone email, WhatsApp ni coordenadas', () => {
     for (const s of ranked) {
         const json = JSON.stringify(s);
         assert.doesNotMatch(json, /privado@example|0000 0000|latitude|longitude|-34\.6/);
+        // Ronda 2 (P19): etiqueta de recomendado, insignia de embajador y perfil reducido (todo público).
         assert.deepEqual(Object.keys(s).sort(), ['city', 'country', 'match', 'name', 'profile_picture', 'score',
-            'session_price_amount', 'session_price_currency', 'studio', 'styles', 'user_id', 'username', 'verified'].sort());
+            'session_price_amount', 'session_price_currency', 'studio', 'styles', 'user_id', 'username', 'verified',
+            'recommended', 'ambassador', 'years_experience', 'bio', 'portfolio'].sort());
     }
 });
 
@@ -136,4 +138,45 @@ test('excluye ids y tolera entradas basura', () => {
     assert.equal(criteria.coords, null);
     assert.equal(criteria.budgetAmount, null);
     assert.equal(criteria.budgetCurrency, null);
+});
+
+// CF-13: el perfil reducido de los sugeridos sale por un endpoint público. Las
+// fotos importadas de Instagram siguen la misma regla que el perfil público
+// (gallery-visibility.js): ocultas hasta que el artista valida su cuenta.
+test('portfolio de sugeridos: las fotos de Instagram sin validar no se muestran', () => {
+    const feed = [
+        { url: 'https://cdn.example.test/u/instagram-import/a.jpg', kind: 'image', source: 'instagram', ig_handle: 'ana_ink', caption: 'Importada' },
+        { url: 'https://cdn.example.test/u/b.jpg', kind: 'image', category: 'instagram' },
+        { url: 'https://cdn.example.test/u/propia.jpg', kind: 'image', category: 'realizados' },
+        { url: 'https://cdn.example.test/u/vieja.jpg', kind: 'image', source: 'instagram', ig_legacy: true },
+        null, 'https://cdn.example.test/u/suelta.jpg',
+    ];
+    const names = (a) => matching.portfolioPreview(a).map((item) => item.url.split('/').pop());
+    const base = artist({ user_id: 'ig', styles_array: ['Fine Line'], city: 'Buenos Aires', gallery_feed_items: feed });
+
+    // Sin validar (o sin las columnas de validación en la fila): solo lo propio y lo heredado.
+    assert.deepEqual(names(base), ['propia.jpg', 'vieja.jpg']);
+    assert.deepEqual(names({ ...base, instagram_verified_at: null, instagram_verified_handle: null }), ['propia.jpg', 'vieja.jpg']);
+    // Fecha sin cuenta validada, o cuenta sin fecha: sigue sin validar.
+    assert.deepEqual(names({ ...base, instagram_verified_at: '2026-11-10T10:00:00Z' }), ['propia.jpg', 'vieja.jpg']);
+    assert.deepEqual(names({ ...base, instagram_verified_handle: 'ana_ink' }), ['propia.jpg', 'vieja.jpg']);
+
+    // Validada: aparecen las de esa cuenta (y las que no dicen de qué cuenta vinieron).
+    const verified = { ...base, instagram_verified_at: '2026-11-10T10:00:00Z', instagram_verified_handle: '@Ana_Ink' };
+    assert.deepEqual(names(verified), ['a.jpg', 'b.jpg', 'propia.jpg', 'vieja.jpg']);
+    // Validó OTRA cuenta: la foto importada de ana_ink sigue oculta.
+    assert.deepEqual(names({ ...verified, instagram_verified_handle: 'otra_cuenta' }), ['b.jpg', 'propia.jpg', 'vieja.jpg']);
+
+    // gallery_images (ya filtrada por la base) se sigue sumando detrás.
+    assert.deepEqual(names({ ...base, gallery_images: ['https://cdn.example.test/u/propia.jpg', 'https://cdn.example.test/u/otra.jpg'] }),
+        ['propia.jpg', 'vieja.jpg', 'otra.jpg']);
+
+    // El servidor lee el estado de validación para decidir, pero no lo publica.
+    for (const col of ['instagram_verified_at', 'instagram_verified_handle']) assert.match(matching.MATCHING_COLUMNS, new RegExp('\\b' + col + '\\b'));
+    const ranked = matching.rankArtists([verified], CRITERIA, { now: NOW });
+    assert.equal(ranked.length, 1);
+    assert.deepEqual(ranked[0].portfolio.map((item) => item.url.split('/').pop()), ['a.jpg', 'b.jpg', 'propia.jpg', 'vieja.jpg']);
+    assert.doesNotMatch(JSON.stringify(ranked[0]), /instagram_verified|ana_ink/i);
+    const hidden = matching.rankArtists([base], CRITERIA, { now: NOW })[0];
+    assert.deepEqual(hidden.portfolio.map((item) => item.url.split('/').pop()), ['propia.jpg', 'vieja.jpg']);
 });

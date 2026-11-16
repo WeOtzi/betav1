@@ -28,7 +28,7 @@
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/shared/js/qrcode-generator.js"></script>
-    <script src="/shared/js/config-manager.js?v=20260816-ds-dashboard-1"></script>
+    <script src="/shared/js/config-manager.js?v=20261116-r2d"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
@@ -36,7 +36,7 @@
     <script src="/shared/js/data/clients-repo.js"></script>
     <script src="/shared/js/data/account-repo.js"></script>
     <script src="/shared/js/data/reminders-repo.js?v=20261028-figma-final"></script>
-    <script src="/shared/js/data/calendar-repo.js?v=20261112-r3"></script>
+    <script src="/shared/js/data/calendar-repo.js?v=20261116-r2b"></script>
     <script src="/shared/js/data/dashboard-repo.js?v=20261112-r3"></script>
     <script src="/shared/js/dashboard-live-model.js?v=20261112-r3"></script>
     <script src="/shared/js/email-client.js"></script>
@@ -258,7 +258,7 @@
                         <span class="wo-dash-gallery-rules">MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span>
                         <span class="wo-dash-gallery-side">
                             <span class="wo-dash-gallery-quota" id="wod-gallery-quota" aria-live="polite">0/50 ARCHIVOS · 0/2 VIDEOS</span>
-                            <span class="wo-dash-gallery-hint"><span aria-hidden="true">▲</span> ARRASTRÁ PARA REORDENAR</span>
+                            <span class="wo-dash-gallery-hint"><span aria-hidden="true">▲</span> ARRASTRA PARA REORDENAR</span>
                         </span>
                     </div>
                     <!-- La grilla es `display:contents`: sus celdas y la card "subiendo"
@@ -276,10 +276,10 @@
                             <span class="gallery-upload-counter wo-meta-s" id="gallery-upload-counter">0 / 0</span>
                         </div>
                     </div>
-                    <section class="wo-dash-cta" aria-label="Subí tu trabajo">
+                    <section class="wo-dash-cta" aria-label="Sube tu trabajo">
                         <div class="wo-dash-cta-inner">
                             <i data-wo-icon="pen-tool" class="wo-dash-cta-icon"></i>
-                            <h2 class="wo-dash-cta-title">Mostrá tu mejor trabajo</h2>
+                            <h2 class="wo-dash-cta-title">Muestra tu mejor trabajo</h2>
                             <p class="wo-dash-cta-copy">Un portfolio con fotos de calidad genera más cotizaciones.</p>
                             <label class="wo-btn wo-btn--accent wo-btn--hard wo-dash-cta-btn" for="gallery-input" id="profile-gallery-upload-btn"><i data-wo-icon="plus" class="wo-icon-18"></i>SUBIR FOTOS/VIDEOS</label>
                             <input type="file" id="gallery-input" accept="image/*,image/heic,image/heif,video/mp4,video/quicktime,.mp4,.mov" multiple hidden>
@@ -311,7 +311,7 @@
          ============================================================ -->
     <div class="wod-hook-hidden" aria-hidden="true">
         <!-- Banner de onboarding/verificacion: fuera del flujo visible (el Figma
-             24:1424 no lo tiene). Se conserva aca porque dashboard.js cablea sus
+             24:1424 no lo tiene). Se conserva aquí porque dashboard.js cablea sus
              ids sin guardas; moverlo evita null-crashes. -->
         <!-- ===================== ONBOARDING / VERIFICATION BANNER ===================== -->
     
@@ -388,7 +388,7 @@
         </div>
 
         <!-- Controles de cuenta que el frame del Figma no dibuja en el rail.
-             Siguen acá SOLO como hooks: dashboard.js los cablea por id y los
+             Siguen aquí SOLO como hooks: dashboard.js los cablea por id y los
              modales (QR / contraseña / verificación) siguen operativos. La UI
              visible de estas acciones vive en /artist/account#perfil. -->
         <button id="preview-profile-btn" type="button">VER PERFIL PÚBLICO</button>
@@ -542,7 +542,7 @@
     <div class="wod-hook-hidden" aria-hidden="true">
         <button id="edit-bio-btn" type="button">Editar</button>
         <div id="bio-content">
-            <div class="bio-text" id="bio-text" data-empty-message="Sin bio aún. Editá para agregar una descripción.">—</div>
+            <div class="bio-text" id="bio-text" data-empty-message="Sin bio aún. Edita para agregar una descripción.">—</div>
         </div>
         <div class="bio-edit-mode" id="bio-edit-mode" style="display:none;">
             <div class="bio-editor-wrapper bio-editor-wrapper--dashboard">
@@ -555,7 +555,7 @@
                     <button type="button" class="toolbar-btn color-btn" data-command="hiliteColor" title="Color de fondo">H<input type="color" class="color-picker" id="dash-bg-color-picker" value="#F2B519"></button>
                     <button type="button" class="toolbar-btn" data-command="createLink" title="Enlace">Link</button>
                 </div>
-                <div id="bio-editor" class="bio-editor" contenteditable="true" data-placeholder="Escribí tu bio aquí…"></div>
+                <div id="bio-editor" class="bio-editor" contenteditable="true" data-placeholder="Escribe tu bio aquí…"></div>
             </div>
             <div class="edit-actions">
                 <button id="bio-cancel" type="button">Cancelar</button>
@@ -572,7 +572,7 @@
         <div class="modal-container">
             <button class="modal-close" onclick="closePasswordModal()" aria-label="Cerrar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
             <h2 class="modal-title">Cambiar contraseña</h2>
-            <p class="modal-subtitle">Ingresá tu nueva contraseña</p>
+            <p class="modal-subtitle">Ingresa tu nueva contraseña</p>
             <form id="password-form" onsubmit="handlePasswordChange(event)">
                 <div class="modal-form-group">
                     <label for="new-password">Nueva contraseña</label>
@@ -580,7 +580,7 @@
                 </div>
                 <div class="modal-form-group">
                     <label for="confirm-password">Confirmar contraseña</label>
-                    <input type="password" id="confirm-password" class="modal-input" placeholder="Repetí la contraseña" required data-clarity-mask="true">
+                    <input type="password" id="confirm-password" class="modal-input" placeholder="Repite la contraseña" required data-clarity-mask="true">
                 </div>
                 <div id="password-message" class="form-message"></div>
                 <button type="submit" class="btn-modal-submit">Actualizar →</button>
@@ -593,7 +593,7 @@
         <div class="modal-container verification-modal-container">
             <button class="modal-close" onclick="closeVerificationModal()" aria-label="Cerrar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
             <h2 class="modal-title">Verificar tu perfil</h2>
-            <p class="modal-subtitle">Accedé a funciones exclusivas</p>
+            <p class="modal-subtitle">Accede a funciones exclusivas</p>
             <div class="verification-benefits">
                 <h4>Beneficios:</h4>
                 <ul class="benefits-list">
@@ -622,7 +622,7 @@
         <div class="modal-container">
             <button class="modal-close" onclick="closeAIAvatarModal()" aria-label="Cerrar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
             <h2 class="modal-title">Generar foto con IA</h2>
-            <p class="modal-subtitle">Describí cómo querés tu foto de perfil</p>
+            <p class="modal-subtitle">Describe cómo quieres tu foto de perfil</p>
             <div class="modal-form-group">
                 <label for="ai-avatar-prompt">Prompt / descripción</label>
                 <textarea id="ai-avatar-prompt" class="modal-input" rows="4" placeholder="Ej: artista del tatuaje en su estudio, estilo cinemático…"></textarea>
@@ -647,7 +647,7 @@
         <div class="modal-container styles-modal-container">
             <button class="modal-close" onclick="closeStylesModal()" aria-label="Cerrar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
             <h2 class="modal-title">Estilos</h2>
-            <p class="modal-subtitle">Seleccioná los estilos que manejás</p>
+            <p class="modal-subtitle">Selecciona los estilos que manejas</p>
             <div id="dashboard-styles-grid" class="dashboard-styles-grid"><span class="wod-skel">Cargando estilos...</span></div>
             <div class="dashboard-custom-style-row">
                 <input type="text" id="dashboard-custom-style-input" class="modal-input" placeholder="Agregar estilo personalizado..." onkeydown="if(event.key==='Enter'){event.preventDefault();addDashboardCustomStyle();}">
@@ -665,7 +665,7 @@
         <div class="modal-container upcoming-travel-modal-container">
             <button class="modal-close" onclick="closeUpcomingTravelModal()" aria-label="Cerrar"><i data-wo-icon="x" class="wo-icon-18"></i></button>
             <h2 class="modal-title" id="upcoming-travel-modal-title">Agregar Viaje</h2>
-            <p class="modal-subtitle">Completá estudio, ciudad, fechas y agenda</p>
+            <p class="modal-subtitle">Completa estudio, ciudad, fechas y agenda</p>
             <form id="upcoming-travel-form">
                 <div class="modal-form-group"><label for="upcoming-travel-studio">Estudio</label>
                     <div class="upcoming-travel-autocomplete">
@@ -710,12 +710,12 @@
     <script src="/shared/js/instagram-import.js"></script>
     <script src="/shared/js/gallery-visibility.js?v=20261030-ig-visibility"></script>
     <script src="/shared/js/dashboard-gallery.js?v=20261030-ig-visibility"></script>
-    <script src="/shared/js/dashboard.js?v=20261030-ig-visibility"></script>
+    <script src="/shared/js/dashboard.js?v=20261116-r2c"></script>
     <script src="/shared/js/design-stage-editor.js?v=20261112-r3"></script>
     <script src="/shared/js/dashboard-redesign.js?v=20261112-integracion"></script>
     <script src="/shared/js/dashboard-reminders.js?v=20261028-figma-final"></script>
     <script src="/shared/js/artist-public-url.js?v=20261115-perfil"></script>
-    <script src="/shared/js/dashboard-share.js?v=20261115-beta"></script>
+    <script src="/shared/js/dashboard-share.js?v=20261116-r2b"></script>
     <script src="/shared/js/data/booking-repo.js?v=20261115-turnos"></script>
     <script src="/shared/js/booking-summary.js?v=20261115-turnos"></script>
     <!-- Pagos de clientes (grupo pagos): REGISTRAR PAGO + actividad «Pago recibido» -->
@@ -723,7 +723,7 @@
     <script src="/shared/js/data/quotation-payments-repo.js?v=20261112-pagos"></script>
     <script src="/shared/js/quotation-payment-dialog.js?v=20261112-pagos"></script>
     <script src="/shared/js/dashboard-payments.js?v=20261112-pagos"></script>
-    <script src="/shared/js/wo-artist-menu.js?v=20261028-figma-final-r1" defer></script>
+    <script src="/shared/js/wo-artist-menu.js?v=20261116-r2b" defer></script>
 </body>
 
 </html>

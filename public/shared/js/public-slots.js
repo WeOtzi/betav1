@@ -72,7 +72,7 @@
         try { browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { browserTz = ''; }
         var tz = state.info.timezone;
         return '<p class="bk-tz-note">Horarios en la zona del artista (' + esc(tz) + ')' +
-            (browserTz && browserTz !== tz ? '. Tu navegador está en ' + esc(browserTz) + ': revisá la diferencia horaria.' : '.') +
+            (browserTz && browserTz !== tz ? '. Tu navegador está en ' + esc(browserTz) + ': revisa la diferencia horaria.' : '.') +
             ' Cada turno dura ' + esc(minutes(state.info.slot_minutes)) + '.</p>';
     }
     function minutes(m) { var h = Math.floor(m / 60), r = m % 60; return h ? h + ' h' + (r ? ' ' + r + ' min' : '') : r + ' min'; }
@@ -131,12 +131,12 @@
         if (state.loadingMonth === state.month) return '<p class="bk-loading"><span class="wo-spinner" aria-hidden="true"></span> Buscando horarios…</p>';
         if (!state.day) {
             var any = monthCount(state.month) || Object.keys(state.monthSlots[state.month] || {}).length;
-            return '<div><h2 class="bk-day-title">Elegí un día</h2><p class="bk-note">' +
-                (any ? 'Los días marcados tienen turnos libres.' : 'Este mes no tiene turnos libres. Probá con otro mes.') + '</p></div>';
+            return '<div><h2 class="bk-day-title">Elige un día</h2><p class="bk-note">' +
+                (any ? 'Los días marcados tienen turnos libres.' : 'Este mes no tiene turnos libres. Prueba con otro mes.') + '</p></div>';
         }
         var slots = (state.monthSlots[state.month] || {})[state.day] || [];
         if (!slots.length) {
-            return '<div><h2 class="bk-day-title">' + esc(longDay(state.day)) + '</h2><p class="bk-note">Ese día ya no tiene turnos libres. Elegí otro.</p></div>';
+            return '<div><h2 class="bk-day-title">' + esc(longDay(state.day)) + '</h2><p class="bk-note">Ese día ya no tiene turnos libres. Elige otro.</p></div>';
         }
         return '<div class="bk-panel-day"><h2 class="bk-day-title">' + esc(longDay(state.day)) + '</h2></div>' +
             '<ul class="bk-chips" aria-label="Horarios disponibles">' + slots.map(function (s) {
@@ -148,7 +148,7 @@
             (state.slot
                 ? '<a class="wo-btn wo-btn--accent wo-btn--hard" href="' + esc(quotationUrl(state.slot)) + '">Pedir este turno <i data-wo-icon="arrow-right" aria-hidden="true"></i></a>' +
                   '<p class="bk-note">Vas a completar tu idea en el cotizador. El turno queda apartado mientras el artista responde.</p>'
-                : '<button type="button" class="wo-btn wo-btn--accent wo-btn--hard" disabled>Elegí un horario</button>') +
+                : '<button type="button" class="wo-btn wo-btn--accent wo-btn--hard" disabled>Elige un horario</button>') +
             '</div>';
     }
 
@@ -156,14 +156,14 @@
         var info = state.info;
         if (!info.enabled) {
             root.innerHTML = headerHtml() +
-                '<div class="bk-empty"><h2>Reservas online no disponibles</h2><p>' + esc(info.artist.name) + ' no está tomando reservas online por ahora. Pedí una cotización y te propone fecha.</p>' +
+                '<div class="bk-empty"><h2>Reservas online no disponibles</h2><p>' + esc(info.artist.name) + ' no está tomando reservas online por ahora. Pide una cotización y te propone fecha.</p>' +
                 '<div class="bk-btn-row"><a class="wo-btn wo-btn--accent wo-btn--hard" href="' + esc(quotationUrl(null)) + '">Pedir cotización</a></div></div>';
             hydrate(root);
             return;
         }
         var total = Object.keys(state.counts).reduce(function (n, d) { return n + state.counts[d]; }, 0);
         var empty = state.countsLoaded && !total
-            ? '<div class="bk-empty"><h2>Sin turnos libres por ahora</h2><p>Todos los turnos están tomados. Pedí una cotización y el artista te propone fecha.</p>' +
+            ? '<div class="bk-empty"><h2>Sin turnos libres por ahora</h2><p>Todos los turnos están tomados. Pide una cotización y el artista te propone fecha.</p>' +
               '<div class="bk-btn-row"><a class="wo-btn wo-btn--accent wo-btn--hard" href="' + esc(quotationUrl(null)) + '">Pedir cotización</a></div></div>'
             : '';
         root.innerHTML = headerHtml() +
@@ -173,7 +173,7 @@
                 '<section class="bk-panel" aria-label="Calendario de turnos">' + monthsHtml() + calendarHtml() + '</section>' +
                 '<section class="bk-panel" aria-label="Horarios del día" id="bk-day-panel">' + dayPanelHtml() + '</section>' +
             '</div>' + tzNote() +
-            '<p class="bk-note">¿Ningún turno te sirve? <a href="' + esc(quotationUrl(null)) + '">Pedí una cotización sin turno</a> y el artista te propone fecha.</p>';
+            '<p class="bk-note">¿Ningún turno te sirve? <a href="' + esc(quotationUrl(null)) + '">Pide una cotización sin turno</a> y el artista te propone fecha.</p>';
         hydrate(root);
     }
 
@@ -248,7 +248,7 @@
     });
 
     function start() {
-        if (!M || !Booking) { renderError('No pudimos cargar los turnos', 'Recargá la página para intentarlo de nuevo.', false); return; }
+        if (!M || !Booking) { renderError('No pudimos cargar los turnos', 'Recarga la página para intentarlo de nuevo.', false); return; }
         if (!username) { renderError('Falta el artista', 'El enlace de turnos tiene que incluir el usuario del artista.', false); return; }
         Booking.publicSlots(username, { granularity: 'day', from: new Date().toISOString(), to: new Date(Date.now() + 90 * DAY_MS).toISOString() }).then(function (info) {
             state.info = info;
@@ -260,8 +260,8 @@
             selectMonth(wanted || (firstDay ? monthKey(firstDay) : monthList()[0]));
             loadCounts();
         }).catch(function (err) {
-            if (err && err.status === 404) renderError('No encontramos a ese artista', 'Revisá el enlace o buscá al artista en We Ötzi.', false);
-            else renderError('No pudimos cargar los turnos', 'Probá de nuevo en unos minutos.', false);
+            if (err && err.status === 404) renderError('No encontramos a ese artista', 'Revisa el enlace o busca al artista en We Ötzi.', false);
+            else renderError('No pudimos cargar los turnos', 'Prueba de nuevo en unos minutos.', false);
         });
     }
 

@@ -104,7 +104,7 @@
                 detail = 'Ya cuenta para la verificación de tu perfil.';
             } else {
                 title = 'Rechazamos tu ' + d.label;
-                detail = (d.note ? 'Motivo: ' + d.note + '. ' : '') + 'Podés subir uno nuevo desde Cuenta · Verificación.';
+                detail = (d.note ? 'Motivo: ' + d.note + '. ' : '') + 'Puedes subir uno nuevo desde Cuenta · Verificación.';
             }
         } else if (d.subject === 'verification') {
             if (d.outcome === 'approved') {
@@ -112,18 +112,18 @@
                 detail = 'Tu perfil público ya muestra la insignia de verificado.';
             } else if (d.outcome === 'rejected') {
                 title = 'No pudimos verificar tu perfil';
-                detail = reasonSentence(d.note) + 'Revisá tus documentos y volvé a solicitarla desde Cuenta · Verificación.';
+                detail = reasonSentence(d.note) + 'Revisa tus documentos y vuelve a solicitarla desde Cuenta · Verificación.';
             } else {
                 title = 'Tu perfil quedó sin verificar';
-                detail = reasonSentence(d.note) + 'Podés volver a solicitar la verificación desde Cuenta · Verificación.';
+                detail = reasonSentence(d.note) + 'Puedes volver a solicitar la verificación desde Cuenta · Verificación.';
             }
         } else if (d.subject === 'destination') {
             if (d.outcome === 'approved') {
                 title = 'Verificamos tu destino de retiro «' + d.label + '»';
-                detail = 'Ya podés pedir retiros a esa cuenta.';
+                detail = 'Ya puedes pedir retiros a esa cuenta.';
             } else {
                 title = 'No pudimos verificar tu destino de retiro «' + d.label + '»';
-                detail = (d.note ? 'Motivo: ' + d.note + '. ' : '') + 'Revisá los datos en Cuenta · Cobros.';
+                detail = (d.note ? 'Motivo: ' + d.note + '. ' : '') + 'Revisa los datos en Cuenta · Cobros.';
             }
         } else {
             var amount = d.amount != null ? money(d.amount, d.currency) : 'tu retiro';

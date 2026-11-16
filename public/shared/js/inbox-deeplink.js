@@ -89,5 +89,25 @@
         return { key: null, filter: explicitFilter || opportunity || null };
     }
 
-    return { resolveDeepLink, FILTERS, OPPORTUNITY_FILTERS };
+    // Parámetros que nombran una conversación concreta (el filtro no es uno).
+    const THREAD_PARAMS = ['quote', 'thread', 'opportunity', 'application', 'trip'];
+
+    /**
+     * Camino inverso: la dirección que le corresponde al hilo abierto. Limpia
+     * los parámetros de conversación y deja ?quote=<quote_id> para el chat de
+     * una cotización o ?thread=<id> para el resto; sin fila (hilo cerrado) no
+     * queda ninguno. Son los mismos parámetros que llevan los avisos
+     * (lib/push-dispatch.js), así wo-notify.js sabe qué conversación está en
+     * pantalla. Devuelve pathname + search + hash, o null si no hay dirección.
+     */
+    function threadLocation(row, href) {
+        let url;
+        try { url = new URL(String(href || '')); } catch (_) { return null; }
+        THREAD_PARAMS.forEach((name) => url.searchParams.delete(name));
+        const id = row && row.id != null ? String(row.id).trim() : '';
+        if (id) url.searchParams.set(row.source === 'quote' ? 'quote' : 'thread', id);
+        return url.pathname + url.search + url.hash;
+    }
+
+    return { resolveDeepLink, threadLocation, FILTERS, OPPORTUNITY_FILTERS, THREAD_PARAMS };
 }));

@@ -513,8 +513,8 @@
         form = form || {};
         var errors = {};
         var message = text(form.message);
-        if (!REASONS[form.reason]) errors.reason = 'Elegí un motivo.';
-        if (message.length < MESSAGE_MIN) errors.message = 'Escribí al menos ' + MESSAGE_MIN + ' caracteres.';
+        if (!REASONS[form.reason]) errors.reason = 'Elige un motivo.';
+        if (message.length < MESSAGE_MIN) errors.message = 'Escribe al menos ' + MESSAGE_MIN + ' caracteres.';
         else if (message.length > MESSAGE_MAX) errors.message = 'El mensaje no puede superar los ' + MESSAGE_MAX + ' caracteres.';
         var start = text(form.startDate);
         var end = text(form.endDate);
@@ -522,9 +522,9 @@
             var a = parseDate(start);
             var b = parseDate(end);
             var today = startOfDay(now || new Date());
-            if (!a || !b) errors.dates = 'Completá las dos fechas o dejalas vacías.';
+            if (!a || !b) errors.dates = 'Completa las dos fechas o déjalas vacías.';
             else if (b.getTime() < a.getTime()) errors.dates = 'La fecha de fin tiene que ser posterior al inicio.';
-            else if (startOfDay(a).getTime() < today.getTime()) errors.dates = 'Elegí fechas a partir de hoy.';
+            else if (startOfDay(a).getTime() < today.getTime()) errors.dates = 'Elige fechas a partir de hoy.';
         }
         return { ok: Object.keys(errors).length === 0, errors: errors, message: message };
     }
@@ -537,8 +537,8 @@
     function validateChangeRequest(value) {
         var message = text(value);
         var error = null;
-        if (!message) error = 'Escribí los cambios que querés proponer.';
-        else if (message.length < CHANGE_MIN) error = 'Contale al estudio un poco más: mínimo ' + CHANGE_MIN + ' caracteres.';
+        if (!message) error = 'Escribe los cambios que quieres proponer.';
+        else if (message.length < CHANGE_MIN) error = 'Cuéntale al estudio un poco más: mínimo ' + CHANGE_MIN + ' caracteres.';
         else if (message.length > CHANGE_MAX) error = 'Tu propuesta no puede superar los ' + CHANGE_MAX + ' caracteres.';
         return { ok: !error, error: error, message: message };
     }
@@ -569,15 +569,15 @@
             return 'Tu propuesta tiene que tener entre ' + CHANGE_MIN + ' y ' + CHANGE_MAX + ' caracteres.';
         }
         if (/not found|no encontr|pending|pendiente|status|estado/.test(raw)) {
-            return 'Esta invitación ya no está pendiente: actualizá la página.';
+            return 'Esta invitación ya no está pendiente: actualiza la página.';
         }
         if (/authentication required|jwt|session/.test(raw)) {
-            return 'Tu sesión venció: volvé a iniciar sesión para enviar la propuesta.';
+            return 'Tu sesión venció: vuelve a iniciar sesión para enviar la propuesta.';
         }
         if (/permission|denied|42501|not allowed|permiso/.test(raw)) {
-            return 'No tenés permiso para proponer cambios en esta invitación.';
+            return 'No tienes permiso para proponer cambios en esta invitación.';
         }
-        return 'No pudimos enviar tu propuesta. Probá de nuevo en un momento.';
+        return 'No pudimos enviar tu propuesta. Prueba de nuevo en un momento.';
     }
 
     function characterCount(value) {

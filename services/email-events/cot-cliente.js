@@ -38,7 +38,7 @@ function attribs(p) {
 module.exports = {
     client_quotation_accepted_receipt: {
         name: 'Cliente: aceptó la propuesta (comprobante)',
-        description: 'Confirmación al cliente de que aceptó la propuesta del artista y de los próximos pasos (turno y seña se coordinan con el artista).',
+        description: 'Confirmación al cliente de que aceptó la propuesta del artista y de los próximos pasos (turno y anticipo se coordinan con el artista).',
         templateHint: 'quotation-approved',
         serverOnly: true,
         recipient: p => p.client_email || p.recipient_email || null,
@@ -50,7 +50,7 @@ module.exports = {
             preheader: d => `Total ${text(d.budget_text, 'a confirmar')}. El artista ya tiene tu respuesta.`,
             eyebrow: 'COTIZACIÓN / ACEPTADA',
             headline: () => 'Aceptaste la propuesta.',
-            intro: d => `Le avisamos a ${text(d.artist_name, 'tu artista')}. El próximo paso es coordinar el turno y la seña con el artista desde el chat de la cotización. We Ötzi no cobra la seña por ahora: pagala solo por los medios que te indique el artista.`,
+            intro: d => `Le avisamos a ${text(d.artist_name, 'tu artista')}. El próximo paso es coordinar el turno y el anticipo con el artista desde el chat de la cotización. We Ötzi no cobra el anticipo por ahora: págalo solo por los medios que te indique el artista.`,
             rows: d => [
                 ['Cotización', text(d.quote_id)],
                 ['Artista', text(d.artist_name, '—')],
@@ -73,10 +73,11 @@ module.exports = {
             audience: 'client',
             category: 'quotations',
             subject: d => `Rechazaste la propuesta de ${text(d.artist_name, 'tu artista')} · ${text(d.quote_id)}`,
-            preheader: () => 'Le avisamos al artista. Podés seguir buscando o escribirle si querés ajustar algo.',
+            preheader: () => 'La cotización quedó finalizada y le avisamos al artista. Puedes iniciar una nueva.',
             eyebrow: 'COTIZACIÓN / RECHAZADA',
             headline: () => 'Rechazaste la propuesta.',
-            intro: d => `Le avisamos a ${text(d.artist_name, 'el artista')}. Si querés ajustar algo, escribile desde el chat de la cotización: puede mandarte una propuesta nueva. También podés buscar otros artistas en el marketplace.`,
+            // P23 (ronda 2): rechazar es definitivo; el artista ya no puede escribir por el chat.
+            intro: d => `Le avisamos a ${text(d.artist_name, 'el artista')} y la cotización quedó finalizada. Si quieres retomar la idea, inicia una cotización nueva; también puedes buscar otros artistas en el marketplace.`,
             rows: d => {
                 const rows = [
                     ['Cotización', text(d.quote_id)],

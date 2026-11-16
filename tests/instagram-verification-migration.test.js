@@ -106,7 +106,7 @@ function sqlMarkers() {
 }
 
 // Port literal de artist_gallery_item_is_instagram / _is_public (enforced).
-// `->>` devuelve el texto del valor; los valores no textuales no se usan acá.
+// `->>` devuelve el texto del valor; los valores no textuales no se usan aquí.
 function sqlText(value) {
     if (value === undefined || value === null) return '';
     return typeof value === 'string' ? value : JSON.stringify(value);

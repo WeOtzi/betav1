@@ -305,7 +305,7 @@ function openLoginModal() {
     window.location.href = appUrl('/artist/login' + (query ? '?' + query : ''));
 }
 
-// El modal de login legado salió del Figma final: "Ingresá" lleva a
+// El modal de login legado salió del Figma final: "Ingresa" lleva a
 // /artist/login. Se conservan los nombres por compatibilidad, con guardas.
 function closeLoginModal() {
     const modal = document.getElementById('login-modal');
@@ -473,13 +473,13 @@ function setRegisterButtonState(btn, label) {
 // Revisión 12/11 (p. 2): todos los campos son obligatorios; Estilo deja de
 // serlo solo con "Añadir más adelante, mi estilo no está aquí".
 function validateBetaForm({ fullName, email, country, city, style, styleLater, terms }) {
-    if (!fullName) return { field: 'beta-fullname', message: 'Contanos tu nombre completo.' };
-    if (!email) return { field: 'beta-email', message: 'Escribí tu email.' };
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return { field: 'beta-email', message: 'Revisá el email: parece incompleto.' };
-    if (!country) return { field: 'beta-country', message: 'Seleccioná tu país.' };
-    if (!city) return { field: 'beta-city', message: 'Contanos en qué ciudad tatuás.' };
-    if (!style && !styleLater) return { field: 'beta-style', message: 'Seleccioná tu estilo principal o marcá "Añadir más adelante".' };
-    if (!terms) return { field: 'beta-terms', message: 'Para seguir, aceptá los términos y condiciones.' };
+    if (!fullName) return { field: 'beta-fullname', message: 'Cuéntanos tu nombre completo.' };
+    if (!email) return { field: 'beta-email', message: 'Escribe tu email.' };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return { field: 'beta-email', message: 'Revisa el email: parece incompleto.' };
+    if (!country) return { field: 'beta-country', message: 'Selecciona tu país.' };
+    if (!city) return { field: 'beta-city', message: 'Cuéntanos en qué ciudad tatúas.' };
+    if (!style && !styleLater) return { field: 'beta-style', message: 'Selecciona tu estilo principal o marca "Añadir más adelante".' };
+    if (!terms) return { field: 'beta-terms', message: 'Para seguir, acepta los términos y condiciones.' };
     return null;
 }
 
@@ -660,10 +660,10 @@ async function handleRegistration(e) {
         console.error('Error in registration:', error.message);
         setRegisterButtonState(btn, '');
 
-        let errorMessage = 'No pudimos iniciar tu registro. Probá de nuevo en un momento.';
+        let errorMessage = 'No pudimos iniciar tu registro. Prueba de nuevo en un momento.';
         if (error.code === 'ALREADY_REGISTERED') {
             pendingLoginEmail = email;
-            errorMessage = 'Este email ya tiene una cuenta. <a href="#" onclick="openLoginModal(); return false;">Iniciá sesión</a>.';
+            errorMessage = 'Este email ya tiene una cuenta. <a href="#" onclick="openLoginModal(); return false;">Inicia sesión</a>.';
         }
 
         showFormMessage(errorMessage, 'error');
@@ -929,7 +929,7 @@ async function handleSocialLogin(provider) {
         window.location.href = appUrl(targetUrl);
     } catch (error) {
         console.error(`Error logging in with ${provider}:`, error.message);
-        showFormMessage(`Error al conectar con ${provider}. Por favor, intentalo de nuevo.`, 'error');
+        showFormMessage(`Error al conectar con ${provider}. Por favor, inténtalo de nuevo.`, 'error');
     }
 }
 
@@ -954,7 +954,7 @@ function handleInstagramQuickStart() {
 // Formulario beta (Figma 22-1106)
 // ============================================
 
-// "Continuá con EMAIL" = el formulario de la página: lleva el foco al inicio.
+// "Continúa con EMAIL" = el formulario de la página: lleva el foco al inicio.
 function focusBetaForm() {
     const first = document.getElementById('beta-fullname') || document.querySelector('.input-email');
     if (first) {
@@ -963,7 +963,7 @@ function focusBetaForm() {
     }
 }
 
-// "Continuá con Facebook": el OAuth de Supabase vive en /artist/login
+// "Continúa con Facebook": el OAuth de Supabase vive en /artist/login
 // (artist-login.js). Al volver sin perfil de artista, ese flujo deriva al
 // wizard /register-artist con la sesión ya iniciada.
 function handleFacebookSignup() {
@@ -1120,7 +1120,7 @@ function syncBetaCityWithCountry() {
     cityInput.value = '';
     delete cityInput.dataset.placeId;
     cityInput.disabled = !country;
-    cityInput.placeholder = country ? 'Buscá tu ciudad' : 'Elegí primero tu país';
+    cityInput.placeholder = country ? 'Busca tu ciudad' : 'Elige primero tu país';
     if (!country) return;
     ensureBetaCityAutocomplete(cityInput).then((ac) => {
         if (ac) ac.setComponentRestrictions({ country: country.code });

@@ -131,9 +131,9 @@ test('checkout: ingreso inline con auth (no datos), links con returnTo y estado 
     assert.match(js, /S\.loginLinks\(\)/);
     assert.match(js, /'wo_store_checkout'/);
     assert.match(js, /sessionStorage/);
-    assert.match(html, /Ingresá para comprar/);
-    assert.match(html, /Creá tu cuenta →/);
-    assert.match(html, /¿Sos artista\? Ingresá →/);
+    assert.match(html, /Ingresa para comprar/);
+    assert.match(html, /Crea tu cuenta →/);
+    assert.match(html, /¿Eres artista\? Ingresa →/);
     assert.match(html, /Confirmar pedido →/);
 });
 
@@ -167,7 +167,7 @@ test('purchases: lista, detalle por ?pedido=, descargas con la ventana abierta a
     assert.match(js, /Store\.markLicenseUsed\(/);
     assert.match(js, /M\.licenseUrl\(/);
     assert.match(js, /Todavía no compraste nada\./);
-    assert.match(js, /Explorá artistas →/);
+    assert.match(js, /Explora artistas →/);
     assert.match(js, /¿Problemas con tu pedido\?/);
     assert.match(js, /a soporte →/);
     assert.match(js, /rel="noopener noreferrer"/);
@@ -542,7 +542,7 @@ test('checkout: tras el ingreso inline el foco va al título del pedido; el tota
     assert.equal(doc.getElementById('stb-checkout').hidden, false);
     assert.equal(doc.getElementById('stb-auth').hidden, true);
     assert.equal(doc.activeElement, doc.getElementById('stb-title'), 'el foco no queda en el body');
-    assert.equal(doc.getElementById('stb-title').textContent, 'Confirmá tu compra');
+    assert.equal(doc.getElementById('stb-title').textContent, 'Confirma tu compra');
 
     const live = doc.getElementById('stb-total-live');
     assert.equal(live.textContent, 'Licencia Personal. Total: USD 25.');
@@ -554,12 +554,12 @@ test('checkout: tras el ingreso inline el foco va al título del pedido; el tota
     doc.getElementById('stb-terms-accept').checked = true;
     doc.getElementById('stb-fields').listeners.change[0]({ target: { name: 'tier', value: 'exclusive' } });
     const terms = doc.getElementById('stb-terms').innerHTML;
-    assert.match(terms, /<p class="wo-help" id="stb-terms-notice">Cambiaste a la licencia Exclusiva: leé y aceptá sus términos\.<\/p>/);
+    assert.match(terms, /<p class="wo-help" id="stb-terms-notice">Cambiaste a la licencia Exclusiva: lee y acepta sus términos\.<\/p>/);
     assert.match(terms, /aria-describedby="stb-terms-notice stb-terms-accept-error"/);
     assert.equal(doc.getElementById('stb-terms-accept').checked, false, 'los términos nuevos se aceptan de nuevo');
     assert.equal(live.textContent, 'Licencia Exclusiva. Total: USD 300.');
     await wait(80);
-    assert.equal(doc.getElementById('sts-live-status').textContent, 'Cambiaste a la licencia Exclusiva: leé y aceptá sus términos.');
+    assert.equal(doc.getElementById('sts-live-status').textContent, 'Cambiaste a la licencia Exclusiva: lee y acepta sus términos.');
     // Al aceptarlos, el aviso se va.
     doc.getElementById('stb-terms-accept').checked = true;
     doc.getElementById('stb-fields').listeners.change[0]({ target: { name: 'terms', checked: true } });
@@ -601,7 +601,7 @@ test('checkout: los países salen del modelo (M.COUNTRY_CODES / M.countryName), 
     await flush();
     const only = closed.doc.getElementById('stb-fields').innerHTML;
     assert.deepEqual([...only.matchAll(/<option value="([A-Z]{2})">/g)].map((m) => m[1]), ['ES', 'PT']);
-    assert.match(only, /<option value="">Elegí el país<\/option>/);
+    assert.match(only, /<option value="">Elige el país<\/option>/);
     assert.match(only, /El vendedor envía a: España, Portugal\./);
 
     // Un solo país: queda elegido y sin opción vacía.
@@ -610,7 +610,7 @@ test('checkout: los países salen del modelo (M.COUNTRY_CODES / M.countryName), 
         store: storeFor(Object.assign({}, MERCH, { ships_to_countries: ['UY'] })), viewer: BUYER
     });
     await flush();
-    assert.doesNotMatch(single.doc.getElementById('stb-fields').innerHTML, /Elegí el país/);
+    assert.doesNotMatch(single.doc.getElementById('stb-fields').innerHTML, /Elige el país/);
     assert.equal(single.doc.getElementById('stb-country').value, 'UY');
 });
 
@@ -646,17 +646,17 @@ test('purchases: un pedido vencido no ofrece «Ya pagué →», ni el form, ni i
     assert.match(liveHtml, /id="stb-report-form"/);
     assert.match(liveHtml, />Ya pagué →<\/button>/);
     assert.match(liveHtml, /Cómo pagar/);
-    assert.match(liveHtml, /Tenés hasta el /);
+    assert.match(liveHtml, /Tienes hasta el /);
 
     // Vencido sin pago informado: aviso, contacto y cancelar; nada para pagar ni informar.
     const overdue = await purchasesDetail(pendingDesignOrder(), DESIGN);
     const html = overdue.doc.getElementById('stb-detail').innerHTML;
     assert.match(html, /<h2 class="stb-block-title">Venció el plazo para pagar<\/h2>/);
-    assert.match(html, /Venció el plazo para pagar este pedido\. Si ya pagaste, escribile al vendedor con el número de pedido\./);
+    assert.match(html, /Venció el plazo para pagar este pedido\. Si ya pagaste, escríbele al vendedor con el número de pedido\./);
     assert.doesNotMatch(html, /Ya pagué/);
     assert.doesNotMatch(html, /stb-report-form|stb-report-ref/);
-    assert.doesNotMatch(html, /Cómo pagar|Pagá el monto exacto|mara\.ink\.pagos/, 'sin instrucciones para pagar un pedido vencido');
-    assert.doesNotMatch(html, /Tenés hasta el /);
+    assert.doesNotMatch(html, /Cómo pagar|Paga el monto exacto|mara\.ink\.pagos/, 'sin instrucciones para pagar un pedido vencido');
+    assert.doesNotMatch(html, /Tienes hasta el /);
     assert.match(html, /Instagram @mara\.ink/, 'queda el contacto del vendedor');
     assert.match(html, /data-stb-action="cancel"/, 'sin pago informado se puede cancelar');
     assert.equal(overdue.doc.getElementById('stb-report-form'), null);
@@ -665,10 +665,10 @@ test('purchases: un pedido vencido no ofrece «Ya pagué →», ni el form, ni i
     const reported = await purchasesDetail(pendingDesignOrder({ buyer_payment_reported_at: isoIn(-26 * HOUR), buyer_payment_reference: 'TR-77' }), DESIGN);
     const repHtml = reported.doc.getElementById('stb-detail').innerHTML;
     assert.match(repHtml, /Informaste el pago, pero el vendedor no lo confirmó a tiempo\./);
-    assert.doesNotMatch(repHtml, /Ya pagué|Actualizar comprobante|Actualizá el comprobante|stb-report-form/);
+    assert.doesNotMatch(repHtml, /Ya pagué|Actualizar comprobante|Actualiza el comprobante|stb-report-form/);
     assert.doesNotMatch(repHtml, /Cómo pagar/);
     assert.doesNotMatch(repHtml, /data-stb-action="cancel"/, 'con pago informado cancela soporte');
-    assert.match(repHtml, /para cancelar el pedido, escribile a soporte/);
+    assert.match(repHtml, /para cancelar el pedido, escríbele a soporte/);
     const platform = await purchasesDetail(pendingDesignOrder({ expected_collector: 'platform', buyer_payment_reported_at: isoIn(-26 * HOUR) }), DESIGN);
     assert.match(platform.doc.getElementById('stb-detail').innerHTML, /Informaste el pago, pero We Ötzi no lo confirmó a tiempo\./);
 });
@@ -679,7 +679,7 @@ test('purchases: la card del pedido vencido avisa el plazo y el detalle vencido 
     await flush();
     const cards = list.doc.getElementById('stb-orders').innerHTML;
     assert.match(cards, /<span class="stb-order-next">Venció el plazo para pagar<\/span>/);
-    assert.doesNotMatch(cards, /Ya pagué|Pagalo antes/);
+    assert.doesNotMatch(cards, /Ya pagué|Págalo antes/);
 
     const expired = await purchasesDetail(pendingDesignOrder({ status: 'expired' }), DESIGN);
     const html = expired.doc.getElementById('stb-detail').innerHTML;
@@ -688,7 +688,7 @@ test('purchases: la card del pedido vencido avisa el plazo y el detalle vencido 
 
     const lapsed = await purchasesDetail(pendingDesignOrder({ status: 'expired', buyer_payment_reported_at: isoIn(-8 * 24 * HOUR) }), DESIGN);
     const lapsedHtml = lapsed.doc.getElementById('stb-detail').innerHTML;
-    assert.match(lapsedHtml, /Este pedido venció porque nadie confirmó el pago a tiempo\. Si pagaste, escribile a soporte con el número de pedido\./);
+    assert.match(lapsedHtml, /Este pedido venció porque nadie confirmó el pago a tiempo\. Si pagaste, escríbele a soporte con el número de pedido\./);
     assert.doesNotMatch(lapsedHtml, /no se informó el pago/);
 });
 
@@ -697,19 +697,19 @@ test('checkout ?pedido=: un pedido vencido no muestra «Ya pagué →» ni instr
     const liveHtml = live.doc.getElementById('stb-done').innerHTML;
     assert.match(liveHtml, />Ya pagué →<\/button>/);
     assert.match(liveHtml, /Cómo pagar/);
-    assert.match(liveHtml, /<p class="stb-deadline">Tenés hasta el /);
+    assert.match(liveHtml, /<p class="stb-deadline">Tienes hasta el /);
     assert.equal(live.doc.getElementById('stb-sub').hidden, false);
 
     const overdue = await checkoutDone(pendingDesignOrder());
     const html = overdue.doc.getElementById('stb-done').innerHTML;
-    assert.match(html, /Venció el plazo para pagar este pedido\. Si ya pagaste, escribile al vendedor con el número de pedido\./);
+    assert.match(html, /Venció el plazo para pagar este pedido\. Si ya pagaste, escríbele al vendedor con el número de pedido\./);
     assert.doesNotMatch(html, /Ya pagué|stb-report-form|stb-report-ref/);
-    assert.doesNotMatch(html, /Cómo pagar|Pagá el monto exacto|mara\.ink\.pagos/);
-    assert.doesNotMatch(html, /stb-deadline|Tenés hasta el /, 'sin plazo vencido como si siguiera vigente');
+    assert.doesNotMatch(html, /Cómo pagar|Paga el monto exacto|mara\.ink\.pagos/);
+    assert.doesNotMatch(html, /stb-deadline|Tienes hasta el /, 'sin plazo vencido como si siguiera vigente');
     assert.match(html, /Instagram @mara\.ink/);
     assert.match(html, /Ver mis compras →/);
     assert.ok(html.indexOf('Venció el plazo') < html.indexOf('Contacto del vendedor'), 'el aviso va antes del contacto');
-    assert.equal(overdue.doc.getElementById('stb-sub').hidden, true, 'sin «Pagalo con las instrucciones de abajo»');
+    assert.equal(overdue.doc.getElementById('stb-sub').hidden, true, 'sin «Págalo con las instrucciones de abajo»');
     assert.equal(overdue.doc.getElementById('stb-report-form'), null);
 
     const reported = await checkoutDone(pendingDesignOrder({ buyer_payment_reported_at: isoIn(-26 * HOUR), buyer_payment_reference: 'TR-77' }));
@@ -733,33 +733,33 @@ function merchOrder(extra) {
 }
 const detailOf = async (order) => (await purchasesDetail(order, MERCH)).doc.getElementById('stb-detail').innerHTML;
 
-test('purchases: retiro pagado sin pickup_details → «Coordiná el retiro con el vendedor ({contacto}).»', async () => {
+test('purchases: retiro pagado sin pickup_details → «Coordina el retiro con el vendedor ({contacto}).»', async () => {
     const paid = await detailOf(merchOrder());
-    assert.match(paid, /<p class="stb-text">Coordiná el retiro con el vendedor \(Instagram @mara\.ink\)\.<\/p>/);
+    assert.match(paid, /<p class="stb-text">Coordina el retiro con el vendedor \(Instagram @mara\.ink\)\.<\/p>/);
     assert.doesNotMatch(paid, /te llega cuando el vendedor confirme el pago/, 'ya pagado: no se promete que llegue la dirección');
 
     const noContact = await detailOf(merchOrder({ seller_contact: null }));
-    assert.match(noContact, /<p class="stb-text">Coordiná el retiro con el vendedor\.<\/p>/);
+    assert.match(noContact, /<p class="stb-text">Coordina el retiro con el vendedor\.<\/p>/);
 
     const ready = await detailOf(merchOrder({ status: 'fulfilled', fulfillment_status: 'delivered', delivered_at: isoIn(-HOUR) }));
-    assert.match(ready, /Coordiná el retiro con el vendedor \(Instagram @mara\.ink\)\./);
+    assert.match(ready, /Coordina el retiro con el vendedor \(Instagram @mara\.ink\)\./);
 
     const escaped = await detailOf(merchOrder({ seller_contact: '<b>@mara</b>' }));
-    assert.match(escaped, /Coordiná el retiro con el vendedor \(&lt;b&gt;@mara&lt;\/b&gt;\)\./);
+    assert.match(escaped, /Coordina el retiro con el vendedor \(&lt;b&gt;@mara&lt;\/b&gt;\)\./);
 
     // Con la dirección del pedido: se muestra y no hace falta coordinar.
     const withAddress = await detailOf(merchOrder({ pickup_details: 'Av. de ejemplo 123 · Palermo' }));
     assert.match(withAddress, /Dirección de retiro<\/p><p class="stb-pre">Av\. de ejemplo 123 · Palermo<\/p>/);
-    assert.doesNotMatch(withAddress, /Coordiná el retiro/);
+    assert.doesNotMatch(withAddress, /Coordina el retiro/);
 
     // Pendiente: la dirección llega con la confirmación del pago.
     const pending = await detailOf(merchOrder({ status: 'pending_payment', paid_at: null, fulfillment_status: 'unfulfilled', expires_at: isoIn(20 * HOUR) }));
     assert.match(pending, /La dirección exacta del estudio te llega cuando el vendedor confirme el pago\./);
-    assert.doesNotMatch(pending, /Coordiná el retiro/);
+    assert.doesNotMatch(pending, /Coordina el retiro/);
 
     // Cancelado: ni promesa ni coordinación.
     const cancelled = await detailOf(merchOrder({ status: 'cancelled', paid_at: null, fulfillment_status: 'unfulfilled', cancelled_at: isoIn(-HOUR) }));
-    assert.doesNotMatch(cancelled, /te llega cuando el vendedor confirme el pago|Coordiná el retiro/);
+    assert.doesNotMatch(cancelled, /te llega cuando el vendedor confirme el pago|Coordina el retiro/);
 });
 
 test('purchases: la dirección de envío muestra el país con M.countryName', async () => {
@@ -921,7 +921,7 @@ test('purchases: si falla el refresco después de una acción, avisa y deshabili
     assert.equal(cancelled, 1);
     assert.ok(buttons.every((b) => b.disabled), 'acciones deshabilitadas hasta recargar');
     await wait(80);
-    assert.equal(doc.getElementById('sts-live-alert').textContent, 'Actualizamos tu pedido, pero no pudimos recargar la vista. Recargá la página.');
+    assert.equal(doc.getElementById('sts-live-alert').textContent, 'Actualizamos tu pedido, pero no pudimos recargar la vista. Recarga la página.');
     assert.equal(doc.getElementById('sts-live-status').textContent, 'Cancelaste el pedido.');
 });
 
@@ -936,7 +936,7 @@ test('license: la salida del certificado depende de quién lo mira', async () =>
     assert.match(await certFor(SELLER), /<a class="stb-back" href="\/artist\/store\/\?tab=pedidos&amp;pedido=o1">← Pedido en tu Store<\/a>/);
     assert.match(await certFor(BUYER), /<a class="stb-back" href="\/store\/purchases\/\?pedido=o1">← Mis compras<\/a>/);
     const other = await certFor(SUPPORT);
-    assert.match(other, /<a class="stb-link" href="\/store\/license\/">Verificá un código →<\/a>/);
+    assert.match(other, /<a class="stb-link" href="\/store\/license\/">Verifica un código →<\/a>/);
     assert.doesNotMatch(other, /Mis compras/);
 });
 

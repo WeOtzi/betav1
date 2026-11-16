@@ -264,11 +264,11 @@
         now = toDate(now) || new Date();
         var raw = input.stage == null ? '' : String(input.stage).trim();
         var stage = raw ? normalizeStage(raw) : null;
-        if (raw && !stage) return { ok: false, error: 'Elegí una etapa: boceto, entintado o final.' };
+        if (raw && !stage) return { ok: false, error: 'Elige una etapa: boceto, entintado o final.' };
         var dueRaw = input.due == null ? '' : String(input.due).trim();
         var due = null;
         if (dueRaw) {
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(dueRaw) || !toDate(dueRaw)) return { ok: false, error: 'Revisá la fecha límite.' };
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dueRaw) || !toDate(dueRaw)) return { ok: false, error: 'Revisa la fecha límite.' };
             var d = toDate(dueRaw);
             var max = new Date(now.getTime() + 5 * 365 * DAY);
             if (d.getFullYear() < 2000 || d > max) return { ok: false, error: 'La fecha límite está fuera de rango.' };

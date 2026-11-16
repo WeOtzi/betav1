@@ -86,7 +86,7 @@
         if (!host || !currentData) return;
         const back = `<a class="isd-back" href="${esc(href({ vista: 'mapa', estudio: currentStudioId }))}" data-inv-nav-map-studio="${esc(currentStudioId)}">${icon('arrow-left')} Mapa de estudios</a>`;
         if (currentData.error) {
-            host.innerHTML = `${back}<div class="isd-empty"><strong>No pudimos abrir este estudio</strong><p>${esc(currentData.error.message || 'Probá de nuevo en unos minutos.')}</p></div>`;
+            host.innerHTML = `${back}<div class="isd-empty"><strong>No pudimos abrir este estudio</strong><p>${esc(currentData.error.message || 'Prueba de nuevo en unos minutos.')}</p></div>`;
             wireBack(host);
             return;
         }
@@ -147,7 +147,7 @@
                         <a class="isd-maplink" href="${esc(href({ vista: 'mapa', estudio: studio.id }))}" data-inv-nav-map-studio="${esc(studio.id)}">${icon('map-pin')} Ver en el mapa</a>
                     </div>
                     ${joinNote}
-                    ${canWrite ? '' : `<p class="isd-note" id="isd-contact-note">${esc(target.acceptsInquiries ? 'Este estudio todavía no tiene cuenta en We Ötzi. Escribile por Instagram o por su web.' : 'Este estudio no recibe consultas por ahora.')}</p>`}
+                    ${canWrite ? '' : `<p class="isd-note" id="isd-contact-note">${esc(target.acceptsInquiries ? 'Este estudio todavía no tiene cuenta en We Ötzi. Escríbele por Instagram o por su web.' : 'Este estudio no recibe consultas por ahora.')}</p>`}
                 </div>
                 <div class="isd-gallery">
                     ${galleryCell(photos[0], `Foto principal de ${studio.name || 'estudio'}`, 'isd-gallery-main')}
@@ -180,7 +180,7 @@
 
             <section class="isd-section" aria-labelledby="isd-s2">
                 <h2 class="isd-section-title" id="isd-s2"><span>02</span>Trabajar en este estudio</h2>
-                <p class="isd-section-sub">Información publicada por el estudio. Confirmá las condiciones antes de viajar o firmar.</p>
+                <p class="isd-section-sub">Información publicada por el estudio. Confirma las condiciones antes de viajar o firmar.</p>
                 <dl class="isd-work">
                     ${workRows.map(([key, value]) => `<div><dt class="isd-key">${esc(key)}</dt><dd>${Array.isArray(value) ? value.map((v) => `<span>${esc(v)}</span>`).join('') : `<span>${esc(value)}</span>`}</dd></div>`).join('')}
                 </dl>
@@ -189,7 +189,7 @@
             <section class="isd-contact" aria-labelledby="isd-s3">
                 <div class="isd-contact-text">
                     <span class="isd-contact-eyebrow">03 · Contacto</span>
-                    <h2 class="isd-contact-title" id="isd-s3">¿Te interesa trabajar acá?</h2>
+                    <h2 class="isd-contact-title" id="isd-s3">¿Te interesa trabajar aquí?</h2>
                     ${contact ? `<p class="isd-contact-sub">${esc(contact.summary)}</p>` : ''}
                 </div>
                 <div class="isd-contact-actions">
@@ -221,12 +221,14 @@
         return { canRequest: true, note: '' };
     }
 
+    // La base ya aplicada levanta estos mensajes en voseo: se reconocen las dos formas y lo
+    // que se muestra va siempre en tuteo (neutral-es.js, si está cargado).
     function joinErrorMessage(error) {
         const text = String((error && error.message) || '');
-        if (/Ya tenés una solicitud|vínculo abierto/i.test(text)) return 'Ya tenés una solicitud o un vínculo abierto con este estudio.';
-        if (/Esperá unos días/i.test(text)) return 'Esperá unos días antes de volver a pedir el alta en este estudio.';
-        if (/[áéíóúñ]/.test(text) && text.length < 200) return text;
-        return 'No pudimos enviar tu solicitud. Probá de nuevo.';
+        if (/Ya (?:tenés|tienes) una solicitud|vínculo abierto/i.test(text)) return 'Ya tienes una solicitud o un vínculo abierto con este estudio.';
+        if (/Esper[aá] unos días/i.test(text)) return 'Espera unos días antes de volver a pedir el alta en este estudio.';
+        if (/[áéíóúñ]/.test(text) && text.length < 200) return window.WoNeutralEs ? window.WoNeutralEs.neutralize(text) : text;
+        return 'No pudimos enviar tu solicitud. Prueba de nuevo.';
     }
 
     function openJoin(trigger) {
@@ -250,7 +252,7 @@
                     <div class="isc-body">
                         <p class="isc-count">El estudio recibe tu solicitud con tu perfil y la aprueba o rechaza. Te avisamos por email.</p>
                         <fieldset class="isc-field">
-                            <legend class="isc-label">Cómo querés trabajar</legend>
+                            <legend class="isc-label">Cómo quieres trabajar</legend>
                             <div class="isc-segmented" role="radiogroup" aria-label="Rol">
                                 ${Object.entries(JOIN_ROLES).map(([value, label], index) => `<label class="isc-seg"><input type="radio" name="role" value="${value}" ${index === 0 ? 'checked' : ''}><span>${esc(label)}</span></label>`).join('')}
                             </div>
@@ -268,7 +270,7 @@
                         </div>
                         <div class="isc-field">
                             <label class="isc-label" for="isj-message">Mensaje · opcional</label>
-                            <textarea class="isc-textarea" id="isj-message" name="message" maxlength="1000" placeholder="Contales quién sos, qué estilo trabajás y por qué querés sumarte."></textarea>
+                            <textarea class="isc-textarea" id="isj-message" name="message" maxlength="1000" placeholder="Cuéntales quién eres, qué estilo trabajas y por qué quieres sumarte."></textarea>
                         </div>
                         <div class="isc-field">
                             <label class="isc-label" for="isj-portfolio">Portfolio · opcional</label>
@@ -386,7 +388,7 @@
                         </fieldset>
                         <div class="isc-field">
                             <label class="isc-label" for="isc-message">Mensaje *</label>
-                            <textarea class="isc-textarea" id="isc-message" name="message" required minlength="${M.MESSAGE_MIN}" maxlength="${M.MESSAGE_MAX}" placeholder="Contales quién sos, qué estilo trabajás y por qué te interesa su estudio." aria-describedby="isc-count"></textarea>
+                            <textarea class="isc-textarea" id="isc-message" name="message" required minlength="${M.MESSAGE_MIN}" maxlength="${M.MESSAGE_MAX}" placeholder="Cuéntales quién eres, qué estilo trabajas y por qué te interesa su estudio." aria-describedby="isc-count"></textarea>
                             <p class="isc-count" id="isc-count">${esc(M.characterCount(''))}</p>
                             <p class="isc-error" data-error="message" hidden></p>
                         </div>
@@ -395,7 +397,7 @@
                             <span class="isc-box" aria-hidden="true">${icon('check')}</span>
                             <span>Incluir el link a mi portfolio</span>
                         </label>
-                        ${blocked ? `<p class="isc-error isc-error--block" role="alert">${esc(target.acceptsInquiries === false ? 'Este estudio no recibe consultas por ahora.' : 'Este estudio todavía no tiene cuenta en We Ötzi. Escribile por Instagram o por su web.')}</p>` : ''}
+                        ${blocked ? `<p class="isc-error isc-error--block" role="alert">${esc(target.acceptsInquiries === false ? 'Este estudio no recibe consultas por ahora.' : 'Este estudio todavía no tiene cuenta en We Ötzi. Escríbele por Instagram o por su web.')}</p>` : ''}
                         <p class="isc-error" data-error="submit" role="alert" hidden></p>
                     </div>
                     <footer class="isc-foot">
@@ -491,15 +493,15 @@
     }
 
     function friendlyError(error) {
-        if (!error) return 'No pudimos enviar el mensaje. Probá de nuevo.';
-        if (error.unavailable) return 'La mensajería con estudios todavía no está disponible. Escribile por Instagram o por su web.';
+        if (!error) return 'No pudimos enviar el mensaje. Prueba de nuevo.';
+        if (error.unavailable) return 'La mensajería con estudios todavía no está disponible. Escríbele por Instagram o por su web.';
         const text = String(error.message || '');
-        if (/no account/i.test(text)) return 'Este estudio todavía no tiene cuenta en We Ötzi. Escribile por Instagram o por su web.';
+        if (/no account/i.test(text)) return 'Este estudio todavía no tiene cuenta en We Ötzi. Escríbele por Instagram o por su web.';
         if (/does not accept/i.test(text)) return 'Este estudio no recibe consultas por ahora.';
-        if (/too many/i.test(text)) return 'Enviaste muchos mensajes seguidos. Probá de nuevo en un rato.';
+        if (/too many/i.test(text)) return 'Enviaste muchos mensajes seguidos. Prueba de nuevo en un rato.';
         if (/20 characters|too long/i.test(text)) return `El mensaje tiene que tener entre ${M.MESSAGE_MIN} y ${M.MESSAGE_MAX} caracteres.`;
-        if (/dates/i.test(text)) return 'Revisá las fechas tentativas.';
-        return 'No pudimos enviar el mensaje. Probá de nuevo.';
+        if (/dates/i.test(text)) return 'Revisa las fechas tentativas.';
+        return 'No pudimos enviar el mensaje. Prueba de nuevo.';
     }
 
     function closeContact(options = {}) {

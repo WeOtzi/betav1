@@ -112,7 +112,7 @@
                     ${icon(opts, 'upload-cloud', 'fa-solid fa-cloud-arrow-up')} Subir archivo
                 </button>
                 <span class="wo-uploader-or">o</span>
-                <input type="text" class="wo-uploader-url${opts.designSystem ? ' wo-input' : ''}" placeholder="${opts.placeholder || 'pegá una URL'}" autocomplete="off">
+                <input type="text" class="wo-uploader-url${opts.designSystem ? ' wo-input' : ''}" placeholder="${opts.placeholder || 'pega una URL'}" autocomplete="off">
             </div>
             ${opts.preview === false ? '' : '<div class="wo-uploader-preview" hidden></div>'}
             <div class="wo-uploader-status" hidden></div>
@@ -323,8 +323,8 @@
             emit();
             if (!failed) showStatus('success', '¡Listo!');
             else showStatus('error', uploaded
-                ? `${uploaded === 1 ? 'Se subió' : 'Se subieron'} ${uploaded} de ${files.length} archivos. ${failed === 1 ? 'Reintentá el archivo que no se pudo subir.' : `Reintentá los ${failed} archivos que no se pudieron subir.`}`
-                : 'No se pudo subir ningún archivo. Revisá la conexión y volvé a intentar.');
+                ? `${uploaded === 1 ? 'Se subió' : 'Se subieron'} ${uploaded} de ${files.length} archivos. ${failed === 1 ? 'Reintenta el archivo que no se pudo subir.' : `Reintenta los ${failed} archivos que no se pudieron subir.`}`
+                : 'No se pudo subir ningún archivo. Revisa la conexión y vuelve a intentar.');
             fileInput.value = '';
         });
 

@@ -368,7 +368,7 @@ test('POST validates the handle and refuses an already validated account', async
     withDeps(t, { pgrest: db.pgrest, resolveBearerUser: async () => ({ id: ARTIST_ID, email: 'laura@gmail.com' }) });
     let res = await call(svc.requestArtistVerification, fakeReq());
     assert.equal(res.statusCode, 400);
-    assert.equal(res.body.error, 'Cargá tu usuario de Instagram en Mi perfil antes de validar.');
+    assert.equal(res.body.error, 'Carga tu usuario de Instagram en Mi perfil antes de validar.');
 
     res = await call(svc.requestArtistVerification, fakeReq({ body: { handle: 'no vale!' } }));
     assert.equal(res.statusCode, 400);

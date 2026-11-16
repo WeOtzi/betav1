@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · Mis favoritos</title>
+    <meta name="description" content="Tus listas de favoritos en We Ötzi: artistas, diseños, merch y estudios guardados para volver cuando quieras.">
+    <meta name="robots" content="noindex">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/wo-favorites.css">
+    <link rel="stylesheet" href="/shared/css/client-favorites-ds.css">
+    <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/store-entry.js" defer></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
+    <script src="/shared/js/wo-consent.js" defer></script>
+</head>
+<body class="wo-app cfv-page">
+    <a class="cfv-skip" href="#cfv-main">Ir al contenido</a>
+
+    <!-- TopBar de cliente (la misma de Solicitudes, con Favoritos activo) -->
+    <header class="wo-topbar">
+        <div class="wo-topbar-left">
+            <a class="wo-topbar-brand" href="/client/dashboard">WE ÖTZI</a>
+            <nav class="wo-topbar-nav" aria-label="Navegación principal de cliente">
+                <a class="wo-topbar-item" href="/client/dashboard">Cotizaciones</a>
+                <a class="wo-topbar-item" href="/client/requests">Solicitudes</a>
+                <a class="wo-topbar-item is-active" href="/client/favorites/" aria-current="page">Favoritos</a>
+                <a class="wo-topbar-item" href="/marketplace">Explorar artistas</a>
+                <a class="wo-topbar-item" href="/explore">Tattoo globe</a>
+                <a class="wo-topbar-item" href="/store/purchases/" data-store-entry hidden>Compras</a>
+            </nav>
+        </div>
+        <div class="wo-topbar-right">
+            <a class="wo-o-tile" href="/client/dashboard" title="Tu cuenta" aria-label="Ir a tu cuenta">Ö</a>
+            <button class="wo-btn wo-btn--danger wo-btn--s wo-btn--mono" type="button" id="cfv-logout">Log out</button>
+        </div>
+    </header>
+
+    <main class="cfv-main" id="cfv-main" tabindex="-1">
+        <div class="wo-container">
+            <header class="cfv-head">
+                <div class="cfv-head-text">
+                    <p class="wo-eyebrow">Tu cuenta</p>
+                    <h1 class="cfv-title">Mis favoritos</h1>
+                    <p class="cfv-sub">Artistas, diseños, merch y estudios que guardaste, ordenados en tus listas.</p>
+                </div>
+                <div class="cfv-head-actions">
+                    <a class="wo-btn wo-btn--ghost wo-btn--s" href="/marketplace">Explorar artistas</a>
+                    <button class="wo-btn wo-btn--accent wo-btn--s" type="button" id="cfv-new-list" disabled>
+                        <i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i>
+                        Nueva lista
+                    </button>
+                </div>
+            </header>
+
+            <div class="cfv-notices" id="cfv-notices" aria-live="polite"></div>
+
+            <div class="cfv-layout" id="cfv-root" aria-busy="true">
+                <p class="wo-sr-only" role="status">Cargando tus favoritos</p>
+                <div class="cfv-lists" aria-hidden="true">
+                    <span class="wo-skeleton cfv-skel-tab"></span>
+                    <span class="wo-skeleton cfv-skel-tab"></span>
+                    <span class="wo-skeleton cfv-skel-tab"></span>
+                </div>
+                <div class="cfv-panel" aria-hidden="true">
+                    <span class="wo-skeleton cfv-skel-title"></span>
+                    <div class="cfv-grid">
+                        <span class="wo-skeleton cfv-skel-card"></span>
+                        <span class="wo-skeleton cfv-skel-card"></span>
+                        <span class="wo-skeleton cfv-skel-card"></span>
+                        <span class="wo-skeleton cfv-skel-card"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Diálogo · Crear o renombrar una lista -->
+    <dialog class="cfv-dialog" id="cfv-dialog-name" aria-labelledby="cfv-name-title">
+        <form class="cfv-dialog-form" id="cfv-name-form" novalidate>
+            <h2 class="wo-modal-title" id="cfv-name-title">Nueva lista</h2>
+            <div class="wo-field">
+                <label class="wo-label" for="cfv-name-input">Nombre de la lista</label>
+                <input class="wo-input" type="text" id="cfv-name-input" maxlength="60" autocomplete="off"
+                       placeholder="Ej.: Ideas para el brazo" aria-describedby="cfv-name-error">
+                <p class="cfv-field-error" id="cfv-name-error" role="alert" hidden></p>
+            </div>
+            <div class="wo-modal-actions">
+                <button class="wo-btn wo-btn--ghost" type="button" data-cfv-close>Cancelar</button>
+                <button class="wo-btn" type="submit" id="cfv-name-submit">Crear lista</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Diálogo · Borrar una lista -->
+    <dialog class="cfv-dialog" id="cfv-dialog-delete" aria-labelledby="cfv-delete-title">
+        <h2 class="wo-modal-title" id="cfv-delete-title">Borrar lista</h2>
+        <p class="cfv-dialog-text" id="cfv-delete-text"></p>
+        <p class="cfv-field-error" id="cfv-delete-error" role="alert" hidden></p>
+        <div class="wo-modal-actions">
+            <button class="wo-btn wo-btn--ghost" type="button" data-cfv-close>Cancelar</button>
+            <button class="wo-btn wo-btn--danger" type="button" id="cfv-delete-confirm">Borrar lista</button>
+        </div>
+    </dialog>
+
+    <!-- Diálogo · Mover un guardado a otra lista -->
+    <dialog class="cfv-dialog" id="cfv-dialog-move" aria-labelledby="cfv-move-title">
+        <h2 class="wo-modal-title" id="cfv-move-title">Mover a otra lista</h2>
+        <p class="cfv-dialog-text" id="cfv-move-text"></p>
+        <ul class="cfv-move-lists" id="cfv-move-lists"></ul>
+        <form class="cfv-move-new" id="cfv-move-form" novalidate>
+            <label class="wo-label" for="cfv-move-input">O crea una lista nueva</label>
+            <div class="cfv-move-new-row">
+                <input class="wo-input" type="text" id="cfv-move-input" maxlength="60" autocomplete="off"
+                       placeholder="Nombre de la lista" aria-describedby="cfv-move-error">
+                <button class="wo-btn wo-btn--s" type="submit" id="cfv-move-submit">Crear y mover</button>
+            </div>
+            <p class="cfv-field-error" id="cfv-move-error" role="alert" hidden></p>
+        </form>
+        <div class="wo-modal-actions">
+            <button class="wo-btn wo-btn--ghost" type="button" data-cfv-close>Cancelar</button>
+        </div>
+    </dialog>
+
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <script src="/shared/js/data/artists-repo.js"></script>
+    <script src="/shared/js/data/favorites-repo.js"></script>
+    <script src="/shared/js/wo-favorites-model.js"></script>
+    <script src="/shared/js/wo-favorites.js"></script>
+    <script src="/shared/js/client-favorites.js"></script>
+</body>
+</html>

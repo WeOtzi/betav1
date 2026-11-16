@@ -57,7 +57,7 @@ test('contacto: normalizeWhatsapp limpia separadores, conserva el + y exige form
     for (const bad of ['54 9 11 1234 5678', '+54 9 11', '+1234567', '+1234567890123456', '+54 9 11 1234 5678 ext', '++5491112345678', '+54/9/11/1234/5678']) {
         const result = CM.normalizeWhatsapp(bad);
         assert.equal(result.ok, false, bad);
-        assert.equal(result.error, 'Usá el formato internacional, por ejemplo +54 9 11 1234 5678', bad);
+        assert.equal(result.error, 'Usa el formato internacional, por ejemplo +54 9 11 1234 5678', bad);
     }
     assert.equal(CM.normalizeWhatsapp('+12345678').ok, true, '8 dígitos es el mínimo');
     assert.equal(CM.normalizeWhatsapp('+123456789012345').ok, true, '15 dígitos es el máximo');
@@ -241,9 +241,9 @@ test('runtime: validación de Instagram vía endpoint, WoDemo.api o fetch con Be
     assert.match(render, /La validación de Instagram se habilita pronto\. Mientras tanto tus fotos importadas se muestran como hasta ahora\./);
     assert.match(render, /no se muestran en tu perfil público hasta que valides/);
     assert.match(render, /Generar código/);
-    assert.match(render, /Revisá tu correo <strong>\$\{esc\(ig\.email_masked\)\}<\/strong>/);
-    assert.match(render, /seguí a <strong>@weotzi<\/strong>/);
-    assert.match(render, /Mandá el código por mensaje directo a <strong>@weotzi<\/strong>/);
+    assert.match(render, /Revisa tu correo <strong>\$\{esc\(ig\.email_masked\)\}<\/strong>/);
+    assert.match(render, /sigue a <strong>@weotzi<\/strong>/);
+    assert.match(render, /Manda el código por mensaje directo a <strong>@weotzi<\/strong>/);
     assert.match(render, /target="_blank" rel="noopener">Abrir @weotzi →<\/a>/);
     assert.match(render, /Reenviar código/);
     assert.match(render, /emailSent \? '' : '<p class="aac-ig-warn"/);
@@ -472,7 +472,7 @@ test('revisión #27: la tarjeta pendiente no dice que mandamos el correo cuando 
 
     const failed = renderIgCard({ ...pending, email_sent: false }).innerHTML;
     assert.doesNotMatch(failed, /te mandamos un código/);
-    assert.match(failed, /<li>Tocá “Reenviar código” y revisá tu correo <strong>la\*\*\*@weotzi\.test<\/strong>: el código empieza con WO-\.<\/li>/);
+    assert.match(failed, /<li>Toca “Reenviar código” y revisa tu correo <strong>la\*\*\*@weotzi\.test<\/strong>: el código empieza con WO-\.<\/li>/);
     assert.match(failed, /role="alert">No pudimos enviarte el correo con el código/);
 
     // El GET no trae email_sent: manda lo que dijo el último POST para ese código.
@@ -481,12 +481,12 @@ test('revisión #27: la tarjeta pendiente no dice que mandamos el correo cuando 
     assert.match(viaPost, /No pudimos enviarte el correo/);
 
     const sent = renderIgCard({ ...pending, email_sent: true }).innerHTML;
-    assert.match(sent, /Revisá tu correo <strong>la\*\*\*@weotzi\.test<\/strong>: te mandamos un código que empieza con WO-\./);
-    assert.doesNotMatch(sent, /No pudimos enviarte|Tocá “Reenviar código” y revisá/);
+    assert.match(sent, /Revisa tu correo <strong>la\*\*\*@weotzi\.test<\/strong>: te mandamos un código que empieza con WO-\./);
+    assert.doesNotMatch(sent, /No pudimos enviarte|Toca “Reenviar código” y revisa/);
     assert.match(sent, /El código vence el \d{1,2} \p{L}+, \d{2}:\d{2}\.<\/p>/u, 'vencimiento en 24 h (#26)');
 
     const noMask = renderIgCard({ ...pending, email_masked: null, email_sent: false }).innerHTML;
-    assert.match(noMask, /<li>Tocá “Reenviar código” y revisá tu correo: el código empieza con WO-\.<\/li>/);
+    assert.match(noMask, /<li>Toca “Reenviar código” y revisa tu correo: el código empieza con WO-\.<\/li>/);
     for (const card of [failed, sent, noMask]) assert.doesNotMatch(card, /[!¡]|a m\./);
 });
 
@@ -498,19 +498,19 @@ test('revisión split #6: después de cambiar el usuario la tarjeta muestra la c
     assert.match(none.innerHTML, /<span class="aac-chip-ok">Validado<\/span>/);
     assert.match(none.innerHTML, /<h2 class="aac-ig-title">Instagram validado · @laura\.old<\/h2>/);
     assert.match(none.innerHTML, /1 foto de otra cuenta sigue pendiente: solo se publican las de @laura\.old\./);
-    assert.match(none.innerHTML, /tu Instagram ahora es <strong>@laura\.tattoo<\/strong> y todavía no está validado\. Validalo para publicar lo que importes desde esa cuenta\./);
+    assert.match(none.innerHTML, /tu Instagram ahora es <strong>@laura\.tattoo<\/strong> y todavía no está validado\. Valídalo para publicar lo que importes desde esa cuenta\./);
     assert.match(none.innerHTML, /data-ig-action="request"\s*>Validar esta cuenta<\/button>/);
     assert.doesNotMatch(none.innerHTML, /Sin validar/);
 
     const expired = renderIgCard({ ...verifiedOld, status: 'expired', expires_at: '2026-10-28T12:00:00Z' });
     assert.match(expired.className, /aac-ig--ok/);
     assert.match(expired.innerHTML, /Instagram validado · @laura\.old/);
-    assert.match(expired.innerHTML, /El código que pediste venció: generá uno nuevo para publicar lo que importes desde esa cuenta\./);
+    assert.match(expired.innerHTML, /El código que pediste venció: genera uno nuevo para publicar lo que importes desde esa cuenta\./);
 
     // Con un código pendiente para la cuenta nueva sigue la tarjeta de pendiente.
     const pending = renderIgCard({ ...verifiedOld, status: 'pending', expires_at: '2026-11-02T03:57:00Z', email_sent: true });
     assert.match(pending.className, /aac-ig--pending/);
-    assert.match(pending.innerHTML, /<h2 class="aac-ig-title">Validá @laura\.tattoo<\/h2>/);
+    assert.match(pending.innerHTML, /<h2 class="aac-ig-title">Valida @laura\.tattoo<\/h2>/);
 
     // Sin una validación previa sigue siendo "Sin validar".
     const never = renderIgCard({ available: true, status: 'none', handle: 'laura.tattoo', verified: false, verified_handle: null, verified_at: null });
@@ -557,7 +557,7 @@ test('revisión split #5: un WhatsApp viejo sin tocar no frena el guardado de Mi
     const edited = profileHarness('11 5555-1234', '11 5555-9999');
     await edited.saveProfile();
     assert.equal(edited.patches.length, 0);
-    assert.equal(edited.dom.$('aac-contact-whatsapp-error').textContent, 'Usá el formato internacional, por ejemplo +54 9 11 1234 5678');
+    assert.equal(edited.dom.$('aac-contact-whatsapp-error').textContent, 'Usa el formato internacional, por ejemplo +54 9 11 1234 5678');
     assert.equal(edited.dom.$('aac-contact-whatsapp').focused, true);
 
     const fixed = profileHarness('11 5555-1234', '+54 9 11 5555 1234');

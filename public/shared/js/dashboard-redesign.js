@@ -41,7 +41,7 @@
     if (!iso) return '';
     var d = new Date(iso); if (isNaN(d)) return '';
     var s = (Date.now() - d.getTime()) / 1000;
-    if (s < 60) return 'Recién';
+    if (s < 60) return 'Hace un momento';
     if (s < 3600) return 'Hace ' + Math.floor(s / 60) + ' min';
     if (s < 86400) return 'Hace ' + Math.floor(s / 3600) + ' h';
     var days = Math.floor(s / 86400);
@@ -113,7 +113,7 @@
   }
 
   /* ===================================================================== *
-   *  HERO — "Buen día, {nombre}. Hoy tenés {n} sesiones programadas."      *
+   *  HERO — "Buen día, {nombre}. Hoy tienes {n} sesiones programadas."      *
    * ===================================================================== */
   function greetingByHour(h) {
     if (h < 12) return 'Buen día';
@@ -137,11 +137,11 @@
     if (todaySessions === null) {
       agendaBit = 'Este es tu panel en We Ötzi.';
     } else if (todaySessions === 0) {
-      agendaBit = 'Hoy tenés <span class="wo-highlight">agenda libre</span>.';
+      agendaBit = 'Hoy tienes <span class="wo-highlight">agenda libre</span>.';
     } else if (todaySessions === 1) {
-      agendaBit = 'Hoy <span class="wo-highlight">tenés 1 sesión</span> programada.';
+      agendaBit = 'Hoy <span class="wo-highlight">tienes 1 sesión</span> programada.';
     } else {
-      agendaBit = 'Hoy <span class="wo-highlight">tenés ' + todaySessions + ' sesiones</span> programadas.';
+      agendaBit = 'Hoy <span class="wo-highlight">tienes ' + todaySessions + ' sesiones</span> programadas.';
     }
     title.innerHTML = hello + '<br>' + agendaBit;
   }
@@ -172,14 +172,14 @@
     }
 
     // La verificación y el nivel los pinta dashboard.js (updateVerificationUI /
-    // updateLevelBadge) sobre los mismos ids; acá solo garantizamos visibilidad.
+    // updateLevelBadge) sobre los mismos ids; aquí solo garantizamos visibilidad.
     var vbadge = $('verification-badge'); if (vbadge) vbadge.style.display = 'inline-flex';
     if (String(artist.embajador || '').toLowerCase() === 'si' || artist.embajador === true) {
       var eb = $('embajador-badge'); if (eb) eb.style.display = 'inline-flex';
     }
 
     // Línea meta "$X / SESIÓN · N ESTILOS · Y AÑOS": dashboard.js llena
-    // #stat-price / #stat-styles / #stat-experience; fallback defensivo acá.
+    // #stat-price / #stat-styles / #stat-experience; fallback defensivo aquí.
     var styles = styleList(artist.styles_array || artist.styles || artist.estilos);
     var ss = $('stat-styles'); if (ss && (ss.textContent === '—' || ss.textContent === '')) ss.textContent = styles.length || '—';
     var se = $('stat-experience'); if (se && (se.textContent === '—' || se.textContent === '')) se.textContent = artist.years_experience || '—';
@@ -187,7 +187,7 @@
   }
 
   /* Figma: "1 ESTILO" en singular. dashboard.js escribe el número en
-     #stat-styles; acá solo concordamos la palabra que lo acompaña. */
+     #stat-styles; aquí solo concordamos la palabra que lo acompaña. */
   function applyStylesWord() {
     var n = $('stat-styles'), w = $('wod-styles-word');
     if (!n || !w) return;
@@ -345,6 +345,24 @@
     var username = artist && String(artist.username || '').replace(/^@/, '').trim();
     return username ? '/artist/profile?artist=' + encodeURIComponent(username) + '#artist-reviews-panel' : null;
   }
+  // Ronda 2 · P26: destino exacto de cada fila. El modelo compartido
+  // (notification-feed-model.js) suma al detalle de la cotización la zona que
+  // anuncia la fila; si todavía no cargó, se pide una vez y se repinta.
+  var activityLinksRequested = false;
+  function activityHref(ev) {
+    var FM = window.WoNotificationFeedModel;
+    if (FM && typeof FM.artistActivityHref === 'function') return FM.artistActivityHref(ev);
+    if (!activityLinksRequested) {
+      activityLinksRequested = true;
+      try {
+        var script = document.createElement('script');
+        script.src = '/shared/js/notification-feed-model.js';
+        script.onload = function () { renderActivity(lastQuotes); };
+        document.head.appendChild(script);
+      } catch (e) { /* sin el modelo queda el enlace al detalle */ }
+    }
+    return (ev && ev.href) || null;
+  }
   function renderActivity(quotes) {
     var sec = $('wod-activity-section'), list = $('wod-activity-list');
     if (!sec || !list) return;
@@ -362,8 +380,10 @@
     if (!events.length) { sec.hidden = true; return; }
     sec.hidden = false;
     list.innerHTML = events.map(function (ev) {
-      var tag = ev.href ? 'a' : 'div';
-      return '<' + tag + ' class="wo-dash-activityrow"' + (ev.href ? ' href="' + esc(ev.href) + '"' : '') + '>' +
+      // P26: el enlace lleva al destino exacto y suma la zona a resaltar (?ver=).
+      var href = activityHref(ev);
+      var tag = href ? 'a' : 'div';
+      return '<' + tag + ' class="wo-dash-activityrow"' + (href ? ' href="' + esc(href) + '"' : '') + '>' +
         '<i data-wo-icon="' + esc(ev.icon) + '" class="wo-icon-18"></i>' +
         '<span class="wo-dash-activitytxt">' + esc(ev.txt) + '</span>' +
         '<span class="wo-dash-activitywhen">' + esc(timeAgo(ev.when)) + '</span>' +
@@ -405,6 +425,14 @@
     if (!user || !window.DashboardLiveModel) return;
     loadActivitySources(lastQuotes, window.DashboardLiveModel.activitySince(new Date()))
       .then(function () { renderActivity(lastQuotes); });
+  });
+  // Un aviso nuevo (wo-notify.js: solicitud, respuesta del cliente, turno…)
+  // recarga cotizaciones y actividad sin esperar a que se recargue la página.
+  var notifyRefreshTimer = 0;
+  document.addEventListener('wo:notify', function () {
+    if (!user) return;
+    clearTimeout(notifyRefreshTimer);
+    notifyRefreshTimer = setTimeout(function () { loadCotizaciones(); }, 1200);
   });
   function loadCotizaciones() {
     return withLiveTimeout(WeotziData.Quotations.listForArtist(user.id, { limit: 60 }), 'cotizaciones')
@@ -720,7 +748,7 @@
    *  GALERÍA — la grilla del Figma 2003:862 (nombre + papelera por celda,  *
    *  insignias VIDEO / NUEVO · IG, dropzone SUBIR MÁS · N LIBRES, ★ para   *
    *  destacar y arrastrar para reordenar) la pinta dashboard-gallery.js    *
-   *  desde renderGalleryAdmin(). Acá solo queda el contador "— N" como     *
+   *  desde renderGalleryAdmin(). Aquí solo queda el contador "— N" como     *
    *  respaldo si la grilla cambia por otra vía.                            *
    * ===================================================================== */
   var galleryWatched = false;
@@ -757,7 +785,7 @@
   /* ===================================================================== *
    *  ACTIVIDAD COMPLEMENTARIA + LINKS DEL RAIL (Figma 24:1425)             *
    *  Los recordatorios ahora los maneja dashboard-reminders.js (tabla      *
-   *  artist_reminders). Acá solo queda la actividad extra que vive en      *
+   *  artist_reminders). Aquí solo queda la actividad extra que vive en      *
    *  user_preferences.app_settings.dashboard_activity.                     *
    * ===================================================================== */
   function loadActivityPrefs() {

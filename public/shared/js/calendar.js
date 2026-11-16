@@ -46,7 +46,7 @@
     const HOUR_START = 9;
     const HOUR_END = 21;
     const MONTH_VISIBLE_EVENTS = 3;
-    const QUOTE_HINT = 'Elegí una cotización para asociar este turno al cliente y a su proyecto.';
+    const QUOTE_HINT = 'Elige una cotización para asociar este turno al cliente y a su proyecto.';
     const MANUAL_QUOTE_PATH = '/my-quotations/new';
 
     const state = {
@@ -566,8 +566,11 @@
         const from = startOfMonth(state.currentDate);
         const to = endOfMonth(state.currentDate);
         const inMonth = state.events.filter((event) => overlaps(event, from, to));
+        // P28: una sesión que el cliente todavía no confirmó no es un turno
+        // confirmado: se cuenta aparte.
         return {
-            confirmed: inMonth.filter((event) => event.type === 'confirmed_session').length,
+            confirmed: inMonth.filter((event) => event.type === 'confirmed_session' && !isAwaitingClient(event)).length,
+            awaiting: inMonth.filter(isAwaitingClient).length,
             pending: inMonth.filter((event) => event.type === 'pending_request' || (event.type === 'reservation' && event.status !== 'scheduled')).length,
             blocked: new Set(inMonth
                 .filter((event) => event.type === 'blocked_day' && !event.external)
@@ -579,11 +582,28 @@
         return `${count} ${count === 1 ? singular : pluralForm}`;
     }
 
+    // ── sesiones (ronda 2 · P28) ── sesión propuesta que el cliente todavía no
+    // confirmó (calendar-repo la marca con awaitingClient).
+    function isAwaitingClient(event) {
+        return !!event && event.type === 'confirmed_session' && event.awaitingClient === true;
+    }
+
+    // Etiqueta del tipo para un evento: "Por confirmar" en vez de "Turno
+    // confirmado" mientras el cliente no confirma.
+    function typeLabel(event) {
+        if (isAwaitingClient(event)) return 'Por confirmar';
+        return TYPE_META[event && event.type]?.label || '';
+    }
+
+    function awaitingPhrase(count, separator) {
+        return count > 0 ? `${separator}${plural(count, 'sesión por confirmar', 'sesiones por confirmar')}` : '';
+    }
+
     function updateHeaderSummary() {
-        const { confirmed, pending, blocked } = monthCounters();
+        const { confirmed, awaiting, pending, blocked } = monthCounters();
         // Turnos: booking-summary.js publica la capacidad libre del mes.
         const free = window.WoBookingSummary && window.WoBookingSummary.monthPhrase(window.WoBookingSummary.last);
-        el['calendar-summary'].textContent = `${plural(confirmed, 'turno confirmado', 'turnos confirmados')}, ${plural(pending, 'solicitud esperando respuesta', 'solicitudes esperando respuesta')} y ${plural(blocked, 'día bloqueado', 'días bloqueados')} este mes${free ? ` · ${free}` : ''}.`;
+        el['calendar-summary'].textContent = `${plural(confirmed, 'turno confirmado', 'turnos confirmados')}${awaitingPhrase(awaiting, ', ')}, ${plural(pending, 'solicitud esperando respuesta', 'solicitudes esperando respuesta')} y ${plural(blocked, 'día bloqueado', 'días bloqueados')} este mes${free ? ` · ${free}` : ''}.`;
     }
     document.addEventListener('wo:booking-summary', () => { if (el['calendar-summary'] && state.events) updateHeaderSummary(); });
 
@@ -713,7 +733,7 @@
             }
         }
         const time = event.allDay ? 'Todo el día' : `${formatTime(start)}–${formatTime(end)}`;
-        const eventType = TYPE_META[event.type]?.label || 'Evento';
+        const eventType = typeLabel(event) || 'Evento';
         const timeLabel = isDayView ? `${time} · ${eventType}` : time;
         const client = isDayView && event.clientName
             ? `<small>${escapeHtml(event.clientName)}</small>`
@@ -824,7 +844,7 @@
                     <h3>${escapeHtml(capitalize(dayFormat.format(date)))}</h3>
                     ${rows.map((event) => {
                         const { start, end } = eventDates(event);
-                        const context = [TYPE_META[event.type]?.label, event.location, event.quoteCode].filter(Boolean).join(' · ');
+                        const context = [typeLabel(event), event.location, event.quoteCode].filter(Boolean).join(' · ');
                         return `
                             <button type="button" class="cal-agenda-event ${eventClass(event.type)}${externalClass(event)}" data-event-id="${escapeAttr(event.id)}">
                                 <time>${event.allDay ? 'Todo el día' : `${formatTime(start)}–${formatTime(end)}`}</time>
@@ -855,8 +875,8 @@
             `;
         }).join('') : '<p class="cal-upcoming-empty">Sin próximos eventos en este período.</p>';
 
-        const { confirmed, pending, blocked } = monthCounters();
-        el['upcoming-summary'].textContent = `${pending} ${pending === 1 ? 'pendiente' : 'pendientes'} de confirmar · ${plural(blocked, 'día bloqueado', 'días bloqueados')} · ${plural(confirmed, 'turno confirmado', 'turnos confirmados')} en total.`;
+        const { confirmed, awaiting, pending, blocked } = monthCounters();
+        el['upcoming-summary'].textContent = `${pending} ${pending === 1 ? 'pendiente' : 'pendientes'} de confirmar · ${plural(blocked, 'día bloqueado', 'días bloqueados')} · ${plural(confirmed, 'turno confirmado', 'turnos confirmados')} en total${awaitingPhrase(awaiting, ' · ')}.`;
     }
 
     function onBoardClick(event) {
@@ -1067,7 +1087,7 @@
             <div class="cal-field cal-end-date"${hidden ? ' hidden' : ''}>
                 <label for="event-end-date">Fecha de fin <span class="cal-field-optional">(opcional)</span></label>
                 <input id="event-end-date" name="event-end-date" type="date" value="${escapeAttr(value)}" min="${escapeAttr(dateKey(startDate))}" aria-describedby="event-end-date-hint">
-                <p class="cal-field-hint" id="event-end-date-hint">Dejalo vacío si es un solo día.</p>
+                <p class="cal-field-hint" id="event-end-date-hint">Déjalo vacío si es un solo día.</p>
             </div>
         `;
     }
@@ -1128,12 +1148,39 @@
         `).join(''));
     }
 
+    // ── sesiones (ronda 2 · P27) ── la ubicación sale de las sedes de los
+    // estudios del artista, sus ubicaciones, la que eligió el cliente o una
+    // dirección con el autocompletar de Google Maps (wo-session-flow.js).
+    // #event-location guarda la dirección completa; sin ese módulo queda la
+    // lista de antes.
     function locationSelect() {
+        const flow = window.WoSessionFlow;
+        if (flow && typeof flow.calendarLocationHtml === 'function') return flow.calendarLocationHtml();
         return selectControl('event-location', `
             <option value="Estudio propio">Estudio propio</option>
             <option value="A domicilio">A domicilio</option>
             <option value="Otro estudio">Otro estudio</option>
         `);
+    }
+
+    // Dirección elegida: { location, location_kind, location_ref, location_place_id }.
+    function readLocationChoice() {
+        const flow = window.WoSessionFlow;
+        const picked = flow && typeof flow.readCalendarLocation === 'function' ? flow.readCalendarLocation() : null;
+        if (picked) return picked;
+        return { location: document.getElementById('event-location')?.value || 'Estudio propio' };
+    }
+
+    // Carga las ubicaciones reales en el selector (y las de la cotización elegida).
+    function mountLocationOptions(savedLocation) {
+        const flow = window.WoSessionFlow;
+        if (!flow || typeof flow.mountCalendarLocation !== 'function' || !document.getElementById('event-location')) return;
+        // savedLocation undefined = solo cambió la cotización: se conserva lo elegido.
+        flow.mountCalendarLocation({
+            quoteId: state.selectedQuote?.quote_id || null,
+            value: savedLocation,
+            onChange: () => updateFormSummary(),
+        });
     }
 
     function toggleField(name, title, copy, checked) {
@@ -1188,14 +1235,14 @@
                         <input id="event-quote-search" type="text" role="combobox" autocomplete="off"
                                aria-autocomplete="list" aria-expanded="false" aria-controls="quote-listbox"
                                aria-describedby="quote-hint"
-                               placeholder="Buscá por cliente, proyecto o número de cotización"
+                               placeholder="Busca por cliente, proyecto o número de cotización"
                                value="${escapeAttr(quoteDisplay(quote))}">
                         <input id="event-quote-id" name="event-quote-id" type="hidden" value="${escapeAttr(quote ? quote.id : '')}">
                     </div>
                     <p class="cal-quote-hint" id="quote-hint" hidden>${escapeHtml(QUOTE_HINT)}</p>
                     <div class="cal-quote-listbox" id="quote-listbox" role="listbox" aria-label="Cotizaciones" hidden></div>
                 </div>
-                <p class="cal-quote-create" hidden>¿Todavía no cargaste este trabajo? <a href="${escapeAttr(manualQuoteHref())}">Crear cotización manual</a></p>
+                <p class="cal-quote-create" hidden>¿Todavía no registraste este trabajo? <a href="${escapeAttr(manualQuoteHref())}">Crear cotización manual</a></p>
             </div>
         `;
     }
@@ -1280,7 +1327,7 @@
                 <div class="cal-field-grid">${common.date}${common.time}</div>
                 ${toggleField('event-recurring', 'Se repite', 'Repetir este evento todas las semanas', recurring)}
                 ${untilField(raw, common.startDate, !recurring)}
-                <p class="cal-field-hint cal-client-note">Te avisamos en tus notificaciones a esa hora (y por email si lo tenés activado).</p>
+                <p class="cal-field-hint cal-client-note">Te avisamos en tus notificaciones a esa hora (y por email si lo tienes activado).</p>
                 ${common.notes}
             `;
         } else {
@@ -1305,6 +1352,13 @@
                 location.insertAdjacentHTML('beforeend', `<option value="${escapeAttr(raw.location)}">${escapeHtml(raw.location)}</option>`);
             }
             location.value = raw.location;
+        }
+        // ── sesiones (ronda 2 · P27) ── una sesión trae su dirección guardada; un
+        // turno nuevo arranca con la sede elegida por el cliente o la principal.
+        if (location) {
+            mountLocationOptions(state.editingEvent?.sourceType === 'quotation_session'
+                ? (state.editingEvent.raw?.session?.location || '')
+                : (raw.location || ''));
         }
         syncConditionalFields(state.selectedDate);
         if (state.selectedType === 'confirmed_session') {
@@ -1336,7 +1390,7 @@
                 .catch((error) => {
                     console.warn('[calendar] No se pudieron cargar las cotizaciones:', error);
                     state.quotes = [];
-                    state.quotesError = 'No pudimos cargar tus cotizaciones. Probá de nuevo en un rato.';
+                    state.quotesError = 'No pudimos cargar tus cotizaciones. Prueba de nuevo en un rato.';
                     return state.quotes;
                 })
                 .finally(() => { state.quotesPromise = null; });
@@ -1382,7 +1436,7 @@
             text = `${code} todavía no está aprobada: el turno se guarda como reserva pendiente.`;
             tone = 'warning';
         } else if (isLegacyManualTurno()) {
-            text = 'Este turno no está vinculado a una cotización. Podés vincularlo ahora.';
+            text = 'Este turno no está vinculado a una cotización. Puedes vincularlo ahora.';
         }
         hint.textContent = text;
         hint.dataset.tone = tone;
@@ -1401,7 +1455,7 @@
 
     // "Crear cotización manual" fijo debajo del campo: solo cuando no hay
     // ninguna cotización agendable. Después de intentar guardar sin cotización
-    // el link va dentro del aviso de error (no se repite acá) y en la lista
+    // el link va dentro del aviso de error (no se repite aquí) y en la lista
     // abierta está en el estado vacío.
     function updateQuoteCreate() {
         const create = el['event-fields']?.querySelector('.cal-quote-create');
@@ -1413,7 +1467,7 @@
     }
 
     // Cotización manual desde el calendario: la hoja abre como cita y precarga
-    // la fecha elegida (?origen=cita&fecha=AAAA-MM-DD); Cancelar vuelve acá.
+    // la fecha elegida (?origen=cita&fecha=AAAA-MM-DD); Cancelar vuelve aquí.
     function manualQuoteHref() {
         const params = new URLSearchParams({ origen: 'cita', fecha: dateKey(state.selectedDate || new Date()) });
         return appUrl(`${MANUAL_QUOTE_PATH}?${params.toString()}`);
@@ -1437,7 +1491,7 @@
         if (!groups.length) {
             const message = state.quotes.length
                 ? 'No encontramos cotizaciones con esa búsqueda.'
-                : (state.quotesError || 'Todavía no tenés cotizaciones para vincular.');
+                : (state.quotesError || 'Todavía no tienes cotizaciones para vincular.');
             // Si el aviso de error ya enlaza a crear una cotización manual, el
             // estado vacío no repite el link (un solo acceso visible).
             const errorHasLink = !!el['event-form-error']?.querySelector?.('a');
@@ -1576,11 +1630,12 @@
             client.value = quote.client_full_name || '';
             client.readOnly = true;
         }
-        // Con la cotización elegida desaparece el aviso de "elegí una
+        // Con la cotización elegida desaparece el aviso de "elige una
         // cotización" (y su link) antes de recalcular avisos y accesos.
         el['event-form-error'].textContent = '';
         closeQuotePicker();
         updateQuoteHint();
+        mountLocationOptions(); // ── sesiones ── suma la sede que eligió el cliente de esta cotización
         onFormChanged();
         syncUrl();
     }
@@ -1593,7 +1648,7 @@
         if (!state.selectedType) return null;
         const dateInput = document.getElementById('event-date');
         const selectedDate = parseLocalDate(dateInput?.value);
-        if (!selectedDate) throw new Error('Elegí una fecha válida.');
+        if (!selectedDate) throw new Error('Elige una fecha válida.');
 
         const travel = isTravelOn();
         const allDay = travel || !!document.getElementById('event-all-day')?.checked;
@@ -1638,10 +1693,11 @@
             title = !inputTitle ? 'Guest Spot' : (/^Guest en\s+/i.test(inputTitle) ? inputTitle : `Guest en ${inputTitle}`);
         }
         if (!title && !options.lenient) throw new Error(state.selectedType === 'confirmed_session' || state.selectedType === 'reservation'
-            ? 'Ingresá el nombre del cliente.'
-            : 'Ingresá un título para el evento.');
+            ? 'Ingresa el nombre del cliente.'
+            : 'Ingresa un título para el evento.');
 
         const usesLocation = state.selectedType === 'confirmed_session' || state.selectedType === 'reservation';
+        const locationChoice = usesLocation ? readLocationChoice() : null;
         const payload = {
             event_type: eventType,
             title,
@@ -1649,7 +1705,9 @@
             starts_at: start.toISOString(),
             ends_at: end.toISOString(),
             all_day: allDay,
-            location: usesLocation ? (document.getElementById('event-location')?.value || 'Estudio propio') : null,
+            location: locationChoice ? (locationChoice.location || null) : null,
+            // Origen de la dirección (sede, propia, del cliente o Google Places): viaja con la sesión.
+            location_meta: locationChoice && locationChoice.location_kind ? locationChoice : null,
             notes: document.getElementById('event-notes')?.value.trim() || null,
             status,
             recurrence_rule: recurring ? 'weekly' : 'none',
@@ -1680,12 +1738,12 @@
         // Sin el módulo de vínculos no se puede saber si va como sesión o reserva:
         // una cotización elegida nunca se guarda como evento manual suelto.
         if (state.selectedQuote && !links()) {
-            return 'La vinculación con cotizaciones no está disponible en este momento. No se guardó el turno: recargá la página o quitá la selección para crear un evento manual.';
+            return 'La vinculación con cotizaciones no está disponible en este momento. No se guardó el turno: recarga la página o quita la selección para crear un evento manual.';
         }
         const target = resolveSaveTarget();
-        if (target === 'blocked') return 'Esa cotización no se puede agendar. Elegí otra o creá una cotización manual.';
+        if (target === 'blocked') return 'Esa cotización no se puede agendar. Elige otra o crea una cotización manual.';
         if (!state.selectedQuote && !isLegacyManualTurno() && state.editingEvent?.sourceType !== 'quotation_session') {
-            return 'Elegí la cotización a vincular. Si todavía no existe, creá una cotización manual.';
+            return 'Elige la cotización a vincular. Si todavía no existe, crea una cotización manual.';
         }
         return null;
     }
@@ -1793,7 +1851,7 @@
         } catch (_error) {
             el['summary-time'].textContent = document.getElementById('event-time')?.value || '—';
             el['summary-duration'].textContent = document.getElementById('event-all-day')?.checked ? '1 día' : '1 hora';
-            el['summary-location'].textContent = document.getElementById('event-location')?.value || '—';
+            el['summary-location'].textContent = readLocationChoice().location || '—';
         }
     }
 
@@ -1938,6 +1996,17 @@
         return !!left && !!right && left.getTime() === right.getTime();
     }
 
+    // ¿El guardado cambia el lugar o la duración de la sesión (con la misma fecha
+    // de inicio)? Se compara contra lo que mostraba el editor; una fecha de fin
+    // que no se puede leer no cuenta como cambio.
+    function sessionTermsChanged(event, payload) {
+        const norm = (value) => String(value || '').trim().toLowerCase();
+        const placeChanged = !!payload.location && norm(payload.location) !== norm(event.location);
+        const durationChanged = !!event.end && !!payload.ends_at && !!asDate(event.end) && !!asDate(payload.ends_at)
+            && !sameInstant(event.end, payload.ends_at);
+        return placeChanged || durationChanged;
+    }
+
     async function persist(kind, payload) {
         const Calendar = window.WeotziData.Calendar;
         if (kind === 'session') {
@@ -1954,8 +2023,26 @@
             // Solo un turno vigente pasa a "reprogramado": una sesión realizada
             // (o ausente) conserva su estado aunque se corrija la fecha.
             const rescheduled = isOpenSession(event) && !sameInstant(event.start, payload.starts_at);
-            const result = await Calendar.updateQuoteSession(event.baseId, payload, { rescheduled });
-            if (rescheduled) noticeSession('session_rescheduled', sessionQuoteRef(event, payload), event.baseId);
+            let result;
+            try {
+                result = await Calendar.updateQuoteSession(event.baseId, payload, { rescheduled });
+            } catch (error) {
+                // ── sesiones (ronda 2 · P28) ── el cliente ya la confirmó: el cambio
+                // de fecha, duración o lugar se le pide (la sesión no se toca).
+                const flow = window.WoSessionFlow;
+                if (!flow || typeof flow.needsAgreement !== 'function' || !flow.needsAgreement(error)) throw error;
+                return flow.requestCalendarChange(event, payload);
+            }
+            if (rescheduled) {
+                noticeSession('session_rescheduled', sessionQuoteRef(event, payload), event.baseId);
+            } else if (isOpenSession(event) && sessionTermsChanged(event, payload)) {
+                // Misma fecha, otro lugar u otra duración: para la base es una propuesta
+                // nueva (el cliente la vuelve a confirmar y su pedido de cambio pendiente
+                // queda reemplazado), así que el cliente se entera. El aviso sale con el
+                // estado que ya tiene la sesión: el servidor exige que coincidan.
+                const status = String(event.sessionStatus || '').toLowerCase();
+                noticeSession(status === 'rescheduled' ? 'session_rescheduled' : 'session_scheduled', sessionQuoteRef(event, payload), event.baseId);
+            }
             return result;
         }
         return Calendar.update(event.baseId, state.user.id, payload);
@@ -2028,8 +2115,8 @@
             if (/cotización/i.test(error.message)) {
                 // Sin cotización elegida: el aviso enlaza a crear una manual.
                 el['event-form-error'].innerHTML = escapeHtml(error.message).replace(
-                    'creá una cotización manual',
-                    `<a href="${escapeAttr(manualQuoteHref())}">creá una cotización manual</a>`,
+                    'crea una cotización manual',
+                    `<a href="${escapeAttr(manualQuoteHref())}">crea una cotización manual</a>`,
                 );
                 updateQuoteCreate();
                 renderQuoteListbox();
@@ -2059,8 +2146,10 @@
                         ? `Reserva pendiente guardada · ${payload.quote_code}.`
                         : 'Evento guardado en tu calendario.'));
             } else if (sourceKind === targetKind) {
-                await persistUpdate(targetKind, editing, payload);
-                showToast('Evento actualizado.');
+                const outcome = await persistUpdate(targetKind, editing, payload);
+                showToast(outcome && outcome.requested
+                    ? 'El cliente ya confirmó esta sesión: le pedimos que acepte el cambio. Sigue como estaba hasta que responda.'
+                    : 'Evento actualizado.');
             } else {
                 // Cambió el destino (p. ej. la cotización se aprobó): se crea en
                 // la tabla correcta y se quita la fila anterior, sin duplicar.
@@ -2074,11 +2163,13 @@
             await loadEvents();
         } catch (error) {
             const overlap = error.code === '23P01' || /CALENDAR_OVERLAP|superpone/i.test(error.message || '');
-            el['event-form-error'].textContent = overlap
+            // ── sesiones (ronda 2) ── reglas de sesiones confirmadas o pasadas, explicadas.
+            const sessionRule = !overlap && window.WoSessionFlow?.explain ? window.WoSessionFlow.explain(error) : '';
+            el['event-form-error'].textContent = sessionRule || (overlap
                 ? (/sesi[oó]n con un cliente|cita de estudio|turno/i.test(`${error.details || ''} ${error.message || ''}`)
-                    ? 'Ese horario se superpone con una sesión con un cliente o una cita de estudio. Elegí otro horario o reprogramá la sesión.'
-                    : 'Ese horario se superpone con otro evento. Elegí otro horario o editá el evento existente.')
-                : (error.message || 'No pudimos guardar el evento.');
+                    ? 'Ese horario se superpone con una sesión con un cliente o una cita de estudio. Elige otro horario o reprograma la sesión.'
+                    : 'Ese horario se superpone con otro evento. Elige otro horario o edita el evento existente.')
+                : (error.message || 'No pudimos guardar el evento.'));
         } finally {
             el['save-event'].disabled = false;
             setSaveLabel('Guardar evento');
@@ -2092,7 +2183,7 @@
         // Una sesión realizada es parte del trabajo entregado: no se cancela
         // desde el calendario (se gestiona en el detalle de la cotización).
         if (isSession && !isOpenSession(editing)) {
-            showToast('Esta sesión ya se registró. Gestionala desde el detalle de la cotización.', true);
+            showToast('Esta sesión ya se registró. Gestiónala desde el detalle de la cotización.', true);
             return;
         }
         const message = isSession
@@ -2118,6 +2209,8 @@
     }
 
     function showToast(message, isError = false) {
+        // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message);
         window.clearTimeout(state.toastTimer);
         el['calendar-toast'].textContent = message;
         el['calendar-toast'].classList.toggle('is-error', !!isError);

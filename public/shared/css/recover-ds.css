@@ -2,7 +2,7 @@
    We Ötzi · Recuperar contraseña — /recover
    Flujo único de recuperación (cliente + artista + beta) sobre el DS Bauhaus.
    Figma final (oct 2026): 801:1104 → 801:1105 → 801:1106 → 801:1107.
-   Layout: split 680/760 — póster oscuro "RECUPERÁ TU ACCESO" + pasos.
+   Layout: split 680/760 — póster oscuro "RECUPERA TU ACCESO" + pasos.
    Patrones copiados de artist-auth-ds.css (ese archivo no se toca).
    Regla: cero hex sueltos — todo color sale de var(--token). Radius 0.
    ========================================================================== */

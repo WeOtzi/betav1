@@ -11,6 +11,8 @@
     let busy = false;
 
     function showStatus(kind, message, focus) {
+        // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message);
         status.className = 'studio-status studio-status-' + kind;
         status.textContent = message;
         status.hidden = false;
@@ -44,8 +46,8 @@
         if (withCode) $('recovery-email').value = email || '';
         $('studio-login-title').textContent = withCode ? 'Recuperar acceso' : 'Nueva contraseña';
         $('studio-login-copy').textContent = withCode
-            ? 'Ingresá el código recibido por correo y elegí una contraseña nueva.'
-            : 'Elegí una contraseña nueva para recuperar el acceso a tu estudio.';
+            ? 'Ingresa el código recibido por correo y elige una contraseña nueva.'
+            : 'Elige una contraseña nueva para recuperar el acceso a tu estudio.';
         $('poster-login').hidden = true;
         $('poster-recovery').hidden = false;
         $('studio-back-to-login').hidden = false;
@@ -64,7 +66,7 @@
         $('poster-login').hidden = false;
         $('poster-recovery').hidden = true;
         $('studio-login-title').textContent = 'Bienvenido de vuelta';
-        $('studio-login-copy').textContent = 'Ingresá para gestionar tu estudio.';
+        $('studio-login-copy').textContent = 'Ingresa para gestionar tu estudio.';
         $('studio-back-to-login').hidden = true;
         $('have-recovery-code').hidden = false;
         $('studio-magic-link').hidden = false;
@@ -117,8 +119,8 @@
                 return;
             }
             const message = /invalid login credentials/i.test(error?.message || '')
-                ? 'El email o la contraseña no son correctos. Revisá tus datos e intentá nuevamente.'
-                : error?.message || 'No pudimos iniciar sesión. Revisá tus datos.';
+                ? 'El email o la contraseña no son correctos. Revisa tus datos e intenta nuevamente.'
+                : error?.message || 'No pudimos iniciar sesión. Revisa tus datos.';
             showStatus('error', message, true);
             setBusy(button, false);
         }
@@ -162,7 +164,7 @@
         try {
             await auth.requestPasswordReset(email);
             showRecovery(true, email);
-            showStatus('success', 'Revisá tu correo. Ingresá el código recibido o abrí el enlace para elegir una contraseña nueva.');
+            showStatus('success', 'Revisa tu correo. Ingresa el código recibido o abre el enlace para elegir una contraseña nueva.');
         } catch (error) {
             showStatus('error', error?.message || 'No pudimos enviar el email.', true);
         } finally { setBusy(button, false); }
@@ -174,7 +176,7 @@
         clearStatus();
         const emailInput = $('login-email');
         if (!emailInput.value.trim()) {
-            showStatus('info', 'Escribí el email del estudio arriba y te mandamos un link de acceso, sin contraseña.');
+            showStatus('info', 'Escribe el email del estudio arriba y te mandamos un link de acceso, sin contraseña.');
             emailInput.focus();
             return;
         }
@@ -203,13 +205,13 @@
                 linkError,
                 what: isRecoveryLink ? 'link para restablecer la contraseña' : isConfirmLink ? 'link de confirmación' : 'link de acceso',
                 hint: isRecoveryLink
-                    ? 'Escribí tu email y tocá «¿Olvidaste tu contraseña?» para recibir un código nuevo.'
+                    ? 'Escribe tu email y toca «¿Olvidaste tu contraseña?» para recibir un código nuevo.'
                     : isConfirmLink
-                        ? 'Si ya confirmaste tu email, ingresá con tu contraseña. Si no, ingresá igual y te ofrecemos reenviarlo.'
-                        : 'Pedí otro link de acceso o ingresá con tu contraseña.'
+                        ? 'Si ya confirmaste tu email, ingresa con tu contraseña. Si no, ingresa igual y te ofrecemos reenviarlo.'
+                        : 'Pide otro link de acceso o ingresa con tu contraseña.'
             });
         } else {
-            showStatus('error', 'El link venció o ya se usó. Pedí uno nuevo o ingresá con tu contraseña.');
+            showStatus('error', 'El link venció o ya se usó. Pide uno nuevo o ingresa con tu contraseña.');
         }
     }
     // Keep links correct both at /beta and at a branch preview prefix.

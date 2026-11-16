@@ -46,7 +46,7 @@
             render(links, artists);
         } catch (error) {
             console.error('[studio-travel] cargar', error);
-            if (host) host.innerHTML = '<div class="studio-status studio-status-error" role="alert">No pudimos cargar las solicitudes Travel. Volvé a abrir esta sección para intentar nuevamente.</div>';
+            if (host) host.innerHTML = '<div class="studio-status studio-status-error" role="alert">No pudimos cargar las solicitudes Travel. Vuelve a abrir esta sección para intentar nuevamente.</div>';
         } finally {
             loading = false;
             if (host) host.setAttribute('aria-busy', 'false');
@@ -68,7 +68,7 @@
         const host = document.getElementById('studio-travel-links');
         if (!host) return;
         if (!links.length) {
-            host.innerHTML = '<div class="studio-empty"><i data-wo-icon="map-pin" aria-hidden="true"></i><h3 class="studio-item-title">Todavía no hay solicitudes</h3><p class="wo-help">Cuando un artista quiera vincular un viaje con este estudio, aparecerá acá. También vas a ver el historial de solicitudes resueltas.</p></div>';
+            host.innerHTML = '<div class="studio-empty"><i data-wo-icon="map-pin" aria-hidden="true"></i><h3 class="studio-item-title">Todavía no hay solicitudes</h3><p class="wo-help">Cuando un artista quiera vincular un viaje con este estudio, aparecerá aquí. También vas a ver el historial de solicitudes resueltas.</p></div>';
             return;
         }
         host.innerHTML = '<div class="studio-list">' + links.map(function (link) {
@@ -109,7 +109,7 @@
             await load();
         } catch (error) {
             console.error('[studio-travel] resolver', error);
-            showStatus('error', 'No pudimos resolver la solicitud. Verificá que siga pendiente.');
+            showStatus('error', 'No pudimos resolver la solicitud. Verifica que siga pendiente.');
             buttons.forEach(function (item) { item.disabled = false; });
         }
     }

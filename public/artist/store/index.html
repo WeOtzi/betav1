@@ -6,7 +6,7 @@
     <!-- Modo demo + recorrido guiado del artista (debe ir antes de cualquier otro script) -->
     <script src="/shared/js/wo-demo.js?v=20261030-1"></script>
     <title>We Ötzi · Store</title>
-    <meta name="description" content="Tu Store en We Ötzi: vendé merch y diseños con licencia de uso, confirmá pagos y prepará tus pedidos.">
+    <meta name="description" content="Tu Store en We Ötzi: vende merch y diseños con licencia de uso, confirma pagos y prepara tus pedidos.">
     <meta name="robots" content="noindex, nofollow">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -58,7 +58,7 @@
         <section id="ast-gate" class="ast-gate" aria-labelledby="ast-gate-title" hidden>
             <p class="wo-eyebrow">Store</p>
             <h1 class="wo-h1 ast-gate-title" id="ast-gate-title" tabindex="-1">La Store todavía no está habilitada</h1>
-            <p class="wo-body-l ast-gate-text" id="ast-gate-text">Estamos terminando de prepararla. Cuando esté lista, vas a poder vender merch y diseños con licencia desde acá.</p>
+            <p class="wo-body-l ast-gate-text" id="ast-gate-text">Estamos terminando de prepararla. Cuando esté lista, vas a poder vender merch y diseños con licencia desde aquí.</p>
             <div class="ast-gate-actions">
                 <a class="wo-btn wo-btn--ghost" id="ast-gate-action" href="/artist/dashboard">Volver al dashboard →</a>
             </div>
@@ -71,7 +71,7 @@
                 <div class="ast-header-copy">
                     <p class="wo-eyebrow">Store</p>
                     <h1 class="wo-h1 ast-title" id="ast-title" tabindex="-1">Tu Store</h1>
-                    <p class="wo-body-l ast-sub">Vendé merch y diseños con licencia de uso.</p>
+                    <p class="wo-body-l ast-sub">Vende merch y diseños con licencia de uso.</p>
                 </div>
                 <div class="ast-header-actions">
                     <button type="button" class="wo-btn wo-btn--accent wo-btn--hard" id="ast-new-design">
@@ -88,8 +88,8 @@
             <div class="wo-alert wo-alert--warning ast-setup-alert" id="ast-setup-alert" role="status" hidden>
                 <i data-wo-icon="alert-triangle" class="wo-icon-18" aria-hidden="true"></i>
                 <div class="ast-setup-alert-body">
-                    <p class="ast-setup-alert-title">Completá tus Ajustes para empezar a vender</p>
-                    <p id="ast-setup-alert-text">Te faltan las instrucciones de pago y el canal de contacto. Sin eso no podés publicar productos.</p>
+                    <p class="ast-setup-alert-title">Completa tus Ajustes para empezar a vender</p>
+                    <p id="ast-setup-alert-text">Te faltan las instrucciones de pago y el canal de contacto. Sin eso no puedes publicar productos.</p>
                     <button type="button" class="ast-linkbtn" id="ast-setup-alert-go">Ir a Ajustes →</button>
                 </div>
             </div>
@@ -137,7 +137,7 @@
             <!-- Panel · Merch -->
             <section class="ast-panel" role="tabpanel" id="ast-panel-merch" aria-labelledby="ast-tab-merch" tabindex="0" hidden>
                 <div class="ast-panel-head">
-                    <p class="ast-panel-intro">Remeras, prints, stickers y todo lo que despachás vos. Cada producto tiene variantes con su stock.</p>
+                    <p class="ast-panel-intro">Camisetas, prints, stickers y todo lo que despachas tú. Cada producto tiene variantes con su stock.</p>
                 </div>
                 <div class="ast-grid" id="ast-list-merch"></div>
             </section>
@@ -154,7 +154,7 @@
                 <form class="ast-settings" id="ast-settings-form" novalidate>
                     <div class="wo-alert wo-alert--info ast-settings-alert" id="ast-settings-alert" hidden>
                         <i data-wo-icon="info" class="wo-icon-18" aria-hidden="true"></i>
-                        <span id="ast-settings-alert-text">Para publicar necesitás instrucciones de pago y un canal de contacto.</span>
+                        <span id="ast-settings-alert-text">Para publicar necesitas instrucciones de pago y un canal de contacto.</span>
                     </div>
 
                     <fieldset class="ast-fieldset">
@@ -176,8 +176,8 @@
                         <legend class="ast-legend">Cobros</legend>
                         <div class="wo-field">
                             <label class="wo-label" for="ast-set-payment">Instrucciones de pago <span class="req" aria-hidden="true">*</span></label>
-                            <textarea class="wo-textarea" id="ast-set-payment" maxlength="2000" rows="4" placeholder="Ej: Transferí al alias MI.ALIAS y mandame el comprobante por WhatsApp." aria-describedby="ast-set-payment-help ast-set-payment-err"></textarea>
-                            <p class="wo-help" id="ast-set-payment-help">Indicá cómo pagar el monto exacto en la moneda del producto. Quien compra te paga directo a vos y vos confirmás el pago desde Pedidos.</p>
+                            <textarea class="wo-textarea" id="ast-set-payment" maxlength="2000" rows="4" placeholder="Ej: Transfiere al alias MI.ALIAS y mándame el comprobante por WhatsApp." aria-describedby="ast-set-payment-help ast-set-payment-err"></textarea>
+                            <p class="wo-help" id="ast-set-payment-help">Indica cómo pagar el monto exacto en la moneda del producto. Quien compra te paga directo a ti y tú confirmas el pago desde Pedidos.</p>
                             <p class="wo-error-msg" id="ast-set-payment-err" hidden></p>
                         </div>
                     </fieldset>
@@ -190,12 +190,12 @@
                         </div>
                         <div class="wo-field">
                             <label class="wo-label" for="ast-set-returns">Política de cambios y devoluciones</label>
-                            <textarea class="wo-textarea" id="ast-set-returns" maxlength="2000" rows="3" placeholder="Ej: Cambios de talle dentro de los 10 días, con la prenda sin uso."></textarea>
+                            <textarea class="wo-textarea" id="ast-set-returns" maxlength="2000" rows="3" placeholder="Ej: Cambios de talla dentro de los 10 días, con la prenda sin uso."></textarea>
                         </div>
                         <div class="wo-field">
                             <label class="wo-label" for="ast-set-pickup">Dirección de retiro</label>
                             <input type="text" class="wo-input" id="ast-set-pickup" maxlength="300" placeholder="Ej: Av. Corrientes 1234, piso 2 · CABA" aria-describedby="ast-set-pickup-help">
-                            <p class="wo-help" id="ast-set-pickup-help">Privada: solo la ve quien compra con retiro en el estudio, después de que confirmás el pago. Es obligatoria para publicar productos con retiro.</p>
+                            <p class="wo-help" id="ast-set-pickup-help">Privada: solo la ve quien compra con retiro en el estudio, después de que confirmas el pago. Es obligatoria para publicar productos con retiro.</p>
                         </div>
                     </fieldset>
 
@@ -264,7 +264,7 @@
                     <div class="wo-field">
                         <label class="wo-label" for="ast-ed-f-tags">Etiquetas</label>
                         <input type="text" class="wo-input" id="ast-ed-f-tags" placeholder="Ej: fine line, aves, tradicional" aria-describedby="ast-ed-f-tags-help ast-ed-f-tags-err">
-                        <p class="wo-help" id="ast-ed-f-tags-help">Separalas con comas. Hasta 12.</p>
+                        <p class="wo-help" id="ast-ed-f-tags-help">Sepáralas con comas. Hasta 12.</p>
                         <p class="wo-error-msg" id="ast-ed-f-tags-err" hidden></p>
                     </div>
                     <div class="ast-grid2" data-only="design">
@@ -294,7 +294,7 @@
                 <!-- Licencias (diseño) -->
                 <fieldset class="ast-fieldset" data-only="design">
                     <legend class="ast-legend">Licencias</legend>
-                    <p class="wo-help">Activá los niveles que querés ofrecer y ponele precio a cada uno.</p>
+                    <p class="wo-help">Activa los niveles que quieres ofrecer y ponle precio a cada uno.</p>
                     <div class="ast-tiers" id="ast-ed-tiers"></div>
                 </fieldset>
 
@@ -332,7 +332,7 @@
                 <!-- Variantes (merch) -->
                 <fieldset class="ast-fieldset" data-only="merch">
                     <legend class="ast-legend">Variantes y stock</legend>
-                    <p class="wo-help">Talles, colores o modelos. Dejá el stock vacío si no tiene límite. El stock de una variante guardada se ajusta al guardar y, si cambió por una venta, te avisamos.</p>
+                    <p class="wo-help">Tallas, colores o modelos. Deja el stock vacío si no tiene límite. El stock de una variante guardada se ajusta al guardar y, si cambió por una venta, te avisamos.</p>
                     <div class="ast-variants" id="ast-ed-variants"></div>
                     <button type="button" class="wo-btn wo-btn--ghost wo-btn--s" id="ast-ed-variant-add"><i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i>Agregar variante</button>
                 </fieldset>
@@ -342,7 +342,7 @@
                     <legend class="ast-legend">Envío y retiro</legend>
                     <label class="ast-switch">
                         <span class="wo-toggle"><input type="checkbox" id="ast-ed-ship-on" role="switch" aria-describedby="ast-ed-ship-on-err"><span class="knob" aria-hidden="true"></span></span>
-                        <span class="ast-switch-label">Hacés envíos</span>
+                        <span class="ast-switch-label">Haces envíos</span>
                     </label>
                     <div class="ast-subfields" id="ast-ed-ship-fields">
                         <div class="wo-field">
@@ -352,10 +352,10 @@
                             <p class="wo-error-msg" id="ast-ed-f-ship-price-err" hidden></p>
                         </div>
                         <fieldset class="ast-countries-box" aria-describedby="ast-ed-countries-help ast-ed-countries-summary">
-                            <legend class="wo-label">Países a los que enviás</legend>
-                            <p class="wo-help" id="ast-ed-countries-help">Si no marcás ninguno, enviás a cualquier país. Primero van Latinoamérica, España y Estados Unidos; el resto del mundo, debajo.</p>
+                            <legend class="wo-label">Países a los que envías</legend>
+                            <p class="wo-help" id="ast-ed-countries-help">Si no marcas ninguno, envías a cualquier país. Primero van Latinoamérica, España y Estados Unidos; el resto del mundo, debajo.</p>
                             <div class="ast-countries-status">
-                                <p class="wo-meta-s ast-countries-summary" id="ast-ed-countries-summary">Sin países marcados: enviás a cualquier país.</p>
+                                <p class="wo-meta-s ast-countries-summary" id="ast-ed-countries-summary">Sin países marcados: envías a cualquier país.</p>
                                 <button type="button" class="ast-linkbtn" id="ast-ed-countries-clear" hidden>Desmarcar todos</button>
                             </div>
                             <div class="wo-field ast-countries-search">
@@ -395,7 +395,7 @@
             </form>
 
             <footer class="ast-drawer-foot">
-                <p class="wo-meta-s wo-muted ast-foot-hint" id="ast-ed-publish-hint">Completá el checklist para publicar.</p>
+                <p class="wo-meta-s wo-muted ast-foot-hint" id="ast-ed-publish-hint">Completa el checklist para publicar.</p>
                 <div class="ast-foot-actions">
                     <button type="button" class="wo-btn wo-btn--ghost" id="ast-ed-cancel">Cerrar</button>
                     <button type="submit" form="ast-ed-form" class="wo-btn" id="ast-ed-save">Guardar borrador</button>
@@ -424,7 +424,7 @@
     <div class="wo-overlay ast-dialog-overlay" id="ast-dlg-payment" hidden>
         <div class="wo-modal ast-dialog" role="dialog" aria-modal="true" aria-labelledby="ast-pay-title" aria-describedby="ast-pay-intro" tabindex="-1">
             <h2 class="wo-modal-title" id="ast-pay-title">Confirmar pago recibido</h2>
-            <p class="ast-dialog-text" id="ast-pay-intro">Confirmalo solo cuando el dinero ya esté en tu cuenta.</p>
+            <p class="ast-dialog-text" id="ast-pay-intro">Confírmalo solo cuando el dinero ya esté en tu cuenta.</p>
             <dl class="ast-kv" id="ast-pay-summary"></dl>
             <form class="ast-dialog-form" id="ast-pay-form" novalidate>
                 <div class="wo-field">
@@ -448,7 +448,7 @@
     <!-- ============================ DIÁLOGO · CONFIRMACIÓN GENÉRICA ============================ -->
     <div class="wo-overlay ast-dialog-overlay" id="ast-dlg-confirm" hidden>
         <div class="wo-modal ast-dialog" role="alertdialog" aria-modal="true" aria-labelledby="ast-confirm-title" aria-describedby="ast-confirm-message" tabindex="-1">
-            <h2 class="wo-modal-title" id="ast-confirm-title">¿Confirmás?</h2>
+            <h2 class="wo-modal-title" id="ast-confirm-title">¿Confirmas?</h2>
             <p class="ast-dialog-text" id="ast-confirm-message"></p>
             <form class="ast-dialog-form" id="ast-confirm-form" novalidate>
                 <div class="wo-field" id="ast-confirm-field" hidden>

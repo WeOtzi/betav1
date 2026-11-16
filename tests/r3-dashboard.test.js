@@ -168,14 +168,14 @@ test('P14: punto de extensión registerSource (grupo pagos) y fuentes que fallan
     const window = { WeotziData: { run: async () => ({ data: [] }) } };
     const document = { dispatchEvent: (e) => events.push(e) };
     function CustomEvent(type, init) { this.type = type; this.detail = init && init.detail; }
-    window.WoDashboardActivitySources = [{ name: 'temprana', loader: async () => [{ type: 'payment', text: 'Seña', created_at: 'x' }] }];
+    window.WoDashboardActivitySources = [{ name: 'temprana', loader: async () => [{ type: 'payment', text: 'Anticipo', created_at: 'x' }] }];
     vm.runInNewContext(read('public/shared/js/data/dashboard-repo.js'), { window, console: { error() {}, warn() {} }, document, CustomEvent });
     const A = window.WeotziData.DashboardActivity;
     A.registerSource('payments', async (ctx) => [{ type: 'payment', text: 'Pago recibido · ' + ctx.artistId }]);
     A.registerSource('rota', async () => { throw new Error('boom'); });
     assert.equal(events[0].type, 'weotzi:dashboard-activity-refresh');
     const items = await A.loadSources({ artistId: 'a1' });
-    assert.deepEqual(plain(items.map((i) => i.text).sort()), ['Pago recibido · a1', 'Seña']);
+    assert.deepEqual(plain(items.map((i) => i.text).sort()), ['Anticipo', 'Pago recibido · a1']);
 
     const redesign = read('public/shared/js/dashboard-redesign.js');
     assert.match(redesign, /weotzi:dashboard-activity-refresh/);
@@ -208,7 +208,7 @@ test('P16: NoteFiles sube a <artist>/<cotización>/ del bucket privado y valida 
     const window = { WeotziData: { getClient: () => ({ storage: { from: (b) => { assert.equal(b, 'quotation-note-files'); return bucket; } } }) } };
     vm.runInNewContext(read('public/shared/js/data/note-files-repo.js'), { window, console, URL, Date, Math });
     const F = window.WeotziData.NoteFiles;
-    assert.equal(F.validate({ name: 'a.pdf', type: 'application/pdf', size: 10 }), 'Formato no admitido. Subí JPG, PNG, WEBP, GIF o HEIC.');
+    assert.equal(F.validate({ name: 'a.pdf', type: 'application/pdf', size: 10 }), 'Formato no admitido. Sube JPG, PNG, WEBP, GIF o HEIC.');
     assert.equal(F.validate({ name: 'a.png', type: 'image/png', size: 11 * 1024 * 1024 }), 'La imagen pesa más de 10 MB.');
     const p = await F.upload({ name: 'Boceto Final ñ.png', type: 'image/png', size: 100 }, { artistId: 'u1', quotationId: 42 });
     assert.match(p, /^u1\/42\/\d+-[a-z0-9]+-Boceto-Final-n\.png$/);

@@ -20,9 +20,9 @@ bienvenida.
 | Entrada | Qué hace |
 | --- | --- |
 | Último paso del recorrido → **Salir del demo y configurar mi perfil →** | Sale del demo y abre `/artist/account?asistido=1#perfil`. |
-| Menú Ö → **Modo asistido · configurá tu perfil** (o "ver mis pasos" si ya está activo) | Lo activa en el servidor y abre el panel. |
+| Menú Ö → **Modo asistido · configura tu perfil** (o "ver mis pasos" si ya está activo) | Lo activa en el servidor y abre el panel. |
 | `?asistido=1` / `?asistido=0` en cualquier página del artista | Lo activa (apagando el demo si estaba prendido) o lo apaga. El parámetro se borra de la URL después de leerlo, así una recarga no lo reactiva. |
-| × del panel → "¿Salir del modo asistido? Podés retomarlo desde el menú Ö." | Lo apaga en el servidor. Si el servidor no confirma, el panel vuelve. |
+| × del panel → "¿Salir del modo asistido? Puedes retomarlo desde el menú Ö." | Lo apaga en el servidor. Si el servidor no confirma, el panel vuelve. |
 | Cerrar la pantalla de bienvenida | Termina el modo asistido. |
 
 El estado vive en `user_preferences.app_settings.onboarding.assisted`
@@ -34,14 +34,14 @@ El estado vive en `user_preferences.app_settings.onboarding.assisted`
 
 | # | Paso (`id`) | Checks (`id` · obligatorio) | Dónde se hace |
 | --- | --- | --- | --- |
-| 1 | Completá tu perfil (`perfil`) | `banner` · `foto` · `redes` (Instagram, TikTok o web) · `whatsapp` · `email` · `bio` (opcional) | Centro de la cuenta → Mi perfil |
-| 2 | Validá tu Instagram y tu portafolio (`portafolio`) | `trabajos` (≥ 1) · `instagram_validado` · `portafolio_validado` (0 fotos de Instagram pendientes). Mientras la validación no esté habilitada en la base, las dos últimas son opcionales y dicen "(se habilita pronto)". | Centro de la cuenta → Portafolio |
-| 3 | Compartí tu perfil en Instagram (`compartir`) | `enlace_copiado` (opc.) · `bio_copiada` (opc.) · `pegado` | Dentro del panel |
-| 4 | Configurá un medio de retiro (`retiro`) | `destino` (≥ 1 destino de retiro activo). Si el Wallet no está habilitado en la base, el paso queda "no disponible" y se continúa. | Centro de la cuenta → Cobros (We Ötzi Wallet) |
-| 5 | Configurá tu disponibilidad (`disponibilidad`) | `modalidad` (Estudio / Independiente / Ambos) · `estudio` (automático si es independiente) · `horarios` (≥ 1 día con horario guardado) | Centro de la cuenta → Disponibilidad |
-| 6 | Configurá tus notificaciones (`notificaciones`) | `preferencias` (alguna guardada o "Ya lo revisé") | Centro de la cuenta → Notificaciones |
-| 7 | Completá la verificación (`verificacion`) | `identidad` · `domicilio` · `bioseguridad` (opcional) · `solicitud` (verificación pedida). Una cuenta ya verificada lo tiene hecho. | Centro de la cuenta → Verificación |
-| 8 | Completá la configuración (`configuracion`) | `region` (país y zona horaria) · `moneda` · `revisada` (opcional; "Ya lo revisé" completa el paso) | Centro de la cuenta → Configuración |
+| 1 | Completa tu perfil (`perfil`) | `banner` · `foto` · `redes` (Instagram, TikTok o web) · `whatsapp` · `email` · `bio` (opcional) | Centro de la cuenta → Mi perfil |
+| 2 | Valida tu Instagram y tu portafolio (`portafolio`) | `trabajos` (≥ 1) · `instagram_validado` · `portafolio_validado` (0 fotos de Instagram pendientes). Mientras la validación no esté habilitada en la base, las dos últimas son opcionales y dicen "(se habilita pronto)". | Centro de la cuenta → Portafolio |
+| 3 | Comparte tu perfil en Instagram (`compartir`) | `enlace_copiado` (opc.) · `bio_copiada` (opc.) · `pegado` | Dentro del panel |
+| 4 | Configura un medio de retiro (`retiro`) | `destino` (≥ 1 destino de retiro activo). Si el Wallet no está habilitado en la base, el paso queda "no disponible" y se continúa. | Centro de la cuenta → Cobros (We Ötzi Wallet) |
+| 5 | Configura tu disponibilidad (`disponibilidad`) | `modalidad` (Estudio / Independiente / Ambos) · `estudio` (automático si es independiente) · `horarios` (≥ 1 día con horario guardado) | Centro de la cuenta → Disponibilidad |
+| 6 | Configura tus notificaciones (`notificaciones`) | `preferencias` (alguna guardada o "Ya lo revisé") | Centro de la cuenta → Notificaciones |
+| 7 | Completa la verificación (`verificacion`) | `identidad` · `domicilio` · `bioseguridad` (opcional) · `solicitud` (verificación pedida). Una cuenta ya verificada lo tiene hecho. | Centro de la cuenta → Verificación |
+| 8 | Completa la configuración (`configuracion`) | `region` (país y zona horaria) · `moneda` · `revisada` (opcional; "Ya lo revisé" completa el paso) | Centro de la cuenta → Configuración |
 
 Estados de un paso: `done`, `pending`, `skipped` ("LO HAGO DESPUÉS"; se puede
 retomar desde la lista) y `unavailable` (falta una pieza del backend). El paso
@@ -54,12 +54,12 @@ El panel muestra:
 
 - **El enlace al perfil público** (`profile_url`, con el usuario sin `.wo`), con
   "COPIAR ENLACE" y la instrucción "En Instagram: Editar perfil → Enlaces →
-  Agregar enlace externo. Pegá este enlace en el campo URL."
+  Agregar enlace externo. Pega este enlace en el campo URL."
 - **Un mensaje corto para la bio**, elegido al azar entre 20 frases de hasta
-  40 caracteres ("Agendá conmigo en el enlace", "Cotizá fácil desde el enlace",
-  "Pedí tu cotización en el enlace"…). **GENERAR OTRO** cambia el mensaje y
+  40 caracteres ("Agenda conmigo en el enlace", "Cotiza fácil desde el enlace",
+  "Pide tu cotización en el enlace"…). **GENERAR OTRO** cambia el mensaje y
   nunca repite el actual; el enlace no cambia. "COPIAR MENSAJE" y la
-  instrucción "Pegalo al final de tu presentación sin borrar lo que ya tenés."
+  instrucción "Pégalo al final de tu presentación sin borrar lo que ya tienes."
 - "ABRIR INSTAGRAM →" y **YA LO PEGUÉ EN MI INSTAGRAM**, que completa el paso y
   marca `artists_db.ms_profile_shared`.
 
@@ -70,7 +70,7 @@ se puede hacer en We Ötzi (cotizaciones, calendario, job board, spots e
 invitaciones, travel, inbox, estadísticas, wallet), por qué conviene que los
 clientes coticen con We Ötzi (solicitudes completas con referencias, todo
 ordenado con historial, el enlace como cotizador las 24 horas, agenda conectada,
-cobros y señas en el Wallet, reseñas verificadas y soporte del equipo ante
+cobros y anticipos en el Wallet, reseñas verificadas y soporte del equipo ante
 cancelaciones o disputas) y cómo contactar a soporte. Se puede escuchar con la
 misma voz y velocidad del recorrido.
 
@@ -85,7 +85,7 @@ misma voz y velocidad del recorrido.
 - **ESCUCHAR** lee el paso con `WoTour.narrator`; un toque explícito vuelve a
   prender la voz si se había silenciado en el recorrido, y si el navegador no
   puede hablar lo dice en la zona de avisos.
-- En el dashboard ofrece **Probá el modo demo →** mientras la sugerencia del demo
+- En el dashboard ofrece **Prueba el modo demo →** mientras la sugerencia del demo
   esté activa (en celular reemplaza a la tarjeta, que se oculta).
 - Las capas: marco (1370) < panel (1380) < menú Ö (1384–1386) < bienvenida
   (1390) < recorrido (1400).

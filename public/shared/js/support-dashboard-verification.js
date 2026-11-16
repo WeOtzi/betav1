@@ -73,21 +73,21 @@
         emptyDest: 'No hay destinos de retiro en este estado.',
         emptyDocs: 'No hay documentos en este estado.',
         emptySearch: 'Nada coincide con la búsqueda.',
-        unavailable: 'No pudimos leer la cola. Revisá que tu usuario tenga acceso de soporte.',
-        noteReject: 'Escribí el motivo del rechazo (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
+        unavailable: 'No pudimos leer la cola. Revisa que tu usuario tenga acceso de soporte.',
+        noteReject: 'Escribe el motivo del rechazo (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
         noteLong: 'La nota puede tener hasta ' + NOTE_MAX + ' caracteres.',
-        generic: 'No pudimos completar la acción. Probá de nuevo.',
+        generic: 'No pudimos completar la acción. Prueba de nuevo.',
         rpcMissing: 'Falta aplicar la migración 20261112170000 (RPC de soporte).',
         emptyWd: 'No hay retiros en este estado.',
-        refRequired: 'Escribí la referencia de la transferencia (mínimo ' + REF_MIN + ' caracteres).',
+        refRequired: 'Escribe la referencia de la transferencia (mínimo ' + REF_MIN + ' caracteres).',
         refLong: 'La referencia puede tener hasta ' + REF_MAX + ' caracteres.',
-        noteFail: 'Escribí el motivo del fallo (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
+        noteFail: 'Escribe el motivo del fallo (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
         rpcMissingWd: 'Falta aplicar la migración 20261112220000 (liquidar retiros).',
         rpcMissingVerif: 'Falta aplicar la migración 20261115190000 (verificación de artistas).',
         emptyRequests: 'No hay solicitudes de verificación en este estado.',
-        noteDeny: 'Escribí el motivo para denegar (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
-        noteRevoke: 'Escribí el motivo para revocar la verificación (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
-        missingDocs: 'Faltan documentos obligatorios aprobados. Tocá de nuevo para verificar igual.'
+        noteDeny: 'Escribe el motivo para denegar (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
+        noteRevoke: 'Escribe el motivo para revocar la verificación (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
+        missingDocs: 'Faltan documentos obligatorios aprobados. Toca de nuevo para verificar de todos modos.'
     };
 
     // ---------------- helpers puros (testeados en Node) ----------------
@@ -211,15 +211,23 @@
         return doc ? normalizeStatus(doc.status) : 'missing';
     }
 
+    // Texto que escribe la base: las funciones ya aplicadas siguen en voseo y neutral-es.js
+    // lo pasa a tuteo antes de mostrarlo. Sin el módulo cargado el texto queda como vino.
+    function neutral(value) {
+        const N = root && root.WoNeutralEs;
+        return N && typeof N.neutralize === 'function' ? N.neutralize(value) : value;
+    }
+
     function errorText(err) {
         const cause = (err && err.cause) || {};
         const msg = String(cause.message || (err && err.message) || '').replace(/^\[[^\]]+\]\s*/, '');
         if (/support_list_verification_requests|support_set_artist_verification_state|p_note/i.test(msg) && (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202')) return MSG.rpcMissingVerif;
         if (/support_settle_artist_withdrawal/i.test(msg) && (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202')) return MSG.rpcMissingWd;
         if (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202') return MSG.rpcMissing;
-        if (/Ese retiro|referencia/i.test(msg)) return msg;
+        if (/Ese retiro|referencia/i.test(msg)) return neutral(msg);
         if (/Solo soporte|42501|permission denied/i.test(msg) || cause.code === '42501') return 'Tu usuario no tiene acceso de soporte para esta acción.';
-        if (msg && /[áéíóúñ]|Escribí|No encontramos|Decisión|Estado/i.test(msg)) return msg;
+        // Se reconocen el voseo de la base ya aplicada y el tuteo.
+        if (msg && /[áéíóúñ]|Escribí|Escribe|No encontramos|Decisión|Estado/i.test(msg)) return neutral(msg);
         return MSG.generic;
     }
 
@@ -614,12 +622,12 @@ textarea.svq-input{min-height:88px;resize:vertical}
         if (head) head.innerHTML = cols.heads.map((h) => `<div class="header-cell"><span>${esc(h)}</span></div>`).join('');
         const intro = $('svq-intro');
         if (intro) intro.textContent = state.kind === 'requests'
-            ? 'Artistas que pidieron la verificación. Revisá sus documentos y decidí: el artista recibe el resultado por email y en su panel.'
+            ? 'Artistas que pidieron la verificación. Revisa sus documentos y decide: el artista recibe el resultado por email y en su panel.'
             : state.kind === 'destinations'
-            ? 'Verificá que el titular coincida con el artista (y con su documento de identidad) antes de habilitar retiros a ese destino.'
+            ? 'Verifica que el titular coincida con el artista (y con su documento de identidad) antes de habilitar retiros a ese destino.'
             : state.kind === 'withdrawals'
-                ? 'Cuando la transferencia salga, marcá el retiro como pagado con su referencia. Si falla, el monto vuelve al saldo del artista y le llega tu nota.'
-                : 'Revisá cada documento. Si lo rechazás, la nota le llega al artista en Cuenta · Verificación.';
+                ? 'Cuando la transferencia salga, marca el retiro como pagado con su referencia. Si falla, el monto vuelve al saldo del artista y le llega tu nota.'
+                : 'Revisa cada documento. Si lo rechazas, la nota le llega al artista en Cuenta · Verificación.';
         body.setAttribute('aria-busy', state.loading ? 'true' : 'false');
         if (state.loading && !state.loaded) { body.innerHTML = `<div class="svq-empty">${MSG.loading}</div>`; return; }
         if (state.error) { body.innerHTML = `<div class="svq-empty is-error" role="alert">${esc(MSG.unavailable)}</div>`; return; }
@@ -869,7 +877,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
             || '<li>Sin movimientos registrados.</li>';
         const actions = stateActions(current).map((act) => `<button type="button" class="action-btn svq-btn svq-btn--${act.tone}" data-svq-state="${esc(act.state)}"${act.state === 'Yes' ? ` data-svq-ok="${req.ok ? '1' : '0'}"` : ''}>${esc(act.label)}</button>`).join('');
         const helpText = current === 'Yes'
-            ? 'Si revocás la verificación, el perfil deja de mostrar la insignia. El motivo es obligatorio y lo ve el artista.'
+            ? 'Si revocas la verificación, el perfil deja de mostrar la insignia. El motivo es obligatorio y lo ve el artista.'
             : 'Obligatorio para denegar (lo ve el artista por email y en su cuenta). Opcional al verificar.';
         return `<div id="svq-detail" class="svq-detail" data-svq-id="${esc(item.id)}" data-svq-kind="requests">
             <p class="svq-eyebrow">Solicitud de verificación</p>
@@ -1166,7 +1174,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
         }
         const schedule = () => root.setTimeout(() => { if (!state.loaded) refreshBadge(); }, 1500);
         if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', schedule); else schedule();
-        // openArtist: la ficha del artista (support-dashboard.js) abre su solicitud acá.
+        // openArtist: la ficha del artista (support-dashboard.js) abre su solicitud aquí.
         root.SupportVerificationQueue = { refresh: load, open: openDetail, openArtist, isActive: () => active };
     }
 

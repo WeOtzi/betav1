@@ -80,7 +80,7 @@ function renderEyebrow() {
     setText('stats-eyebrow', `ESTADÍSTICAS · ${MONTH_NAMES[period.getMonth()]} ${period.getFullYear()}`);
 }
 
-// Cliente singleton de la capa de datos (config-manager); no se recrea acá.
+// Cliente singleton de la capa de datos (config-manager); no se recrea aquí.
 // Se espera a que ConfigManager termine de leer la configuración (máx. 4 s).
 async function initializeSupabase() {
     if (window.ConfigManager && typeof window.ConfigManager.ready === 'function') {
@@ -377,7 +377,7 @@ function renderKpis() {
     setText('kpi-requests', formatCount(quotations.length));
     renderTrend('kpi-requests-trend', requestsNow, requestsPrev);
 
-    // Cotizaciones enviadas (respondidas por vos)
+    // Cotizaciones enviadas (respondidas por ti)
     const answered = quotations.filter(q => ANSWERED_STATUSES.includes(q.quote_status));
     const answeredNow = inWindow(answered, 'created_at').length;
     const answeredPrev = inPrevious(answered, 'created_at').length;
@@ -1084,7 +1084,7 @@ function renderInsights() {
     }
 
     if (!insights.length) {
-        container.innerHTML = '<p class="stats-empty">Cuando empieces a recibir visitas y solicitudes vas a ver acá tus oportunidades.</p>';
+        container.innerHTML = '<p class="stats-empty">Cuando empieces a recibir visitas y solicitudes vas a ver aquí tus oportunidades.</p>';
         return;
     }
 

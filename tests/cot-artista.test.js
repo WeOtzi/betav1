@@ -118,7 +118,7 @@ test('COT-A-08: una vencida se vuelve a cotizar desde el resumen y el detalle', 
     assert.match(detail, /title: requote \? 'Volver a cotizar' : 'Aceptar y enviar presupuesto'/);
 });
 
-// ------------------------------------------------------------ seña (COT-A-09)
+// ------------------------------------------------------------ anticipo (COT-A-09)
 test('COT-A-09: depositPatch valida el porcentaje y calcula el monto', () => {
     assert.deepEqual(DM.depositPatch('', 1000).patch, { artist_deposit_pct: null, artist_deposit_amount: null });
     assert.deepEqual(DM.depositPatch('0', 1000).patch, { artist_deposit_pct: null, artist_deposit_amount: null });
@@ -127,16 +127,16 @@ test('COT-A-09: depositPatch valida el porcentaje y calcula el monto', () => {
     assert.equal(DM.depositPatch('150', 1000).ok, false);
     assert.equal(DM.depositPatch('-5', 1000).ok, false);
     assert.equal(DM.depositText(30, 300, 'USD'), '30 % · $300');
-    assert.equal(DM.depositText(null, null, 'USD'), 'Sin seña');
+    assert.equal(DM.depositText(null, null, 'USD'), 'Sin anticipo');
     assert.match(DM.historyEvents({ quote_status: 'responded', created_at: '2026-11-01T10:00:00Z', artist_responded_at: '2026-11-02T10:00:00Z', artist_budget_amount: 1000, artist_deposit_pct: 30 }, [], [], [], new Date('2026-11-03'))
-        .map((e) => e.text).join(' | '), /seña 30 %/);
+        .map((e) => e.text).join(' | '), /anticipo 30 %/);
 });
 
-test('COT-A-09: la seña está en los diálogos de respuesta y acuerdo y en el panel de pagos', () => {
+test('COT-A-09: el anticipo está en los diálogos de respuesta y acuerdo y en el panel de pagos', () => {
     const detail = read('public/shared/js/quotation-detail-figma.js');
     assert.equal((detail.match(/\$\{depositField\(q\)\}/g) || []).length, 2, 'respuesta y acuerdo');
     assert.equal((detail.match(/readDeposit\(data\.deposit_pct, value\)/g) || []).length, 2);
-    // Sin fila manual, la seña sale de quotations_db.artist_deposit_*.
+    // Sin fila manual, el anticipo sale de quotations_db.artist_deposit_*.
     const dep = PM.depositRequired(null, { artist_deposit_pct: 30, artist_deposit_amount: 150, artist_budget_currency: 'usd' });
     assert.deepEqual(dep, { amount: 150, currency: 'USD', pct: 30 });
     assert.equal(PM.depositRequired(null, { artist_deposit_amount: null }), null);
@@ -331,12 +331,17 @@ test('COT-A-12: resumen de completada a cliente y artista, solo si está complet
     ]);
     assert.equal(f.sent[0].payload.first_session_date, '2026-11-03T10:00:00Z');
     assert.equal(f.sent[1].payload.quotation_url, `${BASE}/my-quotations/detail?quote=QNabc`);
+    assert.deepEqual(f.sent.map((s) => s.options.actorUserId), [undefined, undefined], 'sin actor conocido no se inventa uno');
+    // EP-02: quien cerró la cotización no recibe el aviso push / in-app de su propia acción.
+    const closed = fakeSend();
+    await notices.notifyQuotationCompleted('QNabc', { useDefaults: false, baseUrl: BASE, sendEmail: closed.sendEmail, readQuote: async () => row, actorUserId: 'cli-1' });
+    assert.deepEqual(closed.sent.map((s) => s.options.actorUserId), ['cli-1', 'cli-1']);
     const g = fakeSend();
     const skip = await notices.notifyQuotationCompleted('QNabc', { useDefaults: false, baseUrl: BASE, sendEmail: g.sendEmail, readQuote: async () => ({ ...row, quote_status: 'artist_completed' }) });
     assert.equal(skip.skipped, true);
     assert.equal(g.sent.length, 0);
     const server = read('server.js');
-    assert.match(server, /await QuotationsRepo\.markCompletedByClient\(quotation\.id, caller\.id, completedAt\);\s*\n[^\n]*cot-artista-notices[^\n]*\n\s*cotNotices\.inBackground\('completed', \(\) => cotNotices\.notifyQuotationCompleted\(quotation\.quote_id/);
+    assert.match(server, /await QuotationsRepo\.markCompletedByClient\(quotation\.id, caller\.id, completedAt\);\s*\n[^\n]*cot-artista-notices[^\n]*\n\s*cotNotices\.inBackground\('completed', \(\) => cotNotices\.notifyQuotationCompleted\(quotation\.quote_id, \{ baseUrl: applicationBase\(req\), actorUserId: caller\.id \}\)/);
 });
 
 test('COT-A-05/20: aviso de sesión valida el evento y manda una copia por rol', async () => {
@@ -375,6 +380,7 @@ test('COT-A-11: el acuerdo se avisa al cliente, solo por el artista y en client_
     const [{ eventId, payload, options }] = f.sent;
     assert.equal(eventId, 'artist_confirmed_agreement');
     assert.equal(options.idempotencyKey, 'agreement:QNabc');
+    assert.equal(options.actorUserId, 'art-1', 'EP-02: el artista que registró el acuerdo no recibe su propio aviso');
     assert.equal(payload.artist_email, '');
     assert.equal(payload.dashboard_url, `${BASE}/client/dashboard`);
     assert.equal(payload.first_session_date, '2026-12-01T18:30:00Z');

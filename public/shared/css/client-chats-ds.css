@@ -155,6 +155,9 @@ body.cch-page{height:100vh;height:100dvh;display:flex;flex-direction:column;over
 .cch-composer .wo-input:focus{padding:var(--field-padding-y) var(--field-padding-x)}
 .cch-send{flex:none}
 .cch-composer-error{padding:0 var(--space-6) var(--space-3);color:var(--status-error-fg);font-size:var(--body-s-size)}
+/* Conversación cerrada (por ejemplo, tras rechazar la propuesta): motivo sobre el redactor. */
+.cch-closed-note{margin:0;padding:0 var(--space-6) var(--space-3);color:var(--text-muted);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.cch-closed-note[hidden]{display:none}
 
 /* ---------- Responsive ---------- */
 @media (max-width:768px){

@@ -81,7 +81,8 @@ test('URLs públicas de referencias y validación para el espejo a Drive', () =>
     assert.equal(cotForm.isOwnReferenceUrl('http://169.254.169.254/latest', SUPA, QID), false);
     assert.equal(cotForm.isOwnReferenceUrl(url, SUPA, 'QN' + '0'.repeat(32)), false);
     const rows = cotForm.attachmentRows(QID, [{ path: p, file_name: 'ref_1_1731600000000.jpg', mime_type: 'image/jpeg' }], SUPA);
-    assert.deepEqual(rows[0], { quotation_id: QID, google_drive_url: url, file_name: 'ref_1_1731600000000.jpg', mime_type: 'image/jpeg', attachment_type: 'reference', status: 'confirmed', sort_order: 1 });
+    // Ronda 2: cada fila lleva la nota de su imagen y la marca de IA.
+    assert.deepEqual(rows[0], { quotation_id: QID, google_drive_url: url, file_name: 'ref_1_1731600000000.jpg', mime_type: 'image/jpeg', attachment_type: 'reference', status: 'confirmed', sort_order: 1, note: null, ai_generated: false });
 });
 
 test('cotización → job_board_requests: estilos como array, rango del tramo y ciudad/país', () => {
@@ -104,7 +105,7 @@ test('cotización → job_board_requests: estilos como array, rango del tramo y 
     assert.deepEqual(cotForm.budgetRange(1234), { min: null, max: 1234 });
 });
 
-test('config pública: nunca expone service account, Gemini, PRESET_PASSWORD ni webhook de referencias', () => {
+test('config pública: nunca expone service account, keys de la IA de imágenes, PRESET_PASSWORD ni webhook de referencias', () => {
     const config = {
         supabase: { url: 'u', anonKey: 'anon' },
         googleDrive: { mainFolderId: 'f', serviceAccountJson: '{"private_key":"x"}' },
@@ -112,14 +113,35 @@ test('config pública: nunca expone service account, Gemini, PRESET_PASSWORD ni 
         registration: { presetPassword: 'hunter2' },
         n8n: { webhookUrl: 'https://n8n/secret', driveFolderId: 'abc', events: [{ id: 'e' }] }
     };
-    const out = cotForm.sanitizePublicConfig(config, { GEMINI_API_KEY: 'k', GOOGLE_DRIVE_FOLDER_ID: 'f', GOOGLE_DRIVE_SERVICE_ACCOUNT: '{}' });
+    const out = cotForm.sanitizePublicConfig(config, { OPENAI_API_KEY: 'sk-openai-secret', GEMINI_API_KEY: 'AIza-env-secret', GOOGLE_DRIVE_FOLDER_ID: 'f', GOOGLE_DRIVE_SERVICE_ACCOUNT: '{}' });
     const json = JSON.stringify(out);
-    assert.doesNotMatch(json, /AIza-secret|hunter2|private_key|n8n\/secret|serviceAccountJson|presetPassword|"apiKey"/);
+    assert.doesNotMatch(json, /AIza-secret|AIza-env-secret|sk-openai-secret|hunter2|private_key|n8n\/secret|serviceAccountJson|presetPassword|"apiKey"/);
     assert.equal(out.gemini.enabled, true);
+    assert.deepEqual(out.aiImages, { enabled: true, provider: 'openai' });
     assert.equal(out.googleDrive.enabled, true);
     assert.deepEqual(out.n8n.events, [{ id: 'e' }]);
     assert.equal(out.supabase.anonKey, 'anon');
     assert.equal(config.gemini.apiKey, 'AIza-secret', 'no muta el original');
+});
+
+test('config pública: gemini.enabled y aiImages reflejan la IA de imágenes configurada en el servidor', () => {
+    const flags = (env, config = {}) => {
+        const out = cotForm.sanitizePublicConfig(config, env);
+        return { gemini: out.gemini.enabled, ai: out.aiImages };
+    };
+    // gemini.enabled conserva el nombre que lee el frontend: vale lo mismo que aiImages.enabled.
+    assert.deepEqual(flags({ OPENAI_API_KEY: 'k' }), { gemini: true, ai: { enabled: true, provider: 'openai' } });
+    // Gemini queda como proveedor heredado, solo si se pide: su clave sola no enciende nada (SCI-09).
+    assert.deepEqual(flags({ GEMINI_API_KEY: 'g' }), { gemini: false, ai: { enabled: false, provider: 'openai' } });
+    assert.deepEqual(flags({ GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'gemini' }), { gemini: true, ai: { enabled: true, provider: 'gemini' } });
+    assert.deepEqual(flags({ OPENAI_API_KEY: 'k', GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'gemini' }), { gemini: true, ai: { enabled: true, provider: 'gemini' } });
+    assert.deepEqual(flags({}), { gemini: false, ai: { enabled: false, provider: 'openai' } });
+    assert.deepEqual(flags({ OPENAI_API_KEY: 'k', AI_IMAGE_PROVIDER: 'off' }), { gemini: false, ai: { enabled: false, provider: 'none' } });
+    // Un "enabled" guardado en el archivo no enciende el botón si el servidor no tiene clave.
+    assert.deepEqual(flags({}, { gemini: { enabled: true, apiKey: 'AIza-x' }, aiImages: { enabled: true, provider: 'x', apiKey: 'sk-x' } }),
+        { gemini: false, ai: { enabled: false, provider: 'openai' } });
+    const kept = cotForm.sanitizePublicConfig({ gemini: { defaultStyle: 'Line art' } }, { OPENAI_API_KEY: 'k' });
+    assert.equal(kept.gemini.defaultStyle, 'Line art', 'el resto de la configuración de estilo se conserva');
 });
 
 test('server.js sirve app-config saneado y ya no copia secretos del .env', () => {
@@ -172,7 +194,7 @@ test('rate limit: por borrador (submission_key) y techo amplio por IP', () => {
     assert.equal(limiters.intakeDraft.keyGenerator({ body: { submission_key: KEY.toUpperCase() }, ip: '1.1.1.1' }), `draft:${KEY}`);
     assert.equal(limiters.intakeDraft.keyGenerator({ body: { submission_key: 'x' }, ip: '1.1.1.1' }), 'ip:ip(1.1.1.1)');
     assert.equal(limiters.intakeIp.keyGenerator({ ip: '2.2.2.2' }), 'ip(2.2.2.2)');
-    assert.match(limiters.intakeDraft.message.error, /Esperá un minuto/);
+    assert.match(limiters.intakeDraft.message.error, /Espera un minuto/);
 });
 
 // ---------------------------------------------------------------------------

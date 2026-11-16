@@ -210,12 +210,12 @@ test('store-catalog.js solo llama métodos que existen en WeotziData.Store, Weot
     }
 });
 
-test('store-catalog.js: copy en voseo sin exclamaciones y navegación terminada en →', () => {
+test('store-catalog.js: copy en tuteo neutro sin exclamaciones y navegación terminada en →', () => {
     const strings = [...catalogCode.matchAll(/'((?:[^'\\\n]|\\.)*)'/g)].map((m) => m[1]);
     for (const s of strings) assert.doesNotMatch(s, /[¡!]/, 'sin exclamaciones: ' + s);
-    for (const copy of ['La Store todavía no está disponible.', 'Explorá artistas →', 'Este artista todavía no publicó diseños ni merch.',
-        'Mirá su portafolio →', 'Ver perfil →', 'Este producto ya no está disponible.', 'Comprar →', 'Este producto es tuyo',
-        'Editarlo en tu Store →', 'Ingresá como artista →', 'Qué incluye']) {
+    for (const copy of ['La Store todavía no está disponible.', 'Explora artistas →', 'Este artista todavía no publicó diseños ni merch.',
+        'Mira su portafolio →', 'Ver perfil →', 'Este producto ya no está disponible.', 'Comprar →', 'Este producto es tuyo',
+        'Editarlo en tu Store →', 'Ingresa como artista →', 'Qué incluye']) {
         assert.ok(catalogSource.includes(copy), 'copy del contrato: ' + copy);
     }
     // Los links de acción (wo-btn) terminan en →.
@@ -237,7 +237,7 @@ global.self = sandbox;
 const Postgrest = require('../public/shared/js/wo-demo-postgrest.js');
 const Fixtures = require('../public/shared/js/wo-demo-fixtures.js');
 
-// La página corre con los globals del navegador; acá, con los del proceso.
+// La página corre con los globals del navegador; aquí, con los del proceso.
 global.WeotziStoreModel = require('../public/shared/js/store-model.js');
 global.WeotziStoreShell = require('../public/shared/js/store-shell.js');
 const C = require('../public/shared/js/store-catalog.js');
@@ -329,11 +329,11 @@ test('filtros: ?tipo= se normaliza y se ignora si no hay de los dos tipos', () =
     assert.equal(C.filterProducts(products, 'todo').length, 3);
 });
 
-test('vitrina vacía: «Este artista todavía no publicó diseños ni merch. Mirá su portafolio →»', () => {
+test('vitrina vacía: «Este artista todavía no publicó diseños ni merch. Mira su portafolio →»', () => {
     const front = demo.front('mara-ink.wo');
     const html = C.storefrontHtml(Object.assign({}, front, { products: [] }), C.viewerFlags(front.seller, VIEWERS.anon), 'todo');
     assert.match(html, /Este artista todavía no publicó diseños ni merch\./);
-    assert.match(html, /href="\/artist\/profile\/\?artist=mara-ink\.wo">Mirá su portafolio →<\/a>/);
+    assert.match(html, /href="\/artist\/profile\/\?artist=mara-ink\.wo">Mira su portafolio →<\/a>/);
     assert.doesNotMatch(html, /data-stc-filter/);
 });
 
@@ -361,7 +361,7 @@ test('precios: la ficha pública trae price_amount; sin él se deduce solo cuand
     assert.equal(C.priceSummary(Object.assign({}, demo.item(P.D1).product, { license_artist_price: null, license_exclusive_price: null })).label, 'USD 35');
     assert.equal(C.pricedProduct(m1s).price_amount, 28000);
     assert.equal(C.kindLine(demo.item(P.D1).product), 'Diseño · Fine line');
-    assert.equal(C.kindLine(m1), 'Merch · Remeras');
+    assert.equal(C.kindLine(m1), 'Merch · Camisetas');
 });
 
 test('precios: la vitrina delega en Model.priceLabel / Model.merchPricing (sin copia local)', () => {
@@ -399,12 +399,12 @@ test('niveles de licencia: radio group con motivo para los no disponibles', () =
     const artistTier = client.find((t) => t.id === 'artist');
     assert.equal(artistTier.code, 'artist_tier_requires_artist');
     assert.equal(artistTier.reason, 'Solo para cuentas de artista');
-    assert.equal(artistTier.link.label, 'Ingresá como artista →');
+    assert.equal(artistTier.link.label, 'Ingresa como artista →');
     assert.match(artistTier.link.href, /^\/artist\/login\?returnTo=/);
 
     const pending = C.tierOptions(d1.product, flagsFor(d1, VIEWERS.pending)).find((t) => t.id === 'artist');
     assert.equal(pending.available, false);
-    assert.match(pending.reason, /Completá tu registro de artista/);
+    assert.match(pending.reason, /Completa tu registro de artista/);
 
     assert.ok(C.tierOptions(d1.product, flagsFor(d1, VIEWERS.artist)).every((t) => t.available), 'artista con registro completo');
 
@@ -416,12 +416,12 @@ test('niveles de licencia: radio group con motivo para los no disponibles', () =
     assert.equal(exclusive.code, 'exclusive_unavailable', 'MD1 ya tiene licencias vendidas');
 
     const html = C.itemHtml(d1, flagsFor(d1, VIEWERS.client), C.initialItemState(d1.product, flagsFor(d1, VIEWERS.client), {}));
-    assert.match(html, /<fieldset class="stc-fieldset stc-tiers"><legend class="stc-legend">Elegí la licencia<\/legend>/);
+    assert.match(html, /<fieldset class="stc-fieldset stc-tiers"><legend class="stc-legend">Elige la licencia<\/legend>/);
     assert.equal((html.match(/type="radio" name="stc-tier"/g) || []).length, 3, 'tres tarjetas de nivel');
     assert.match(html, /id="stc-tier-personal" value="personal" checked aria-describedby="stc-tier-personal-summary">/);
     assert.match(html, /id="stc-tier-artist" value="artist" disabled aria-describedby="stc-tier-artist-summary stc-tier-artist-reason">/);
     assert.match(html, /<label class="stc-tier-label" for="stc-tier-personal">/);
-    assert.match(html, /Solo para cuentas de artista<\/span><a href="\/artist\/login\?returnTo=[^"]+">Ingresá como artista →<\/a>/);
+    assert.match(html, /Solo para cuentas de artista<\/span><a href="\/artist\/login\?returnTo=[^"]+">Ingresa como artista →<\/a>/);
     assert.match(html, /Con la licencia Personal/, 'bullets del nivel elegido');
     assert.match(html, /Términos de la licencia Personal · v2026-10/, 'términos plegables del nivel');
     assert.match(html, /Reglas para todas las licencias/);
@@ -470,7 +470,7 @@ test('ficha de merch: variante, stock, cantidad, totales con envío y retiro, y 
     assert.equal(state.variantId, null, 'con varias variantes en stock no se preelige');
     const none = C.buyState(m1.product, state, flags);
     assert.equal(none.mode, 'blocked');
-    assert.equal(none.hint, 'Elegí un talle para continuar.');
+    assert.equal(none.hint, 'Elige una talla para continuar.');
     assert.equal(none.amount, 'ARS 28.000');
 
     const small = m1.product.variants.find((v) => v.id === V.S);
@@ -478,14 +478,14 @@ test('ficha de merch: variante, stock, cantidad, totales con envío y retiro, y 
     assert.deepEqual(C.variantState(m1.product.variants.find((v) => v.id === V.L)), { available: false, max: 0, note: 'Sin stock' });
     assert.deepEqual(C.variantState(m1.product.variants.find((v) => v.id === V.M)), { available: true, max: 20, note: '' });
     assert.equal(C.variantState({ in_stock: true, low_stock: 1 }).note, 'Queda 1');
-    assert.equal(C.variantLegend(m1.product.variants).label, 'Talle');
+    assert.equal(C.variantLegend(m1.product.variants).label, 'Talla');
 
     const chosen = C.initialItemState(m1.product, flags, { variant: V.S, qty: '9' });
     assert.deepEqual([chosen.variantId, chosen.quantity], [V.S, 4], 'la cantidad se limita al stock');
     const two = C.buyState(m1.product, Object.assign({}, chosen, { quantity: 2 }), flags);
     assert.equal(two.mode, 'buy');
     assert.equal(two.amount, 'ARS 56.000');
-    assert.equal(two.caption, 'Talle S · ARS 28.000 × 2');
+    assert.equal(two.caption, 'Talla S · ARS 28.000 × 2');
     assert.deepEqual(two.rows.map((r) => [r.label, r.value]), [['Total con envío', 'ARS 62.500'], ['Total con retiro', 'ARS 56.000']]);
     assert.equal(two.rows[0].detail, 'Envío ARS 6.500');
     assert.equal(two.href, '/store/checkout/?item=' + P.M1 + '&variant=' + V.S + '&qty=2');
@@ -493,7 +493,7 @@ test('ficha de merch: variante, stock, cantidad, totales con envío y retiro, y 
     assert.equal(C.clampQty(99, Infinity), 20);
 
     const html = C.itemHtml(m1, flags, chosen);
-    assert.match(html, /<legend class="stc-legend">Talle<\/legend>/);
+    assert.match(html, /<legend class="stc-legend">Talla<\/legend>/);
     assert.match(html, new RegExp('value="' + V.S + '" checked>'));
     assert.match(html, new RegExp('value="' + V.L + '" disabled>'), 'sin stock: deshabilitada');
     assert.match(html, /<span class="stc-variant-note">Quedan 4<\/span>/);
@@ -503,7 +503,7 @@ test('ficha de merch: variante, stock, cantidad, totales con envío y retiro, y 
     assert.match(html, /Costo de envío: ARS 6\.500 por pedido\./);
     assert.match(html, /Retiro en el estudio/);
     assert.match(html, /Palermo, Buenos Aires · martes a sábado de 12 a 19 h/, 'nota pública de retiro');
-    assert.match(html, /Pagás en ARS, la moneda que eligió el vendedor\. No convertimos el precio\./);
+    assert.match(html, /Pagas en ARS, la moneda que eligió el vendedor\. No convertimos el precio\./);
 
     const tote = demo.item(P.MM1);
     assert.deepEqual(C.deliveryMethods(tote.product), ['shipping'], 'Mara no ofrece retiro');
@@ -530,9 +530,9 @@ test('ficha: galería accesible con miniaturas y alt', () => {
     const m1 = demo.item(P.M1);
     const html = C.itemHtml(m1, flagsFor(m1, VIEWERS.anon), C.initialItemState(m1.product, flagsFor(m1, VIEWERS.anon), {}));
     assert.match(html, /<section class="stc-gallery" aria-label="Imágenes del producto">/);
-    assert.match(html, /<img class="sts-img" src="\/shared\/assets\/demo\/store\/remera-golondrina\.svg" alt="Remera negra con la golondrina, frente"[^>]*loading="eager"/);
-    assert.match(html, /<div class="stc-thumbs" role="group" aria-label="Elegí una imagen">/);
-    assert.match(html, /data-stc-thumb="0" aria-pressed="true" aria-controls="stc-gallery-main" aria-label="Ver imagen 1 de 2: Remera negra con la golondrina, frente"/);
+    assert.match(html, /<img class="sts-img" src="\/shared\/assets\/demo\/store\/remera-golondrina\.svg" alt="Camiseta negra con la golondrina, frente"[^>]*loading="eager"/);
+    assert.match(html, /<div class="stc-thumbs" role="group" aria-label="Elige una imagen">/);
+    assert.match(html, /data-stc-thumb="0" aria-pressed="true" aria-controls="stc-gallery-main" aria-label="Ver imagen 1 de 2: Camiseta negra con la golondrina, frente"/);
     assert.match(html, /data-stc-thumb="1" aria-pressed="false"/);
     const d1 = demo.item(P.D1);
     const single = C.itemHtml(d1, flagsFor(d1, VIEWERS.anon), C.initialItemState(d1.product, flagsFor(d1, VIEWERS.anon), {}));
@@ -567,9 +567,9 @@ test('el HTML escapa todo dato del servidor', () => {
 });
 
 test('mensajes de página: h1 propio y acción con →', () => {
-    const html = C.messageHtml({ icon: 'package', title: 'Este producto ya no está disponible.', text: 'x', actionLabel: 'Explorá artistas →', actionHref: '/marketplace' });
+    const html = C.messageHtml({ icon: 'package', title: 'Este producto ya no está disponible.', text: 'x', actionLabel: 'Explora artistas →', actionHref: '/marketplace' });
     assert.match(html, /<h1 class="sts-empty-title">Este producto ya no está disponible\.<\/h1>/);
-    assert.match(html, /href="\/marketplace">Explorá artistas →<\/a>/);
+    assert.match(html, /href="\/marketplace">Explora artistas →<\/a>/);
     assert.equal(C.countryList(['AR', 'UY']), 'Argentina y Uruguay');
     assert.equal(C.countryList(['CL', 'ES', 'IT']), 'Chile, España e Italia');
     assert.equal(C.sizeLabel({ design_width_cm: 7.5, design_height_cm: 12 }), '7,5 × 12 cm');

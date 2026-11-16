@@ -362,7 +362,7 @@ test('callback: guarda el refresh token cifrado y marca la integración', async 
     assert.equal('refresh_token_enc' in st, false);
 });
 
-test('callback: rechazos (denegado, state/cookie, scope destildado, sin refresh token)', async () => {
+test('callback: rechazos (denegado, state/cookie, scope desmarcado, sin refresh token)', async () => {
     const db = memoryDb();
     const svc = service(db, fakeGoogle());
     assert.equal((await svc.callback({ error: 'access_denied' }, null)).reason, 'denied');
@@ -434,7 +434,7 @@ test('syncUser: si borraron el evento en Google, lo vuelve a crear', async () =>
     assert.ok(google.calls.filter((c) => c[0] === 'insert').length === 2);
 });
 
-test('syncUser: invalid_grant marca needs_reauth y el job lo saltea', async () => {
+test('syncUser: invalid_grant marca needs_reauth y el job lo omite', async () => {
     const { db, svc } = await connected({}, { refreshError: true });
     // El access token del callback sigue en caché: lo vencemos con un servicio nuevo.
     const svc2 = service(db, fakeGoogle({ refreshError: true }));
@@ -442,7 +442,7 @@ test('syncUser: invalid_grant marca needs_reauth y el job lo saltea', async () =
     assert.equal(r.error, 'invalid_grant');
     const conn = db.state.connections.get(USER);
     assert.equal(conn.needs_reauth, true);
-    assert.match(conn.last_error, /Volvé a conectar/);
+    assert.match(conn.last_error, /Vuelve a conectar/);
     assert.ok(!conn.last_error.includes('REFRESH'));
     assert.deepEqual(await svc2.runAll(), { users: 0, ok: 0, failed: 0 });
     assert.ok(svc);

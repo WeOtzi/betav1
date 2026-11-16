@@ -10,7 +10,7 @@
         ['invitation', 'star', 'Nueva invitación', 'Black Ink Studio te invitó a un Guest Spot.', 'Hace 20 minutos', true, '/artist/invitations'],
         ['booking', 'calendar', 'Reserva confirmada', 'Julieta Sosa confirmó la sesión del 15 de agosto.', 'Hace 1 hora', true, '/calendar'],
         ['application', 'briefcase', 'Nueva postulación', 'Tu solicitud para Ink Society fue aceptada.', 'Hace 3 horas', true, '/artist/applications?tab=spots'],
-        ['reminder', 'calendar', 'Recordatorio', 'Mañana tenés una sesión con Camila Ortiz a las 14:00.', 'Hace 5 horas', true, '/calendar'],
+        ['reminder', 'calendar', 'Recordatorio', 'Mañana tienes una sesión con Camila Ortiz a las 14:00.', 'Hace 5 horas', true, '/calendar'],
         ['expired', 'dollar-sign', 'Cotización vencida', 'Tu cotización a Bruno T. venció sin respuesta.', 'Ayer', false, '/my-quotations'],
         ['counteroffer', 'briefcase', 'Contraoferta recibida', 'Costa Ink Collective propuso nuevas fechas para tu spot.', 'Ayer', false, '/artist/applications?tab=spots'],
         ['studio-message', 'message-circle', 'Nuevo mensaje', 'Estudio Cactus te escribió sobre el guest spot.', 'Hace 2 días', false, '/artist/inbox'],

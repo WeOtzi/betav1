@@ -1,0 +1,147 @@
+/* ============================================================================
+   WE ÖTZI — Favoritos (wo-favorites.js) · ronda 2, P22
+   Corazón de guardar, panel "Guardado en…" / selector de listas y avisos.
+   Lenguaje del DS Bauhaus: borde duro, radio 0, sombra dura solo al pasar el
+   cursor, etiquetas mono en mayúsculas. Solo var(--token): cero hex sueltos.
+   En el teléfono (≤ 600px) el panel es una hoja que sube desde abajo.
+   ========================================================================== */
+
+/* ---------- Corazón que pinta el módulo en un botón vacío ---------- */
+.wo-fav-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);flex:none;box-sizing:border-box;
+  width:var(--control-h-md);height:var(--control-h-md);min-width:var(--tap-target-min);padding:0;margin:0;
+  background:var(--surface-card);color:var(--neutral-500);
+  border:var(--border-strong-width) solid var(--border-strong);border-radius:var(--radius-none);
+  font-family:var(--font-mono);font-size:var(--button-s-size);font-weight:var(--weight-bold);line-height:1;
+  letter-spacing:var(--button-s-track);text-transform:uppercase;cursor:pointer;
+  transition:transform var(--duration-press),box-shadow var(--duration-press)}
+.wo-fav-btn svg{display:block;width:18px;height:18px;flex:none;pointer-events:none}
+.wo-fav-btn:hover{transform:translate(calc(var(--lift-offset) * -1),calc(var(--lift-offset) * -1));box-shadow:var(--shadow-hard-sm)}
+.wo-fav-btn:active{transform:none;box-shadow:var(--shadow-none)}
+.wo-fav-btn:focus{outline:none}
+.wo-fav-btn:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.wo-fav-btn.is-fav{background:var(--neutral-500);border-color:var(--neutral-500);color:var(--accent)}
+.wo-fav-btn.is-fav svg{fill:currentColor}
+.wo-fav-btn[aria-busy="true"]{cursor:progress}
+.wo-fav-btn[hidden]{display:none}
+
+/* Con texto: "Guardar" / "Guardado" (perfiles y fichas) */
+.wo-fav-btn--label{width:auto;padding:0 var(--space-4)}
+.wo-fav-btn-text{white-space:nowrap}
+
+/* Flotante sobre la imagen de una tarjeta (el contenedor es position:relative) */
+.wo-fav-btn--float{position:absolute;top:var(--space-2);right:var(--space-2);z-index:2}
+
+/* Contenedor para sumar un corazón a una tarjeta que es un enlace completo:
+   el botón queda como hermano del <a>, nunca adentro. */
+.wo-fav-host{position:relative;display:flex;min-width:0}
+.wo-fav-host > a{flex:1 1 auto;min-width:0}
+
+/* ---------- Panel anclado al corazón ---------- */
+.wo-fav-pop{
+  position:fixed;z-index:1251;box-sizing:border-box;
+  display:flex;flex-direction:column;gap:var(--space-3);
+  width:min(320px,calc(100vw - 24px));max-height:min(520px,calc(100vh - 24px));overflow:auto;overscroll-behavior:contain;
+  padding:var(--space-4);margin:0;
+  background:var(--surface-card);color:var(--text-body);
+  border:var(--border-strong-width) solid var(--border-strong);border-radius:var(--radius-none);box-shadow:var(--shadow-hard);
+  font-family:var(--font-body);font-size:var(--body-s-size);line-height:var(--body-s-lh);text-align:left}
+.wo-fav-pop:focus{outline:none}
+.wo-fav-pop *{box-sizing:border-box}
+/* Sin corazón de referencia (la página repintó la tarjeta): centrado */
+.wo-fav-pop--center{left:50%;top:50%;transform:translate(-50%,-50%)}
+.wo-fav-pop--sheet{
+  left:0;right:0;bottom:0;top:auto;width:100%;max-height:80vh;
+  padding:var(--space-5) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom,0px));
+  border-width:var(--border-strong-width) 0 0;box-shadow:var(--shadow-none)}
+.wo-fav-scrim{position:fixed;inset:0;z-index:1250;background:color-mix(in srgb,var(--ink) 55%,transparent)}
+
+.wo-fav-pop-head{display:flex;align-items:center;gap:var(--space-3);min-width:0}
+.wo-fav-pop-title{flex:1 1 auto;min-width:0;margin:0;font-family:var(--font-display);font-size:18px;line-height:1.2;color:var(--text-heading);overflow-wrap:anywhere}
+.wo-fav-pop--saved .wo-fav-pop-title{font-family:var(--font-body);font-size:var(--body-s-size);font-weight:var(--weight-bold)}
+.wo-fav-pop-check{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;background:var(--neutral-500);color:var(--accent)}
+.wo-fav-pop-check svg{width:16px;height:16px}
+.wo-fav-pop-x{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;width:var(--control-h-sm);height:var(--control-h-sm);padding:0;
+  background:transparent;color:var(--neutral-500);border:var(--border-hairline) solid var(--border-muted);border-radius:var(--radius-none);cursor:pointer}
+.wo-fav-pop-x:hover{background:var(--surface-input-hover)}
+.wo-fav-pop-x svg{width:16px;height:16px}
+.wo-fav-pop-item{margin:0;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wo-fav-pop-text{margin:0;color:var(--text-body);overflow-wrap:anywhere}
+
+.wo-fav-pop-actions,.wo-fav-pop-foot{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3)}
+.wo-fav-pop-foot{justify-content:space-between;padding-top:var(--space-3);border-top:var(--border-hairline) solid var(--border-subtle)}
+.wo-fav-pop-btn{
+  display:inline-flex;align-items:center;justify-content:center;min-height:var(--control-h-sm);padding:var(--space-2) var(--space-4);
+  background:var(--surface-card);color:var(--neutral-500);
+  border:var(--border-strong-width) solid var(--border-strong);border-radius:var(--radius-none);
+  font-family:var(--font-mono);font-size:var(--button-s-size);font-weight:var(--weight-bold);letter-spacing:var(--button-s-track);
+  text-transform:uppercase;text-decoration:none;white-space:nowrap;cursor:pointer}
+.wo-fav-pop-btn:hover{background:var(--surface-input-hover);text-decoration:none}
+.wo-fav-pop-btn--ink{background:var(--action-primary);border-color:var(--action-primary);color:var(--action-primary-fg)}
+.wo-fav-pop-btn--ink:hover{background:var(--action-primary-hover);border-color:var(--action-primary-hover);color:var(--action-primary-fg)}
+.wo-fav-pop-btn:disabled{background:var(--action-disabled-bg);border-color:var(--action-disabled-bg);color:var(--action-disabled-fg);cursor:not-allowed}
+.wo-app a.wo-fav-pop-btn{color:var(--neutral-500);text-decoration:none}
+.wo-app a.wo-fav-pop-btn--ink,.wo-app a.wo-fav-pop-btn--ink:hover{color:var(--action-primary-fg)}
+.wo-fav-pop-link{font-weight:var(--weight-bold);color:var(--text-link);text-decoration:underline;text-underline-offset:3px}
+.wo-fav-pop-link:hover{color:var(--text-link-hover)}
+.wo-fav-pop-x:focus-visible,.wo-fav-pop-btn:focus-visible,.wo-fav-pop-link:focus-visible,.wo-fav-pop-input:focus-visible,
+.wo-fav-pop-list input:focus-visible,.wo-fav-toast-act:focus-visible,.wo-fav-toast-x:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+
+/* Listas con casilla */
+.wo-fav-pop-lists{display:flex;flex-direction:column;gap:0;max-height:220px;overflow:auto;margin:0;padding:0;list-style:none;
+  border:var(--border-hairline) solid var(--border-subtle)}
+.wo-fav-pop-lists:empty{display:none}
+.wo-fav-pop-lists li + li{border-top:var(--border-hairline) solid var(--border-subtle)}
+.wo-fav-pop-list{display:flex;align-items:center;gap:var(--space-3);min-height:var(--tap-target-min);padding:var(--space-2) var(--space-3);cursor:pointer}
+.wo-fav-pop-list:hover{background:var(--surface-input)}
+.wo-fav-pop-list input{
+  appearance:none;-webkit-appearance:none;flex:none;display:grid;place-content:center;width:22px;height:22px;margin:0;
+  background:var(--white);border:var(--border-strong-width) solid var(--border-strong);border-radius:var(--radius-none);cursor:pointer}
+.wo-fav-pop-list input:checked{background:var(--neutral-500)}
+.wo-fav-pop-list input:checked::before{content:"";width:10px;height:6px;border-left:3px solid var(--accent);border-bottom:3px solid var(--accent);transform:rotate(-45deg) translate(1px,-1px)}
+.wo-fav-pop-list input:disabled{opacity:var(--opacity-muted);cursor:progress}
+.wo-fav-pop-list-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:var(--weight-semibold)}
+.wo-fav-pop-list-count{flex:none;font-family:var(--font-mono);font-size:var(--meta-m-size);color:var(--text-muted)}
+
+/* Crear lista */
+.wo-fav-pop-new{display:flex;flex-direction:column;gap:var(--space-2);margin:0}
+.wo-fav-pop-label{font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--neutral-500)}
+.wo-fav-pop-new-row{display:flex;gap:var(--space-2);min-width:0}
+.wo-fav-pop-input{
+  flex:1 1 auto;min-width:0;width:100%;min-height:var(--control-h-sm);padding:var(--space-2) var(--space-3);
+  background:var(--surface-input);color:var(--text-body);border:var(--border-hairline) solid var(--border-muted);border-radius:var(--radius-none);
+  font-family:var(--font-body);font-size:16px}
+.wo-fav-pop-input:focus{background:var(--white);border-color:var(--border-focus);outline:none}
+.wo-fav-pop-error{margin:0;color:var(--text-danger);font-size:var(--body-s-size)}
+.wo-fav-pop-error[hidden]{display:none}
+
+/* ---------- Aviso (quitado, guardado pendiente, errores) ---------- */
+.wo-fav-toast{
+  position:fixed;left:50%;bottom:calc(var(--space-6) + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:1252;box-sizing:border-box;
+  display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-2) var(--space-4);
+  width:max-content;max-width:calc(100vw - 24px);padding:var(--space-3) var(--space-4);
+  background:var(--neutral-500);color:var(--white);border:var(--border-strong-width) solid var(--neutral-500);
+  font-family:var(--font-body);font-size:var(--body-s-size);line-height:var(--body-s-lh)}
+.wo-fav-toast--error{background:var(--error-bg);border-color:var(--system-error);color:var(--error-fg)}
+.wo-fav-toast-msg{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.wo-fav-toast-act{
+  flex:none;padding:var(--space-1) 0;background:transparent;border:0;color:var(--accent);cursor:pointer;
+  font-family:var(--font-mono);font-size:var(--button-s-size);font-weight:var(--weight-bold);letter-spacing:var(--button-s-track);
+  text-transform:uppercase;text-decoration:underline;text-underline-offset:3px}
+.wo-app a.wo-fav-toast-act,.wo-app a.wo-fav-toast-act:hover{color:var(--accent)}
+.wo-fav-toast--error .wo-fav-toast-act{color:var(--error-fg)}
+.wo-fav-toast-x{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;padding:0;background:transparent;border:0;color:inherit;cursor:pointer}
+.wo-fav-toast-x svg{width:16px;height:16px}
+
+/* Región viva para lectores de pantalla */
+.wo-fav-live{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;clip:rect(0 0 0 0);overflow:hidden;white-space:nowrap}
+
+@media (max-width:600px){
+  .wo-fav-toast{left:var(--space-3);right:var(--space-3);width:auto;max-width:none;transform:none}
+  .wo-fav-pop-lists{max-height:40vh}
+}
+@media (prefers-reduced-motion:reduce){
+  .wo-fav-btn{transition:none}
+  .wo-fav-btn:hover{transform:none}
+}

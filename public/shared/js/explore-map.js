@@ -1045,7 +1045,7 @@
         var emptyEl = document.getElementById('explore-list-empty');
         if (emptyEl) {
             emptyEl.innerHTML = '<div class="wo-empty-title">No pudimos cargar los artistas</div>'
-                + '<p>Revisá tu conexión y reintentá.</p>'
+                + '<p>Revisa tu conexión y reintenta.</p>'
                 + '<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-explore-retry>Reintentar</button>';
             emptyEl.classList.remove('hidden');
         }

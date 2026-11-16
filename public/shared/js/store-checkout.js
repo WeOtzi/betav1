@@ -265,7 +265,7 @@
         var grand = '<div class="stb-total-row stb-total-row--grand"><dt>Total</dt><dd>' + esc(t.total != null && t.valid && !needsMethod ? M.formatMoney(t.total, t.currency) : '—') + '</dd></div>';
         var hint = '';
         if (!t.valid && t.error) hint = '<p class="stb-text stb-text--s stb-muted">' + esc(summaryHint(t.error)) + '</p>';
-        else if (needsMethod) hint = '<p class="stb-text stb-text--s stb-muted">Elegí cómo querés recibirlo para ver el total.</p>';
+        else if (needsMethod) hint = '<p class="stb-text stb-text--s stb-muted">Elige cómo quieres recibirlo para ver el total.</p>';
         $('stb-summary').innerHTML =
             '<div class="stb-block">' + productSummaryHtml(p, { tier: state.tier, variantLabel: v && v.label }) + '</div>' +
             '<div class="stb-block"><dl class="stb-totals">' + rowsHtml + grand + '</dl>' + hint +
@@ -277,7 +277,7 @@
     // el total se anuncia aparte, en #stb-total-live, solo cuando cambia.
     function totalLiveText(t, needsMethod) {
         var p = state.product;
-        if (needsMethod) return 'Elegí cómo querés recibirlo para ver el total.';
+        if (needsMethod) return 'Elige cómo quieres recibirlo para ver el total.';
         if (!t.valid && t.error) return summaryHint(t.error);
         if (t.total == null) return '';
         var total = 'Total: ' + M.formatMoney(t.total, t.currency);
@@ -296,8 +296,8 @@
     }
 
     function summaryHint(code) {
-        if (code === 'tier_unavailable') return 'Elegí un nivel de licencia para ver el total.';
-        if (code === 'variant_required') return 'Elegí una opción para ver el total.';
+        if (code === 'tier_unavailable') return 'Elige un nivel de licencia para ver el total.';
+        if (code === 'variant_required') return 'Elige una opción para ver el total.';
         return M.errorMessage({ message: 'store:' + code });
     }
 
@@ -348,7 +348,7 @@
             '<legend class="stb-legend">Titular de la licencia</legend>' +
             '<div id="stb-holder-edit">' +
                 inputField({ id: 'stb-holder', label: 'Nombre de quien se tatúa', autocomplete: 'name', maxlength: 120, value: buyerName(),
-                    help: 'Por defecto sos vos. Si es un regalo, poné el nombre de quien lo recibe: figura en el certificado.' }) +
+                    help: 'Por defecto eres tú. Si es un regalo, pon el nombre de quien lo recibe: figura en el certificado.' }) +
             '</div>' +
             '<div id="stb-holder-fixed" hidden>' +
                 '<div class="stb-readonly" aria-describedby="stb-holder-fixed-help"><span class="stb-meta">Titular</span><span>' + esc(artistName) + '</span></div>' +
@@ -367,7 +367,7 @@
     function variantFieldset() {
         var list = variants();
         var opts = '';
-        if (list.length !== 1) opts += '<option value="">Elegí una opción</option>';
+        if (list.length !== 1) opts += '<option value="">Elige una opción</option>';
         list.forEach(function (v) {
             var max = variantMax(v);
             var price = v.price_amount != null && Number(v.price_amount) > 0 ? ' · ' + M.formatMoney(v.price_amount, state.product.currency) : '';
@@ -423,7 +423,7 @@
     function addressFieldset() {
         var p = state.product;
         var countries = countryOptions(p);
-        var countryOpts = (countries.length === 1 ? '' : '<option value="">Elegí el país</option>') + countries.map(function (c) {
+        var countryOpts = (countries.length === 1 ? '' : '<option value="">Elige el país</option>') + countries.map(function (c) {
             return '<option value="' + esc(c.code) + '">' + esc(c.label) + '</option>';
         }).join('');
         var shipsHelp = Array.isArray(p.ships_to_countries) && p.ships_to_countries.length
@@ -455,7 +455,7 @@
         return '<div class="wo-field">' +
             '<label class="wo-label" for="stb-note">' + (isDesign ? 'Nota para el artista (opcional)' : 'Nota para el vendedor (opcional)') + '</label>' +
             '<textarea class="wo-textarea" id="stb-note" name="note" maxlength="1000" rows="3" aria-describedby="stb-note-help"></textarea>' +
-            '<p class="wo-help" id="stb-note-help">' + (isDesign ? 'Por ejemplo, en qué zona del cuerpo lo pensás tatuar.' : 'Por ejemplo, un horario para recibir el envío.') + '</p>' +
+            '<p class="wo-help" id="stb-note-help">' + (isDesign ? 'Por ejemplo, en qué zona del cuerpo lo piensas tatuar.' : 'Por ejemplo, un horario para recibir el envío.') + '</p>' +
         '</div>';
     }
 
@@ -467,17 +467,17 @@
     // valida la RPC (p_terms_version). Revisión legal pendiente.
     function purchaseConditions() {
         return [
-            'Pagás con las instrucciones que vas a ver al confirmar el pedido, por el monto exacto y en la moneda del producto. Tenés 24 horas para pagar o informar el pago; si no, el pedido vence y el stock se libera.',
+            'Pagas con las instrucciones que vas a ver al confirmar el pedido, por el monto exacto y en la moneda del producto. Tienes 24 horas para pagar o informar el pago; si no, el pedido vence y el stock se libera.',
             'El vendedor confirma el pago y después prepara el pedido: te lo despacha con seguimiento o lo deja listo para retirar en el estudio.',
-            'Cuando lo recibas, confirmalo desde Mis compras. Si no lo confirmás, se marca como entregado de forma automática unos días después del envío o de que quedó listo para retirar.',
-            'Para cambios, devoluciones o problemas con el pedido, hablá primero con el vendedor por el contacto que figura en el pedido. Si no se resuelve, escribile a soporte de We Ötzi.'
+            'Cuando lo recibas, confírmalo desde Mis compras. Si no lo confirmas, se marca como entregado de forma automática unos días después del envío o de que quedó listo para retirar.',
+            'Para cambios, devoluciones o problemas con el pedido, habla primero con el vendedor por el contacto que figura en el pedido. Si no se resuelve, escríbele a soporte de We Ötzi.'
         ];
     }
 
     // Aviso cuando un cambio de nivel desmarca los términos que ya se habían aceptado.
     function termsChangedCopy() {
         var meta = tierMeta(state.tier);
-        return 'Cambiaste a la licencia ' + (meta ? meta.label : '') + ': leé y aceptá sus términos.';
+        return 'Cambiaste a la licencia ' + (meta ? meta.label : '') + ': lee y acepta sus términos.';
     }
 
     function termsInnerHtml(opts) {
@@ -490,7 +490,7 @@
         if (p.kind === 'design') {
             var terms = state.tier ? M.termsFor(state.tier, version) : null;
             if (!terms) {
-                return '<p class="stb-text stb-text--s stb-muted">Elegí un nivel de licencia para ver sus términos.</p>';
+                return '<p class="stb-text stb-text--s stb-muted">Elige un nivel de licencia para ver sus términos.</p>';
             }
             summary = 'Leer la licencia ' + tierMeta(state.tier).label + ' · v' + version;
             body = '<p>' + esc(terms.intro) + '</p><h3>' + esc(terms.title) + '</h3>' + clausesHtml(terms.clauses) +
@@ -573,10 +573,10 @@
         var help = $('stb-submit-help');
         if (help) {
             help.textContent = p.kind === 'merch'
-                ? 'Al confirmar, apartamos el stock durante 24 horas mientras pagás.'
+                ? 'Al confirmar, apartamos el stock durante 24 horas mientras pagas.'
                 : state.tier === 'exclusive'
-                    ? 'Al confirmar, la exclusiva queda reservada para vos durante 24 horas mientras pagás.'
-                    : 'Al confirmar se crea el pedido. Tenés 24 horas para pagarlo.';
+                    ? 'Al confirmar, la exclusiva queda reservada para ti durante 24 horas mientras pagas.'
+                    : 'Al confirmar se crea el pedido. Tienes 24 horas para pagarlo.';
         }
         renderSummary();
     }
@@ -653,7 +653,7 @@
             return '<li>' + (e.id ? '<a class="stb-link" href="#' + esc(e.id) + '" data-stb-focus="' + esc(e.id) + '">' + esc(e.message) + '</a>' : esc(e.message)) + '</li>';
         }).join('');
         box.innerHTML = '<i data-wo-icon="alert-circle" class="wo-icon-18" aria-hidden="true"></i>' +
-            '<div><p class="stb-text stb-text--s stb-strong">' + esc(intro || 'Revisá estos datos antes de confirmar:') + '</p><ul>' + items + '</ul></div>';
+            '<div><p class="stb-text stb-text--s stb-strong">' + esc(intro || 'Revisa estos datos antes de confirmar:') + '</p><ul>' + items + '</ul></div>';
         box.hidden = false;
         S.hydrateIcons(box);
         try { box.focus({ preventScroll: false }); } catch (e) { box.focus(); }
@@ -661,13 +661,13 @@
 
     function showServerError(err) {
         var code = M.errorCode(err);
-        var message = M.errorMessage(err, 'No pudimos crear el pedido. Probá de nuevo en unos minutos.');
+        var message = M.errorMessage(err, 'No pudimos crear el pedido. Prueba de nuevo en unos minutos.');
         var box = $('stb-form-errors');
         var extra = '';
         if (code === 'pending_order_exists' || code === 'too_many_pending') {
             extra = ' <a class="stb-link" href="' + esc(M.purchasesUrl()) + '">Ver mis compras →</a>';
         } else if (code === 'email_unconfirmed') {
-            extra = ' Después de confirmarlo, volvé a esta página.';
+            extra = ' Después de confirmarlo, vuelve a esta página.';
         } else if (code === 'terms_version_mismatch') {
             extra = ' <button type="button" class="stb-linkbtn" data-stb-reload>Recargar la página</button>';
         }
@@ -697,7 +697,7 @@
         if (p.kind === 'design') {
             var tier = state.tiers.filter(function (t) { return t.id === state.tier; })[0];
             if (!tier || !tier.available) {
-                errors.push({ id: 'stb-tier', message: tier && tier.reason ? tier.reason : 'Elegí un nivel de licencia.' });
+                errors.push({ id: 'stb-tier', message: tier && tier.reason ? tier.reason : 'Elige un nivel de licencia.' });
             }
             var meta = tierMeta(state.tier);
             if (meta && meta.holderEditable) {
@@ -706,12 +706,12 @@
                 out.holderName = holder || null;
             }
         } else {
-            if (!state.variantId) errors.push({ id: 'stb-variant', message: 'Elegí una opción del producto.' });
+            if (!state.variantId) errors.push({ id: 'stb-variant', message: 'Elige una opción del producto.' });
             var v = findVariant(state.variantId);
             var max = v ? variantMax(v) : MAX_QTY;
             if (!(state.quantity >= 1 && state.quantity <= MAX_QTY)) errors.push({ id: 'stb-qty', message: M.ERROR_COPY.invalid_quantity });
             else if (v && state.quantity > max) errors.push({ id: 'stb-qty', message: max > 0 ? 'Quedan ' + max + ' unidades de esta opción.' : M.ERROR_COPY.out_of_stock });
-            if (state.method !== 'shipping' && state.method !== 'pickup') errors.push({ id: 'stb-method', message: 'Elegí cómo querés recibirlo.' });
+            if (state.method !== 'shipping' && state.method !== 'pickup') errors.push({ id: 'stb-method', message: 'Elige cómo quieres recibirlo.' });
             if (state.method === 'shipping') {
                 var check = M.validateShippingAddress(collectAddress(), p);
                 Object.keys(check.errors).forEach(function (key) {
@@ -722,7 +722,7 @@
         }
         var terms = $('stb-terms-accept');
         if (!terms || !terms.checked) {
-            errors.push({ id: 'stb-terms-accept', message: p.kind === 'design' ? 'Aceptá los términos de la licencia para seguir.' : 'Aceptá las condiciones de compra para seguir.' });
+            errors.push({ id: 'stb-terms-accept', message: p.kind === 'design' ? 'Acepta los términos de la licencia para seguir.' : 'Acepta las condiciones de compra para seguir.' });
         }
         var t = totals();
         if (!errors.length && !t.valid && t.error) errors.push({ id: null, message: M.errorMessage({ message: 'store:' + t.error }) });
@@ -802,7 +802,7 @@
         var manual = !order.payment_provider || order.payment_provider === 'manual';
         var contact = order.seller_contact
             ? '<div class="stb-block"><h3 class="stb-block-title">Contacto del vendedor</h3><p class="stb-text">' + esc(order.seller_contact) + '</p>' +
-              '<p class="stb-text stb-text--s stb-muted">Escribile con el número de pedido si tenés dudas sobre el pago o la entrega.</p></div>'
+              '<p class="stb-text stb-text--s stb-muted">Escríbele con el número de pedido si tienes dudas sobre el pago o la entrega.</p></div>'
             : '';
         // Vencido: ya no se puede pagar (store_apply_order_payment lo rechaza
         // sin pago informado), así que no se muestran las instrucciones.
@@ -816,12 +816,12 @@
             return '<div class="stb-block"><h2 class="stb-block-title">Pago</h2>' +
                 '<p class="stb-text">Estamos preparando el pago de este pedido. Lo vas a poder completar desde Mis compras en unos minutos.</p></div>';
         }
-        var payTo = view.collector === 'platform' ? 'Le pagás a We Ötzi' : 'Le pagás directo al vendedor';
+        var payTo = view.collector === 'platform' ? 'Le pagas a We Ötzi' : 'Le pagas directo al vendedor';
         var instructions = order.payment_instructions
             ? '<p class="stb-pre">' + esc(order.payment_instructions) + '</p>'
-            : '<p class="stb-text">El vendedor todavía no cargó las instrucciones. Escribile por el contacto de abajo.</p>';
+            : '<p class="stb-text">El vendedor todavía no cargó las instrucciones. Escríbele por el contacto de abajo.</p>';
         return '<div class="stb-block"><h2 class="stb-block-title">Cómo pagar</h2>' +
-                '<p class="stb-block-sub">' + esc(payTo) + '. Pagá el monto exacto: ' + esc(view.totals.totalLabel) + '.</p>' + instructions +
+                '<p class="stb-block-sub">' + esc(payTo) + '. Paga el monto exacto: ' + esc(view.totals.totalLabel) + '.</p>' + instructions +
             '</div>' + contact;
     }
 
@@ -829,8 +829,8 @@
     function overdueBlockHtml(view) {
         if (!view.overdue) return '';
         var text = view.paymentReported
-            ? 'Informaste el pago, pero ' + (view.collector === 'seller' ? 'el vendedor' : 'We Ötzi') + ' no lo confirmó a tiempo. Soporte va a revisar el pedido; si querés, escribile.'
-            : 'Venció el plazo para pagar este pedido. Si ya pagaste, escribile al vendedor con el número de pedido.';
+            ? 'Informaste el pago, pero ' + (view.collector === 'seller' ? 'el vendedor' : 'We Ötzi') + ' no lo confirmó a tiempo. Soporte va a revisar el pedido; si quieres, escríbele.'
+            : 'Venció el plazo para pagar este pedido. Si ya pagaste, escríbele al vendedor con el número de pedido.';
         return '<div class="stb-block" id="stb-report-block"><p class="wo-alert wo-alert--warning">' + esc(text) + '</p></div>';
     }
 
@@ -849,8 +849,8 @@
             '</div>';
         }
         return '<div class="stb-block" id="stb-report-block">' +
-            '<h2 class="stb-block-title">Informá tu pago</h2>' +
-            '<p class="stb-block-sub">Cuando pagues, dejá la referencia del comprobante para que el vendedor lo encuentre rápido.</p>' +
+            '<h2 class="stb-block-title">Informa tu pago</h2>' +
+            '<p class="stb-block-sub">Cuando pagues, deja la referencia del comprobante para que el vendedor lo encuentre rápido.</p>' +
             '<form class="stb-form" id="stb-report-form" novalidate>' +
                 '<div class="wo-field">' +
                     '<label class="wo-label" for="stb-report-ref">Referencia del comprobante</label>' +
@@ -871,7 +871,7 @@
         // para pagar y sin «Ya pagué →»; solo el aviso y el contacto.
         var payable = pending && !view.overdue;
         setHeader('Store · ' + view.numberLabel, 'Pedido creado',
-            payable && !view.paymentReported ? 'Pagalo con las instrucciones de abajo y, cuando lo hagas, informá el comprobante.' : null);
+            payable && !view.paymentReported ? 'Págalo con las instrucciones de abajo y, cuando lo hagas, informa el comprobante.' : null);
         var head = '<div class="stb-block"><div class="stb-done-head">' +
                 '<span class="wo-marks stb-done-marks" aria-hidden="true"><span class="wo-mark-square"></span><span class="wo-mark-circle"></span><span class="wo-mark-triangle"></span></span>' +
                 '<p class="stb-meta">' + esc(view.numberLabel) + ' · <span class="' + esc(view.statusTag) + ' sts-tag-s">' + esc(view.statusLabel) + '</span></p>' +
@@ -902,7 +902,7 @@
         input.classList.remove('wo-input--error');
         input.removeAttribute('aria-invalid');
         if (!ref) {
-            slot.textContent = 'Ingresá la referencia del comprobante.';
+            slot.textContent = 'Ingresa la referencia del comprobante.';
             slot.hidden = false;
             input.classList.add('wo-input--error');
             input.setAttribute('aria-invalid', 'true');
@@ -917,7 +917,7 @@
             renderDone(Object.assign({}, state.order, order || {}, { buyer_payment_reference: (order && order.buyer_payment_reference) || ref }));
         }).catch(function (err) {
             S.setBusy(btn, false);
-            S.notifyError(err, 'No pudimos informar el pago. Probá de nuevo.');
+            S.notifyError(err, 'No pudimos informar el pago. Prueba de nuevo.');
         });
     }
 
@@ -935,9 +935,9 @@
     function loginErrorCopy(error) {
         var msg = String((error && error.message) || '');
         if (/invalid login credentials/i.test(msg)) return 'Email o contraseña incorrectos.';
-        if (/email not confirmed/i.test(msg)) return 'Confirmá tu email antes de ingresar. Revisá tu bandeja de entrada.';
-        if (/rate limit|too many/i.test(msg)) return 'Hiciste muchos intentos seguidos. Esperá unos minutos y probá de nuevo.';
-        return 'No pudimos iniciar sesión. Probá de nuevo.';
+        if (/email not confirmed/i.test(msg)) return 'Confirma tu email antes de ingresar. Revisa tu bandeja de entrada.';
+        if (/rate limit|too many/i.test(msg)) return 'Hiciste muchos intentos seguidos. Espera unos minutos y prueba de nuevo.';
+        return 'No pudimos iniciar sesión. Prueba de nuevo.';
     }
 
     function onLogin(e) {
@@ -947,14 +947,14 @@
         var errorEl = $('stb-login-error');
         errorEl.hidden = true;
         if (!email || !password) {
-            errorEl.textContent = 'Ingresá tu email y tu contraseña.';
+            errorEl.textContent = 'Ingresa tu email y tu contraseña.';
             errorEl.hidden = false;
             (email ? $('stb-login-password') : $('stb-login-email')).focus();
             return;
         }
         var client = S.getClient();
         if (!client || !client.auth || typeof client.auth.signInWithPassword !== 'function') {
-            errorEl.textContent = 'No pudimos conectar con tu cuenta. Probá de nuevo en unos minutos.';
+            errorEl.textContent = 'No pudimos conectar con tu cuenta. Prueba de nuevo en unos minutos.';
             errorEl.hidden = false;
             return;
         }
@@ -987,7 +987,7 @@
     function startCheckout(opts) {
         var p = state.product;
         if (viewerIsSeller()) {
-            showMessage({ icon: 'slash', title: 'No podés comprar tus propios productos.', text: 'Este producto es de tu Store. Lo podés editar desde Mi Store.',
+            showMessage({ icon: 'slash', title: 'No puedes comprar tus propios productos.', text: 'Este producto es de tu Store. Lo puedes editar desde Mi Store.',
                 actionLabel: 'Ir a Mi Store →', actionHref: '/artist/store/' });
             return;
         }
@@ -1001,7 +1001,7 @@
             state.notice = null;
             if (wanted && !wanted.available) {
                 state.tier = null;
-                state.notice = (M.ERROR_COPY[wanted.code] || ('La licencia ' + wanted.label + ' no está disponible.')) + ' Elegí otro nivel.';
+                state.notice = (M.ERROR_COPY[wanted.code] || ('La licencia ' + wanted.label + ' no está disponible.')) + ' Elige otro nivel.';
             } else {
                 state.tier = wanted ? wanted.id : (firstAvailable ? firstAvailable.id : null);
             }
@@ -1024,20 +1024,20 @@
             if (shippingOffered(p)) methods.push('shipping');
             if (pickupOffered(p)) methods.push('pickup');
             if (!methods.length) {
-                showMessage({ icon: 'truck', title: 'Este producto no tiene envío ni retiro disponibles.', text: 'Escribile al vendedor desde su Store para coordinar.',
+                showMessage({ icon: 'truck', title: 'Este producto no tiene envío ni retiro disponibles.', text: 'Escríbele al vendedor desde su Store para coordinar.',
                     actionLabel: 'Volver al producto →', actionHref: M.itemUrl(p.id) });
                 return;
             }
             state.method = methods.length === 1 ? methods[0] : null;
         }
-        setHeader('Store · Checkout', 'Confirmá tu compra', 'Revisá el pedido y confirmalo. Después vas a ver cómo pagarlo.');
+        setHeader('Store · Checkout', 'Confirma tu compra', 'Revisa el pedido y confírmalo. Después vas a ver cómo pagarlo.');
         S.setTitle('Checkout');
         renderFields();
         showState('stb-checkout', { focus: !!(opts && opts.focus) });
     }
 
     function showAuth() {
-        setHeader('Store · Checkout', 'Confirmá tu compra', 'Tu pedido, tu licencia y tus descargas quedan guardados en tu cuenta.');
+        setHeader('Store · Checkout', 'Confirma tu compra', 'Tu pedido, tu licencia y tus descargas quedan guardados en tu cuenta.');
         renderAuthSummary();
         wireAuthLinks();
         showState('stb-auth');
@@ -1046,13 +1046,13 @@
     function loadExistingOrder(orderId) {
         return S.requireSession({ returnTo: S.stripBase(window.location.pathname) + window.location.search }).then(function (session) {
             if (!session) {
-                showMessage({ icon: 'lock', title: 'Ingresá para ver tu pedido.', text: 'Tus pedidos están en tu cuenta.',
-                    actionLabel: 'Ingresá →', actionHref: S.stripBase(S.loginLinks(M.purchasesUrl(orderId)).client) });
+                showMessage({ icon: 'lock', title: 'Ingresa para ver tu pedido.', text: 'Tus pedidos están en tu cuenta.',
+                    actionLabel: 'Ingresa →', actionHref: S.stripBase(S.loginLinks(M.purchasesUrl(orderId)).client) });
                 return;
             }
             return Store.getMyOrder(orderId).then(function (order) {
                 if (!order) {
-                    showMessage({ icon: 'search', title: 'No encontramos ese pedido.', text: 'Puede que sea de otra cuenta. Revisá tus compras.',
+                    showMessage({ icon: 'search', title: 'No encontramos ese pedido.', text: 'Puede que sea de otra cuenta. Revisa tus compras.',
                         actionLabel: 'Ver mis compras →', actionHref: '/store/purchases/' });
                     return;
                 }
@@ -1089,16 +1089,16 @@
         S.mountStoreTopbar('store-topbar', {});
         S.isStoreEnabled().then(function (enabled) {
             if (!enabled) {
-                showMessage({ icon: 'clock', title: 'La Store todavía no está disponible.', text: 'Estamos terminando de prepararla. Volvé a mirarla en unos días.',
-                    actionLabel: 'Explorá artistas →', actionHref: '/marketplace' });
+                showMessage({ icon: 'clock', title: 'La Store todavía no está disponible.', text: 'Estamos terminando de prepararla. Vuelve a mirarla en unos días.',
+                    actionLabel: 'Explora artistas →', actionHref: '/marketplace' });
                 return null;
             }
             var orderId = S.param('pedido');
             if (orderId) return loadExistingOrder(orderId);
             state.params = readParams();
             if (!state.params.item) {
-                showMessage({ icon: 'shopping-bag', title: 'No encontramos qué querés comprar.', text: 'Elegí un diseño o un producto en la Store de un artista y tocá «Comprar».',
-                    actionLabel: 'Explorá artistas →', actionHref: '/marketplace' });
+                showMessage({ icon: 'shopping-bag', title: 'No encontramos qué quieres comprar.', text: 'Elige un diseño o un producto en la Store de un artista y toca «Comprar».',
+                    actionLabel: 'Explora artistas →', actionHref: '/marketplace' });
                 return null;
             }
             return Promise.all([Store.getPublicProduct(state.params.item), S.viewer()]).then(function (res) {
@@ -1107,7 +1107,7 @@
                 if (!bundle || !bundle.product) {
                     ssDel(PARAMS_KEY);
                     showMessage({ icon: 'package', title: 'Este producto ya no está disponible.', text: 'Puede que el artista lo haya pausado o que ya se haya vendido.',
-                        actionLabel: 'Explorá artistas →', actionHref: '/marketplace' });
+                        actionLabel: 'Explora artistas →', actionHref: '/marketplace' });
                     return;
                 }
                 state.bundle = bundle;
@@ -1117,8 +1117,8 @@
             });
         }).catch(function (err) {
             if (window.console) console.error('[store-checkout]', err);
-            showMessage({ icon: 'alert-circle', title: 'No pudimos cargar el checkout.', text: 'Probá de nuevo en unos minutos.',
-                actionLabel: 'Explorá artistas →', actionHref: '/marketplace' });
+            showMessage({ icon: 'alert-circle', title: 'No pudimos cargar el checkout.', text: 'Prueba de nuevo en unos minutos.',
+                actionLabel: 'Explora artistas →', actionHref: '/marketplace' });
         });
     }
 

@@ -76,8 +76,8 @@ test('fecha: min/max (mayor de 18, sin fechas futuras)', () => {
     assert.equal(C.monthInRange(2008, 12, '', max), false);
     assert.equal(C.monthInRange(2008, 11, '', max), true);
     assert.equal(C.yearInRange(2009, '', max), false);
-    assert.equal(C.dateRangeMessage('1926-11-12', max), 'Elegí una fecha entre el 12/11/1926 y el 12/11/2008.');
-    assert.equal(C.dateRangeMessage('', max), 'Elegí una fecha hasta el 12/11/2008.');
+    assert.equal(C.dateRangeMessage('1926-11-12', max), 'Elige una fecha entre el 12/11/1926 y el 12/11/2008.');
+    assert.equal(C.dateRangeMessage('', max), 'Elige una fecha hasta el 12/11/2008.');
 });
 
 test('fecha: aritmética de días y meses', () => {

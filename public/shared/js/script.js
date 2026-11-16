@@ -84,12 +84,12 @@ const SHARED_TATTOO_STYLE_OPTIONS = QUOTATION_SHARED.TATTOO_STYLE_OPTIONS || [
 // fuente de los campos, tipos, opciones y validaciones de cada pregunta.
 const DEFAULT_QUESTIONS_CONFIG = [
     { id: 1, step: 'welcome', type: 'welcome', title: 'Pantalla de Bienvenida', editable: false },
-    { id: 2, step: 'artist-search', type: 'artist-search', title: '¿Con qué artista te querés tatuar?', field: 'artist_username', editable: false },
-    { id: 3, step: 'artist-confirm', type: 'artist-confirm', title: 'Confirmá tu artista', editable: false },
-    { id: 4, step: 'body-part', type: 'body-selector', title: '¿Dónde querés llevarlo?', field: 'tattoo_body_part', editable: false },
-    { id: 5, step: 'description', type: 'textarea', title: '¿Qué querés tatuarte?', field: 'tattoo_idea_description', placeholder: 'Contanos tu idea con el mayor detalle posible…', minLength: 10, maxLength: 1000 },
+    { id: 2, step: 'artist-search', type: 'artist-search', title: '¿Con qué artista te quieres tatuar?', field: 'artist_username', editable: false },
+    { id: 3, step: 'artist-confirm', type: 'artist-confirm', title: 'Confirma tu artista', editable: false },
+    { id: 4, step: 'body-part', type: 'body-selector', title: '¿Dónde quieres llevarlo?', field: 'tattoo_body_part', editable: false },
+    { id: 5, step: 'description', type: 'textarea', title: '¿Qué quieres tatuarte?', field: 'tattoo_idea_description', placeholder: 'Cuéntanos tu idea con el mayor detalle posible…', minLength: 10, maxLength: 1000 },
     {
-        id: 6, step: 'size', type: 'cards', title: '¿Qué tamaño imaginás?', field: 'tattoo_size',
+        id: 6, step: 'size', type: 'cards', title: '¿Qué tamaño imaginas?', field: 'tattoo_size',
         options: SHARED_TATTOO_SIZE_OPTIONS
     },
     {
@@ -100,10 +100,10 @@ const DEFAULT_QUESTIONS_CONFIG = [
         id: 8, step: 'color', type: 'options', title: 'Color', field: 'tattoo_color_type',
         options: ['Full Color', 'Blanco y Negro', 'Escala de Grises', 'Solo Líneas', 'Toques de Color']
     },
-    { id: 9, step: 'references', type: 'file-upload', title: 'Mostranos lo que te inspira', field: 'tattoo_references', optional: true, editable: false },
+    { id: 9, step: 'references', type: 'file-upload', title: 'Muéstranos lo que te inspira', field: 'tattoo_references', optional: true, editable: false },
     { id: 10, step: 'first-tattoo', type: 'boolean', title: '¿Es tu primer tatuaje?', field: 'tattoo_is_first_tattoo' },
     { id: 11, step: 'cover-up', type: 'boolean', title: '¿Es un cover-up?', field: 'tattoo_is_cover_up' },
-    { id: 12, step: 'name', type: 'text', title: '¿Cómo te llamás?', field: 'client_full_name', placeholder: 'Tu nombre completo', minLength: 2 },
+    { id: 12, step: 'name', type: 'text', title: '¿Cómo te llamas?', field: 'client_full_name', placeholder: 'Tu nombre completo', minLength: 2 },
     { id: 13, step: 'email', type: 'email', title: 'Tu correo electrónico', field: 'client_email', placeholder: 'ejemplo@email.com' },
     {
         id: 13.1, step: 'whatsapp', type: 'tel',
@@ -113,19 +113,19 @@ const DEFAULT_QUESTIONS_CONFIG = [
     },
     { id: 13.2, step: 'birth-date', type: 'date', title: '¿Cuál es tu fecha de nacimiento?', field: 'client_birth_date' },
     { id: 14, step: 'instagram', type: 'text', title: 'Tu Instagram', field: 'client_instagram', prefix: '@', optional: true },
-    { id: 14.1, step: 'medical-boolean', type: 'boolean', title: '¿Tenés alguna condición médica?', field: 'client_medical_boolean' },
-    { id: 14.2, step: 'medical-details', type: 'textarea', title: 'Contanos tus condiciones médicas', field: 'client_medical_details', placeholder: 'Describí acá…', minLength: 5, hidden: true },
-    { id: 14.3, step: 'allergies', type: 'textarea', title: '¿Tenés alguna alergia que debamos saber?', field: 'client_allergies', placeholder: 'Ej: alergia al látex, tintas rojas…', optional: true },
-    { id: 15, step: 'city', type: 'text', title: '¿En qué ciudad vivís?', field: 'client_city_residence', placeholder: 'Ciudad, Provincia, País' },
+    { id: 14.1, step: 'medical-boolean', type: 'boolean', title: '¿Tienes alguna condición médica?', field: 'client_medical_boolean' },
+    { id: 14.2, step: 'medical-details', type: 'textarea', title: 'Cuéntanos tus condiciones médicas', field: 'client_medical_details', placeholder: 'Describe aquí…', minLength: 5, hidden: true },
+    { id: 14.3, step: 'allergies', type: 'textarea', title: '¿Tienes alguna alergia que debamos saber?', field: 'client_allergies', placeholder: 'Ej: alergia al látex, tintas rojas…', optional: true },
+    { id: 15, step: 'city', type: 'text', title: '¿En qué ciudad vives?', field: 'client_city_residence', placeholder: 'Ciudad, Provincia, País' },
     { id: 15.5, step: 'travel', type: 'boolean', title: '¿Viajarías para la sesión?', field: 'client_travel_willing', hidden: true },
     { id: 16, step: 'date', type: 'date-range', title: 'Fecha', field: 'client_preferred_date' },
     { id: 17, step: 'budget', type: 'currency', title: 'Presupuesto', field: 'client_budget_amount' },
     {
-        id: 18, step: 'contact-pref', type: 'multi-select', title: '¿Cómo preferís que te contacten?', field: 'client_contact_preference',
+        id: 18, step: 'contact-pref', type: 'multi-select', title: '¿Cómo prefieres que te contacten?', field: 'client_contact_preference',
         options: ['WhatsApp', 'Instagram', 'Email', 'Cualquiera']
     },
-    { id: 18.1, step: 'rec-preference', type: 'boolean', title: '¿Querés que te recomendemos otros artistas?', field: 'artist_rec_preference', hidden: true },
-    { id: 18.5, step: 'artist-recommendations', type: 'artist-recommendations', title: 'Recomendaciones para vos', editable: false },
+    { id: 18.1, step: 'rec-preference', type: 'boolean', title: '¿Quieres que te recomendemos otros artistas?', field: 'artist_rec_preference', hidden: true },
+    { id: 18.5, step: 'artist-recommendations', type: 'artist-recommendations', title: 'Recomendaciones para ti', editable: false },
     { id: 19, step: 'summary', type: 'summary', title: 'Tu tatuaje', editable: false }
 ];
 
@@ -137,20 +137,20 @@ const DEFAULT_QUESTIONS_CONFIG = [
 const QUOTATION_SCREENS = [
     // Pantalla sin numerar: solo aparece cuando se entra con ?artist=usuario.
     {
-        id: 'artist', title: 'Confirmá tu artista', steps: ['artist-confirm'],
+        id: 'artist', title: 'Confirma tu artista', steps: ['artist-confirm'],
         skipIf: () => !formData.artist_data
     },
-    { id: 'idea', num: '01', title: '¿Qué querés tatuarte?', steps: ['description'], ideaMode: true, initialReference: true },
-    { id: 'style', num: '02', title: '¿Qué estilo estás buscando?', subtitle: 'Podés elegir uno o varios estilos.', steps: ['style'] },
-    { id: 'body', num: '03', title: '¿Dónde querés llevarlo?', steps: ['body-part'] },
-    { id: 'size', num: '04', title: '¿Qué tamaño imaginás?', steps: ['size'] },
+    { id: 'idea', num: '01', title: '¿Qué quieres tatuarte?', steps: ['description'], ideaMode: true, initialReference: true },
+    { id: 'style', num: '02', title: '¿Qué estilo estás buscando?', subtitle: 'Puedes elegir uno o varios estilos.', steps: ['style'] },
+    { id: 'body', num: '03', title: '¿Dónde quieres llevarlo?', steps: ['body-part'] },
+    { id: 'size', num: '04', title: '¿Qué tamaño imaginas?', steps: ['size'] },
     {
-        id: 'references', num: '05', title: 'Mostranos lo que te inspira',
-        subtitle: 'Sumá las imágenes que te inspiran · hasta 4.', steps: ['references']
+        id: 'references', num: '05', title: 'Muéstranos lo que te inspira',
+        subtitle: 'Suma las imágenes que te inspiran · hasta 4.', steps: ['references']
     },
-    { id: 'details', num: '06', title: 'Contanos los detalles', steps: ['color', 'date', 'budget'] },
+    { id: 'details', num: '06', title: 'Cuéntanos los detalles', steps: ['color', 'date', 'budget'] },
     {
-        id: 'client', num: '07', title: 'Contanos quién sos',
+        id: 'client', num: '07', title: 'Cuéntanos quién eres',
         steps: [
             'name', 'email', 'whatsapp', 'birth-date', 'instagram', 'city', 'travel',
             'contact-pref', 'first-tattoo', 'cover-up', 'medical-boolean', 'medical-details', 'allergies'
@@ -168,7 +168,7 @@ const FIELD_LABELS = {
     'description': 'Descripción de la idea',
     'color': 'Color',
     'date': 'Fecha',
-    'budget': '¿Cuánto querés invertir? Es un aproximado: el valor final lo definen después.',
+    'budget': '¿Cuánto quieres invertir? Es un aproximado: el valor final lo definen después.',
     'name': 'Nombre y apellido',
     'email': 'Email',
     'whatsapp': 'WhatsApp',
@@ -176,20 +176,20 @@ const FIELD_LABELS = {
     'instagram': 'Instagram',
     'city': 'Ciudad',
     'travel': '¿Viajarías para la sesión?',
-    'contact-pref': '¿Cómo preferís que te contacten?',
+    'contact-pref': '¿Cómo prefieres que te contacten?',
     'first-tattoo': '¿Es tu primer tatuaje?',
     'cover-up': '¿Es un cover-up?',
-    'medical-boolean': '¿Tenés alguna condición médica?',
-    'medical-details': 'Contanos cuáles',
+    'medical-boolean': '¿Tienes alguna condición médica?',
+    'medical-details': 'Cuéntanos cuáles',
     'allergies': 'Alergias (opcional)'
 };
 
-// Placeholders en voseo para los campos cuya copy define el Figma. La tabla
-// `quotation_flow_config` todavía guarda algunos textos en tuteo; hasta que se
-// actualicen en la DB, la pantalla usa estos.
+// Placeholders en tuteo neutro para los campos cuya copy define el Figma. La
+// tabla `quotation_flow_config` todavía guarda algunos textos distintos; hasta
+// que se actualicen en la DB, la pantalla usa estos.
 const FIELD_PLACEHOLDERS = {
-    'description': 'Contanos tu idea con el mayor detalle posible…',
-    'medical-details': 'Contanos qué tenemos que tener en cuenta…',
+    'description': 'Cuéntanos tu idea con el mayor detalle posible…',
+    'medical-details': 'Cuéntanos qué tenemos que tener en cuenta…',
     'allergies': 'Ej: alergia al látex, tintas rojas…',
     'name': 'Tu nombre completo',
     'city': 'Ciudad, provincia, país'
@@ -200,11 +200,18 @@ const FIELD_PLACEHOLDERS = {
 const FIGMA_COLOR_OPTIONS = ['Black & Grey', 'Color', 'No estoy seguro'];
 
 // `ind` es la clase del rectángulo punteado que crece con el tamaño (Figma 04).
+// Ronda 2 (cot-pasos · P12): se suman Micro, Media manga y Manga. `img` es la
+// clave de la foto de referencia (/shared/assets/ronda2/cot-pasos/tamano-<img>.webp,
+// la dibuja quotation-size-step.js). Los valores nuevos se guardan como
+// "Micro", "Media Manga" y "Manga Completa" (los entiende lib/prequote-estimator.js).
 const FIGMA_SIZE_OPTIONS = [
-    { label: 'Pequeño', value: 'pequeño', subtitle: '5–8 cm', ind: 's' },
-    { label: 'Mediano', value: 'mediano', subtitle: '8–15 cm', ind: 'm' },
-    { label: 'Grande', value: 'grande', subtitle: '15–25 cm', ind: 'l' },
-    { label: 'XL', value: 'muy_grande', subtitle: '25+ cm', ind: 'xl' }
+    { label: 'Micro', value: 'micro', subtitle: 'Hasta 5 cm', ind: 'xs', img: 'micro' },
+    { label: 'Pequeño', value: 'pequeño', subtitle: '5–8 cm', ind: 's', img: 'pequeno' },
+    { label: 'Mediano', value: 'mediano', subtitle: '8–15 cm', ind: 'm', img: 'mediano' },
+    { label: 'Grande', value: 'grande', subtitle: '15–25 cm', ind: 'l', img: 'grande' },
+    { label: 'XL', value: 'muy_grande', subtitle: '25+ cm', ind: 'xl', img: 'xl' },
+    { label: 'Media manga', value: 'media manga', subtitle: 'Medio brazo o media pierna', ind: 'half', img: 'media-manga' },
+    { label: 'Manga', value: 'manga completa', subtitle: 'Brazo o pierna completos', ind: 'full', img: 'manga' }
 ];
 
 // Figma 01: los dos modos de entrada de la idea (286:9421 / 419:2321). Con
@@ -316,6 +323,51 @@ function applyPrequoteHandoff() {
     try { localStorage.removeItem(PREQUOTE_HANDOFF_KEY); } catch (_) {}
     saveDraftToLocalStorage();
     _dbg('Applied prequote handoff:', formData.quote_id);
+    return true;
+}
+
+/**
+ * Ronda 2 (P32): aplica el borrador clonado por POST /api/quotations/:id/reuse
+ * (lo deja el panel del cliente en localStorage). Trae la idea, los datos del
+ * cliente y las referencias ya copiadas a Storage; no trae artista.
+ */
+function applyReuseHandoff() {
+    const R2 = quotationR2();
+    const draft = R2 ? R2.takeReuseHandoff() : null;
+    if (!draft) return false;
+    const references = (Array.isArray(draft.references) ? draft.references : [])
+        .filter((ref) => ref && /^QN[0-9a-f]{32}\/ref_/.test(String(ref.path || '')) && /^https:\/\//i.test(String(ref.url || '')))
+        .slice(0, 4)
+        .map((ref) => ({ path: ref.path, url: ref.url, note: String(ref.note || '').slice(0, 200), ai_generated: ref.ai_generated === true }));
+    formData = Object.assign({ reference_images_count: 0, quote_status: 'in_progress', quote_id: null }, draft.form, {
+        submission_key: draft.submission_key,
+        quote_id: draft.quote_id || null,
+        quote_status: 'in_progress',
+        no_artist: true,
+        stored_references: references,
+        reference_images_count: references.length,
+        reference_notes: [],
+        reused_from_code: draft.source_code ? String(draft.source_code).slice(0, 12) : null
+    });
+    selectedBodyParts = [];
+    uploadedFiles = [];
+    historyStack = [];
+    summaryReached = true;
+    _applyClientSessionPrefill();
+
+    buildScreensConfig();
+    const summaryIdx = getScreenIndexById('summary');
+    const firstIncomplete = findFirstIncompleteScreenIndex();
+    currentStepIndex = firstIncomplete !== -1 ? firstIncomplete : Math.max(0, summaryIdx);
+    for (let i = 0; i < currentStepIndex; i++) {
+        if (!isScreenSkipped(screensConfig[i])) historyStack.push(i);
+    }
+    saveDraftToLocalStorage();
+    renderCurrentStep();
+    updateBackButton();
+    // Con todo completo se muestran los artistas sugeridos sin más clics.
+    if (currentStepIndex === summaryIdx) setTimeout(() => showArtistSuggestions(), 0);
+    _dbg('Reuse handoff aplicado:', formData.quote_id);
     return true;
 }
 
@@ -464,10 +516,11 @@ function continueDraft() {
 
         // Las imágenes no viajan en el borrador local (son archivos): se avisa
         // y se limpia el contador para que el envío no prometa referencias.
-        if (Number(formData.reference_images_count) > 0 && !uploadedFiles.length) {
-            formData.reference_images_count = 0;
+        // (Las de un borrador clonado ya están en Storage: esas sí se conservan.)
+        if (Number(formData.reference_images_count) > storedReferences().length && !uploadedFiles.length) {
+            formData.reference_images_count = storedReferences().length;
             formData.reference_notes = [];
-            setTimeout(() => showToastMessage('Las imágenes de referencia no se guardan en el borrador: volvé a subirlas en "Mostranos lo que te inspira".'), 300);
+            setTimeout(() => showToastMessage('Las imágenes de referencia no se guardan en el borrador: vuelve a subirlas en "Muéstranos lo que te inspira".'), 300);
         }
         // Un borrador puede venir de antes de iniciar sesión.
         _applyClientSessionPrefill();
@@ -530,7 +583,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         initApp();
     } catch (error) {
         console.error('No se pudo iniciar la cotización:', error);
-        document.getElementById('form-steps-container').innerHTML = '<div class="wo-empty"><h2>No pudimos cargar el formulario</h2><p>Recargá la página para volver a conectar.</p><button class="wo-btn" onclick="location.reload()">Reintentar</button></div>';
+        document.getElementById('form-steps-container').innerHTML = '<div class="wo-empty"><h2>No pudimos cargar el formulario</h2><p>Recarga la página para volver a conectar.</p><button class="wo-btn" onclick="location.reload()">Reintentar</button></div>';
         hideLoading();
     }
 });
@@ -624,6 +677,13 @@ function initApp() {
     if (prequoteSource) {
         hasPrequoteHandoff = applyPrequoteHandoff();
     }
+    // Ronda 2 (P32): "Cotizar con otro artista" desde el panel del cliente. El
+    // servidor ya clonó la solicitud a un borrador nuevo: se abre directo en el
+    // paso de elegir artista (sugeridos o Job Board).
+    if (initialUrlParams.get('source') === 'reuse' && applyReuseHandoff()) {
+        setupKeyboardNavigation();
+        return;
+    }
 
     // Check for saved draft FIRST (before URL params)
     const draft = loadDraftFromLocalStorage();
@@ -700,6 +760,8 @@ async function handleUrlArtist(username) {
             formData.quote_id = generateQuoteId();
             // Turnos: valida el turno de la URL y carga si el artista toma reservas online.
             if (window.WoQuotationSlot) window.WoQuotationSlot.onArtist(formData);
+            // Ronda 2 (P27): sedes y ciudades donde tatúa (se eligen en la pantalla 06, debajo de la fecha).
+            refreshArtistLocations();
 
             // Con artista en la URL se muestra la confirmación como pantalla
             // previa (no numerada): el Figma no tiene búsqueda de artista.
@@ -716,7 +778,7 @@ async function handleUrlArtist(username) {
     } finally {
         if (artistLoadFailed) {
             hideLoading();
-            document.getElementById('form-steps-container').innerHTML = '<div class="wo-empty"><h2>No pudimos cargar este artista</h2><p>Volvé a intentarlo o elegí un perfil disponible.</p><button class="wo-btn" onclick="location.reload()">Reintentar</button> <a class="wo-btn" href="/marketplace">Elegir artista</a></div>';
+            document.getElementById('form-steps-container').innerHTML = '<div class="wo-empty"><h2>No pudimos cargar este artista</h2><p>Vuelve a intentarlo o elige un perfil disponible.</p><button class="wo-btn" onclick="location.reload()">Reintentar</button> <a class="wo-btn" href="/marketplace">Elegir artista</a></div>';
             _setQuotationChromeVisible(false);
             return;
         }
@@ -728,7 +790,7 @@ async function handleUrlArtist(username) {
 }
 
 // ============ DYNAMIC RENDERING ============
-// El Figma agrupa varias preguntas por pantalla (01…08). Acá se arma la lista
+// El Figma agrupa varias preguntas por pantalla (01…08). Aquí se arma la lista
 // de pantallas sobre `questionsConfig` (Supabase → quotation_flow_config) sin
 // tocar el contrato de datos: cada pregunta conserva su campo, tipo, opciones
 // y validación; lo único que cambia es cuántas se muestran juntas.
@@ -784,7 +846,18 @@ function isQuestionVisible(q) {
     if (!q) return false;
     if (q.step === 'medical-details') return formData.client_medical_boolean === true;
     if (q.step === 'travel') return !!formData._travel_required;
+    // Ronda 2 (P15): "¿Es un cover-up?" solo si NO es el primer tatuaje.
+    if (q.step === 'cover-up') return formData.tattoo_is_first_tattoo === false;
     return !q.hidden;
+}
+
+// Ronda 2: módulo de interfaz (quotation-r2.js). Si no cargó, el wizard sigue
+// con sus controles anteriores.
+function quotationR2() {
+    return (typeof window !== 'undefined' && window.WoQuotationR2) || null;
+}
+function quotationR2Model() {
+    return (typeof window !== 'undefined' && window.WoQuotationR2Model) || null;
 }
 
 function renderCurrentStep() {
@@ -818,9 +891,14 @@ function renderCurrentStep() {
         if (block) blocks.appendChild(block);
         // Figma 06 (318:21077): NIVEL DE PERSONALIZACIÓN va entre COLOR y
         // FECHA. No sale de quotation_flow_config (persiste en el satélite
-        // quotation_intake_extras), por eso se inyecta acá y no en `steps`.
+        // quotation_intake_extras), por eso se inyecta aquí y no en `steps`.
         if (screen.id === 'details' && q.step === 'color') {
             blocks.appendChild(buildPersonalizationBlock());
+        }
+        // Ronda 2 (P27): sede o ciudad del artista elegido, debajo de FECHA.
+        if (screen.id === 'details' && q.step === 'date') {
+            const locationBlock = buildLocationBlock();
+            if (locationBlock) blocks.appendChild(locationBlock);
         }
     });
 
@@ -1100,7 +1178,7 @@ function useGpsLocation(questionId) {
     }
 
     if (!window.google || !window.google.maps || !window.google.maps.Geocoder) {
-        showToastMessage('El mapa aún está cargando. Intentá de nuevo en unos segundos.');
+        showToastMessage('El mapa aún está cargando. Intenta de nuevo en unos segundos.');
         return;
     }
 
@@ -1142,7 +1220,7 @@ function useGpsLocation(questionId) {
                         setClientCoordinates({ lat: latitude, lng: longitude });
                         showToastMessage('Ubicación detectada correctamente');
                     } else {
-                        showToastMessage('No se pudo determinar tu ciudad. Ingresala manualmente.');
+                        showToastMessage('No se pudo determinar tu ciudad. Ingrésala manualmente.');
                     }
                 });
             } catch (err) {
@@ -1155,13 +1233,13 @@ function useGpsLocation(questionId) {
             resetBtn();
             switch (error.code) {
                 case error.PERMISSION_DENIED:
-                    showToastMessage('Permiso de ubicación denegado. Ingresá tu ciudad manualmente.');
+                    showToastMessage('Permiso de ubicación denegado. Ingresa tu ciudad manualmente.');
                     break;
                 case error.POSITION_UNAVAILABLE:
-                    showToastMessage('Ubicación no disponible. Ingresá tu ciudad manualmente.');
+                    showToastMessage('Ubicación no disponible. Ingresa tu ciudad manualmente.');
                     break;
                 case error.TIMEOUT:
-                    showToastMessage('Tiempo de espera agotado. Ingresá tu ciudad manualmente.');
+                    showToastMessage('Tiempo de espera agotado. Ingresa tu ciudad manualmente.');
                     break;
                 default:
                     showToastMessage('Error al obtener tu ubicación');
@@ -1233,7 +1311,9 @@ function renderQuestionControl(q) {
             return renderDateControl(q);
 
         case 'date':
-            return `<input type="text" id="date-picker-single" class="wo-input" placeholder="Elegí la fecha" value="${escapeQuotationHtml(formData[q.field] || '')}" readonly>`;
+            // Ronda 2 (P15): día · mes · año en campos separados (sin fechas de menos de 14 años).
+            if (quotationR2()) return quotationR2().birthControlHtml(formData[q.field] || '');
+            return `<input type="text" id="date-picker-single" class="wo-input" placeholder="Elige la fecha" value="${escapeQuotationHtml(formData[q.field] || '')}" readonly>`;
 
         case 'currency':
             return renderBudgetControl(q);
@@ -1304,6 +1384,11 @@ function renderWideOptions(q, options) {
 // Figma 04: 4 tamaños con indicador visual de escala (rectángulo punteado que
 // crece), nombre y rango centrados + enlace "No estoy seguro".
 function renderSizeCards(q) {
+    // Ronda 2 (cot-pasos · P12): tarjetas con foto de referencia y "No estoy
+    // seguro" con casilla de verificación (quotation-size-step.js).
+    if (window.WoQuotationSize) {
+        return window.WoQuotationSize.render({ field: q.field, value: formData[q.field], options: FIGMA_SIZE_OPTIONS });
+    }
     const unsure = formData[q.field] === 'No Estoy Seguro';
     return `
         <div class="q-size-grid">
@@ -1323,14 +1408,31 @@ function renderSizeCards(q) {
 // Figma 06 · FECHA: chips + calendario mensual embebido.
 function renderDateControl(q) {
     const current = formData[q.field] || '';
+    // Ronda 2 (P14): el calendario elige un RANGO tentativo; no reserva nada.
     return `${window.WoQuotationSlot ? window.WoQuotationSlot.cardHtml(formData) : ''}
+        <p class="q-date-help" id="date-help">Elige una opción o marca en el calendario un <strong>rango de fechas tentativo</strong>: toca el primer día y después el último. Es solo tu preferencia: <strong>no garantiza disponibilidad</strong>; el artista confirma la fecha final.</p>
         <div class="q-chips" id="date-chips">
             ${FIGMA_DATE_CHIPS.map((chip) => `
                 <button type="button" class="q-chip ${current === chip.label ? 'is-active' : ''}"
                     data-date-chip="${escapeQuotationHtml(chip.label)}"
                     onclick="selectDateChip('${escapeQuotationHtml(chip.label).replace(/'/g, "\\'")}', ${chip.flexible})">${escapeQuotationHtml(chip.label)}</button>`).join('')}
         </div>
-        <div class="q-calendar" id="date-calendar"></div>`;
+        <div class="q-calendar" id="date-calendar" aria-describedby="date-help"></div>
+        <label class="wo-check q-date-flex">
+            <input type="checkbox" id="date-flexible" ${formData.client_flexible_dates === true ? 'checked' : ''} onchange="setDateFlexibility(this.checked)">
+            <span>Tengo flexibilidad con las fechas</span>
+        </label>`;
+}
+
+function setDateFlexibility(flexible) {
+    formData.client_flexible_dates = !!flexible;
+    persistAnswer();
+}
+window.setDateFlexibility = setDateFlexibility;
+
+function syncDateFlexibilityControl() {
+    const box = document.getElementById('date-flexible');
+    if (box) box.checked = formData.client_flexible_dates === true;
 }
 
 // Figma 06 · PRESUPUESTO: 6 tramos dibujados como barras ascendentes.
@@ -1357,7 +1459,7 @@ function renderDropzoneHtml() {
     return `
         <div class="wo-dropzone upload-area" id="drop-zone">
             <i data-wo-icon="upload-cloud"></i>
-            <p class="q-drop-title">Arrastrá o hacé click</p>
+            <p class="q-drop-title">Arrastra o haz click</p>
             <p class="q-drop-hint wo-meta-s">PNG, JPG, HEIC · hasta 4 imágenes</p>
             <input type="file" id="file-input" multiple accept="image/*,image/heic,image/heif" class="hidden">
         </div>
@@ -1374,7 +1476,7 @@ function getIdeaMode() {
 function renderIdeaModeToggle() {
     const current = getIdeaMode();
     return `
-        <div class="q-mode-toggle" role="group" aria-label="¿Cómo venís con la idea?">
+        <div class="q-mode-toggle" role="group" aria-label="¿Ya tienes una idea?">
             ${IDEA_MODE_OPTIONS.map((opt) => {
                 const selected = current === opt.value;
                 return `<button type="button" class="q-mode-card ${selected ? 'is-selected' : ''}"
@@ -1434,6 +1536,62 @@ function selectPersonalizationLevel(value) {
     persistAnswer();
 }
 window.selectPersonalizationLevel = selectPersonalizationLevel;
+
+// ---------- Sede o ciudad del artista (ronda 2 · P27) ----------
+// Las opciones salen del servidor (datos públicos: estudios y sedes donde
+// trabaja, lugares próximos y viajes publicados). El bloque solo aparece si el
+// artista tatúa en más de un lugar; el navegador manda la llave elegida.
+let _artistLocations = { artistId: null, options: [] };
+
+function artistLocationOptions() {
+    return _artistLocations.artistId && _artistLocations.artistId === formData.artist_id ? _artistLocations.options : [];
+}
+
+function refreshArtistLocations() {
+    const R2 = quotationR2();
+    const artistId = formData.artist_id;
+    if (!R2 || !artistId) {
+        _artistLocations = { artistId: null, options: [] };
+        return Promise.resolve([]);
+    }
+    return R2.loadLocations(artistId).then((options) => {
+        if (formData.artist_id !== artistId) return [];
+        _artistLocations = { artistId, options };
+        if (formData.preferred_location_key && !options.some((o) => o.key === formData.preferred_location_key)) {
+            formData.preferred_location_key = null;
+            formData.preferred_location_label = null;
+        }
+        const host = document.getElementById('block-location');
+        if (host) fillLocationBlock(host);
+        return options;
+    });
+}
+
+function fillLocationBlock(wrapper) {
+    const R2 = quotationR2();
+    const options = artistLocationOptions();
+    const show = !!R2 && options.length > 1;
+    wrapper.classList.toggle('hidden', !show);
+    wrapper.innerHTML = show ? R2.locationBlockHtml(options, formData.preferred_location_key || '') : '';
+    if (show) R2.bindLocationBlock(wrapper.querySelector('.q-loc'), setPreferredLocation);
+}
+
+function buildLocationBlock() {
+    if (!quotationR2() || !formData.artist_id) return null;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'q-block hidden';
+    wrapper.id = 'block-location';
+    fillLocationBlock(wrapper);
+    if (_artistLocations.artistId !== formData.artist_id) refreshArtistLocations();
+    return wrapper;
+}
+
+function setPreferredLocation(key) {
+    const option = artistLocationOptions().find((o) => o.key === key) || null;
+    formData.preferred_location_key = option ? option.key : null;
+    formData.preferred_location_label = option ? option.label : null;
+    persistAnswer();
+}
 
 // ---------- Moneda del presupuesto ----------
 function getBudgetCurrency() {
@@ -1505,21 +1663,39 @@ function selectDateChip(label, flexible) {
     formData.client_preferred_date = label;
     formData.client_flexible_dates = !!flexible;
     formData._preferred_date_iso = null;
+    formData._preferred_date_end_iso = null;
     if (window.WoQuotationSlot) window.WoQuotationSlot.onDatePicked(null);
     document.querySelectorAll('[data-date-chip]').forEach((el) => {
         el.classList.toggle('is-active', el.dataset.dateChip === label);
     });
+    syncDateFlexibilityControl();
     renderInlineCalendar();
     persistAnswer();
 }
 
+// Ronda 2 (P14): el calendario arma un rango tentativo. Primer toque = inicio;
+// un toque posterior = fin; con el rango completo, un toque empieza otro.
+// Con un turno elegido (quotation-slot.js) un toque sigue eligiendo UN día: el
+// turno es de ese día y cambiar de día lo suelta.
 function pickCalendarDay(iso) {
     const [year, month, day] = iso.split('-').map(Number);
+    const Model = quotationR2Model();
+    const hadSlot = !!formData.requested_slot;
+    const fromChip = !formData._preferred_date_iso;
     if (window.WoQuotationSlot) window.WoQuotationSlot.onDatePicked(iso);
-    formData.client_preferred_date = `${day} ${MONTHS_SHORT_ES[month - 1]} ${year}`;
-    formData._preferred_date_iso = iso;
-    formData.client_flexible_dates = false;
+    let range = { start: iso, end: null };
+    if (Model && !hadSlot) {
+        range = Model.pickRangeDay({ start: formData._preferred_date_iso, end: formData._preferred_date_end_iso }, iso);
+    }
+    formData._preferred_date_iso = range.start;
+    formData._preferred_date_end_iso = range.end;
+    formData.client_preferred_date = Model && range.end
+        ? Model.rangeLabel(range.start, range.end)
+        : `${day} ${MONTHS_SHORT_ES[month - 1]} ${year}`;
+    // La flexibilidad la marca el cliente; al pasar de un chip a una fecha se reinicia.
+    if (fromChip || !Model) formData.client_flexible_dates = false;
     document.querySelectorAll('[data-date-chip]').forEach((el) => el.classList.remove('is-active'));
+    syncDateFlexibilityControl();
     renderInlineCalendar();
     persistAnswer();
 }
@@ -1559,6 +1735,7 @@ function getArtistBusyDays(year, month) {
             const chosen = formData._preferred_date_iso;
             if (chosen && !Model.dayAvailability(_artistBusyDays.index, chosen).selectable) {
                 formData._preferred_date_iso = null;
+                formData._preferred_date_end_iso = null;
                 formData.client_preferred_date = null;
                 persistAnswer();
             }
@@ -1605,9 +1782,20 @@ function renderInlineCalendar() {
     for (let i = 0; i < offset; i++) {
         cells.push(`<span class="q-cal-day is-adjacent" aria-hidden="true">${prevMonthDays - offset + 1 + i}</span>`);
     }
+    // Ronda 2 (P14): rango tentativo (inicio–fin). Con turno elegido es un solo día.
+    // (quotation-slot.js cambia la flexibilidad al elegir un turno y redibuja por aquí.)
+    syncDateFlexibilityControl();
+    const rangeModel = quotationR2Model();
+    const rangeStart = formData._preferred_date_iso || null;
+    const rangeEnd = formData.requested_slot ? null : (formData._preferred_date_end_iso || null);
+    // Lo elegido, en palabras (y cómo completar el rango).
+    const pickedNote = rangeModel && rangeStart && !formData.requested_slot
+        ? `<p class="q-date-picked" role="status">${rangeEnd ? 'Rango tentativo' : 'Desde'}: <strong>${escapeQuotationHtml(rangeModel.rangeLabel(rangeStart, rangeEnd))}</strong>${rangeEnd ? '' : ' · toca otro día para marcar hasta cuándo'}</p>`
+        : '';
     for (let day = 1; day <= daysInMonth; day++) {
         const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const selected = formData._preferred_date_iso === iso;
+        const rangePos = rangeModel ? rangeModel.rangePosition(iso, rangeStart, rangeEnd) : null;
+        const selected = formData._preferred_date_iso === iso || rangePos === 'end';
         const past = iso < todayIso;
         // Vacaciones del artista (Cuenta 801:571): esos días no se ofrecen.
         const onVacation = !past && !!vacation && window.WoArtistVacation.isDateBlocked(iso, vacation);
@@ -1615,8 +1803,9 @@ function renderInlineCalendar() {
         const agenda = !past && !onVacation && busyIndex ? window.WeotziCalendarModel.dayAvailability(busyIndex, iso) : null;
         const busyDay = !!agenda && !agenda.selectable;
         const agendaAttrs = agenda && agenda.label ? ` aria-label="${day}: ${agenda.label}" title="${agenda.label}"` : '';
-        cells.push(`<button type="button" class="q-cal-day ${selected ? 'is-selected' : ''} ${past || onVacation || busyDay ? 'is-past' : ''} ${onVacation ? 'is-vacation' : ''} ${busyDay ? 'is-busy' : ''} ${agenda && agenda.status === 'available' ? 'has-slots' : ''}"
-            ${past || onVacation || busyDay ? 'disabled' : ''}${onVacation ? ' aria-label="' + day + ': el artista está de vacaciones"' : agendaAttrs} onclick="pickCalendarDay('${iso}')">${day}</button>`);
+        const rangeClass = rangePos === 'between' ? 'is-in-range' : (rangePos === 'start' && rangeEnd ? 'is-range-start' : (rangePos === 'end' ? 'is-range-end' : ''));
+        cells.push(`<button type="button" class="q-cal-day ${selected ? 'is-selected' : ''} ${rangeClass} ${past || onVacation || busyDay ? 'is-past' : ''} ${onVacation ? 'is-vacation' : ''} ${busyDay ? 'is-busy' : ''} ${agenda && agenda.status === 'available' ? 'has-slots' : ''}"
+            ${past || onVacation || busyDay ? 'disabled' : ''}${selected ? ' aria-pressed="true"' : ''}${onVacation ? ' aria-label="' + day + ': el artista está de vacaciones"' : agendaAttrs} onclick="pickCalendarDay('${iso}')">${day}</button>`);
     }
     const trailing = (7 - ((offset + daysInMonth) % 7)) % 7;
     for (let day = 1; day <= trailing; day++) {
@@ -1634,7 +1823,7 @@ function renderInlineCalendar() {
             </button>
         </div>
         <div class="q-cal-dow">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d) => `<span>${d}</span>`).join('')}</div>
-        <div class="q-cal-grid">${cells.join('')}</div>${vacationNote}${busyNote}${window.WoQuotationSlot ? window.WoQuotationSlot.daySlotsHtml(formData) : ''}`;
+        <div class="q-cal-grid">${cells.join('')}</div>${pickedNote}${vacationNote}${busyNote}${window.WoQuotationSlot ? window.WoQuotationSlot.daySlotsHtml(formData) : ''}`;
 }
 
 // ---------- Lógica post-render por pregunta ----------
@@ -1649,7 +1838,18 @@ function initQuestionLogic(q, screen) {
     }
 
     if (q.type === 'textarea') setupTextareaCounter(q);
-    if (q.type === 'date') setupDatePicker(true);
+    if (q.type === 'date') {
+        // Ronda 2 (P15): la fecha de nacimiento se guarda al elegirla (solo si es válida).
+        if (quotationR2() && document.getElementById('q-birth')) {
+            quotationR2().bindBirth((current) => {
+                formData[q.field] = current.value;
+                formData._client_is_minor = !!(current.value && current.status.minor);
+                persistAnswer();
+            });
+        } else {
+            setupDatePicker(true);
+        }
+    }
     if (q.type === 'date-range') renderInlineCalendar();
 
     if (q.step === 'city') {
@@ -1717,6 +1917,12 @@ function readQuestionValue(q) {
             return formData[q.field];
         }
         case 'date': {
+            const birth = quotationR2() && document.getElementById('q-birth') ? quotationR2().readBirth() : null;
+            if (birth) {
+                formData[q.field] = birth.value;
+                formData._client_is_minor = !!(birth.value && birth.status.minor);
+                return formData[q.field];
+            }
             const input = document.getElementById('date-picker-single');
             if (input) formData[q.field] = input.value.trim() || null;
             return formData[q.field];
@@ -1731,19 +1937,22 @@ function stripQuestionMarks(text) {
     return String(text || '').replace(/[¿?]/g, '').trim();
 }
 
-// Valida todas las preguntas visibles de la pantalla y las guarda.
-function collectScreenValues(screen) {
+// Valida todas las preguntas visibles de la pantalla y las guarda. Devuelve el
+// primer error. Con `onlyQuestion` valida solo esa pregunta (ronda 2 · P18:
+// collectScreenErrors las recorre todas para resaltar en rojo lo que falta).
+function collectScreenValues(screen, onlyQuestion) {
     if (!screen) return { ok: true };
 
     for (const q of screen.questions) {
+        if (onlyQuestion && q !== onlyQuestion) continue;
         if (!isQuestionVisible(q)) continue;
         readQuestionValue(q);
 
         // Figma 06: NIVEL DE PERSONALIZACIÓN es un bloque inyectado entre
-        // COLOR y FECHA (sin pregunta propia en la config); se valida acá para
+        // COLOR y FECHA (sin pregunta propia en la config); se valida aquí para
         // respetar el orden visual de la pantalla.
         if (screen.id === 'details' && q.step === 'date' && !formData.tattoo_personalization_level) {
-            return { ok: false, message: 'Elegí un nivel de personalización.', el: document.getElementById('block-personalization') };
+            return { ok: false, message: 'Elige un nivel de personalización.', el: document.getElementById('block-personalization') };
         }
 
         // En pantallas de una sola pregunta el titular ES la consigna.
@@ -1752,15 +1961,15 @@ function collectScreenValues(screen) {
         const optional = !!q.optional;
 
         if (q.type === 'body-selector') {
-            if (!selectedBodyParts.length) return { ok: false, message: 'Elegí una zona del cuerpo.' };
+            if (!selectedBodyParts.length) return { ok: false, message: 'Elige una zona del cuerpo.', el: document.getElementById(`block-${q.step}`) };
             const zone = selectedBodyParts[0];
-            if (zone.sides === 'both' && !zone.side) return { ok: false, message: 'Elegí de qué lado va el tatuaje.' };
+            if (zone.sides === 'both' && !zone.side) return { ok: false, message: 'Elige de qué lado va el tatuaje.', el: document.getElementById('body-side-panel') || document.getElementById(`block-${q.step}`) };
             continue;
         }
 
         if (q.type === 'tattoo-styles') {
             const styles = getSelectedStyles();
-            if (!styles.length) return { ok: false, message: 'Elegí al menos un estilo.' };
+            if (!styles.length) return { ok: false, message: 'Elige al menos un estilo.', el: document.getElementById(`block-${q.step}`) };
             continue;
         }
 
@@ -1768,14 +1977,33 @@ function collectScreenValues(screen) {
 
         if (q.type === 'boolean') {
             if (!optional && (value === undefined || value === null)) {
-                return { ok: false, message: `Respondé: ${stripQuestionMarks(label).toLowerCase()}`, el: document.getElementById(`block-${q.step}`) };
+                return { ok: false, message: `Responde: ${stripQuestionMarks(label).toLowerCase()}`, el: document.getElementById(`block-${q.step}`) };
             }
             continue;
         }
 
         if (q.type === 'currency') {
             if (!optional && !formData.client_budget_amount && formData._budget_tier !== 'unsure') {
-                return { ok: false, message: 'Elegí un rango de presupuesto.' };
+                return { ok: false, message: 'Elige un rango de presupuesto.', el: document.getElementById(`block-${q.step}`) };
+            }
+            continue;
+        }
+
+        // Ronda 2 (P15): fecha de nacimiento en tres campos; menos de 14 años no pasa.
+        if (q.type === 'date' && quotationR2() && document.getElementById('q-birth')) {
+            const birth = quotationR2().readBirth();
+            const untouched = !birth.parts.day && !birth.parts.month && !birth.parts.year;
+            if (optional && untouched) continue;
+            if (!birth.status.complete) {
+                const firstEmpty = ['q-birth-day', 'q-birth-month', 'q-birth-year']
+                    .map((id) => document.getElementById(id)).find((el) => el && !el.value);
+                return { ok: false, message: 'Completa tu fecha de nacimiento: día, mes y año.', el: firstEmpty || document.getElementById('q-birth-day') };
+            }
+            if (!birth.status.real) {
+                return { ok: false, message: 'Esa fecha no existe. Revisa el día y el mes.', el: document.getElementById('q-birth-day') };
+            }
+            if (!birth.status.valid) {
+                return { ok: false, message: `Para cotizar un tatuaje necesitas tener al menos ${quotationR2Model().MIN_AGE} años.`, el: document.getElementById('q-birth-year') };
             }
             continue;
         }
@@ -1783,21 +2011,57 @@ function collectScreenValues(screen) {
         if (!optional && (value === undefined || value === null || value === '')) {
             const isChoice = q.type === 'cards' || q.type === 'options' || q.type === 'multi-select';
             const message = isChoice
-                ? `Elegí una opción en ${stripQuestionMarks(label).toLowerCase()}.`
-                : `Completá: ${stripQuestionMarks(label).toLowerCase()}`;
+                ? `Elige una opción en ${stripQuestionMarks(label).toLowerCase()}.`
+                : `Completa: ${stripQuestionMarks(label).toLowerCase()}`;
             return { ok: false, message, el: document.getElementById(`field-${q.id}`) || document.getElementById(`block-${q.step}`) };
         }
 
         if (q.type === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-            return { ok: false, message: 'Revisá el correo electrónico.', el: document.getElementById(`field-${q.id}`) };
+            return { ok: false, message: 'Revisa el correo electrónico.', el: document.getElementById(`field-${q.id}`) };
         }
 
         if (q.minLength && value && String(value).length < q.minLength) {
-            return { ok: false, message: `Escribí al menos ${q.minLength} caracteres en ${stripQuestionMarks(label).toLowerCase()}.`, el: document.getElementById(`field-${q.id}`) };
+            return { ok: false, message: `Escribe al menos ${q.minLength} caracteres en ${stripQuestionMarks(label).toLowerCase()}.`, el: document.getElementById(`field-${q.id}`) };
         }
     }
 
     return { ok: true };
+}
+
+// Ronda 2 (P18): todos los datos que faltan en la pantalla, en orden.
+function collectScreenErrors(screen) {
+    if (!screen) return [];
+    const errors = [];
+    screen.questions.forEach((q) => {
+        const result = collectScreenValues(screen, q);
+        if (!result.ok) errors.push(result);
+    });
+    return errors;
+}
+
+// Resalta en rojo lo que falta, con su mensaje, y enfoca el primero. Sin el
+// módulo de la ronda 2 queda el aviso anterior (toast + foco).
+function showScreenErrors(errors) {
+    const first = errors[0];
+    if (!first) return;
+    const R2 = quotationR2();
+    if (R2) {
+        const container = document.getElementById('form-steps-container');
+        if (container) R2.clearInvalid(container);
+        const marked = R2.markInvalid(errors.map((error) => ({
+            message: error.message,
+            el: error.el && /^(INPUT|SELECT|TEXTAREA)$/.test(error.el.tagName || '') ? error.el : null,
+            block: error.el && error.el.closest ? (error.el.closest('.q-block') || error.el) : error.el
+        })));
+        showToastMessage(errors.length > 1 ? `Faltan ${errors.length} datos para continuar. Los marcamos en rojo.` : first.message);
+        if (marked) return;
+    } else {
+        showToastMessage(first.message);
+    }
+    if (first.el && typeof first.el.focus === 'function') first.el.focus();
+    if (first.el && typeof first.el.scrollIntoView === 'function') {
+        first.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }
 
 // Guarda la respuesta actual (borrador local + autosave en Supabase).
@@ -1825,13 +2089,10 @@ function findPrevScreenIndex(fromIndex) {
 function nextStep() {
     const screen = getCurrentScreen();
     if (screen) {
-        const result = collectScreenValues(screen);
-        if (!result.ok) {
-            showToastMessage(result.message);
-            if (result.el && typeof result.el.focus === 'function') result.el.focus();
-            if (result.el && typeof result.el.scrollIntoView === 'function') {
-                result.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+        // Ronda 2 (P18): se marca en rojo todo lo que falta, no solo lo primero.
+        const errors = collectScreenErrors(screen);
+        if (errors.length) {
+            showScreenErrors(errors);
             return;
         }
     }
@@ -1888,6 +2149,9 @@ function isScreenCompleted(screen) {
         if (q.type === 'file-upload' || q.optional) return true;
         if (q.type === 'body-selector') return !!formData.tattoo_body_part;
         if (q.type === 'tattoo-styles') return getSelectedStyles().length > 0;
+        // "No estoy seguro" es una respuesta válida de presupuesto (sin monto):
+        // antes dejaba la pantalla como incompleta y no se podía enviar.
+        if (q.type === 'currency') return !!formData.client_budget_amount || formData._budget_tier === 'unsure';
         const value = formData[q.field];
         return value !== undefined && value !== null && value !== '';
     });
@@ -2048,7 +2312,7 @@ async function postQuotationApi(path, body, { auth = 'optional' } = {}) {
         try {
             response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
         } catch (_) {
-            throw intakeError('No hay conexión. Revisá tu internet y volvé a intentar.', 0);
+            throw intakeError('No hay conexión. Revisa tu internet y vuelve a intentar.', 0);
         }
         let data = {};
         try { data = await response.json(); } catch (_) { data = {}; }
@@ -2063,8 +2327,8 @@ async function postQuotationApi(path, body, { auth = 'optional' } = {}) {
     }
     if (!response.ok || data.success === false) {
         const fallback = response.status === 429
-            ? 'Estás enviando muchas solicitudes seguidas. Esperá un minuto y volvé a intentar.'
-            : 'No pudimos guardar tu solicitud. Intentá de nuevo.';
+            ? 'Estás enviando muchas solicitudes seguidas. Espera un minuto y vuelve a intentar.'
+            : 'No pudimos guardar tu solicitud. Intenta de nuevo.';
         throw intakeError(data.error || fallback, response.status, data);
     }
     return data;
@@ -2081,14 +2345,18 @@ function saveWebQuotation(mode, extra = {}) {
     }, extra);
     // Turnos: el turno elegido viaja solo en el envío final (el servidor crea el apartado).
     if (window.WoQuotationSlot) Object.assign(body, window.WoQuotationSlot.payload(formData, mode));
+    // Ronda 2 (P27): la sede elegida viaja como llave; el servidor la resuelve contra las del artista.
+    if (mode === 'submit' && formData.preferred_location_key) body.preferred_location = formData.preferred_location_key;
     const request = _intakeQueue.catch(() => {}).then(async () => {
         const result = await postQuotationApi('/api/quotations/intake', body);
         if (result.quote_id) formData.quote_id = result.quote_id;
+        // Ronda 2 (P16): código corto visible (el quote_id interno no cambia).
+        if (result.short_code) formData.short_code = result.short_code;
         if (result.session_expired && !_sessionExpiredNoticeShown) {
             _sessionExpiredNoticeShown = true;
             _authenticatedUserId = null;
             _setHeaderLoggedOut();
-            showToastMessage('Tu sesión venció. Tu solicitud se guarda igual; podés volver a iniciar sesión cuando quieras.');
+            showToastMessage('Tu sesión venció. Tu solicitud se guarda de todos modos; puedes volver a iniciar sesión cuando quieras.');
         }
         saveDraftToLocalStorage();
         return result;
@@ -2097,7 +2365,7 @@ function saveWebQuotation(mode, extra = {}) {
     return request;
 }
 
-// El borrador del servidor recién tiene sentido con un correo de contacto:
+// El borrador del servidor solo tiene sentido con un correo de contacto:
 // antes de eso alcanza con el borrador local (y se ahorran llamadas al
 // intake, que tiene rate limit por borrador).
 function hasServerDraftData() {
@@ -2151,7 +2419,9 @@ function prepareIntakeExtrasPayload() {
         quote_id: formData.quote_id,
         idea_mode: getIdeaMode(),
         personalization_level: formData.tattoo_personalization_level || null,
-        reference_notes: uploadedFiles.map((_, i) => String(notes[i] || ''))
+        // En el envío el servidor las reescribe alineadas con las referencias guardadas.
+        reference_notes: storedReferences().map((ref) => String(ref.note || ''))
+            .concat(uploadedFiles.map((_, i) => String(notes[i] || '')))
     };
 }
 
@@ -2199,7 +2469,8 @@ function preparePayload() {
         reference_images_count: formData.reference_images_count,
         tattoo_references: formData.tattoo_references || null,
         tattoo_is_first_tattoo: formData.tattoo_is_first_tattoo,
-        tattoo_is_cover_up: formData.tattoo_is_cover_up,
+        // Ronda 2 (P15): sin tatuajes previos no hay cover-up.
+        tattoo_is_cover_up: formData.tattoo_is_first_tattoo === true ? false : formData.tattoo_is_cover_up,
         client_full_name: formData.client_full_name,
         client_email: formData.client_email,
         client_instagram: formData.client_instagram,
@@ -2209,6 +2480,11 @@ function preparePayload() {
         style_mismatch_acknowledged: formData.style_mismatch_acknowledged ? 'true' : 'false',
         client_preferred_date: formData.client_preferred_date,
         client_flexible_dates: formData.client_flexible_dates,
+        // Ronda 2 (P14): rango tentativo en ISO (con turno elegido es un solo día).
+        preferred_date_from: formData._preferred_date_iso || null,
+        preferred_date_to: formData._preferred_date_iso
+            ? ((!formData.requested_slot && formData._preferred_date_end_iso) || formData._preferred_date_iso)
+            : null,
         client_budget_amount: formData.client_budget_amount,
         client_budget_currency: formData.client_budget_currency,
         client_contact_preference: formData.client_contact_preference,
@@ -2320,6 +2596,19 @@ function handleBoolean(field, value) {
         if (details) details.classList.toggle('hidden', value !== true);
     }
 
+    // Ronda 2 (P15): "¿Es un cover-up?" aparece solo si NO es el primer tatuaje.
+    if (field === 'tattoo_is_first_tattoo') {
+        const coverUp = document.getElementById('block-cover-up');
+        if (coverUp) coverUp.classList.toggle('hidden', value !== false);
+        if (value === true) {
+            formData.tattoo_is_cover_up = false;
+            if (coverUp) coverUp.querySelectorAll('[data-bool]').forEach((el) => el.classList.remove('is-selected'));
+        } else if (formData.tattoo_is_cover_up === false && coverUp && !coverUp.querySelector('.is-selected')) {
+            // Venía de "Sí": la respuesta automática se limpia para que la elija.
+            formData.tattoo_is_cover_up = null;
+        }
+    }
+
     persistAnswer();
 }
 
@@ -2335,6 +2624,8 @@ function continueWithoutArtist() {
     formData.artist_id = null;
     formData.artist_name = null;
     formData.artist_data = null;
+    formData.preferred_location_key = null;
+    formData.preferred_location_label = null;
 
     // Generate Quote ID if not exists
     if (!formData.quote_id) {
@@ -2451,190 +2742,56 @@ function setTravel(val) {
 }
 
 
-// ============ SELECTOR DE ZONA (Figma 03) ============
-// El Figma muestra una grilla PLANA de zonas (BRAZO, ANTEBRAZO, MANO, PIERNA,
-// MUSLO, ESPALDA, PECHO, COSTILLAS, CUELLO, CABEZA) y, debajo, un panel con la
-// zona elegida y "¿DE QUÉ LADO?" (IZQUIERDO / DERECHO). No hay drill-down.
-// La grilla se aplana desde body_parts (zonas raíz + subzonas reales).
-
-function flattenBodyZones() {
-    const flat = [];
-    (BODY_PARTS_DATA || []).forEach((zone) => {
-        flat.push({
-            key: zone.id,
-            id: zone.id,
-            zoneId: zone.id,
-            label: zone.label,
-            zoneLabel: zone.label,
-            image: zone.image || '',
-            sides: zone.sides || 'both',
-            pain_level: zone.pain_level
-        });
-        (zone.subparts || []).forEach((part) => {
-            flat.push({
-                key: `${zone.id}::${part.id}`,
-                id: part.id,
-                zoneId: zone.id,
-                label: part.label,
-                zoneLabel: zone.label,
-                image: part.image || zone.image || '',
-                sides: part.sides || zone.sides || 'both',
-                pain_level: part.pain_level
-            });
-        });
-    });
-    return flat;
-}
+// ============ SELECTOR DE ZONA (Figma 03 · ronda 2, cot-pasos P11) ============
+// La pantalla la dibuja quotation-body-map.js (window.WoQuotationBody): silueta
+// humana seleccionable (frente y espalda, una <path> por parte individual),
+// grilla de zonas completas con su ficha (lado, dolor, subpartes, datos) y el
+// resumen debajo de la silueta. Aquí queda el estado del wizard:
+//   selectedBodyParts = [{ part: 'antebrazo', side: 'left' | 'right' | null }]
+// y lo que se guarda en la cotización (tattoo_body_part / tattoo_body_side,
+// con el formato de siempre: "Zona: Subzona" + el lado en su columna).
 
 function setupBodySelector() {
-    renderBodyZones();
-    updateBodySidePanel();
-    updateBodySilhouette();
-}
-
-// Aside "Silueta corporal de referencia" (fragmento Figma 318:19919): el SVG
-// del maniquí vive en el template del HTML; cada segmento lleva en data-sil la
-// lista de keys reales de body_parts (zona raíz + subzonas) que representa y,
-// si aplica, data-sil-side. Acá solo se pinta el estado activo en azul.
-function updateBodySilhouette() {
-    const host = document.getElementById('body-silhouette');
+    const host = document.getElementById('body-selector');
     if (!host) return;
-
-    const selection = selectedBodyParts[0] || null;
-    // Zona raíz elegida (id === zone) → se pinta toda la zona; subzona elegida
-    // → solo el segmento de esa subzona (los segmentos llevan la key raíz
-    // ADEMÁS de las de sus subzonas).
-    let tokens = [];
-    if (selection) {
-        const isRoot = String(selection.id) === String(selection.zone);
-        tokens = (isRoot ? [selection.zone] : [selection.id])
-            .filter(Boolean).map((t) => String(t).toLowerCase());
+    if (!window.WoQuotationBody) {
+        host.innerHTML = '<p class="empty-sheet-msg">No pudimos cargar el selector de zonas. Recarga la página.</p>';
+        return;
     }
-    const side = selection && selection.side ? selection.side : null;
 
-    host.querySelectorAll('.q-sil-seg').forEach((seg) => {
-        const segTokens = (seg.dataset.sil || '').toLowerCase().split(/\s+/).filter(Boolean);
-        const matches = tokens.some((t) => segTokens.includes(t));
-        const segSide = seg.dataset.silSide || null;
-        const sideOk = !segSide || !side || segSide === side;
-        seg.classList.toggle('is-active', !!(matches && sideOk));
+    const before = JSON.stringify(selectedBodyParts || []);
+    selectedBodyParts = window.WoQuotationBody.mount(host, {
+        tree: BODY_PARTS_DATA,
+        selection: selectedBodyParts,
+        bodyPart: formData.tattoo_body_part,
+        bodySide: formData.tattoo_body_side,
+        onChange: (items) => {
+            selectedBodyParts = items;
+            commitBodySelection();
+        }
     });
-}
-
-// En mobile el aside se colapsa detrás de un enlace toggle.
-function toggleBodySilhouette() {
-    const aside = document.getElementById('body-silhouette');
-    const btn = document.querySelector('.q-body-aside-toggle');
-    if (!aside) return;
-    const open = aside.classList.toggle('is-open');
-    if (btn) btn.setAttribute('aria-expanded', String(open));
-}
-window.toggleBodySilhouette = toggleBodySilhouette;
-
-function renderBodyZones() {
-    const grid = document.getElementById('body-zones-grid');
-    if (!grid) return;
-
-    const zones = flattenBodyZones();
-    if (!zones.length) {
-        grid.innerHTML = '<p class="empty-sheet-msg">No hay zonas configuradas</p>';
-        return;
-    }
-
-    const selectedKey = selectedBodyParts.length ? selectedBodyParts[0].key : null;
-
-    grid.innerHTML = zones.map((zone) => `
-        <button type="button" class="q-zone-tile ${zone.key === selectedKey ? 'is-selected' : ''}"
-            data-zone-key="${escapeQuotationHtml(zone.key)}" onclick="selectBodyZone('${escapeQuotationHtml(zone.key).replace(/'/g, "\\'")}')">
-            <span class="q-zone-media ${zone.image ? '' : 'is-empty'}">
-                ${zone.image ? `<img src="${escapeQuotationHtml(zone.image)}" alt="" loading="lazy">` : ''}
-            </span>
-            <span class="q-zone-label">${escapeQuotationHtml(zone.label)}</span>
-        </button>`).join('');
-}
-
-function selectBodyZone(key) {
-    const zone = flattenBodyZones().find((z) => z.key === key);
-    if (!zone) return;
-
-    const previous = selectedBodyParts[0];
-    const side = previous && previous.key === key ? previous.side : null;
-
-    selectedBodyParts = [{
-        key: zone.key,
-        id: zone.id,
-        zone: zone.zoneId,
-        label: zone.label,
-        zoneLabel: zone.zoneLabel,
-        sides: zone.sides,
-        side: side || null,
-        sideLabel: side ? (side === 'left' ? 'Izquierdo' : 'Derecho') : null,
-        pain_level: zone.pain_level
-    }];
-
-    currentBodyZone = zone;
-    currentBodySide = side || null;
-
-    renderBodyZones();
-    updateBodySidePanel();
-    updateBodySilhouette();
-    commitBodySelection();
-}
-
-function handleSideChosen(side) {
-    if (!selectedBodyParts.length) return;
-    selectedBodyParts[0].side = side;
-    selectedBodyParts[0].sideLabel = side === 'left' ? 'Izquierdo' : 'Derecho';
-    currentBodySide = side;
-    updateBodySidePanel();
-    updateBodySilhouette();
-    commitBodySelection();
-}
-
-function updateBodySidePanel() {
-    const panel = document.getElementById('body-side-panel');
-    if (!panel) return;
-
-    const selection = selectedBodyParts[0];
-    if (!selection) {
-        panel.classList.add('hidden');
-        return;
-    }
-
-    panel.classList.remove('hidden');
-    const zoneEl = document.getElementById('body-side-zone');
-    if (zoneEl) zoneEl.textContent = selection.label;
-
-    const hasSides = selection.sides === 'both';
-    const label = document.getElementById('body-side-label');
-    const chips = document.getElementById('body-side-chips');
-    if (label) label.classList.toggle('hidden', !hasSides);
-    if (chips) {
-        chips.classList.toggle('hidden', !hasSides);
-        chips.querySelectorAll('[data-side]').forEach((el) => {
-            el.classList.toggle('is-active', el.dataset.side === selection.side);
-        });
-    }
+    // Borrador del wizard anterior (o texto del pre-cotizador) ya convertido
+    // al formato nuevo: se reescribe lo que se guarda.
+    if (selectedBodyParts.length && JSON.stringify(selectedBodyParts) !== before) commitBodySelection();
 }
 
 // Escribe la selección en formData con el mismo formato de texto que ya
 // consumen artista/backoffice ("Zona: Subzona") + el lado en su columna.
+// El texto lo arma WoQuotationBodyModel.describe (máx. 255 caracteres).
 function commitBodySelection() {
-    const selection = selectedBodyParts[0];
-    if (!selection) {
+    const body = window.WoQuotationBody;
+    const described = body && selectedBodyParts.length ? body.describe(selectedBodyParts, BODY_PARTS_DATA) : null;
+    if (!described || !described.count) {
+        const hadValue = !!formData.tattoo_body_part;
         formData.tattoo_body_part = null;
         formData.tattoo_body_side = null;
         formData.tattoo_body_parts_data = [];
+        if (hadValue) persistAnswer();
         return;
     }
 
-    const shared = window.WeotziQuotationShared;
-    const label = shared && typeof shared.formatBodyPartLabel === 'function'
-        ? shared.formatBodyPartLabel(selection.zoneLabel, selection.label)
-        : (selection.zoneLabel === selection.label ? selection.label : `${selection.zoneLabel}: ${selection.label}`);
-
-    formData.tattoo_body_part = toTitleCase(label);
-    formData.tattoo_body_side = selection.sideLabel || null;
+    formData.tattoo_body_part = described.bodyPart;
+    formData.tattoo_body_side = described.bodySide;
     formData.tattoo_body_parts_data = selectedBodyParts;
     persistAnswer();
 }
@@ -2643,9 +2800,7 @@ function removeBodyPart() {
     selectedBodyParts = [];
     currentBodyZone = null;
     currentBodySide = null;
-    renderBodyZones();
-    updateBodySidePanel();
-    updateBodySilhouette();
+    if (window.WoQuotationBody) window.WoQuotationBody.reset();
     commitBodySelection();
 }
 
@@ -2653,6 +2808,13 @@ function confirmBodyParts() {
     commitBodySelection();
     nextStep();
 }
+
+// Nombres del selector anterior que el wizard sigue exportando en window: la
+// zona, el lado y la silueta ahora se manejan dentro de WoQuotationBody.
+function selectBodyZone() {}
+function handleSideChosen() {}
+function toggleBodySilhouette() {}
+window.toggleBodySilhouette = toggleBodySilhouette;
 
 
 // ============ ESTILOS (Figma 02) ============
@@ -2728,6 +2890,21 @@ function renderStylesGrid(styles) {
     const grid = document.getElementById('styles-grid');
     if (!grid) return;
 
+    // Ronda 2 (cot-pasos · P10): primero los estilos del artista elegido, con
+    // la insignia "Artista"; sin artista, los que sugiere el análisis de la
+    // idea, con la etiqueta "Recomendado" (quotation-style-step.js).
+    if (window.WoQuotationStyle) {
+        const hasArtist = !!formData.artist_id && !formData.no_artist;
+        window.WoQuotationStyle.render(grid, styles, {
+            artistName: hasArtist ? toTitleCase(formData.artist_name || '') : '',
+            artistStyles: hasArtist ? (formData.artist_styles || (formData.artist_data && formData.artist_data.styles_array)) : null,
+            idea: formData.tattoo_idea_description || '',
+            isSelected: isStyleSelected,
+            onToggle: toggleStyleSelection
+        });
+        return;
+    }
+
     grid.innerHTML = styles.map((style) => {
         const selected = isStyleSelected(style.id);
         const cover = style.cover_image_url
@@ -2796,13 +2973,20 @@ function checkStyleMismatch() {
     const chosen = getSelectedStyles().map((s) => String(s.style_name || '').toLowerCase().trim()).filter(Boolean);
     if (!chosen.length) return;
 
-    const hasMatch = chosen.some((name) => artistStyles.some((s) => {
-        const clean = String(s).toLowerCase().trim();
-        return clean.includes(name) || name.includes(clean);
-    }));
+    // Mismo criterio que la insignia "Artista" (alias del catálogo incluidos):
+    // "Neotradicional" del artista es "Neo-Tradicional" del cotizador.
+    const styleModel = window.WoQuotationStyleModel;
+    const artistCatalogIds = styleModel
+        ? styleModel.matchArtistStyles(artistStyles, TATTOO_STYLES_DATA || []).map((style) => String(style.id))
+        : [];
+    const hasMatch = getSelectedStyles().some((s) => artistCatalogIds.includes(String(s.style_id))) ||
+        chosen.some((name) => artistStyles.some((s) => {
+            const clean = String(s).toLowerCase().trim();
+            return clean.includes(name) || name.includes(clean);
+        }));
 
     formData.style_mismatch_acknowledged = !hasMatch;
-    if (!hasMatch) showToastMessage(`${artist.name} trabaja otros estilos, pero podés seguir con la cotización.`);
+    if (!hasMatch) showToastMessage(`${artist.name} trabaja otros estilos, pero puedes seguir con la cotización.`);
 }
 
 window.toggleStyleSelection = toggleStyleSelection;
@@ -2835,8 +3019,34 @@ window.openReferencePicker = function openReferencePicker() {
     const input = document.getElementById('file-input');
     if (input) input.click();
 };
-async function handleFiles(files) {
-    const remainingSlots = 4 - uploadedFiles.length;
+// Ronda 2: referencias que ya están en Storage (borrador clonado con "Cotizar
+// con otro artista"): [{ path, url, note, ai_generated }]. Cuentan para el
+// máximo de 4 junto con los archivos elegidos en esta página.
+function storedReferences() {
+    return Array.isArray(formData.stored_references) ? formData.stored_references : [];
+}
+
+function totalReferences() {
+    return storedReferences().length + uploadedFiles.length;
+}
+
+// URL dentro de url("…") en un estilo: solo blob: (archivo local) o https:
+// (Storage), sin caracteres que cierren la comilla.
+function cssUrlValue(url) {
+    const value = String(url || '');
+    if (!/^(blob:|https:\/\/)/i.test(value)) return '';
+    return value.replace(/["\\\n\r]/g, '');
+}
+
+// Archivos generados con IA en esta página (solo referenciales).
+const _aiReferenceFiles = typeof WeakSet === 'function' ? new WeakSet() : null;
+
+function isAiReferenceFile(file) {
+    return !!(_aiReferenceFiles && file && _aiReferenceFiles.has(file));
+}
+
+async function handleFiles(files, options = {}) {
+    const remainingSlots = 4 - totalReferences();
     if (remainingSlots <= 0) {
         showToastMessage("Máximo 4 imágenes de referencia permitidas.");
         return;
@@ -2853,13 +3063,18 @@ async function handleFiles(files) {
     for (const file of filesArray) {
         const converted = await convertIfHEIC(file);
         const compressed = await compressImage(converted);
+        if (options.ai && _aiReferenceFiles) _aiReferenceFiles.add(compressed);
         processedFiles.push(compressed);
     }
 
-    uploadedFiles = [...uploadedFiles, ...processedFiles];
-    formData.reference_images_count = uploadedFiles.length;
+    // Dos tandas en paralelo (elegir y soltar a la vez) no pasan el máximo:
+    // el cupo se vuelve a medir solo al agregar.
+    const room = Math.max(0, 4 - totalReferences());
+    uploadedFiles = [...uploadedFiles, ...processedFiles.slice(0, room)];
+    formData.reference_images_count = totalReferences();
     syncReferenceNotesLength();
     renderPreviews();
+    persistAnswer();
 }
 
 // Notas por referencia (Figma 05): array de strings alineado por índice con
@@ -2877,8 +3092,52 @@ function setReferenceNote(index, value) {
 }
 
 // Figma 05: cada referencia es un tile con botón de borrado arriba a la
-// derecha + input de nota debajo ("Agregá una nota…"); la última celda es
-// "AÑADIR REFERENCIA" (borde punteado).
+// derecha + input de nota debajo ("Agrega una nota…"); la última celda es
+// "AÑADIR REFERENCIA" (borde punteado). Ronda 2: las generadas con IA llevan la
+// franja "Generada con IA · solo referencial" y hay un tile para generarlas.
+function buildReferenceCell({ url, ai, label, note, withNotes, onRemove, onNote }) {
+    const cell = document.createElement('div');
+    cell.className = 'q-ref-cell';
+
+    const tile = document.createElement('div');
+    tile.className = 'q-ref-tile' + (ai ? ' is-ai' : '');
+    tile.style.backgroundImage = `url("${cssUrlValue(url)}")`;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'q-ref-remove';
+    removeBtn.setAttribute('aria-label', `Quitar ${label}`);
+    removeBtn.innerHTML = '<i data-wo-icon="x"></i>';
+    removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        onRemove();
+    };
+    tile.appendChild(removeBtn);
+
+    if (ai) {
+        const badge = document.createElement('span');
+        badge.className = 'q-ref-badge';
+        badge.innerHTML = '<i data-wo-icon="zap" aria-hidden="true"></i>';
+        badge.appendChild(document.createTextNode('Generada con IA · solo referencial'));
+        tile.appendChild(badge);
+    }
+    cell.appendChild(tile);
+
+    if (withNotes) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'q-ref-note';
+        input.placeholder = 'Agrega una nota…';
+        input.maxLength = 200;
+        input.value = note || '';
+        input.setAttribute('aria-label', `Nota para la ${label}`);
+        input.addEventListener('input', () => onNote(input.value.trim()));
+        input.addEventListener('change', () => persistAnswer());
+        cell.appendChild(input);
+    }
+    return cell;
+}
+
 function renderPreviews() {
     const cont = document.getElementById('preview-container');
     if (!cont) return;
@@ -2887,69 +3146,96 @@ function renderPreviews() {
     // Con dropzone (pantalla 01) el tile no lleva nota: la nota es de la
     // grilla de referencias de la pantalla 05.
     const withNotes = !document.getElementById('drop-zone');
+    const stored = storedReferences();
 
-    uploadedFiles.forEach((file, index) => {
-        const url = URL.createObjectURL(file);
-        const cell = document.createElement('div');
-        cell.className = 'q-ref-cell';
-
-        const tile = document.createElement('div');
-        tile.className = 'q-ref-tile';
-        tile.style.backgroundImage = `url(${url})`;
-
-        const removeBtn = document.createElement('button');
-        removeBtn.type = 'button';
-        removeBtn.className = 'q-ref-remove';
-        removeBtn.setAttribute('aria-label', 'Quitar referencia');
-        removeBtn.innerHTML = '<i data-wo-icon="x"></i>';
-        removeBtn.onclick = (e) => {
-            e.stopPropagation();
-            removeUploadedFile(index);
-        };
-
-        tile.appendChild(removeBtn);
-        cell.appendChild(tile);
-
-        if (withNotes) {
-            const note = document.createElement('input');
-            note.type = 'text';
-            note.className = 'q-ref-note';
-            note.placeholder = 'Agregá una nota…';
-            note.maxLength = 200;
-            note.value = (Array.isArray(formData.reference_notes) && formData.reference_notes[index]) || '';
-            note.setAttribute('aria-label', `Nota para la referencia ${index + 1}`);
-            note.addEventListener('input', () => setReferenceNote(index, note.value.trim()));
-            note.addEventListener('change', () => persistAnswer());
-            cell.appendChild(note);
-        }
-
-        cont.appendChild(cell);
+    stored.forEach((ref, index) => {
+        cont.appendChild(buildReferenceCell({
+            url: ref.url, ai: ref.ai_generated === true, label: `referencia ${index + 1}`, note: ref.note, withNotes,
+            onRemove: () => removeStoredReference(index),
+            onNote: (value) => { ref.note = value; }
+        }));
     });
 
-    // Tile "AÑADIR REFERENCIA" (solo en la pantalla 05, donde no hay dropzone).
-    if (!document.getElementById('drop-zone') && uploadedFiles.length < 4) {
+    uploadedFiles.forEach((file, index) => {
+        cont.appendChild(buildReferenceCell({
+            url: URL.createObjectURL(file), ai: isAiReferenceFile(file), label: `referencia ${stored.length + index + 1}`,
+            note: (Array.isArray(formData.reference_notes) && formData.reference_notes[index]) || '', withNotes,
+            onRemove: () => removeUploadedFile(index),
+            onNote: (value) => setReferenceNote(index, value)
+        }));
+    });
+
+    // Tiles "AÑADIR REFERENCIA" y "GENERAR REFERENCIA CON IA" (solo en la
+    // pantalla 05, donde no hay dropzone).
+    if (!document.getElementById('drop-zone') && totalReferences() < 4) {
         const add = document.createElement('button');
         add.type = 'button';
         add.className = 'q-ref-add';
         add.onclick = () => window.openReferencePicker();
         add.innerHTML = '<i data-wo-icon="plus"></i><span>Añadir referencia</span>';
         cont.appendChild(add);
+
+        const R2 = quotationR2();
+        if (R2 && R2.aiEnabled()) {
+            const ai = document.createElement('button');
+            ai.type = 'button';
+            ai.className = 'q-ref-add q-ref-ai';
+            ai.onclick = () => openAiReferencePanel();
+            ai.innerHTML = R2.aiTileHtml();
+            cont.appendChild(ai);
+        }
     }
 
     const dropZone = document.getElementById('drop-zone');
-    if (dropZone) dropZone.classList.toggle('is-full', uploadedFiles.length >= 4);
+    if (dropZone) dropZone.classList.toggle('is-full', totalReferences() >= 4);
 }
 
 function removeUploadedFile(index) {
     uploadedFiles.splice(index, 1);
     if (Array.isArray(formData.reference_notes)) formData.reference_notes.splice(index, 1);
-    formData.reference_images_count = uploadedFiles.length;
+    formData.reference_images_count = totalReferences();
     renderPreviews();
     persistAnswer();
 }
 
+function removeStoredReference(index) {
+    const stored = storedReferences();
+    stored.splice(index, 1);
+    formData.stored_references = stored;
+    formData.reference_images_count = totalReferences();
+    renderPreviews();
+    persistAnswer();
+}
+
+// Ronda 2 (P7): referencia generada con IA a partir de la idea del formulario.
+// El servidor arma el prompt y limita el uso; la imagen entra al mismo
+// pipeline que las demás, marcada como "solo referencial".
+function openAiReferencePanel() {
+    const R2 = quotationR2();
+    if (!R2) return;
+    if (totalReferences() >= 4) {
+        showToastMessage('Máximo 4 imágenes de referencia permitidas.');
+        return;
+    }
+    if (!formData.submission_key) formData.submission_key = newSubmissionKey();
+    saveDraftToLocalStorage();
+    R2.openAiPanel({
+        payload: () => ({
+            submission_key: formData.submission_key,
+            idea: formData.tattoo_idea_description || '',
+            styles: formData.tattoo_style || null,
+            body_part: [formData.tattoo_body_part, formData.tattoo_body_side].filter(Boolean).join(', '),
+            color: formData.tattoo_color_type || ''
+        }),
+        request: (body) => postQuotationApi('/api/quotations/ai-reference', body),
+        canAdd: () => totalReferences() < 4,
+        onUse: (file) => handleFiles([file], { ai: true })
+    });
+}
+
 function skipReferences() {
     uploadedFiles = [];
+    formData.stored_references = [];
     formData.reference_images_count = 0;
     formData.reference_notes = [];
     nextStep();
@@ -2982,19 +3268,29 @@ function referenceExtension(file) {
  * @returns {Promise<{paths: string[], failed: number}>}
  */
 async function uploadReferencesToStorage(quoteId) {
-    if (!uploadedFiles || uploadedFiles.length === 0) return { paths: [], failed: 0 };
+    // Ronda 2: `references` lleva cada path con SU nota y la marca de IA (P13 / P7).
+    // Primero las que ya están en Storage (borrador clonado), después los archivos.
+    const notes = Array.isArray(formData.reference_notes) ? formData.reference_notes : [];
+    const references = storedReferences()
+        .filter((ref) => ref && typeof ref.path === 'string' && ref.path.startsWith(String(quoteId) + '/'))
+        .map((ref) => ({ path: ref.path, note: String(ref.note || ''), ai_generated: ref.ai_generated === true }));
+    const paths = references.map((ref) => ref.path);
+    if (!uploadedFiles || uploadedFiles.length === 0) return { paths, references, failed: 0 };
     const supabaseClient = window.ConfigManager && window.ConfigManager.getSupabaseClient();
     if (!supabaseClient || !/^QN[0-9a-f]{32}$/.test(String(quoteId || ''))) {
-        return { paths: [], failed: uploadedFiles.length };
+        return { paths, references, failed: uploadedFiles.length };
     }
     const bucketName = 'quotation-references';
-    const paths = [];
     let failed = 0;
+    const addReference = (file, index, path) => {
+        paths.push(path);
+        references.push({ path, note: String(notes[index] || ''), ai_generated: isAiReferenceFile(file) });
+    };
 
     for (let i = 0; i < uploadedFiles.length; i++) {
         const file = uploadedFiles[i];
         const known = _uploadedReferencePaths && _uploadedReferencePaths.get(file);
-        if (known && known.startsWith(quoteId + '/')) { paths.push(known); continue; }
+        if (known && known.startsWith(quoteId + '/')) { addReference(file, i, known); continue; }
 
         const filePath = `${quoteId}/ref_${i + 1}_${Date.now()}.${referenceExtension(file)}`;
         let ok = false;
@@ -3015,18 +3311,18 @@ async function uploadReferencesToStorage(quoteId) {
         }
         if (ok) {
             if (_uploadedReferencePaths) _uploadedReferencePaths.set(file, filePath);
-            paths.push(filePath);
+            addReference(file, i, filePath);
         } else {
             failed++;
         }
     }
-    return { paths, failed };
+    return { paths, references, failed };
 }
 
 
 // ============ RESUMEN (Figma 08 · "Tu tatuaje") ============
 // Grilla plana de 7 datos + MOODBOARD + bloque de CTA. Los datos personales
-// no aparecen acá: en el Figma viven en el centro de cuenta.
+// no aparecen aquí: en el Figma viven en el centro de cuenta.
 function generateSummary() {
     hideToastMessage();
     summaryReached = true;
@@ -3043,7 +3339,7 @@ function generateSummary() {
         .filter(Boolean).join(' · ') || '-';
 
     const size = formatTattooSizeForDisplay(formData.tattoo_size);
-    const referencesCount = uploadedFiles.length || formData.reference_images_count || 0;
+    const referencesCount = totalReferences() || formData.reference_images_count || 0;
     const referencesText = referencesCount === 1 ? '1 imagen' : `${referencesCount} imágenes`;
 
     // Figma 08: 3 columnas estrictas — IDEA | ESTILO | UBICACIÓN / TAMAÑO |
@@ -3067,15 +3363,15 @@ function generateSummary() {
     // Moodboard: miniaturas reales de las referencias subidas.
     const moodboard = document.getElementById('summary-moodboard');
     if (moodboard) {
-        if (uploadedFiles.length) {
+        // Ronda 2: incluye las referencias ya guardadas (borrador clonado) y marca las de IA.
+        const thumbs = storedReferences().map((ref) => ({ url: ref.url, ai: ref.ai_generated === true }))
+            .concat(uploadedFiles.map((file) => ({ url: URL.createObjectURL(file), ai: isAiReferenceFile(file) })));
+        if (thumbs.length) {
             moodboard.classList.remove('hidden');
             moodboard.innerHTML =
                 '<p class="q-summary-k">Moodboard</p>' +
                 '<div class="q-moodboard-grid">' +
-                uploadedFiles.map((file) => {
-                    const url = URL.createObjectURL(file);
-                    return `<span class="q-moodboard-thumb" style="background-image:url(${url})"></span>`;
-                }).join('') +
+                thumbs.map((thumb) => `<span class="q-moodboard-thumb${thumb.ai ? ' is-ai' : ''}"${thumb.ai ? ' title="Generada con IA · solo referencial"' : ''} style="background-image:url(&quot;${escapeQuotationHtml(cssUrlValue(thumb.url))}&quot;)"></span>`).join('') +
                 '</div>';
         } else {
             moodboard.classList.add('hidden');
@@ -3092,7 +3388,11 @@ function generateSummary() {
         if (copy) copy.textContent = `Vamos a enviar tu solicitud a ${toTitleCase(formData.artist_name)} con todos los detalles.`;
         if (submitLabel) submitLabel.textContent = 'Solicitar cotización';
     } else {
-        if (copy) copy.textContent = 'Te mostramos artistas que trabajan tu estilo cerca tuyo. Elegí a quién enviarle tu solicitud o publicá tu idea en el Job Board.';
+        if (copy) copy.textContent = 'Te mostramos artistas que trabajan tu estilo cerca de ti. Elige a quién enviarle tu solicitud o publica tu idea en el Job Board.';
+        // Ronda 2 (P32): solicitud reutilizada para cotizar con otro artista.
+        if (copy && formData.reused_from_code) {
+            copy.textContent = `Estás reutilizando tu solicitud ${formData.reused_from_code}: ya están tu idea, tus datos y tus referencias. Elige a qué otro artista enviársela o publica tu idea en el Job Board.`;
+        }
         if (submitLabel) submitLabel.textContent = 'Ver artistas sugeridos';
     }
     clearQuotationFormError();
@@ -3129,7 +3429,7 @@ let _pendingAfterLogin = null;
 // Origen previo al elegir un artista sugerido (para deshacer si falla).
 let _sourceBeforeRecommendation;
 
-const DEFAULT_NEXT_STEPS_HTML = '<p><strong>1. Revisá tu correo</strong><br>Te escribimos ahí cuando haya novedades de tu solicitud.</p><p><strong>2. Prepará tus referencias</strong><br>Si tenés más imágenes que te inspiran, tenelas listas para compartir.</p><p><strong>3. Agendá tu sesión</strong><br>Cuando cierres los detalles con el artista, reservá la fecha.</p>';
+const DEFAULT_NEXT_STEPS_HTML = '<p><strong>1. Revisa tu correo</strong><br>Te escribimos ahí cuando haya novedades de tu solicitud.</p><p><strong>2. Prepara tus referencias</strong><br>Si tienes más imágenes que te inspiran, tenlas listas para compartir.</p><p><strong>3. Agenda tu sesión</strong><br>Cuando cierres los detalles con el artista, reserva la fecha.</p>';
 
 function setSubmitBusy(busy) {
     document.querySelectorAll('#submit-btn, .q-dest button, .q-final-actions button').forEach((btn) => {
@@ -3152,7 +3452,7 @@ function showQuotationFormError(message) {
         box.tabIndex = -1;
         host.insertBefore(box, host.firstChild);
     }
-    box.innerHTML = `<i data-wo-icon="alert-triangle" class="wo-icon-18" aria-hidden="true"></i><p>${escapeQuotationHtml(message || 'No pudimos enviar tu solicitud. Intentá de nuevo.')}</p>`;
+    box.innerHTML = `<i data-wo-icon="alert-triangle" class="wo-icon-18" aria-hidden="true"></i><p>${escapeQuotationHtml(message || 'No pudimos enviar tu solicitud. Intenta de nuevo.')}</p>`;
     if (typeof box.focus === 'function') box.focus();
 }
 
@@ -3168,7 +3468,7 @@ function ensureQuotationReady() {
     const firstIncomplete = findFirstIncompleteScreenIndex();
     if (summaryIdx !== -1 && firstIncomplete !== -1 && firstIncomplete < summaryIdx) {
         commitStepChange(firstIncomplete);
-        showToastMessage('Completá los datos que faltan antes de enviar tu solicitud.');
+        showToastMessage('Completa los datos que faltan antes de enviar tu solicitud.');
         return false;
     }
     return true;
@@ -3181,6 +3481,9 @@ function resetChosenArtist() {
     formData.artist_username = null;
     formData.artist_email = null;
     formData.no_artist = true;
+    // La sede elegida era de ese artista.
+    formData.preferred_location_key = null;
+    formData.preferred_location_label = null;
     formData.quotation_source = _sourceBeforeRecommendation || undefined;
     if (!formData.quotation_source) delete formData.quotation_source;
 }
@@ -3235,8 +3538,8 @@ function renderSubmittedSuccess({ warnings = [] } = {}) {
            </div>`
         : `<div class="create-account-section">
                 <div class="account-benefits">
-                    <h3><i data-wo-icon="user-plus" class="wo-icon-18"></i> Creá tu cuenta gratuita</h3>
-                    <p class="benefits-intro">Accedé a funciones exclusivas:</p>
+                    <h3><i data-wo-icon="user-plus" class="wo-icon-18"></i> Crea tu cuenta gratuita</h3>
+                    <p class="benefits-intro">Accede a funciones exclusivas:</p>
                     <ul class="benefits-list">
                         <li><i data-wo-icon="eye"></i> Ver el estado de tu cotización en tiempo real</li>
                         <li><i data-wo-icon="message-circle"></i> Chatear directamente con el artista</li>
@@ -3259,15 +3562,43 @@ function renderSubmittedSuccess({ warnings = [] } = {}) {
                 <div class="success-icon" aria-hidden="true"><i data-wo-icon="check"></i></div>
                 <h1 id="success-title" tabindex="-1">Solicitud enviada</h1>
                 ${warningsHtml(warnings)}
-                <p class="success-quote-id">Tu ID · <span class="highlight-text">${escapeQuotationHtml(formData.quote_id)}</span></p>
+                <p class="success-quote-id">Tu código · <span class="highlight-text">${escapeQuotationHtml(quotationDisplayCode())}</span></p>
                 <p class="success-msg">${successArtistMessage()}</p>
                 ${accountBlock}
             </div>
         </section>`;
+    // Ronda 2 (P16): pantalla nueva con el código corto y los beneficios de la cuenta.
+    const R2 = quotationR2();
+    if (R2) {
+        container.innerHTML = R2.successHtml({
+            code: quotationDisplayCode(),
+            artistName: formData.artist_name ? toTitleCase(formData.artist_name) : '',
+            loggedIn,
+            warningsHtml: warningsHtml(warnings),
+            minor: quotationClientIsMinor(),
+            location: formData.preferred_location_label || ''
+        });
+        R2.bindSuccess();
+    }
     _setQuotationChromeVisible(false);
     const heading = document.getElementById('success-title');
     if (heading && typeof heading.focus === 'function') heading.focus();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ¿El cliente declaró una fecha de nacimiento de entre 14 y 17 años?
+function quotationClientIsMinor() {
+    const Model = quotationR2Model();
+    if (!Model || !formData.client_birth_date) return formData._client_is_minor === true;
+    return Model.birthStatus(Model.parseBirthDate(formData.client_birth_date)).minor === true;
+}
+
+// Código corto visible de la solicitud (6 caracteres). Si el servidor todavía
+// no lo devolvió, los últimos 6 del quote_id (solo como etiqueta).
+function quotationDisplayCode() {
+    const Model = quotationR2Model();
+    if (Model) return Model.displayCode({ short_code: formData.short_code, quote_id: formData.quote_id });
+    return formData.short_code || String(formData.quote_id || '').slice(-6).toUpperCase();
 }
 
 async function submitQuotation() {
@@ -3285,7 +3616,7 @@ async function submitQuotation() {
     try {
         await waitForConfigManager();
         if (!window.ConfigManager.getSupabaseClient() || window.ConfigManager.isDemoMode()) {
-            throw intakeError('No hay conexión para guardar la cotización. Recargá la página e intentá de nuevo.');
+            throw intakeError('No hay conexión para guardar la cotización. Recarga la página e intenta de nuevo.');
         }
         // 1. Borrador en el servidor: define el quote_id (folder de referencias).
         await saveWebQuotation('draft');
@@ -3293,15 +3624,15 @@ async function submitQuotation() {
         if (window.WoQuotationSlot) await window.WoQuotationSlot.precheck(formData);
         // 2. Referencias a Storage (fuente de verdad).
         const upload = await uploadReferencesToStorage(formData.quote_id);
-        // 3. Envío: el servidor registra las referencias y manda los avisos.
-        const result = await saveWebQuotation('submit', { references: upload.paths });
+        // 3. Envío: el servidor registra las referencias (cada una con su nota) y manda los avisos.
+        const result = await saveWebQuotation('submit', { references: upload.references });
         formData.quote_status = 'pending';
 
         const warnings = [];
         if (upload.failed) {
             warnings.push(upload.failed === 1
-                ? 'Una imagen de referencia no se pudo subir: podés mandársela al artista por el chat.'
-                : `${upload.failed} imágenes de referencia no se pudieron subir: podés mandárselas al artista por el chat.`);
+                ? 'Una imagen de referencia no se pudo subir: puedes mandársela al artista por el chat.'
+                : `${upload.failed} imágenes de referencia no se pudieron subir: puedes mandárselas al artista por el chat.`);
         }
         if (result && result.references_saved === false) {
             warnings.push('Tus referencias quedaron guardadas, pero el artista puede tardar en verlas.');
@@ -3325,9 +3656,16 @@ async function submitQuotation() {
         }
         let message = error.message;
         if (formData.quotation_source === 'recommendation' && error.status === 404) {
-            message = 'Ese artista ya no está disponible. Elegí otro o publicá tu idea en el Job Board.';
+            message = 'Ese artista ya no está disponible. Elige otro o publica tu idea en el Job Board.';
         }
         resetChosenArtist();
+        // Ronda 2 (P15): el servidor también valida la edad mínima.
+        if (error.data && error.data.code === 'under_age') {
+            formData.client_birth_date = null;
+            goToStepByField('client_birth_date');
+            setTimeout(() => showScreenErrors([{ ok: false, message, el: document.getElementById('q-birth-year') || document.getElementById('block-birth-date') }]), 60);
+            return;
+        }
         showQuotationFormError(message);
     } finally {
         // Éxito o error: la página queda lista para otra cotización o reintento.
@@ -3356,17 +3694,24 @@ function buildSuggestionCriteria() {
     };
 }
 
+// Ronda 2 (P19): solo se listan los criterios que el artista SÍ cumple, cada
+// uno con su color (quotation-r2-model.js). Este es el mismo criterio sin el
+// módulo cargado.
 function suggestionReasons(s) {
     const reasons = [];
     const match = s.match || {};
     if (match.style === 'exact') reasons.push('Trabaja tu estilo');
     else if (match.style === 'partial') reasons.push('Estilo afín');
     if (match.location === 'city') reasons.push('En tu ciudad');
-    else if (match.location === 'near') reasons.push(match.distance_km ? `A ${match.distance_km} km` : 'Cerca tuyo');
+    else if (match.location === 'near') reasons.push(match.distance_km ? `A ${match.distance_km} km` : 'Cerca de ti');
     else if (match.location === 'country') reasons.push('En tu país');
     if (match.budget === 'within') reasons.push('Dentro de tu presupuesto');
-    else if (match.budget === 'near') reasons.push('Cerca de tu presupuesto');
     return reasons;
+}
+
+function suggestionTags(s) {
+    const Model = quotationR2Model();
+    return Model ? Model.suggestionTags(s) : suggestionReasons(s).map((label) => ({ label, tone: 'plain' }));
 }
 
 function suggestionInitials(name) {
@@ -3378,28 +3723,52 @@ function suggestionCardHtml(s, index) {
     const picture = typeof s.profile_picture === 'string' && /^https:\/\//i.test(s.profile_picture) ? s.profile_picture : '';
     const place = [s.city, s.country].filter(Boolean).join(', ');
     const styles = Array.isArray(s.styles) ? s.styles.filter(Boolean).slice(0, 4) : [];
-    const reasons = suggestionReasons(s);
+    // Ronda 2 (P19): foto y nombre abren el perfil reducido; "Recomendado" en
+    // amarillo, insignia de embajador y etiquetas de colores solo si cumple.
+    const tags = suggestionTags(s);
+    const Model = quotationR2Model();
+    const badges = Model ? Model.suggestionBadges(s) : [];
     const profileHref = `/artist/profile?artist=${encodeURIComponent(s.username || '')}`;
     return `
         <li class="q-sug-card">
-            <div class="q-sug-head">
+            <button type="button" class="q-sug-fav" data-wo-favorite data-kind="artist" data-id="${escapeQuotationHtml(s.user_id || '')}" data-label="${escapeQuotationHtml(name)}" data-image="${escapeQuotationHtml(picture)}"></button>
+            <button type="button" class="q-sug-head q-sug-open" data-sug-profile="${index}" aria-label="Ver el perfil de ${escapeQuotationHtml(name)}">
                 <span class="q-sug-avatar" aria-hidden="true">${picture
                     ? `<img src="${escapeQuotationHtml(picture)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
                     : escapeQuotationHtml(suggestionInitials(name))}</span>
-                <div class="q-sug-id">
-                    <p class="q-sug-name">${escapeQuotationHtml(name)}</p>
-                    ${s.verified ? '<span class="q-sug-verified"><i data-wo-icon="check-circle" aria-hidden="true"></i> Verificado</span>' : ''}
-                    ${place ? `<p class="q-sug-place">${escapeQuotationHtml(place)}</p>` : ''}
-                </div>
-            </div>
+                <span class="q-sug-id">
+                    <span class="q-sug-name">${escapeQuotationHtml(name)}</span>
+                    ${place ? `<span class="q-sug-place">${escapeQuotationHtml(place)}</span>` : ''}
+                </span>
+            </button>
+            ${s.verified || badges.length ? `<div class="q-sug-badges">
+                ${s.verified ? '<span class="q-sug-verified"><i data-wo-icon="check-circle" aria-hidden="true"></i> Verificado</span>' : ''}
+                ${badges.map((b) => `<span class="q-sug-badge q-sug-badge--${escapeQuotationHtml(b.key)}"><i data-wo-icon="${escapeQuotationHtml(b.icon)}" aria-hidden="true"></i>${escapeQuotationHtml(b.label)}</span>`).join('')}
+            </div>` : ''}
             ${styles.length ? `<p class="q-sug-styles">${styles.map(escapeQuotationHtml).join(' · ')}</p>` : ''}
-            ${reasons.length ? `<ul class="q-sug-why" aria-label="Por qué te lo sugerimos">${reasons.map((r) => `<li>${escapeQuotationHtml(r)}</li>`).join('')}</ul>` : ''}
+            ${tags.length ? `<ul class="q-sug-why" aria-label="Por qué te lo sugerimos">${tags.map((t) => `<li class="q-sug-tag q-sug-tag--${escapeQuotationHtml(t.tone)}">${escapeQuotationHtml(t.label)}</li>`).join('')}</ul>` : ''}
             <div class="q-sug-actions">
                 <button type="button" class="wo-btn wo-btn--hard btn-primary q-sug-choose" data-suggestion="${index}"
                     aria-label="Enviar mi solicitud a ${escapeQuotationHtml(name)}">Enviar mi solicitud a este artista</button>
-                <a class="q-sug-profile" href="${escapeQuotationHtml(profileHref)}" target="_blank" rel="noopener">Ver perfil<span class="wo-sr-only"> de ${escapeQuotationHtml(name)} (se abre en otra pestaña)</span></a>
+                <a class="q-sug-profile" href="${escapeQuotationHtml(profileHref)}" target="_blank" rel="noopener" data-sug-profile="${index}"><i data-wo-icon="eye" aria-hidden="true"></i> Ver perfil<span class="wo-sr-only"> de ${escapeQuotationHtml(name)}</span></a>
             </div>
         </li>`;
+}
+
+// Abre el perfil reducido del artista sugerido (modal centrado en su portfolio,
+// con "Ver perfil completo" en otra pestaña). La cotización no se cierra.
+// Devuelve false si no hay módulo: el enlace abre el perfil completo en otra pestaña.
+function openSuggestedProfile(index, viaLink) {
+    const s = _quotationSuggestions[index];
+    if (!s) return false;
+    const R2 = quotationR2();
+    if (R2) {
+        R2.openProfile(s, { canChoose: !_isSubmittingQuotation, onChoose: () => chooseSuggestedArtist(index) });
+        return true;
+    }
+    if (viaLink) return false;
+    window.open(`/artist/profile?artist=${encodeURIComponent(s.username || '')}`, '_blank', 'noopener');
+    return true;
 }
 
 function ensureDestinationPanel() {
@@ -3415,7 +3784,10 @@ function ensureDestinationPanel() {
         host.appendChild(panel);
         panel.addEventListener('click', (event) => {
             const choose = event.target.closest && event.target.closest('.q-sug-choose');
-            if (choose) chooseSuggestedArtist(Number(choose.dataset.suggestion));
+            if (choose) { chooseSuggestedArtist(Number(choose.dataset.suggestion)); return; }
+            // Ronda 2 (P19): foto, nombre y "Ver perfil" abren el perfil reducido.
+            const profile = event.target.closest && event.target.closest('[data-sug-profile]');
+            if (profile && openSuggestedProfile(Number(profile.dataset.sugProfile), profile.tagName === 'A')) event.preventDefault();
         });
     }
     return panel;
@@ -3431,10 +3803,10 @@ function renderDestination(suggestions, failed) {
     const title = has ? 'Artistas sugeridos para tu idea'
         : failed ? 'No pudimos cargar sugerencias' : 'Todavía no hay artistas para esta combinación';
     const copy = has
-        ? 'Los elegimos por estilo, ciudad y presupuesto. Elegí a quién enviarle tu solicitud: le llega con todos tus datos y referencias.'
+        ? 'Los elegimos por estilo, ciudad y presupuesto. Elige a quién enviarle tu solicitud: le llega con todos tus datos y referencias.'
         : failed
-            ? 'Probá de nuevo en unos segundos o publicá tu idea en el Job Board.'
-            : 'Publicá tu idea en el Job Board y los artistas interesados te escriben con su propuesta.';
+            ? 'Prueba de nuevo en unos segundos o publica tu idea en el Job Board.'
+            : 'Publica tu idea en el Job Board y los artistas interesados te escriben con su propuesta.';
 
     panel.innerHTML = `
         <h3 class="q-final-title q-dest-title" id="q-dest-title" tabindex="-1">${escapeQuotationHtml(title)}</h3>
@@ -3443,8 +3815,8 @@ function renderDestination(suggestions, failed) {
         ${failed ? '<button type="button" class="wo-btn wo-btn--ghost q-dest-retry" onclick="showArtistSuggestions()"><i data-wo-icon="rotate-ccw" class="wo-icon-18"></i> Reintentar</button>' : ''}
         <div class="q-dest-jb">
             <div class="q-dest-jb-text">
-                <p class="q-dest-jb-title">${has ? '¿Ninguno te convence?' : 'Publicá tu idea'}</p>
-                <p class="q-dest-jb-copy">En el Job Board los artistas ven tu idea y te mandan su propuesta. Necesitás tu cuenta de cliente; tu idea queda guardada mientras iniciás sesión.</p>
+                <p class="q-dest-jb-title">${has ? '¿Ninguno te convence?' : 'Publica tu idea'}</p>
+                <p class="q-dest-jb-copy">En el Job Board los artistas ven tu idea y te mandan su propuesta. Necesitas tu cuenta de cliente; tu idea queda guardada mientras inicias sesión.</p>
             </div>
             <button type="button" class="wo-btn wo-btn--ghost btn-secondary q-dest-jb-btn" onclick="publishQuotationToJobBoard()">
                 ${has ? 'No elegir ninguno: publicar mi idea en el Job Board' : 'Publicar mi idea en el Job Board'}
@@ -3480,15 +3852,36 @@ async function showArtistSuggestions() {
     renderDestination(suggestions, failed);
 }
 
-function chooseSuggestedArtist(index) {
+let _choosingSuggestion = false;
+
+async function chooseSuggestedArtist(index) {
     const s = _quotationSuggestions[index];
-    if (!s || _isSubmittingQuotation) return;
+    if (!s || _isSubmittingQuotation || _choosingSuggestion) return;
+    // Ronda 2 (P27): si el artista tatúa en más de un lugar, se pregunta la sede
+    // antes de enviar (el servidor valida la llave contra las sedes reales).
+    let location = null;
+    const R2 = quotationR2();
+    if (R2) {
+        _choosingSuggestion = true;
+        try {
+            const options = await R2.loadLocations(s.user_id);
+            if (options.length > 1) {
+                const key = await R2.chooseLocation(s.name || s.username, options);
+                if (key === null) return;
+                location = options.find((o) => o.key === key) || null;
+            }
+        } finally {
+            _choosingSuggestion = false;
+        }
+    }
     _sourceBeforeRecommendation = formData.quotation_source;
     formData.artist_id = s.user_id;
     formData.artist_username = s.username;
     formData.artist_name = s.name || s.username;
     formData.no_artist = false;
     formData.quotation_source = 'recommendation';
+    formData.preferred_location_key = location ? location.key : null;
+    formData.preferred_location_label = location ? location.label : null;
     submitQuotation();
 }
 
@@ -3551,7 +3944,7 @@ async function publishQuotationToJobBoard() {
             mode: 'draft',
             quotation: preparePayload(),
             extras: prepareIntakeExtrasPayload(),
-            references: upload.paths
+            references: upload.references
         }, { auth: 'required' });
         formData.quote_status = 'job_board';
         _pendingAfterLogin = null;
@@ -3563,7 +3956,7 @@ async function publishQuotationToJobBoard() {
             _pendingAfterLogin = 'jobboard';
             openQuotationLoginModal({ reason: 'jobboard', message: error.message });
         } else {
-            showQuotationFormError(error.message || 'No pudimos publicar tu idea. Intentá de nuevo.');
+            showQuotationFormError(error.message || 'No pudimos publicar tu idea. Intenta de nuevo.');
         }
     } finally {
         _isSubmittingQuotation = false;
@@ -3640,7 +4033,7 @@ async function showSuccessWithoutAccount() {
             <div class="success-content">
                 <div class="success-icon" aria-hidden="true"><i data-wo-icon="check"></i></div>
                 <h1 id="success-title" tabindex="-1">Solicitud enviada</h1>
-                <p class="success-quote-id">Tu ID · <span class="highlight-text">${escapeQuotationHtml(formData.quote_id)}</span></p>
+                <p class="success-quote-id">Tu código · <span class="highlight-text">${escapeQuotationHtml(quotationDisplayCode())}</span></p>
                 <p class="success-msg">${successArtistMessage()}</p>
 
                 <!-- Next Steps Section -->
@@ -3654,7 +4047,7 @@ async function showSuccessWithoutAccount() {
                 <!-- Reminder to create account -->
                 <div class="account-reminder">
                     <p><i data-wo-icon="info"></i>
-                        Recordá: podés <a href="/client/register" onclick="goToClientRegistration(); return false;">crear una cuenta</a>
+                        Recuerda: puedes <a href="/client/register" onclick="goToClientRegistration(); return false;">crear una cuenta</a>
                         en cualquier momento para ver el estado de tu cotización y chatear con el artista.
                     </p>
                 </div>
@@ -3716,6 +4109,8 @@ function resetQuotation() {
     currentBodyZone = null;
     currentBodySide = null;
     _calendarCursor = null;
+    _artistLocations = { artistId: null, options: [] };
+    _choosingSuggestion = false;
 
     _applyClientSessionPrefill();
 
@@ -3738,7 +4133,8 @@ function setupKeyboardNavigation() {
         // Enter en textarea = salto de línea; en el resto avanza la pantalla.
         const target = e.target;
         if (target && (target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
-        const overlayOpen = document.querySelector('.q-login-overlay:not(.hidden), .draft-recovery-overlay:not(.hidden)');
+        // (.q-r2-overlay: modales de la ronda 2 — perfil del artista, IA, sede.)
+        const overlayOpen = document.querySelector('.q-login-overlay:not(.hidden), .draft-recovery-overlay:not(.hidden), .q-r2-overlay');
         if (overlayOpen) return;
 
         const btn = document.getElementById('continue-btn');
@@ -3885,7 +4281,7 @@ function openQuotationLoginModal(options = {}) {
         const text = context.querySelector('.q-login-context-text');
         if (text && jobBoard) {
             text.textContent = opts.message
-                || 'Para publicar tu idea en el Job Board iniciá sesión con tu cuenta de cliente. Tu idea queda guardada en este navegador.';
+                || 'Para publicar tu idea en el Job Board inicia sesión con tu cuenta de cliente. Tu idea queda guardada en este navegador.';
         }
     }
     const overlay = document.getElementById('quotation-login-overlay');
@@ -3954,7 +4350,7 @@ async function handleQuotationLogin(e) {
     _clearLoginMessage();
 
     if (!email || !password) {
-        _showLoginMessage('Ingresá tu email y contraseña.', 'error');
+        _showLoginMessage('Ingresa tu email y contraseña.', 'error');
         return;
     }
 

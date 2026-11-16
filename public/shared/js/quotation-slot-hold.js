@@ -102,7 +102,7 @@
         }).catch(function (err) {
             var e = new Error(err && err.message ? err.message : 'No pudimos reservar el turno.');
             e.userMessage = err && err.code === 'slot_taken'
-                ? 'Ese horario ya está ocupado por otro turno, evento o cita. Elegí otro horario o seguí sin reservar el turno pedido.'
+                ? 'Ese horario ya está ocupado por otro turno, evento o cita. Elige otro horario o sigue sin reservar el turno pedido.'
                 : e.message;
             e.code = err && err.code;
             throw e;
@@ -147,7 +147,7 @@
                 (res.days || []).forEach(function (d) { (d.slots || []).forEach(function (s) { slots.push({ start: s.start, end: s.end, date: d.date, label: s.label }); }); });
                 slots = slots.filter(function (s) { return s.start !== info.hold.starts_at; }).slice(0, 24);
                 if (!slots.length) {
-                    box.innerHTML = '<p class="bk-note">No tenés turnos libres en esas dos semanas. Respondé con tu disponibilidad o agendá la sesión desde el acuerdo.</p>';
+                    box.innerHTML = '<p class="bk-note">No tienes turnos libres en esas dos semanas. Responde con tu disponibilidad o agenda la sesión desde el acuerdo.</p>';
                     return;
                 }
                 var minutes = info.hold.minutes;
@@ -210,7 +210,7 @@
             return '<div class="wo-field is-wide"><input type="hidden" name="reserve_slot_offered" value="1">' +
                 '<label class="bk-switch"><input type="checkbox" name="reserve_slot" value="1" checked aria-describedby="qd-reserve-slot-help">' +
                 '<span>Reservar el turno pedido: ' + esc(hold.label) + '</span></label>' +
-                '<p class="wo-help" id="qd-reserve-slot-help">Si lo destildás, el turno se libera y vuelve a estar disponible para otros clientes.</p></div>';
+                '<p class="wo-help" id="qd-reserve-slot-help">Si lo desmarcas, el turno se libera y vuelve a estar disponible para otros clientes.</p></div>';
         },
         // options: { starts_at, minutes } para agendarlo en otro horario;
         // from_agreement: true si el aviso al cliente lo manda el acuerdo.

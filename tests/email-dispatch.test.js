@@ -94,6 +94,35 @@ test('artist events cannot be triggered by client and chat body is loaded from s
     assert.equal(typeof result.defer.stillPending, 'function');
 });
 
+test('el aviso de la propuesta cita el mensaje de la propuesta y nunca una respuesta automática del inbox (EP-11)', async () => {
+    const artist = { id: 'artist-id', email: quote.artist_email };
+    const respondedAt = new Date().toISOString();
+    const responded = { ...quote, quote_status: 'responded', artist_responded_at: respondedAt };
+    const auto = { id: 1, message: 'Gracias por escribir. Respondo de lunes a viernes.', auto_kind: 'greeting', created_at: respondedAt };
+    const written = { id: 2, message: 'Te paso la propuesta.', auto_kind: null, created_at: respondedAt };
+    const run = async (quoteRow, messages) => {
+        const deps = dependencies(artist, { quotations_db: quoteRow });
+        const asked = [];
+        deps.latestMessages = async (...args) => { asked.push(args); return messages; };
+        const result = await resolveEmailContext(request, 'artist_responded_quotation', { quote_id: quote.quote_id }, deps);
+        assert.equal(result.ok, true);
+        return { preview: result.payload.message_preview, asked };
+    };
+    // Solo hay una bienvenida automática (mismo sender_id del artista): no se cita.
+    assert.equal((await run(responded, [auto])).preview, undefined);
+    // Un mensaje escrito a mano más viejo que el automático sí se cita.
+    assert.equal((await run(responded, [auto, written])).preview, 'Te paso la propuesta.');
+    // Base sin la columna auto_kind (migración sin aplicar): se comporta como antes.
+    assert.equal((await run(responded, [{ id: 3, message: 'Hola', created_at: respondedAt }])).preview, 'Hola');
+    // Escrito a mano pero lejos de la respuesta: tampoco.
+    assert.equal((await run(responded, [{ ...written, created_at: '2020-01-01T00:00:00Z' }])).preview, undefined);
+    // El mensaje guardado con la propuesta gana y ni siquiera se consulta el chat.
+    const withMessage = await run({ ...responded, proposal_message: '  Hola Lucía, te espero.  ' }, [auto, written]);
+    assert.equal(withMessage.preview, 'Hola Lucía, te espero.');
+    assert.deepEqual(withMessage.asked, []);
+    assert.equal((await run({ ...responded, proposal_message: 'x'.repeat(900) }, [])).preview.length, 400);
+});
+
 test('job application resolves the client recipient missing in current browser payload', async () => {
     const result = await resolveEmailContext(request, 'job_board_application_received', { application_id: 2 }, dependencies({ id: 'artist-id' }, {
         job_board_applications: { id: 2, request_id: 3, artist_id: 'artist-id', message: 'Application' },
@@ -291,7 +320,7 @@ test('instagram verification template shows the code and renders intro tokens pe
     const local = buildEmailHtml('instagram-verification', { mode: 'local' });
     assert.match(local, /font-size:30px[^>]*>\{\{verification_code\}\}</);
     assert.match(local, /<a href="\{\{dm_url\}\}"/);
-    assert.match(local, /Desde \{\{instagram_handle\}\}, seguí a \{\{weotzi_instagram\}\}/);
+    assert.match(local, /Desde \{\{instagram_handle\}\}, sigue a \{\{weotzi_instagram\}\}/);
     assert.match(local, /Vence en \{\{expires_label\}\}/);
     const spec = emailSpecs['instagram-verification'];
     for (const copy of [spec.eyebrow, spec.headline, spec.intro, spec.ctaLabel, spec.highlightLabel]) assert.doesNotMatch(copy, /[!¡]/);

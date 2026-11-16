@@ -18,6 +18,8 @@ disperso). Cómo construir sobre la capa: [docs/GUIA_CAPA_DATOS.md](../docs/GUIA
 3. Cero accesos directos a los dominios ya migrados fuera de los repos
    (`grep -rnE "\.from\('quotations_db'" public/shared/js --include=*.js | grep -v data/`).
 4. Si cambió el esquema: la migración SQL está aplicada en Supabase (`flbgmlvfiejfttlawnfu`).
+   **Excepción, ronda 2:** las migraciones `20261116*` van DESPUÉS del código, no antes
+   (ver [Ronda 2 · orden de despliegue y migraciones](#ronda-2--orden-de-despliegue-y-migraciones)).
 5. Decidir Opción A (solo `public/`) vs Opción B (server.js/lib/package.json → reinicia PM2).
 
 ---
@@ -266,6 +268,290 @@ Cada vez que soporte o el artista ven un número completo queda registrado en
 | `SESSION_REMINDERS_JOB` / `SESSION_REMINDERS_INTERVAL_MS` | Recordatorio 24 h de sesiones (on cada 30 min; `off` lo apaga). Cron alternativo: `POST /api/sessions/reminders/dispatch` con `X-Cron-Token`. |
 
 Previews de todos los correos: `node scripts/email-preview.js` → `output/email-previews/index.html`.
+
+---
+
+## Variables de entorno · Avisos push (Web Push)
+
+Los avisos push salen del propio servidor (`lib/web-push.js`: VAPID RFC 8292 +
+cifrado `aes128gcm` RFC 8291, sin dependencias ni servicios de terceros). Sin
+las claves **el push queda apagado en silencio**: `GET /api/push/config`
+responde `enabled:false`, la tarjeta "Avisos en este dispositivo" lo explica y
+los avisos dentro de la app (toast + sonido por Realtime) siguen funcionando.
+
+| Variable | Valor | Cómo se obtiene |
+|---|---|---|
+| `VAPID_PUBLIC_KEY` | Punto P-256 (65 bytes) en base64url | `node scripts/generate-vapid-keys.js mailto:<contacto>` imprime las tres líneas |
+| `VAPID_PRIVATE_KEY` | Escalar P-256 (32 bytes) en base64url | Ídem. **Secreta**: solo en el `.env` del servidor y en el gestor de secretos |
+| `VAPID_SUBJECT` | `mailto:…` o `https://…` | Contacto que ven los servicios push. Vacío → `mailto:SUPPORT_EMAIL` o `PUBLIC_APP_URL` |
+| `PUSH_ALLOWED_HOSTS` | Opcional, hosts separados por coma | Servicios push extra. Por defecto: FCM (Chrome/Edge/Opera), Mozilla, WNS y Apple |
+
+Alta (una sola vez):
+
+1. Aplicar la migración `supabase/migrations/20261116170000_push_notifications.sql` (tablas `push_subscriptions` y `user_notifications`, esta última en la publicación `supabase_realtime`).
+2. `node scripts/generate-vapid-keys.js mailto:<contacto>` en una máquina de confianza y pegar las tres líneas en el `.env` del servidor.
+3. Reiniciar PM2 con `--update-env`. Si las claves quedaron mal cargadas, el arranque avisa `[push] VAPID mal configurado (<motivo>)` y el push queda apagado (nunca tumba el servidor).
+4. Probar: Centro de cuenta → Notificaciones → **Activar avisos** → **Probar aviso**.
+
+Notas:
+
+- El service worker es `public/wo-sw.js` (raíz pública, alcance `/`); solo se registra cuando el usuario toca "Activar avisos". Necesita HTTPS (o `localhost`).
+- Cambiar las claves no rompe nada: cada navegador se vuelve a suscribir solo la próxima vez que abre la app. Las suscripciones vencidas (404/410 del servicio push) se borran solas.
+- iPhone / iPad: Safari solo entrega push a la web instalada en la pantalla de inicio. En una pestaña común se ven los avisos dentro de la app.
+- Qué se avisa: los mismos eventos que salen por correo a un usuario registrado (cotizaciones, mensajes, calendario, estudios, verificación), con el asunto y el preheader del correo. Nunca códigos, contraseñas ni datos de salud. Cada usuario lo regula con la columna "Push" de su matriz de notificaciones.
+
+---
+
+## Variables de entorno · IA de imágenes (OpenAI)
+
+La generación de imágenes con IA (referencia del cotizador, avatar del artista,
+"Inspirarme con AI" del Job Board e íconos de zonas del backoffice) usa **OpenAI
+con GPT Image 2.6** a través de `lib/ai-image.js`. Se configura **solo** con
+variables de entorno en el `.env` del servidor: la clave nunca va al repo, al
+navegador ni al backoffice. Sin clave, `POST /api/ai/generate-image` y
+`POST /api/quotations/ai-reference` responden 503 y el cotizador no muestra
+"Generar referencia con IA" (`aiImages.enabled = false` en la config pública).
+
+| Variable | Valor | Uso |
+|---|---|---|
+| `OPENAI_API_KEY` | `sk-…` | Clave de la API de OpenAI. **Secreta.** Es la misma que usa el bot del chat de soporte: cargarla lo enciende salvo `SUPPORT_CHAT_ENABLED=false` (ver el paso 4 del alta) |
+| `AI_IMAGE_PROVIDER` | vacío / `openai` / `gemini` / `off` | Vacío: OpenAI. `gemini` usa el proveedor heredado (necesita `GEMINI_API_KEY`; esa clave sola **no** lo activa). `off` apaga las imágenes con IA aunque haya claves (el chat de soporte sigue) |
+| `AI_IMAGE_MODEL` | `gpt-image-2.6-flare` (default) / `gpt-image-2.6-sunburst` | Modelo general. `flare` es el rápido de uso cotidiano; `sunburst`, el de trabajo detallado. Un valor desconocido cae al default |
+| `AI_REFERENCE_MODEL` | mismos valores | Modelo de la referencia con IA del cotizador. Vacío o desconocido (p. ej. un ID viejo de Gemini): usa `AI_IMAGE_MODEL` |
+| `AI_IMAGE_QUALITY` | `low` / `medium` (default) / `high` | Calidad pedida a OpenAI. Más calidad = más costo y más espera |
+| `AI_IMAGE_TIMEOUT_MS` | ms; default `120000`; máximo `280000` | Espera máxima al proveedor. Vencida, el endpoint responde 504. Tiene que ser **menor** que la espera del proxy PHP para estas rutas (150 s con el proxy del repo; ver el paso 3 del alta) |
+| `AI_REFERENCE_DAILY_CAP` | default `300` | Tope diario de imágenes del cotizador (por proceso) |
+| `AI_IMAGE_DAILY_CAP` | default `500` | Tope diario del endpoint genérico (`GEMINI_DAILY_CAP` sigue valiendo como alias) |
+| `GEMINI_API_KEY` | `AIza…` | Solo para el proveedor heredado (`AI_IMAGE_PROVIDER=gemini`) |
+
+Alta (una sola vez):
+
+1. Crear la clave en la consola de OpenAI (conviene un proyecto propio con límite de gasto mensual) y cargar `OPENAI_API_KEY` en el `.env` del servidor. Si la clave es **restringida**, necesita permiso de **imágenes** (generar) y de **lectura de modelos** (lo usa el chequeo de salud): sin el segundo, el chequeo informa `HTTP 401` aunque las imágenes se generen bien.
+2. **Verificar la organización en OpenAI** si la consola lo pide: los modelos GPT Image pueden exigirlo. Sin esa verificación la API responde 403 y la plataforma muestra "No pudimos generar la imagen" (`502 ai_error`); el motivo queda en el log: `[ai-image] generación: provider HTTP 403 …`.
+3. **Espera del proxy — obligatorio antes de cargar la clave.** Una imagen puede tardar hasta dos minutos y el proxy PHP público cortaba cada pedido a los 60 s: sin este paso, toda imagen que tarde más de 60 s se genera y **se paga**, pero el navegador recibe un error y la persona reintenta (y vuelve a pagar). Elegir una:
+   - **(a) Recomendada: actualizar el proxy instalado.** `deployments/hostinger/proxy.php` espera 150 s solo en las tres rutas de imágenes (`/api/ai/generate-image`, su alias `/api/gemini/generate-image` y `/api/quotations/ai-reference`) y sigue en 60 s para el resto; si igual se vence, responde un `504 ai_timeout` en JSON. El proxy de beta **se copia a mano** y el instalado conecta por socket Unix, así que no hay que pisarlo con este archivo: trasladarle el bloque `$isAiImage` / `$timeoutSeconds` / `set_time_limit`, el `CURLOPT_TIMEOUT => $timeoutSeconds` y la respuesta 504, conservando su conexión al socket. Dejar antes una copia del proxy actual.
+   - **(b) Si no se puede tocar el proxy:** cargar `AI_IMAGE_TIMEOUT_MS=55000` en el `.env` (el servidor corta antes que el proxy, con un 504 claro) y, si hay muchos cortes, `AI_IMAGE_QUALITY=low`. Las imágenes que tarden más de 55 s no llegan.
+4. **Chat de soporte con IA — decidir antes de cargar la clave.** `OPENAI_API_KEY` es también la clave del bot del chat de soporte. Si `SUPPORT_CHAT_ENABLED` no vale `false` (sin la variable, el servidor lo toma como `true`), cargar la clave **enciende el bot**: a OpenAI le llegan los mensajes que la persona escribe en ese chat, su nombre de perfil y la página en la que está. Desde la versión 1.1 (16 nov 2026) la política de privacidad lo declara en la sección 6, fila OpenAI, junto con la generación de imágenes. Revisar el `.env` de producción y elegir una:
+   - **(a) El bot todavía no:** dejar `SUPPORT_CHAT_ENABLED=false`. Ojo: apaga todos los endpoints de ese chat, también el pase a un agente humano.
+   - **(b) El bot sí (decisión tomada el 16 nov 2026):** la política ya lo declara desde su versión 1.1. Si más adelante cambia lo que recibe OpenAI, hay que actualizar esa fila y subir la versión: `TERMS_VERSION` en `lib/terms-acceptance.js` y en `public/shared/js/studio-register.js`, y la constante de `handle_new_user` con una migración nueva como `20261116240000_terminos_version_privacidad_1_1.sql` (toma la definición viva y cambia solo la constante). Quien ya aceptó conserva su versión; el aviso de un cambio importante va por `public/shared/platform-updates.json` o por correo.
+5. Reiniciar PM2 con `--update-env` (es un despliegue de Opción B: cambian `server.js` y `lib/`).
+6. Probar: Backoffice → APIs → **IA de imágenes (OpenAI)** → **Probar** (genera una imagen real: consume cuota). Para confirmar el paso 3(a), generar una con `AI_IMAGE_QUALITY=high` y el modelo `gpt-image-2.6-sunburst` que tarde más de 60 s: tiene que llegar. Si se corta cerca de los 60 o los 100 s con un error que no es el 504 propio, hay otro límite por delante (servidor web o CDN del hosting) y corresponde la opción (b). "Probar todas las conexiones" y `GET /api/health/gemini` (clave histórica del servicio) consultan el modelo sin generar nada ni gastar cuota, y devuelven `metadata.provider` y `metadata.model`. Ese `healthy` solo dice que la clave puede leer el modelo: **no reemplaza la prueba real** (una organización sin verificar pasa el chequeo y falla al generar).
+
+Notas:
+
+- **Tiempo de espera y proxy.** Una imagen puede tardar entre 30 y 90 s en calidad media o alta, y OpenAI avisa que un pedido complejo puede llegar a los dos minutos. El proxy PHP público corta el resto de los pedidos a los 60 s (`CURLOPT_TIMEOUT`); para las tres rutas de imágenes el del repo (`deployments/hostinger/proxy.php`) espera 150 s. La regla es que el servidor corte **antes** que el proxy: `AI_IMAGE_TIMEOUT_MS` (120 s por defecto) tiene que quedar al menos 20 s por debajo de la espera del proxy. Si se sube una, subir la otra. Un proxy viejo (60 s para todo) con el servidor en 120 s es el caso que hay que evitar: ver el paso 3 del alta.
+- Qué viaja a OpenAI: el prompt (en el cotizador lo arma el servidor con la idea, el estilo, la zona y el color), el modelo, el tamaño y un `safety_identifier` (SHA-256 de la llave del borrador o del id de la cuenta). Para generar imágenes, nunca email, nombre ni IP (el chat de soporte es otro flujo con la misma clave: ver el paso 4 del alta). La política de privacidad (sección 6) nombra a OpenAI como proveedor de imágenes: si se activa el proveedor heredado (Gemini, solo con `AI_IMAGE_PROVIDER=gemini`), hay que actualizarla antes.
+- Límites propios: 6 imágenes por borrador y 10 por IP por hora en el cotizador (el tope por borrador es de cortesía: la llave la elige el navegador; el que acota es el de IP); 20 por hora por IP en el endpoint genérico; más los topes diarios de la tabla. Los topes diarios cuentan los pedidos que llegan al proveedor: un pedido inválido (sin texto) o hecho sin clave no descuenta, y lo que el proveedor rechaza sin generar (contenido bloqueado, clave, cuota) se devuelve. Un vencimiento o un error 5xx **sí** descuentan, porque la imagen pudo generarse y cobrarse. En el endpoint genérico solo un superadmin puede pedir un tamaño que no sea el cuadrado de 1024.
+- Errores que conviene reconocer en el log: `HTTP 401` (clave inválida), `HTTP 403` (organización sin verificar o sin acceso al modelo), `HTTP 429 insufficient_quota` (sin saldo) y `HTTP 429 rate_limit_exceeded` (límite por minuto). Cada línea trae además `req=<id>` (el `x-request-id` de OpenAI: es lo que pide su soporte para rastrear un pedido) y, en los bloqueos de contenido, `etapa=` (`input` u `output`) y `categorias=`. Un `HTTP 400` con `unknown_parameter`, `invalid_value` o similar es un fallo de integración (`502 ai_error`), no un bloqueo. El navegador nunca recibe ese detalle.
+- Compatibilidad: `POST /api/gemini/generate-image` sigue respondiendo (alias de `POST /api/ai/generate-image`) y la bandera pública `gemini.enabled` conserva el nombre.
+- Encendido y apagado: solo en el servidor (clave cargada y `AI_IMAGE_PROVIDER`). El backoffice no tiene interruptor: muestra el estado y prueba la conexión. `gemini.enabled` y `aiImages` los publica el servidor en `/shared/js/app-config.json` y el navegador ya no los pisa con lo que tenga guardado (antes, el navegador que había usado el backoffice podía no ver "Generar referencia con IA" con la clave ya cargada).
+
+---
+
+## Ronda 2 · orden de despliegue y migraciones
+
+Vale para el paso de **beta 2.4.0** a la rama `feature/beta-ronda-2` (migraciones
+`supabase/migrations/20261116*.sql`, con su reversa en `supabase/rollbacks/`).
+En la ronda anterior las migraciones se aplicaron antes del deploy; **esta vez es al revés**.
+
+**Por qué.** Dos migraciones cambian reglas que el código de 2.4.0 no conoce, y con
+2.4.0 todavía sirviendo dejan errores crudos en pantalla:
+
+| Migración | Qué pasa con 2.4.0 corriendo |
+|---|---|
+| `20261116150000_sesiones_confirmacion_ubicacion.sql` | Las sesiones existentes quedan confirmadas. Reprogramar o borrar una sesión de una cotización con cuenta de cliente falla (`WOS01` / `WOS03`): 2.4.0 edita la sesión directo desde el navegador. |
+| `20261116140000_negociacion_propuestas.sql` | Sella las cotizaciones aprobadas. "Editar acuerdo" falla (`42501`): 2.4.0 escribe `final_budget_amount`, `final_sessions` y `final_comment` directo. |
+
+El código nuevo, en cambio, **sí funciona sin las migraciones**: negociación, sesiones,
+favoritos, denuncias y enlaces de cotización responden "todavía no disponible"
+(`GET /api/negociacion/quotations/:id` → `available:false`; las rutas de sesiones →
+`503 sessions_unavailable` y la agenda sigue en el modo anterior) y lo que ya existía
+no se rompe.
+
+**Orden:**
+
+1. **Primero el código.** Desplegar `feature/beta-ronda-2` (Opción B: reinicia PM2).
+2. **Enseguida, en la misma ventana, las migraciones.** Aplicar todas las
+   `supabase/migrations/20261116*.sql` en orden de nombre (timestamp) sobre
+   `flbgmlvfiejfttlawnfu`. Las que se agreguen después de esta guía van al final,
+   en el mismo orden.
+3. **No aplicar `20261116140000` ni `20261116150000` mientras 2.4.0 esté sirviendo.**
+   Si por algún motivo las migraciones tienen que ir primero, hacerlo pegado al
+   deploy (minutos, no horas) y avisar que en ese rato fallan "Editar acuerdo" y
+   reprogramar o borrar sesiones.
+4. **Volver atrás.** Si se vuelve a 2.4.0 (`rollbackHold`), correr ANTES las reversas,
+   en orden inverso al de aplicación; como mínimo
+   `supabase/rollbacks/20261116150000_sesiones_confirmacion_ubicacion.down.sql` y después
+   `supabase/rollbacks/20261116140000_negociacion_propuestas.down.sql`. Si no, 2.4.0
+   queda con los mismos errores. Ojo: la reversa de `150000` borra los pedidos de
+   cambio, los registros y las disputas de sesiones cargados desde el deploy.
+
+**Comprobar** con el código y las migraciones ya puestos:
+
+- Reprogramar una sesión confirmada de una cotización con cuenta de cliente pide
+  el acuerdo de la otra parte (sin error crudo).
+- "Edita el acuerdo" del expediente abre el formulario de cambio propuesto.
+- `GET /api/negociacion/quotations/:id` devuelve `available` distinto de `false`.
+- Panel del cliente: al agendar una sesión, la tarjeta de la cotización dice
+  "Sesión por confirmar" y "Próxima cita" agrega "· por confirmar"; al mandar
+  "Modificar", la tarjeta pasa a "Cambios propuestos por ti".
+- Una cotización rechazada por el cliente no deja escribir en el chat a ninguna
+  de las dos partes.
+- Panel de soporte (`/support/dashboard#disputas`): la pestaña DISPUTAS lista las
+  disputas de sesión. Al resolver o cerrar una, la cotización deja de figurar
+  "En disputa" y las dos partes reciben el correo con la resolución.
+
+### Contacto del cliente y verificación (P20, REQ-11) — decisión del dueño antes de publicar
+
+Desde esta ronda el email, WhatsApp e Instagram del cliente los ve solo el tatuador
+con `verification_state = 'Yes'` (o en una cotización manual suya). Al 2026-11-16 en
+la base viva **no hay ningún tatuador verificado**: 125 en `No`, 1 en `Requested`, 0 en
+`Yes`. Con el código puesto, todos los artistas dejan de ver el contacto.
+
+El caso que más duele son las cotizaciones de clientes **sin cuenta**: ahí tampoco hay
+chat (se habilita cuando el cliente crea su cuenta), así que el artista se queda sin
+ninguna vía. Hoy son 9 activas con artista asignado (6 `pending`, 2 `responded`,
+1 `en_progreso`). El candado ya lo dice ("tu propuesta le llega por correo y el chat
+se habilita cuando la cree"), pero no reemplaza la decisión.
+
+Antes del deploy, elegir una:
+
+1. **Verificar desde soporte** (`/support/dashboard` → Verificación) a los artistas
+   activos; como mínimo a los que tienen cotizaciones en curso (hoy son 6 artistas
+   con 13 cotizaciones activas):
+
+   ```sql
+   select a.user_id, a.username, a.verification_state, count(*) as cotizaciones_activas,
+          count(*) filter (where q.client_user_id is null) as de_invitados
+     from public.quotations_db q
+     join public.artists_db a on a.user_id = q.artist_id
+    where q.quote_status in ('pending', 'responded', 'client_approved', 'en_progreso')
+    group by 1, 2, 3
+    order by de_invitados desc, cotizaciones_activas desc;
+   ```
+
+2. **Regla de transición con fecha**: tratar como verificados a los artistas con
+   cotizaciones activas hasta que soporte los revise. No está implementada: es un
+   cambio en `contactAccess` (`lib/cot-detalle.js`) y hay que pedirlo antes de publicar.
+
+**Comprobar** después: con un artista verificado, el expediente muestra el contacto;
+con uno sin verificar y un cliente sin cuenta, el candado no menciona el chat.
+
+### Limpieza de `session_logs` (SEG-03)
+
+El registro de sesión del navegador guardaba la dirección completa. En la base
+quedaron `#access_token=…&refresh_token=…` de 6 usuarios (12 filas; también
+`provider_token` de Google en algunas) y 962 direcciones con query o hash, a la
+vista de soporte. El código nuevo ya guarda solo origen + ruta.
+
+1. `20261116230000_session_logs_sin_tokens_en_url.sql` va **después del código**,
+   como el resto. Vacía el detalle de las filas con tokens y recorta todas las
+   direcciones. No tiene reversa (no hay nada que restaurar) y se puede volver a
+   correr: conviene repetirla unos días después, por las pestañas que hayan
+   quedado abiertas con la versión anterior.
+2. **Paso manual del dueño, antes de la limpieza** (después ya no se ve quiénes
+   eran): listar los usuarios afectados con
+
+   ```sql
+   select distinct user_id, user_email from public.session_logs
+    where page_url ~* '(access_token|refresh_token|provider_token|provider_refresh_token)=';
+   ```
+
+   y cerrarles todas las sesiones desde el panel de Auth de Supabase (Users →
+   el usuario → Sign out / cierre global). Así los `refresh_token` guardados
+   dejan de servir. Los `access_token` vencen solos en una hora.
+3. Comprobar: `select count(*) from public.session_logs where page_url ~ '[#?]'`
+   da 0.
+
+Queda sin tocar el detalle (`log_data`) de las otras filas: va comprimido y su
+primera entrada repite la dirección con la que se abrió la página (por ejemplo
+`?email=…&draft=…` del registro) y las direcciones completas de las llamadas a
+la API. Los tokens de sesión que llegan por la dirección quedan en la misma
+fila, que sí se vacía; el resto no se revisó entrada por entrada. Si se quiere
+borrar también, es vaciar `log_data` de las filas anteriores al deploy.
+
+### Avisos push heredados de 2.4.0 en la matriz del cliente (EP-13)
+
+En 2.4.0 el panel del cliente guardaba `push: false` en los tres eventos de su
+matriz (mensajes, cotizaciones, postulaciones) cada vez que tocaba un toggle de
+Email, porque el push todavía no existía. El código nuevo lee ese `false` como
+una elección de la persona: ese cliente no recibiría avisos dentro de la app ni
+push. Al 2026-11-16 no hay ninguna fila así en la base viva (5 clientes con
+preferencias guardadas, 0 con `push: false`); solo aparece si alguien guarda la
+matriz en producción entre hoy y el deploy.
+
+1. **Justo antes de publicar el código**, contar en `flbgmlvfiejfttlawnfu`:
+
+   ```sql
+   select count(*)
+     from public.user_preferences up
+     join public.clients_db c on c.user_id = up.user_id
+    where (up.notification_prefs #>> '{mensajes,push}') = 'false'
+       or (up.notification_prefs #>> '{cotizaciones,push}') = 'false'
+       or (up.notification_prefs #>> '{postulaciones,push}') = 'false';
+   ```
+
+2. Si da 0, no hay nada que hacer.
+3. Si da más de 0, limpiar el valor heredado **en la misma ventana del deploy**
+   (después, un `false` puede ser alguien que apagó el push a propósito con la
+   matriz nueva). Reemplazar la fecha por la hora en que quedó sirviendo el código
+   nuevo y probarlo antes dentro de `begin; … rollback;`:
+
+   ```sql
+   update public.user_preferences up
+      set notification_prefs = up.notification_prefs
+            #- '{mensajes,push}' #- '{cotizaciones,push}' #- '{postulaciones,push}'
+     from public.clients_db c
+    where c.user_id = up.user_id
+      and up.updated_at < '<fecha y hora del deploy, con zona>'
+      and ((up.notification_prefs #>> '{mensajes,push}') = 'false'
+        or (up.notification_prefs #>> '{cotizaciones,push}') = 'false'
+        or (up.notification_prefs #>> '{postulaciones,push}') = 'false')
+      and not exists (select 1 from public.artists_db a where a.user_id = up.user_id);
+   ```
+
+   Quita solo la clave `push` de esos tres eventos: el Email y el resto de las
+   preferencias quedan igual, y sin la clave vale el valor por defecto (encendido).
+   No toca a quien además tiene perfil de artista: `mensajes` y `cotizaciones` se
+   comparten con la matriz del artista, que en 2.4.0 ya dejaba apagar el Push a
+   mano. Esas filas, si las hay, se revisan una por una.
+4. Comprobar: el conteo del paso 1 da 0 (o solo las filas de artistas que se
+   dejaron a propósito).
+
+### Correo "Tu perfil es Most Wanted" (EP-14) — decisión del dueño antes de encenderlo
+
+Con la migración `20261116180000_perfil_insignias_most_wanted.sql` aplicada, el
+servidor recalcula la insignia **a los 3 minutos de cada arranque** y después cada
+`MOST_WANTED_INTERVAL_HOURS` (12 por defecto). A cada ganador nuevo le manda el
+correo `artist_most_wanted_awarded`, salvo `MOST_WANTED_EMAILS=off`. El umbral es
+bajo para una beta cerrada (puntaje de 12 o más con 2 señales: 2 cotizaciones y 1
+visita ya dan 13) y el correo es de la cuenta: no pasa por la matriz de
+notificaciones, así que el artista no lo puede silenciar.
+
+1. **Antes del primer arranque con esa migración aplicada**, cargar en el `.env`
+   del servidor `MOST_WANTED_EMAILS=off` y reiniciar PM2 con `--update-env`. Como
+   en esta ronda el código va primero y las migraciones después, lo más simple es
+   cargarla antes de desplegar el código.
+2. La insignia se sigue calculando y mostrando con el correo apagado. Después del
+   primer ciclo, revisar quién la ganó:
+
+   ```sql
+   select artist_user_id, zone_label, score, signals
+     from public.artist_trend_scores
+    where most_wanted;
+   ```
+
+3. Decidir con el dueño si el correo se enciende (quitar la variable o poner
+   `MOST_WANTED_EMAILS=on`). Al encenderlo, el ciclo siguiente les avisa a los
+   ganadores que todavía no recibieron el aviso de su racha.
+4. Comprobar tras el deploy: el log no muestra `eventId=artist_most_wanted_awarded`
+   y la bitácora de correos no tiene filas de ese evento.
+
+`MOST_WANTED_INTERVAL_HOURS=0` apaga solo el ciclo del proceso de Node: la insignia
+se sigue recalculando con el job `recalculate-most-wanted` de `pg_cron` (todos los
+días 03:40 UTC) y con `POST /api/perfil/most-wanted/recalculate` (`X-Cron-Token`).
+Ese endpoint también avisa a los ganadores, y respeta `MOST_WANTED_EMAILS=off`.
+Detalle en [docs/PERFIL_INSIGNIAS.md](../docs/PERFIL_INSIGNIAS.md).
 
 ---
 

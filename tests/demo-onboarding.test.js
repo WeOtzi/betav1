@@ -384,8 +384,8 @@ test('con el demo apagado el dashboard muestra la sugerencia en cada visita y "A
     assert.ok(card, 'tarjeta .wo-demo-suggest');
     assert.ok(h.requested.some((href) => href.startsWith('/shared/css/wo-onboarding.css')), 'CSS lazy');
     assert.match(card.innerHTML, /Modo demo/);
-    assert.match(card.innerHTML, /Probá We Ötzi con datos de ejemplo/);
-    assert.match(card.innerHTML, /Podés desactivar esta sugerencia desde el menú Ö\./);
+    assert.match(card.innerHTML, /Prueba We Ötzi con datos de ejemplo/);
+    assert.match(card.innerHTML, /Puedes desactivar esta sugerencia desde el menú Ö\./);
     assert.match(card.innerHTML, /ACTIVAR MODO DEMO →/);
     assert.match(card.innerHTML, /AHORA NO/);
     assert.doesNotMatch(card.innerHTML, /[!¡]/);
@@ -776,7 +776,7 @@ test('menú Ö sin WoDemo (preview local): modo asistido como link plano y sin s
     const html = m.drop.innerHTML;
     assert.match(html, /<a class="wo-oam-link" id="wo-oam-assist" href="\/beta\/artist\/account\?asistido=1#perfil">/);
     assert.match(html, /data-wo-icon="check-square"/);
-    assert.match(html, /Modo asistido · configurá tu perfil/);
+    assert.match(html, /Modo asistido · configura tu perfil/);
     assert.match(html, /id="wo-oam-tour" href="\/beta\/artist\/dashboard\?demo=1&amp;tour=1"/, 'el recorrido siempre está');
     assert.match(html, /Recorrido guiado · modo demo/);
     assert.doesNotMatch(html, /wo-oam-suggest|Sugerir el modo demo/);
@@ -792,7 +792,7 @@ test('menú Ö con el demo prendido: recorrido sin navegar, salida del demo y sw
     assert.match(html, /Salir del modo demo/);
     assert.match(html, /id="wo-oam-suggest" role="switch" aria-checked="true"/);
     assert.match(html, /Sugerir el modo demo/);
-    assert.match(html, /Modo asistido · configurá tu perfil/);
+    assert.match(html, /Modo asistido · configura tu perfil/);
 
     m.open();
     assert.equal(m.drop.hidden, false);
@@ -821,7 +821,7 @@ test('menú Ö con el modo asistido activo: "ver mis pasos" abre el panel y re-r
     const A = fakeAssist(false);
     const m = runMenu({ WoDemo: W, WoAssist: A });
     W.doc = m.document;
-    assert.match(m.drop.innerHTML, /Modo asistido · configurá tu perfil/);
+    assert.match(m.drop.innerHTML, /Modo asistido · configura tu perfil/);
     assert.doesNotMatch(m.drop.innerHTML, /Salir del modo demo/);
     assert.equal(m.click('#wo-oam-tour').handled, false, 'con el demo apagado el recorrido navega');
 
@@ -859,7 +859,7 @@ test('menú Ö: si el servidor no guarda el switch, vuelve al valor anterior y a
     await settle();
     const html = m.drop.innerHTML;
     assert.match(html, /id="wo-oam-suggest" role="switch" aria-checked="true" aria-describedby="wo-oam-suggest-err"/, 'el switch vuelve a prendido');
-    assert.match(html, /<p class="wo-oam-err" id="wo-oam-suggest-err" role="alert">No pudimos guardar el cambio\. Probá de nuevo\.<\/p>/);
+    assert.match(html, /<p class="wo-oam-err" id="wo-oam-suggest-err" role="alert">No pudimos guardar el cambio\. Prueba de nuevo\.<\/p>/);
     assert.doesNotMatch(html, /[!¡]/);
     assert.equal(m.drop.hidden, false, 'el menú sigue abierto');
     assert.match(MENU_SRC, /\.wo-oam-err\{[^}]*color:var\(--status-error-fg\)/, 'color por token');

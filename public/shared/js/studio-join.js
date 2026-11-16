@@ -5,7 +5,7 @@
 //   - Con sesión: "Sumarme a <Estudio>" (POST /api/studio-invite/:token/join).
 //   - Sin sesión: "Crear mi perfil" (/registerclosedbeta?unirse=…, el token
 //     viaja por el registro y se canjea al crear la cuenta) o "Ingresar"
-//     (vuelve acá con returnTo).
+//     (vuelve aquí con returnTo).
 // Todo texto que viene del servidor pasa por esc().
 // ================================================================
 
@@ -107,7 +107,7 @@
             const status = card().querySelector('.wjs-status');
             if (status) {
                 status.hidden = false;
-                status.textContent = error.message || 'No pudimos sumarte al estudio. Probá de nuevo.';
+                status.textContent = error.message || 'No pudimos sumarte al estudio. Prueba de nuevo.';
             }
             return;
         }
@@ -117,8 +117,8 @@
         render({
             eyebrow: 'Invitación de estudio',
             title: result.already_member
-                ? `Ya tenés un vínculo con ${name}`
-                : (pending ? `Le enviamos tu solicitud a ${name}` : `Ya sos parte de ${name}`),
+                ? `Ya tienes un vínculo con ${name}`
+                : (pending ? `Le enviamos tu solicitud a ${name}` : `Ya eres parte de ${name}`),
             lead: result.already_member
                 ? 'Lo ves en tus invitaciones, con su estado actual.'
                 : (pending ? 'El estudio la revisa y te avisamos por email cuando responda.' : 'El estudio ya aparece en tu perfil y en tu panel.'),
@@ -129,7 +129,7 @@
     async function start() {
         const token = readToken();
         if (!token) {
-            render({ title: 'Este enlace no es válido', lead: 'Pedile al estudio que te comparta el enlace de nuevo.' });
+            render({ title: 'Este enlace no es válido', lead: 'Pídele al estudio que te comparta el enlace de nuevo.' });
             return;
         }
         let preview = null;
@@ -138,9 +138,9 @@
             const response = await fetch(appUrl('/api/studio-invite/' + encodeURIComponent(token)), { headers: { Accept: 'application/json' } });
             const json = await response.json().catch(() => ({}));
             if (response.ok && json.success) preview = json;
-            else failure = json.error || 'Este enlace de invitación ya no sirve. Pedile al estudio uno nuevo.';
+            else failure = json.error || 'Este enlace de invitación ya no sirve. Pídele al estudio uno nuevo.';
         } catch (_) {
-            failure = 'No pudimos revisar el enlace. Revisá tu conexión y probá de nuevo.';
+            failure = 'No pudimos revisar el enlace. Revisa tu conexión y prueba de nuevo.';
         }
         if (!preview) {
             render({ title: 'No pudimos usar este enlace', lead: failure });
@@ -157,7 +157,7 @@
                 title: `${name} te invita a su equipo`,
                 lead: preview.requires_approval
                     ? 'Al sumarte, el estudio recibe tu solicitud con tu perfil y la aprueba.'
-                    : 'Al sumarte quedás directamente en el equipo del estudio.',
+                    : 'Al sumarte quedas directamente en el equipo del estudio.',
                 body: `${studioBlock(preview)}
                     <div class="wjs-actions">
                         <button type="button" class="wo-btn wo-btn--accent" id="wjs-join">Sumarme a ${esc(name)}</button>
@@ -170,7 +170,7 @@
         }
         render({
             title: `${name} te invita a su equipo`,
-            lead: 'Creá tu perfil de artista en We Ötzi con este enlace y quedás vinculado al estudio. Si ya tenés cuenta, ingresá y sumate.',
+            lead: 'Crea tu perfil de artista en We Ötzi con este enlace y quedas vinculado al estudio. Si ya tienes cuenta, ingresa y súmate.',
             body: `${studioBlock(preview)}
                 <div class="wjs-actions">
                     <a class="wo-btn wo-btn--accent" href="${esc(appUrl('/registerclosedbeta?unirse=' + encodeURIComponent(token)))}">Crear mi perfil →</a>

@@ -133,8 +133,8 @@ test('SpotsOpportunities degrada al select previo si la migración no está apli
 
 test('Spots 801:537: cabecera con pestañas, búsqueda, filtros, contador y orden', () => {
     const html = read('public/studio-spots/index.html');
-    assert.match(html, /Encontrá tu próximo spot/);
-    assert.match(html, /Explorá residencias, guest spots y oportunidades en estudios de todo el mundo\./);
+    assert.match(html, /Encuentra tu próximo spot/);
+    assert.match(html, /Explora residencias, guest spots y oportunidades en estudios de todo el mundo\./);
     assert.match(html, /href="\/artist\/applications\?tab=spots"/);
     assert.match(html, /href="\/artist\/invitations"/);
     assert.match(html, /Buscar por estudio, ciudad o país…/);

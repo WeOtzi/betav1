@@ -171,7 +171,7 @@
     // pendiente o vencido (el mantenimiento lo vence con la marca puesta para
     // que soporte decida si lo reabre); confirmar, cancelar o reembolsar ya la
     // resuelven en el SQL, así que en otro estado se descarta. Los vencidos de
-    // proveedor no se reabren desde acá (los confirma el webhook).
+    // proveedor no se reabren desde aquí (los confirma el webhook).
     function mergeRows(pending, flagged, expired) {
         var map = new Map();
         function add(o, reason) {
@@ -224,7 +224,7 @@
             state.loaded = true;
         }).catch(function (err) {
             console.warn('[support-store] pedidos:', err && err.message);
-            state.error = errorText(err, 'No pudimos cargar los pedidos de la Store. Probá de nuevo.');
+            state.error = errorText(err, 'No pudimos cargar los pedidos de la Store. Prueba de nuevo.');
             state.loaded = true;
         }).then(function () {
             state.loading = null;
@@ -389,7 +389,7 @@
             body.innerHTML = '<div class="empty-state">'
                 + (state.reason === 'expired'
                     ? 'No hay pedidos vencidos en los últimos ' + EXPIRED_DAYS + ' días.'
-                    : state.rows.some(isActionable) ? 'Ningún pedido coincide con el filtro.' : 'No hay pedidos de la Store para revisar. Cuando uno necesite soporte, aparece acá.')
+                    : state.rows.some(isActionable) ? 'Ningún pedido coincide con el filtro.' : 'No hay pedidos de la Store para revisar. Cuando uno necesite soporte, aparece aquí.')
                 + '</div>';
             return;
         }
@@ -451,10 +451,10 @@
     function resolveHelp(o) {
         var reason = meta(o).needs_support_reason;
         if (reason === 'duplicate_payment') {
-            return 'Llegó un segundo pago con otra referencia. Cuando lo resuelvas (por ejemplo, devolviendo el pago de más), marcalo como revisado: el pedido sale de la cola y no cambia de estado.';
+            return 'Llegó un segundo pago con otra referencia. Cuando lo resuelvas (por ejemplo, devolviendo el pago de más), márcalo como revisado: el pedido sale de la cola y no cambia de estado.';
         }
         if (reason === 'payment_reported_expired' && o.status === 'expired') {
-            return 'El comprador informó un pago que nadie confirmó y el pedido venció. Si el pago llegó, reabrilo y confirmalo; si no, marcalo como revisado: sale de la cola y sigue vencido.';
+            return 'El comprador informó un pago que nadie confirmó y el pedido venció. Si el pago llegó, reábrelo y confírmalo; si no, márcalo como revisado: sale de la cola y sigue vencido.';
         }
         return 'El pedido sale de la cola de soporte y no cambia de estado.';
     }
@@ -469,7 +469,7 @@
         if (!n || !n.actor_id) return 'Automático';
         var me = null;
         try { me = typeof currentUser !== 'undefined' && currentUser ? currentUser.id : null; } catch (e) { me = null; }
-        return me && String(me) === String(n.actor_id) ? 'Vos' : 'Soporte';
+        return me && String(me) === String(n.actor_id) ? 'Tú' : 'Soporte';
     }
 
     function renderNotes(notes) {
@@ -527,7 +527,7 @@
                 + '<div class="drawer-section-title">Marcas de soporte</div>'
                 + (m.needs_support === true ? kv('Necesita soporte', (SUPPORT_REASONS[m.needs_support_reason] || 'Revisar el pedido') + (m.needs_support_at ? ' · ' + dateTime(m.needs_support_at) : '')) : '')
                 + (m.needs_support === true && o.status === 'pending_payment'
-                    ? '<p class="sds-help">Confirmá el pago o cancelá el pedido: cualquiera de las dos lo saca de la cola.</p>' : '')
+                    ? '<p class="sds-help">Confirma el pago o cancela el pedido: cualquiera de las dos lo saca de la cola.</p>' : '')
                 + (o.funds_hold === true ? kv('Fondos retenidos', m.funds_hold_at ? 'Desde el ' + dateTime(m.funds_hold_at) : 'Sí') : '')
                 + (m.maintenance_error_at ? kv('Error del mantenimiento', 'El ' + dateTime(m.maintenance_error_at) + '. El detalle está en las notas internas.') : '')
                 + '</div>';
@@ -555,7 +555,7 @@
             var reopen = o.status === 'expired';
             actions += '<form class="sds-form" data-sds-form="confirm">'
                 + '<p class="sds-form-title">' + (reopen ? 'Reabrir y confirmar pago' : 'Confirmar pago') + '</p>'
-                + '<p class="sds-help">Confirmalo solo si ' + esc(who) + ' ' + esc(money(o.total_amount, o.currency)) + '. Se emite la licencia o el pedido pasa a preparación.'
+                + '<p class="sds-help">Confírmalo solo si ' + esc(who) + ' ' + esc(money(o.total_amount, o.currency)) + '. Se emite la licencia o el pedido pasa a preparación.'
                 + (reopen ? ' Si ya no hay stock o el diseño se reservó para otro pedido, no se puede reabrir.' : '') + '</p>'
                 + '<div class="form-group"><label for="sds-confirm-ref">Referencia del pago</label>'
                 + '<input type="text" id="sds-confirm-ref" name="reference" maxlength="200" value="' + esc(o.buyer_payment_reference || '') + '"></div>'
@@ -568,7 +568,7 @@
             actions += '<form class="sds-form" data-sds-form="cancel">'
                 + '<p class="sds-form-title">Cancelar pedido</p>'
                 + '<p class="sds-help">' + (o.buyer_payment_reported_at
-                    ? 'El comprador informó un pago. Cancelalo solo si verificaste que no llegó: se devuelve el stock y se libera la reserva del diseño.'
+                    ? 'El comprador informó un pago. Cancélalo solo si verificaste que no llegó: se devuelve el stock y se libera la reserva del diseño.'
                     : 'Se devuelve el stock y se libera la reserva del diseño.') + '</p>'
                 + '<div class="form-group"><label for="sds-cancel-reason">Motivo de la cancelación</label>'
                 + '<textarea id="sds-cancel-reason" name="reason" rows="2" maxlength="300" required></textarea></div>'
@@ -578,7 +578,7 @@
         if (can.refund) {
             actions += '<form class="sds-form" data-sds-form="refund">'
                 + '<p class="sds-form-title">Reembolsar</p>'
-                + '<p class="sds-help">Revoca las licencias y devuelve el stock si no se despachó. Confirmá que el dinero ya se devolvió.</p>'
+                + '<p class="sds-help">Se revocan las licencias y se devuelve el stock si no se despachó. Confirma que el dinero ya se devolvió.</p>'
                 + '<div class="form-group"><label for="sds-refund-reason">Motivo del reembolso</label>'
                 + '<textarea id="sds-refund-reason" name="reason" rows="2" maxlength="300" required></textarea></div>'
                 + '<button type="submit" class="action-btn danger-btn">Reembolsar pedido</button>'
@@ -589,7 +589,7 @@
                 + '<p class="sds-form-title">' + (o.funds_hold ? 'Liberar fondos' : 'Retener fondos') + '</p>'
                 + '<p class="sds-help">' + (o.funds_hold
                     ? 'Los fondos vuelven a liberarse en la fecha prevista.'
-                    : 'Frena la liberación de los fondos al artista mientras revisás el caso.') + '</p>'
+                    : 'Frena la liberación de los fondos al artista mientras revisas el caso.') + '</p>'
                 + '<div class="form-group"><label for="sds-hold-note">Nota (opcional)</label>'
                 + '<input type="text" id="sds-hold-note" name="note" maxlength="500"></div>'
                 + '<button type="submit" class="action-btn">' + (o.funds_hold ? 'Liberar fondos' : 'Retener fondos') + '</button>'
@@ -699,18 +699,18 @@
             task = function () { return S.resolveOrderFlag(o.id, value('note')); };
             done = 'Pedido marcado como revisado.';
         } else if (kind === 'confirm' && can.confirm) {
-            if (!window.confirm('¿Confirmás el pago de ' + money(o.total_amount, o.currency) + ' del pedido ' + number + '?')) return;
+            if (!window.confirm('¿Confirmas el pago de ' + money(o.total_amount, o.currency) + ' del pedido ' + number + '?')) return;
             task = function () { return S.confirmPayment(o.id, { collectedBy: can.collector, reference: value('reference'), note: value('note') }); };
             done = 'Pago confirmado.';
         } else if (kind === 'cancel' && can.cancel) {
             var cancelReason = value('reason');
-            if (!cancelReason) { feedback('Contá el motivo de la cancelación.', 'error'); return; }
+            if (!cancelReason) { feedback('Cuenta el motivo de la cancelación.', 'error'); return; }
             if (!window.confirm('¿Cancelar el pedido ' + number + '? Se devuelve el stock y se libera la reserva.')) return;
             task = function () { return S.cancelOrder(o.id, cancelReason); };
             done = 'Pedido cancelado.';
         } else if (kind === 'refund' && can.refund) {
             var reason = value('reason');
-            if (!reason) { feedback('Contá el motivo del reembolso.', 'error'); return; }
+            if (!reason) { feedback('Cuenta el motivo del reembolso.', 'error'); return; }
             if (!window.confirm('¿Reembolsar el pedido ' + number + '? Las licencias quedan revocadas.')) return;
             task = function () { return S.refundOrder(o.id, reason); };
             done = 'Pedido reembolsado.';
@@ -733,7 +733,7 @@
         }).catch(function (err) {
             console.warn('[support-store] acción:', err && err.message);
             setBusy(form, false);
-            feedback(errorText(err, 'No pudimos completar la acción. Probá de nuevo.'), 'error');
+            feedback(errorText(err, 'No pudimos completar la acción. Prueba de nuevo.'), 'error');
         });
     }
 

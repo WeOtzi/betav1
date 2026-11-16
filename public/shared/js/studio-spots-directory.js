@@ -130,7 +130,7 @@
         const logout = document.getElementById('auth-logout');
         if (label) {
             label.textContent = artist ? (artist.username || 'Mi panel')
-                : session ? 'Completá tu perfil' : 'Ingresá';
+                : session ? 'Completa tu perfil' : 'Ingresa';
         }
         if (btn) {
             btn.href = artist ? '/artist/dashboard'
@@ -627,8 +627,8 @@
             if (title) title.textContent = filtered ? 'Ningún spot coincide con tu búsqueda' : 'No hay spots abiertos';
             if (text) {
                 text.innerHTML = filtered
-                    ? 'Probá con otros filtros o <button type="button" class="sps-empty-reset" id="spots-empty-reset">limpiá la búsqueda</button>.'
-                    : 'Volvé más tarde: los estudios publican sus posiciones acá.';
+                    ? 'Prueba con otros filtros o <button type="button" class="sps-empty-reset" id="spots-empty-reset">limpia la búsqueda</button>.'
+                    : 'Vuelve más tarde: los estudios publican sus posiciones aquí.';
                 document.getElementById('spots-empty-reset')?.addEventListener('click', clearFilters);
             }
             emptyEl.classList.remove('hidden');
@@ -987,18 +987,18 @@
         if (!session) {
             return `
                 <h2 class="sps-aside-title">Postularme a este spot</h2>
-                <p class="sps-aside-sub">Elegí tus fechas y presentate ante el estudio.</p>
+                <p class="sps-aside-sub">Elige tus fechas y preséntate ante el estudio.</p>
                 <a class="wo-btn wo-btn--direct wo-btn--block wo-btn--hard" href="/artist/login?returnTo=${encodeURIComponent('/studio-spots/?spot=' + s.id)}">
-                    Ingresá para postular <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
+                    Ingresa para postular <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
                 </a>
-                <p class="sps-apply-help">¿Todavía no sos artista en We Ötzi? <a href="/register-artist">Registrate gratis</a>.</p>
+                <p class="sps-apply-help">¿Todavía no eres artista en We Ötzi? <a href="/register-artist">Regístrate gratis</a>.</p>
             `;
         }
         if (!artist) {
             return `
                 <h2 class="sps-aside-title">Postularme a este spot</h2>
                 <div class="wo-alert wo-alert--info">
-                    Solo las cuentas de artista pueden postularse. Completá tu perfil de artista para enviar la solicitud.
+                    Solo las cuentas de artista pueden postularse. Completa tu perfil de artista para enviar la solicitud.
                 </div>
                 <a class="wo-btn wo-btn--direct wo-btn--block wo-btn--hard" href="/register-artist?returnTo=${encodeURIComponent('/studio-spots/?spot=' + s.id)}">
                     Completar mi perfil <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
@@ -1008,7 +1008,7 @@
 
         return `
             <h2 class="sps-aside-title">Postularme a este spot</h2>
-            <p class="sps-aside-sub">Elegí tus fechas y presentate ante el estudio.</p>
+            <p class="sps-aside-sub">Elige tus fechas y preséntate ante el estudio.</p>
 
             <span class="sps-label">Fechas disponibles</span>
             <div class="sps-cal" id="spot-cal"></div>
@@ -1016,7 +1016,7 @@
 
             <div class="wo-field">
                 <label class="wo-label" for="apply-message">Mensaje de presentación</label>
-                <textarea id="apply-message" class="wo-textarea" rows="4" placeholder="Contale al estudio por qué te gustaría hacer este spot…"></textarea>
+                <textarea id="apply-message" class="wo-textarea" rows="4" placeholder="Cuéntale al estudio por qué te gustaría hacer este spot…"></textarea>
             </div>
 
             ${artistPreviewHtml()}
@@ -1207,7 +1207,7 @@
         }
         el.textContent = selEnd
             ? `Fechas propuestas: ${formatDayMonth(selStart)} – ${formatDayMonth(selEnd)}`
-            : `Inicio ${formatDayMonth(selStart)} · elegí el día de cierre.`;
+            : `Inicio ${formatDayMonth(selStart)} · elige el día de cierre.`;
     }
 
     function selectedRange() {

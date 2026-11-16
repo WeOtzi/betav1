@@ -72,7 +72,7 @@ Un `push` de tu rama no publica tus cambios en la beta principal. Tu preview y l
 | GitHub Actions | Workflow `Verify delivery`: pruebas y política de versiones/commits |
 | Controlador del servidor + cron | Comprueba commits aprobados por CI, descarga releases y publica beta o preview; conserva versiones para rollback |
 | n8n + SMTP Hostinger | Eventos y emails transaccionales; remitente `notificaciones@weotzi.chat` |
-| Google, Gemini, Instagram/Apify y mapas | Integraciones específicas; requieren configuración y permisos propios |
+| Google, OpenAI (imágenes con IA), Instagram/Apify y mapas | Integraciones específicas; requieren configuración y permisos propios |
 | Figma | Auditoría, diseños de referencia y sistema de diseño |
 
 La beta actual está en Hostinger. Los documentos antiguos sobre Docker/Easypanel son alternativas o antecedentes; no los uses como orden para cambiar la infraestructura.

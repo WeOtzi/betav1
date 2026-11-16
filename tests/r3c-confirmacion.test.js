@@ -49,8 +49,8 @@ test('reenviar: cuenta regresiva de 60 s y mensajes en español', () => {
     assert.equal(EC.cooldownLeft(1000, 1000), 60);
     assert.equal(EC.cooldownLeft(1000, 1000 + 59500), 1);
     assert.equal(EC.cooldownLeft(1000, 1000 + 61000), 0);
-    assert.match(EC.resendErrorMessage({ status: 429 }), /Esperá un minuto/);
-    assert.match(EC.resendErrorMessage({ code: 'over_email_send_rate_limit' }), /Esperá/);
+    assert.match(EC.resendErrorMessage({ status: 429 }), /Espera un minuto/);
+    assert.match(EC.resendErrorMessage({ code: 'over_email_send_rate_limit' }), /Espera/);
     assert.match(EC.resendErrorMessage({ message: 'boom' }), /No pudimos reenviar/);
 });
 
@@ -90,7 +90,7 @@ test('resend llama a auth.resend type signup con emailRedirectTo', async () => {
     assert.deepEqual(calls[0], { type: 'signup', email: 'ana@mail.com', options: { emailRedirectTo: 'https://x/y?confirmado=1' } });
     const limited = await EC.resend({ auth: { resend: async () => ({ error: { status: 429, message: 'rate limit' } }) } }, 'a@b.co');
     assert.equal(limited.ok, false);
-    assert.match(limited.message, /Esperá/);
+    assert.match(limited.message, /Espera/);
     const missing = await EC.resend({ auth: {} }, 'a@b.co');
     assert.equal(missing.ok, false);
 });
@@ -182,7 +182,7 @@ test('el servidor crea artistas y soporte según el modo y envía la confirmaci�
     assert.equal(lib.CONFIRM_REDIRECT_PATHS.artist, '/register-artist/?confirmado=1');
 });
 
-test('los logins muestran "Confirmá tu email" con reenviar', () => {
+test('los logins muestran "Confirma tu email" con reenviar', () => {
     for (const f of ['client-auth.js', 'artist-login.js', 'studio-login.js', 'job-board-request.js', 'main.js', 'support-login.js', 'script.js']) {
         assert.match(read('public/shared/js/' + f), /isEmailNotConfirmedError/, f);
     }

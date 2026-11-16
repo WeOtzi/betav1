@@ -80,7 +80,8 @@
     // Avisos que resuelve lib/routes/cot-artista.js (COT-A-05/11/20): el
     // servidor relee la cotización y la sesión guardadas y manda una copia por
     // rol (cliente y artista), cada una con sus enlaces. Nunca lanza.
-    var SESSION_EVENTS = ['session_scheduled', 'session_rescheduled', 'session_cancelled', 'session_completed'];
+    // session_no_show (ronda 2 · sesiones): aviso al cliente de la ausencia registrada.
+    var SESSION_EVENTS = ['session_scheduled', 'session_rescheduled', 'session_cancelled', 'session_completed', 'session_no_show'];
 
     async function post(path, body, label) {
         if (isPreview()) return { ok: true, skipped: true, preview: true };

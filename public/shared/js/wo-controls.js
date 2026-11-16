@@ -187,9 +187,9 @@
 
   function dateRangeMessage(min, max) {
     var a = formatDisplayDate(min), b = formatDisplayDate(max);
-    if (a && b) return 'Elegí una fecha entre el ' + a + ' y el ' + b + '.';
-    if (a) return 'Elegí una fecha desde el ' + a + '.';
-    if (b) return 'Elegí una fecha hasta el ' + b + '.';
+    if (a && b) return 'Elige una fecha entre el ' + a + ' y el ' + b + '.';
+    if (a) return 'Elige una fecha desde el ' + a + '.';
+    if (b) return 'Elige una fecha hasta el ' + b + '.';
     return '';
   }
 
@@ -819,7 +819,7 @@
         var ph = sel.getAttribute('data-placeholder');
         var first = sel.options[0];
         if (!ph && first && first.value === '') ph = first.textContent.trim();
-        return { text: ph || 'Seleccioná…', empty: true };
+        return { text: ph || 'Selecciona…', empty: true };
       }
       if (chosen.length <= 2) return { text: chosen.map(function (o) { return o.textContent.trim(); }).join(', '), empty: false };
       return { text: chosen.length + ' seleccionadas', empty: false };
@@ -854,7 +854,7 @@
         var report = pendingInvalid;
         ctl.focus();
         if (report && typeof proxy.reportValidity === 'function' && proxy.setCustomValidity) {
-          proxy.setCustomValidity(native.validationMessage || 'Completá este campo.');
+          proxy.setCustomValidity(native.validationMessage || 'Completa este campo.');
           proxy.reportValidity();
           ctl.validityFromNative = true;
         }
@@ -1012,7 +1012,7 @@
         if (!raw) { setNative('', emitChange); return; }
         var iso = parseDisplayDate(raw);
         if (!iso) {
-          proxy.setCustomValidity('Ingresá una fecha válida con formato dd/mm/aaaa.');
+          proxy.setCustomValidity('Ingresa una fecha válida con formato dd/mm/aaaa.');
           if (INPUT_VALUE.get.call(input)) setNative('', emitChange);
           return;
         }
@@ -1096,7 +1096,7 @@
       pop.className = 'wo-pop wo-pop--date wo-cal';
       pop.setAttribute('role', 'dialog');
       pop.setAttribute('aria-modal', 'false');
-      pop.setAttribute('aria-label', 'Elegí una fecha');
+      pop.setAttribute('aria-label', 'Elige una fecha');
       var view = 'days';
       var min = '', max = '';
       var today = todayISO();

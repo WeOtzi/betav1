@@ -3,6 +3,10 @@
  * Migration: 20260829153500_unified_artist_inbox.sql.
  * Legacy quotation/support repositories remain loaded independently and are
  * merged by artist-inbox.js as compatibility sources.
+ *
+ * Ronda 2 (20261116160000 / 20261116160200): mensajes de voz
+ * (send_inbox_voice_message, attachment_duration_ms) y mensajes automáticos
+ * del artista (columna auto_kind).
  */
 (function () {
     'use strict';
@@ -30,7 +34,7 @@
 
     // Aviso por correo de mensaje nuevo del inbox directo (evento
     // inbox_message_received, definido por el frente de emails). El servidor
-    // resuelve destinatarios y throttling desde el mensaje guardado; acá solo
+    // resuelve destinatarios y throttling desde el mensaje guardado; aquí solo
     // se informa qué mensaje se guardó. Nunca bloquea ni falla el envío.
     function notifyRecipient(threadId, saved) {
         const message = Array.isArray(saved) ? saved[0] : saved;
@@ -61,8 +65,10 @@
 
         async listMessages(threadId) {
             const { data } = await D.run('inbox.listMessages', (c) =>
+                // '*' trae también attachment_duration_ms y auto_kind (ronda 2)
+                // sin romper si la migración todavía no corrió.
                 c.from('inbox_messages')
-                    .select('id,thread_id,sender_user_id,sender_role,body,message_kind,attachment_path,attachment_name,attachment_mime,attachment_size,created_at')
+                    .select('*')
                     .eq('thread_id', threadId)
                     .order('created_at', { ascending: true })
                     .order('id', { ascending: true })
@@ -89,6 +95,42 @@
             const saved = Array.isArray(data) ? data[0] : data;
             notifyRecipient((saved && saved.thread_id) || threadId, data);
             return data;
+        },
+
+        // Mensaje de voz (P8): el audio ya está en inbox-attachments
+        // (uploadAttachment); la base valida el objeto real, completa tamaño y
+        // MIME y guarda la duración. Mismo aviso por email que un mensaje común.
+        async sendVoiceMessage({ threadId, attachment, durationMs, clientNonce = null }) {
+            const { data } = await D.run('inbox.sendVoiceMessage', (c) =>
+                c.rpc('send_inbox_voice_message', {
+                    p_thread_id: threadId,
+                    p_attachment_path: attachment?.path || null,
+                    p_attachment_mime: attachment?.type || null,
+                    p_duration_ms: Math.round(Number(durationMs) || 0),
+                    p_client_nonce: clientNonce || (crypto.randomUUID ? crypto.randomUUID() : null),
+                })
+            );
+            const saved = Array.isArray(data) ? data[0] : data;
+            notifyRecipient((saved && saved.thread_id) || threadId, data);
+            return data;
+        },
+
+        // Mensajes automáticos recientes de los hilos del usuario (P9). La
+        // lista los usa para saber si lo último de un hilo fue un automático.
+        // Nunca rompe la carga del inbox: sin la columna devuelve [].
+        async listRecentAuto(limit = 200) {
+            try {
+                const { data } = await D.run('inbox.listRecentAuto', (c) =>
+                    c.from('inbox_messages')
+                        .select('thread_id,created_at,auto_kind')
+                        .not('auto_kind', 'is', null)
+                        .order('created_at', { ascending: false })
+                        .limit(limit)
+                );
+                return data || [];
+            } catch (_) {
+                return [];
+            }
         },
 
         async markRead(threadId) {
@@ -122,6 +164,12 @@
             });
             if (error) throw error;
             return { path, name: file.name, type: file.type || null, size: file.size };
+        },
+
+        // Limpieza de un adjunto que no llegó a enviarse (best effort).
+        async removeAttachment(path) {
+            if (!path) return;
+            try { await client().storage.from(BUCKET).remove([path]); } catch (_) { /* queda huérfano */ }
         },
 
         async signedAttachmentUrl(path) {

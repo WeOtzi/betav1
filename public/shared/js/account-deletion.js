@@ -34,7 +34,7 @@
         approved: { label: 'Aprobada', text: 'Soporte aprobó la baja: la ejecutamos en los próximos días y te avisamos por email.' },
         completed: { label: 'Completada', text: 'La cuenta fue eliminada.' },
         cancelled: { label: 'Cancelada', text: 'Cancelaste la solicitud. Tu cuenta sigue activa.' },
-        rejected: { label: 'Rechazada', text: 'Soporte no pudo aprobar la baja. Revisá la nota y, cuando lo resuelvas, podés pedirla de nuevo.' }
+        rejected: { label: 'Rechazada', text: 'Soporte no pudo aprobar la baja. Revisa la nota y, cuando lo resuelvas, puedes pedirla de nuevo.' }
     };
     const ROLE_COPY = {
         artist: 'Se eliminan tu perfil, portafolio, agenda y tu historial en We Ötzi.',
@@ -42,15 +42,15 @@
         studio: 'Se eliminan el estudio, sus sedes, el equipo y su historial en We Ötzi.'
     };
     const MSG = {
-        unavailable: 'Todavía no podemos recibir solicitudes de baja desde acá. Escribinos por el soporte de la app.',
-        loadError: 'No pudimos leer el estado de tu solicitud. Probá de nuevo en un rato.',
-        blockersError: 'No pudimos revisar los pendientes de tu cuenta ahora. Soporte los revisa igual antes de aprobar.',
-        confirm: 'Escribí ' + CONFIRM_WORD + ' para confirmar.',
+        unavailable: 'Todavía no podemos recibir solicitudes de baja desde aquí. Escríbenos por el soporte de la app.',
+        loadError: 'No pudimos leer el estado de tu solicitud. Prueba de nuevo en un rato.',
+        blockersError: 'No pudimos revisar los pendientes de tu cuenta ahora. Soporte los revisa de todos modos antes de aprobar.',
+        confirm: 'Escribe ' + CONFIRM_WORD + ' para confirmar.',
         reasonLong: 'El motivo puede tener hasta ' + REASON_MAX + ' caracteres.',
-        generic: 'No pudimos registrar la solicitud. Probá de nuevo.',
+        generic: 'No pudimos registrar la solicitud. Prueba de nuevo.',
         sent: 'Recibimos tu solicitud. Te mandamos un email con los próximos pasos.',
         cancelled: 'Cancelaste la solicitud. Tu cuenta sigue activa.',
-        cancelAsk: 'Tocá de nuevo para confirmar la cancelación.'
+        cancelAsk: 'Toca de nuevo para confirmar la cancelación.'
     };
 
     // ---------------- helpers puros ----------------
@@ -98,12 +98,21 @@
         return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
     }
 
+    // Texto que escribe la base (errores de las RPC y pendientes de account_deletion_blockers):
+    // las funciones ya aplicadas siguen en voseo y neutral-es.js lo pasa a tuteo antes de
+    // mostrarlo. Sin el módulo cargado el texto queda como vino.
+    function neutral(value) {
+        const N = root && root.WoNeutralEs;
+        return N && typeof N.neutralize === 'function' ? N.neutralize(value) : value;
+    }
+
     function errorText(err) {
         const cause = (err && err.cause) || {};
         const msg = String(cause.message || (err && err.message) || '').replace(/^\[[^\]]+\]\s*/, '');
         if (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202') return MSG.unavailable;
-        if (/23505|ya tenés una solicitud/i.test(msg) || cause.code === '23505') return 'Ya tenés una solicitud de baja abierta.';
-        if (msg && /[áéíóúñ]|Iniciá|No encontramos|Esta solicitud/i.test(msg)) return msg;
+        // La base todavía responde en voseo desde funciones ya aplicadas: se reconocen las dos formas.
+        if (/23505|ya (?:tenés|tienes) una solicitud/i.test(msg) || cause.code === '23505') return 'Ya tienes una solicitud de baja abierta.';
+        if (msg && /[áéíóúñ]|Inici[áa]|No encontramos|Esta solicitud/i.test(msg)) return neutral(msg);
         return MSG.generic;
     }
 
@@ -115,8 +124,8 @@
             const href = safeHref(i.href);
             const sr = sev === 'warn' ? 'Aviso' : (sev === 'check' ? 'Revisión manual' : 'Bloqueo');
             return '<li class="ad-item ad-item--' + sev + '"><span class="ad-item-mark" aria-hidden="true"></span>'
-                + '<p class="ad-item-label"><span class="wo-sr-only">' + sr + ': </span>' + esc(i.label) + '</p>'
-                + '<p class="ad-item-detail">' + esc(i.detail || '')
+                + '<p class="ad-item-label"><span class="wo-sr-only">' + sr + ': </span>' + esc(neutral(i.label)) + '</p>'
+                + '<p class="ad-item-detail">' + esc(neutral(i.detail || ''))
                 + (href ? ' <a href="' + esc(href) + '">Ver →</a>' : '') + '</p></li>';
         }).join('') + '</ul>';
     }
@@ -149,7 +158,7 @@
         host.innerHTML = `
             <div class="ad-box">
                 <p class="${esc(titleClass)}">Eliminar cuenta</p>
-                <p class="${esc(textClass)}">${esc(ROLE_COPY[role])} Pedís la baja y la revisa soporte antes de borrar nada.</p>
+                <p class="${esc(textClass)}">${esc(ROLE_COPY[role])} Pides la baja y la revisa soporte antes de borrar nada.</p>
                 <div class="ad-status" id="${id('status')}" aria-live="polite" hidden></div>
                 <div class="ad-actions">
                     <button type="button" class="wo-btn wo-btn--danger wo-btn--s" id="${id('open')}" aria-haspopup="dialog">Eliminar mi cuenta</button>
@@ -166,10 +175,10 @@
                         <div>
                             <p class="ad-section-title">Cómo funciona</p>
                             <ol class="ad-steps">
-                                <li><strong>Pedís la baja.</strong> Tu cuenta sigue activa mientras la revisamos.</li>
+                                <li><strong>Pides la baja.</strong> Tu cuenta sigue activa mientras la revisamos.</li>
                                 <li><strong>Soporte la revisa en hasta ${REVIEW_DAYS} días.</strong> Verifica que no queden disputas abiertas, saldo en el wallet, trabajos o sesiones en curso, pedidos de la Store ni membresías de estudio activas.</li>
                                 <li><strong>Te avisamos por email</strong> cuando la aprobamos o si hay algo que resolver antes.</li>
-                                <li><strong>Borramos tu cuenta.</strong> Es permanente: no se puede deshacer. Hasta ese momento podés cancelar la solicitud desde acá.</li>
+                                <li><strong>Borramos tu cuenta.</strong> Es permanente: no se puede deshacer. Hasta ese momento puedes cancelar la solicitud desde aquí.</li>
                             </ol>
                         </div>
                         <div>
@@ -182,9 +191,9 @@
                             <p class="wo-help" id="${id('reason-help')}">Nos ayuda a mejorar. Lo lee solo el equipo de soporte.</p>
                         </div>
                         <div class="wo-field">
-                            <label class="wo-label" for="${id('confirm')}">Escribí ${CONFIRM_WORD} para confirmar</label>
+                            <label class="wo-label" for="${id('confirm')}">Escribe ${CONFIRM_WORD} para confirmar</label>
                             <input class="wo-input ad-confirm-input" id="${id('confirm')}" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="${id('confirm-help')}">
-                            <p class="wo-help" id="${id('confirm-help')}">Confirmás que entendés que la baja aprobada es permanente.</p>
+                            <p class="wo-help" id="${id('confirm-help')}">Confirmas que entiendes que la baja aprobada es permanente.</p>
                         </div>
                         <p class="ad-feedback" id="${id('dialog-feedback')}" role="alert" hidden></p>
                     </div>
@@ -249,7 +258,7 @@
             const split = splitBlockers(state.blockers);
             let html = blockerListHtml(split.blocking.concat(split.warnings), 'No encontramos pendientes. Soporte lo vuelve a revisar antes de aprobar.');
             if (split.blocking.length) {
-                html += '<p class="wo-alert wo-alert--warning">Podés enviar la solicitud igual: soporte la deja en espera hasta que estos pendientes estén resueltos.</p>';
+                html += '<p class="wo-alert wo-alert--warning">Puedes enviar la solicitud de todos modos: soporte la deja en espera hasta que estos pendientes estén resueltos.</p>';
             }
             box.innerHTML = html;
         }

@@ -1,5 +1,5 @@
 /* ============================================================================
-   We Ötzi · Job Board — Publicá tu idea (cliente) · DS Bauhaus
+   We Ötzi · Job Board — Publica tu idea (cliente) · DS Bauhaus
    Figma: 295:14727 (inspiración) · 286:8577 (formulario) · 286:13942 (revisión)
    Requiere ds/tokens.css + ds/components.css. Solo tokens, sin hex sueltos.
    ========================================================================== */
@@ -36,7 +36,7 @@
 .jbrq-resume-actions{display:flex;gap:var(--space-3);flex-wrap:wrap;justify-content:center;margin-top:var(--space-4)}
 
 /* ============================================================
-   Vista 0 · Inspiración ("Construí tu idea")
+   Vista 0 · Inspiración ("Construye tu idea")
    ============================================================ */
 
 .jbrq-ai{display:grid;grid-template-columns:1fr 1.1fr;gap:var(--space-10);background:var(--sand-150);border:var(--border-hairline) solid var(--border-subtle);padding:var(--space-10);margin-bottom:var(--space-8)}
@@ -77,7 +77,7 @@
 .jbrq-ref.is-selected .jbrq-ref-check{display:grid}
 
 /* ============================================================
-   Vista 1 · Formulario ("¿Qué tatuaje tenés en mente?")
+   Vista 1 · Formulario ("¿Qué tatuaje tienes en mente?")
    ============================================================ */
 
 .jbrq-form{display:flex;flex-direction:column;gap:var(--space-10);max-width:960px}
@@ -150,7 +150,7 @@
 .jbrq-form-foot{display:flex;justify-content:flex-end}
 
 /* ============================================================
-   Vista 2 · Revisión ("Revisá tu publicación")
+   Vista 2 · Revisión ("Revisa tu publicación")
    ============================================================ */
 
 .jbrq-preview{max-width:1120px}

@@ -1,0 +1,346 @@
+/* ============================================================================
+   We Ötzi · Mis favoritos del cliente (/client/favorites) · ronda 2, P22
+   Listas a la izquierda (fila deslizable en el teléfono), guardados de la
+   lista elegida a la derecha, filtrables por tipo.
+   Capa de página sobre el DS Bauhaus: requiere ds/tokens.css + ds/components.css.
+   Solo var(--token): cero hex sueltos. Radio 0. Sombra dura solo en hover.
+   ========================================================================== */
+
+body.wo-app { margin: 0; }
+
+.cfv-skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 2000;
+    padding: var(--space-3) var(--space-4);
+    background: var(--neutral-500);
+    color: var(--white);
+    font-weight: var(--weight-bold);
+}
+.wo-app a.cfv-skip { color: var(--white); }
+.cfv-skip:focus { left: var(--space-3); top: var(--space-3); }
+
+.cfv-main { padding: var(--space-8) 0 var(--space-16); }
+.cfv-main:focus { outline: none; box-shadow: none; }
+.cfv-page ul { margin: 0; padding: 0; list-style: none; }
+
+/* ---------- Encabezado ---------- */
+.cfv-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-4) var(--space-6);
+    margin-bottom: var(--space-6);
+}
+.cfv-head-text { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.cfv-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--title-md-size);
+    line-height: 1.1;
+    letter-spacing: var(--h2-track);
+    color: var(--text-heading);
+}
+.cfv-sub { margin: 0; max-width: 56ch; color: var(--text-muted); font-size: var(--body-m-size); line-height: var(--body-m-lh); }
+.cfv-head-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
+/* ---------- Avisos ---------- */
+.cfv-notices { display: flex; flex-direction: column; gap: var(--space-3); }
+.cfv-notices:not(:empty) { margin-bottom: var(--space-5); }
+.cfv-notice { align-items: center; }
+.cfv-notice-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.cfv-notice-act,
+.cfv-notice-x {
+    flex: none;
+    padding: var(--space-1) var(--space-2);
+    background: transparent;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: var(--button-s-size);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--button-s-track);
+    text-transform: uppercase;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.cfv-notice-x { text-decoration: none; }
+.cfv-notice-x [data-wo-icon] { display: inline-flex; width: 16px; height: 16px; }
+
+/* ---------- Estructura: listas + panel ---------- */
+.cfv-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: start;
+    min-width: 0;
+}
+
+/* Listas: fila deslizable en el teléfono */
+.cfv-lists { min-width: 0; }
+.cfv-lists-ul {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-bottom: var(--space-2);
+    scrollbar-width: thin;
+}
+.cfv-lists-ul > li { flex: none; max-width: 78vw; }
+.cfv-list-tab {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--tap-target-min);
+    padding: var(--space-2) var(--space-4);
+    background: var(--surface-card);
+    color: var(--neutral-500);
+    border: var(--border-strong-width) solid var(--border-strong);
+    border-radius: var(--radius-none);
+    font-family: var(--font-body);
+    font-size: var(--body-s-size);
+    font-weight: var(--weight-bold);
+    text-align: left;
+    cursor: pointer;
+}
+.cfv-list-tab:hover { background: var(--surface-input-hover); }
+.cfv-list-tab.is-active { background: var(--neutral-500); color: var(--white); }
+.cfv-list-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cfv-list-count {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    font-weight: var(--weight-regular);
+    color: var(--text-muted);
+}
+.cfv-list-tab.is-active .cfv-list-count { color: var(--accent); }
+
+/* Panel de la lista elegida */
+.cfv-panel { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.cfv-panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-5);
+    padding-bottom: var(--space-4);
+    border-bottom: var(--border-strong-width) solid var(--border-strong);
+}
+.cfv-panel-titles { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.cfv-panel-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--h3-size);
+    line-height: var(--h3-lh);
+    color: var(--text-heading);
+    overflow-wrap: anywhere;
+}
+.cfv-panel-title:focus { outline: none; }
+.cfv-panel-meta {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.cfv-panel-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.cfv-panel-actions .wo-btn [data-wo-icon] { display: inline-flex; width: 16px; height: 16px; }
+
+/* Filtro por tipo */
+.cfv-kinds { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.cfv-kinds .wo-chip { cursor: pointer; font-family: var(--font-mono); font-size: var(--button-s-size); letter-spacing: var(--button-s-track); text-transform: uppercase; }
+.cfv-kind-count { opacity: var(--opacity-subtle); }
+
+/* ---------- Guardados ---------- */
+.cfv-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+    min-width: 0;
+}
+.cfv-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--surface-card);
+    border: var(--border-strong-width) solid var(--border-strong);
+}
+.cfv-card-media {
+    position: relative;
+    display: block;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: var(--surface-media);
+    border-bottom: var(--border-strong-width) solid var(--border-strong);
+}
+.cfv-card-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cfv-card-ph {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--neutral-300);
+}
+.cfv-card-ph [data-wo-icon] { display: inline-flex; width: 36px; height: 36px; }
+.cfv-card-body { display: flex; flex-direction: column; flex: 1 1 auto; gap: var(--space-1); min-width: 0; padding: var(--space-3); }
+.cfv-card-kind {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.cfv-card-title {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: var(--body-m-size);
+    line-height: 1.3;
+    font-weight: var(--weight-bold);
+    color: var(--text-heading);
+    overflow-wrap: anywhere;
+}
+.wo-app .cfv-card-title a { color: inherit; text-decoration: none; }
+.wo-app .cfv-card-title a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cfv-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    margin-top: auto;
+    padding-top: var(--space-2);
+}
+.cfv-card-act {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-h-sm);
+    padding: 0;
+    background: transparent;
+    border: 0;
+    color: var(--neutral-500);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: var(--button-s-size);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--button-s-track);
+    text-transform: uppercase;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.cfv-card-act:hover { color: var(--black); }
+.cfv-card-act--danger { color: var(--text-danger); }
+.cfv-card-act--danger:hover { color: var(--red-500); }
+.cfv-card-act:disabled { color: var(--text-faint); cursor: progress; }
+
+/* ---------- Estados vacíos y mensajes ---------- */
+.cfv-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-8) var(--space-6);
+    background: var(--surface-card);
+    border: var(--border-strong-width) solid var(--border-strong);
+}
+/* Composición Bauhaus (cuadrado, círculo, triángulo) en lugar de una foto */
+.cfv-empty-marks { display: flex; align-items: flex-end; gap: var(--space-2); margin-bottom: var(--space-2); }
+.cfv-empty-marks i { display: block; width: 28px; height: 28px; }
+.cfv-empty-marks .sq { background: var(--bauhaus-square); }
+.cfv-empty-marks .ci { background: var(--bauhaus-circle); border-radius: var(--radius-circle); }
+.cfv-empty-marks .tr {
+    width: 0;
+    height: 0;
+    border-left: 16px solid transparent;
+    border-right: 16px solid transparent;
+    border-bottom: 28px solid var(--bauhaus-triangle);
+}
+.cfv-empty-title { margin: 0; font-family: var(--font-display); font-size: var(--h3-size); line-height: var(--h3-lh); color: var(--text-heading); }
+.cfv-empty-text { margin: 0; max-width: 52ch; color: var(--text-body); font-size: var(--body-m-size); line-height: var(--body-m-lh); }
+.cfv-empty-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-2); }
+.cfv-message { grid-column: 1 / -1; }
+
+/* Esqueletos de carga */
+.cfv-skel-tab { display: block; height: var(--tap-target-min); margin-bottom: var(--space-2); }
+.cfv-skel-title { display: block; width: min(280px, 60%); height: var(--space-8); }
+.cfv-skel-card { display: block; aspect-ratio: 4 / 5; }
+
+/* ---------- Diálogos ---------- */
+.cfv-dialog {
+    width: min(calc(100vw - 32px), 480px);
+    max-height: calc(100vh - 32px);
+    margin: auto;
+    padding: var(--space-6);
+    overflow: auto;
+    background: var(--surface-card);
+    color: var(--text-body);
+    border: var(--border-strong-width) solid var(--border-strong);
+    border-radius: var(--radius-none);
+    box-shadow: var(--shadow-hard);
+}
+.cfv-dialog::backdrop { background: color-mix(in srgb, var(--ink) 55%, transparent); }
+.cfv-dialog-form { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; }
+.cfv-dialog-text { margin: 0 0 var(--space-4); font-size: var(--body-m-size); line-height: var(--body-m-lh); overflow-wrap: anywhere; }
+.cfv-field-error { margin: 0; color: var(--text-danger); font-size: var(--body-s-size); }
+.cfv-field-error[hidden] { display: none; }
+.cfv-move-lists { display: flex; flex-direction: column; gap: var(--space-2); max-height: 240px; overflow: auto; margin-bottom: var(--space-4); }
+.cfv-move-lists:empty { display: none; }
+.cfv-move-list {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--tap-target-min);
+    padding: var(--space-2) var(--space-4);
+    background: var(--surface-input);
+    color: var(--neutral-500);
+    border: var(--border-hairline) solid var(--border-muted);
+    border-radius: var(--radius-none);
+    font-family: var(--font-body);
+    font-size: var(--body-m-size);
+    font-weight: var(--weight-semibold);
+    text-align: left;
+    cursor: pointer;
+}
+.cfv-move-list:hover { background: var(--surface-input-hover); border-color: var(--border-strong); }
+.cfv-move-list:disabled { cursor: progress; opacity: var(--opacity-muted); }
+.cfv-move-new { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; }
+.cfv-move-new[hidden] { display: none; }
+.cfv-move-new-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.cfv-move-new-row .wo-input { flex: 1 1 180px; min-width: 0; }
+
+/* ---------- Breakpoints ---------- */
+@media (min-width: 37.5rem) {
+    .cfv-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+}
+@media (min-width: 56.25rem) {
+    .cfv-layout { grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: var(--space-8); }
+    /* Columna fija al hacer scroll; con muchas listas, se desplaza por dentro. */
+    .cfv-lists {
+        position: sticky;
+        top: var(--space-6);
+        max-height: calc(100vh - var(--space-12));
+        overflow-y: auto;
+        padding: var(--space-1);
+        margin: calc(var(--space-1) * -1);
+    }
+    .cfv-lists-ul { flex-direction: column; overflow: visible; padding-bottom: 0; }
+    .cfv-lists-ul > li { max-width: none; }
+    .cfv-title { font-size: var(--title-lg-size); }
+}
+@media (min-width: 75rem) {
+    .cfv-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-5); }
+}
+@media (max-width: 37.4375rem) {
+    .cfv-main { padding-top: var(--space-6); }
+    .cfv-head-actions { width: 100%; }
+    .cfv-head-actions .wo-btn { flex: 1 1 auto; }
+    .cfv-empty { padding: var(--space-6) var(--space-4); }
+    .cfv-dialog { padding: var(--space-5) var(--space-4); }
+}

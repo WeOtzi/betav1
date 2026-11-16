@@ -12,7 +12,7 @@
 // env, sign) para testearlos sin red. Responden { success, error } con
 // mensajes en español; los 500 son genéricos y el detalle queda en el log.
 // Las reglas de negocio (estados, wallet, licencias) viven en las RPC del SQL:
-// acá solo se autoriza, se valida la forma y se delega.
+// aquí solo se autoriza, se valida la forma y se delega.
 // ===========================================================================
 
 const crypto = require('node:crypto');
@@ -180,14 +180,14 @@ function createHandlers(deps = {}) {
         noStore(res);
         try {
             const user = await resolveUser(req);
-            if (!user || !user.id) return fail(res, 401, 'Iniciá sesión para descargar tus archivos.');
+            if (!user || !user.id) return fail(res, 401, 'Inicia sesión para descargar tus archivos.');
 
             const { licenseId, assetId } = req.params || {};
             if (!isUuid(licenseId) || !isUuid(assetId)) return fail(res, 400, 'El enlace de descarga no es válido.');
 
             // Titular o comprador del pedido; si no existe o es ajena, 403 sin distinguir.
             const license = await repo.getLicenseForHolder(licenseId, user.id);
-            if (!license) return fail(res, 403, 'No tenés acceso a esta licencia.');
+            if (!license) return fail(res, 403, 'No tienes acceso a esta licencia.');
             if (license.revoked_at) return fail(res, 410, 'Esta licencia fue revocada y sus archivos ya no se pueden descargar.');
 
             const asset = await repo.getAsset(assetId);
@@ -198,7 +198,7 @@ function createHandlers(deps = {}) {
             // Ventana móvil de 24 h. Si el conteo no es un número, se corta (falla cerrado).
             const since = new Date(nowMs() - DOWNLOAD_WINDOW_MS).toISOString();
             const countOpts = { since, cap: DOWNLOAD_DAILY_LIMIT };
-            const limitReached = () => fail(res, 429, `Llegaste al tope de ${DOWNLOAD_DAILY_LIMIT} descargas por día para esta licencia. Probá de nuevo mañana.`);
+            const limitReached = () => fail(res, 429, `Llegaste al tope de ${DOWNLOAD_DAILY_LIMIT} descargas por día para esta licencia. Prueba de nuevo mañana.`);
             const used = Number(await repo.countDownloadsToday(licenseId, countOpts));
             if (!(used < DOWNLOAD_DAILY_LIMIT)) return limitReached();
 
@@ -224,7 +224,7 @@ function createHandlers(deps = {}) {
             return send(res, 200, { success: true, url, expires_in: DOWNLOAD_EXPIRES_IN });
         } catch (e) {
             log.error('[store] download url failed:', e && e.message);
-            return fail(res, 500, 'No pudimos preparar la descarga. Intentá de nuevo en unos minutos.');
+            return fail(res, 500, 'No pudimos preparar la descarga. Intenta de nuevo en unos minutos.');
         }
     }
 
@@ -233,7 +233,7 @@ function createHandlers(deps = {}) {
         noStore(res);
         try {
             const user = await resolveUser(req);
-            if (!user || !user.id) return fail(res, 401, 'Iniciá sesión para pagar tu pedido.');
+            if (!user || !user.id) return fail(res, 401, 'Inicia sesión para pagar tu pedido.');
 
             const orderId = req.params && req.params.id;
             if (!isUuid(orderId)) return fail(res, 400, 'El pedido no es válido.');
@@ -254,12 +254,12 @@ function createHandlers(deps = {}) {
             const checkout = normalizeCheckout(await provider.createCheckout(checkoutOrder(order)));
             if (!checkout) {
                 log.error('[store] checkout: respuesta inválida del adaptador', provider.id);
-                return fail(res, 502, 'No pudimos iniciar el pago. Intentá de nuevo.');
+                return fail(res, 502, 'No pudimos iniciar el pago. Intenta de nuevo.');
             }
             return send(res, 200, { success: true, checkout });
         } catch (e) {
             log.error('[store] checkout failed:', e && e.message);
-            return fail(res, 500, 'No pudimos iniciar el pago. Intentá de nuevo.');
+            return fail(res, 500, 'No pudimos iniciar el pago. Intenta de nuevo.');
         }
     }
 
@@ -324,7 +324,7 @@ function createHandlers(deps = {}) {
             if (code === 'cannot_reopen') {
                 // El proveedor cobró, pero el pedido ya había vencido y no se
                 // pudo reabrir (sin stock, o el diseño se reservó o vendió para
-                // otro pedido). Es plata del comprador sin pedido: soporte la
+                // otro pedido). Es dinero del comprador sin pedido: soporte lo
                 // tiene que devolver o resolver a mano.
                 log.error(`[store] webhook: COBRO HUÉRFANO (store:cannot_reopen) · pedido ${payment.orderId} · proveedor ${provider.id} · referencia ${payment.reference} · ${payment.currency} ${payment.amount}. El pedido venció y no se pudo reabrir: hay que devolver el pago o resolverlo desde soporte.`);
             } else {

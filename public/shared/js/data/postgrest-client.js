@@ -25,6 +25,17 @@
         return null;
     }
 
+    // Español neutro: las funciones de la base ya aplicadas levantan mensajes en
+    // voseo. neutral-es.js (lo carga config-manager.js) pasa a tuteo message,
+    // details y hint del error; si el modulo no esta cargado, el error sigue igual.
+    function neutralError(error) {
+        const neutral = window.WoNeutralEs;
+        if (neutral && typeof neutral.error === 'function') {
+            try { neutral.error(error); } catch (_) { /* el error original sirve tal cual */ }
+        }
+        return error;
+    }
+
     // Ejecuta un builder de supabase-js que resuelve a { data, error[, count] } y
     // normaliza el error en una excepcion con etiqueta. Devuelve { data, count }.
     async function run(label, builder) {
@@ -33,6 +44,7 @@
         const res = await builder(client);
         const { data, error, count } = res || {};
         if (error) {
+            neutralError(error);
             const err = new Error(`[${label}] ${error.message || 'PostgREST error'}`);
             err.cause = error;
             err.code = error.code;

@@ -75,7 +75,7 @@ test('paso 03: el gate, la validación y la revisión usan la regla de "más ade
     // acceso-register-final guarda la marca en el borrador y la expone.
     assert.match(finalJs, /data\.styles_later !== true && stylesLaterRequested\(\)/);
     assert.match(finalJs, /stylesLaterRequested,\n\s*offerResume/);
-    assert.match(read('public/register-artist/index.html'), /podés seguir sin elegir uno/);
+    assert.match(read('public/register-artist/index.html'), /puedes seguir sin elegir uno/);
 });
 
 test('finalize/borrador: un registro sin estilos se acepta (styles_array vacío)', () => {
@@ -122,7 +122,7 @@ test('perfil público: la bio con formato se renderiza completa, sin partir en m
     // eslint-disable-next-line no-new-func
     const bioHasRichFormat = new Function(`${fn}\nreturn bioHasRichFormat;`)();
     assert.equal(bioHasRichFormat('<p>Hola. Soy tatuadora.</p>'), false);
-    assert.equal(bioHasRichFormat('Hola<br>chau'), false);
+    assert.equal(bioHasRichFormat('Hola<br>adiós'), false);
     assert.equal(bioHasRichFormat('<p>Hola <mark>resaltado</mark></p>'), true);
     assert.equal(bioHasRichFormat('<p><span style="font-size: 22px">grande</span></p>'), true);
     assert.equal(bioHasRichFormat('<ul><li>a</li></ul>'), true);

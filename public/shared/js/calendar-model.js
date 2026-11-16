@@ -292,14 +292,14 @@
         const city = String(data.city || '').trim();
         const country = String(data.country || '').trim();
         if (!city || !country) {
-            const error = new Error('Para sumarlo a Travel completá ciudad y país.');
+            const error = new Error('Para sumarlo a Travel completa ciudad y país.');
             error.code = 'VALIDATION';
             throw error;
         }
         const startDate = String(data.startDate || '').slice(0, 10);
         const endDate = String(data.endDate || data.startDate || '').slice(0, 10);
         if (!localDate(startDate) || !localDate(endDate) || endDate < startDate) {
-            const error = new Error('Revisá las fechas: la fecha de fin no puede ser anterior al inicio.');
+            const error = new Error('Revisa las fechas: la fecha de fin no puede ser anterior al inicio.');
             error.code = 'VALIDATION';
             throw error;
         }

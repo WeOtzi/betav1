@@ -15,8 +15,8 @@ for (const name of ['package.json', 'package-lock.json']) {
 }
 const file = path.join(root, 'docs/CHANGELOG.md');
 let text = fs.readFileSync(file, 'utf8');
-if (text.includes(`## [${version}]`)) throw new Error('La versión ya existe en el changelog; elegí una nueva entrega.');
+if (text.includes(`## [${version}]`)) throw new Error('La versión ya existe en el changelog; elige una nueva entrega.');
 const entry = `\n## [${version}] - ${new Date().toISOString().slice(0, 10)}\n\n- ${description.join(' ')}\n- Validación: completar con las pruebas reales antes del commit.\n- Rollback: revertir este commit; no cambiar datos reales desde una preview.\n`;
 text = text.replace(/^(# [^\n]+\n)/, '$1' + entry + '\n');
 fs.writeFileSync(file, text);
-console.log(`Versión ${version} preparada. Completá validación y rollback, revisá el diff y hacé el commit.`);
+console.log(`Versión ${version} preparada. Completa validación y rollback, revisa el diff y haz el commit.`);

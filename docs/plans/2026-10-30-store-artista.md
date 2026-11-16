@@ -2,7 +2,7 @@
 
 **Estado**: en implementación en la rama `feature/store-artista` (desde `feature/figma-final-artista`), en el worktree `.claude/worktrees/store-artista`.
 **Fecha**: 30 oct 2026. Contrato revisado después de una revisión adversarial de 4 lentes: seguridad, dinero, producto y factibilidad.
-**Figma**: el archivo `w3JA83CcP5ISKjyOu87mx1` no tiene frames de Store. La UI sigue el DS final del artista (`public/shared/css/ds/`, reglas de `ds/README.md`: radius 0, sin hex sueltos, voseo, sin «!», navegación terminada en «→», íconos con `data-wo-icon`).
+**Figma**: el archivo `w3JA83CcP5ISKjyOu87mx1` no tiene frames de Store. La UI sigue el DS final del artista (`public/shared/css/ds/`, reglas de `ds/README.md`: radius 0, sin hex sueltos, tuteo neutro, sin «!», navegación terminada en «→», íconos con `data-wo-icon`).
 **Nombre en la UI**: «Store», igual que las otras secciones en inglés (Travel, Spots, Inbox). Los textos de ayuda dicen «tu Store».
 
 ## 1. Decisiones de producto (confirmadas por el usuario)

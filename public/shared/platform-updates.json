@@ -8,7 +8,13 @@
   {
     "id": "2026-08-travel",
     "title": "Actualización de la plataforma",
-    "body": "Ya podés cargar tus giras desde Travel y compartir el itinerario.",
+    "body": "Ya puedes agregar tus giras desde Travel y compartir el itinerario.",
     "date": "2026-08-26T12:00:00Z"
+  },
+  {
+    "id": "2026-11-privacidad-1-1",
+    "title": "Actualizamos la Política de privacidad",
+    "body": "Versión 1.1, vigente desde el 16 de noviembre de 2026: el chat de soporte ahora puede responderte con un asistente automático de OpenAI. Los detalles están en la sección 6 de la política (/legal/privacy).",
+    "date": "2026-11-16T12:00:00Z"
   }
 ]

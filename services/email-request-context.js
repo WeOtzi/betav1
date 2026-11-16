@@ -5,6 +5,7 @@ const { resolveBearerUser, verifyAdminCaller } = require('../lib/auth/supabase-a
 const { deliveryKey } = require('./email-delivery-ledger');
 const { serverOnlyEventIds } = require('./email-event-mapping');
 const { DEFAULT_PUBLIC_BASE, safeUrl } = require('../lib/email-format');
+const { visibleCode } = require('../lib/quote-code');
 
 const ADMIN_EVENTS = new Set(['ambassador_status_updated', 'platform_update', 'password_reset_temp']);
 const ARTIST_EVENTS = new Set(['artist_responded_quotation', 'chat_message_to_client', 'session_scheduled', 'session_rescheduled', 'session_completed', 'session_cancelled',
@@ -117,6 +118,20 @@ async function latestChatMessage(quoteId, senderId, deps) {
         .order('created_at', { ascending: false }).limit(1).execute())[0] || null;
 }
 
+/**
+ * Último mensaje que la persona escribió a mano: saltea las respuestas
+ * automáticas del inbox (bienvenida / ausencia), que la base inserta con el
+ * mismo sender_id del artista y `auto_kind` (20261116160200). Se filtra aquí y
+ * no en la consulta para que no falle si la columna todavía no existe (EP-11).
+ */
+async function latestWrittenChatMessage(quoteId, senderId, deps) {
+    const rows = deps.latestMessages ? await deps.latestMessages(quoteId, senderId)
+        : deps.latestMessage ? [await deps.latestMessage(quoteId, senderId)]
+            : await pgrest('chat_messages').select('*').eq('quotation_id', quoteId).eq('sender_id', senderId)
+                .order('created_at', { ascending: false }).limit(5).execute();
+    return (Array.isArray(rows) ? rows : []).find(row => row && !row.auto_kind) || null;
+}
+
 /** Quién es quién: rol y datos de contacto de un user_id (artista, cliente o estudio). */
 async function identifyUser(userId, lookup) {
     if (!userId) return null;
@@ -130,11 +145,11 @@ async function identifyUser(userId, lookup) {
 }
 
 async function inboxContext(user, payload, base, lookup, deps) {
-    if (!user) return fail(401, 'Iniciá sesión para enviar esta notificación.');
+    if (!user) return fail(401, 'Inicia sesión para enviar esta notificación.');
     if (!payload.message_id) return fail(400, 'Falta el mensaje asociado al correo.');
     if (!/^[0-9a-f-]{36}$/i.test(String(payload.message_id))) return fail(400, 'Mensaje no válido.');
     const message = await lookup('inbox_messages', { id: payload.message_id, sender_user_id: user.id });
-    if (!message) return fail(409, 'Guardá el mensaje antes de enviar la notificación.');
+    if (!message) return fail(409, 'Guarda el mensaje antes de enviar la notificación.');
     const thread = await lookup('inbox_threads', { id: message.thread_id });
     if (!thread) return fail(404, 'No se encontró la conversación.');
     const participants = deps.listParticipants
@@ -150,7 +165,8 @@ async function inboxContext(user, payload, base, lookup, deps) {
     if (!recipient || !recipient.email) return fail(409, 'El destinatario no tiene un email guardado.');
     const sender = await identifyUser(user.id, lookup);
     const threadParam = encodeURIComponent(thread.id);
-    const chatUrl = recipient.role === 'client' ? `${base}/client/chats`
+    // CF-10: el enlace nombra el hilo también para el cliente (/client/chats abre ?thread=).
+    const chatUrl = recipient.role === 'client' ? `${base}/client/chats?thread=${threadParam}`
         : recipient.role === 'studio' ? `${base}/studio/dashboard?thread=${threadParam}`
             : `${base}/artist/inbox?thread=${threadParam}`;
     const window = messageWindow(message.created_at);
@@ -202,7 +218,7 @@ async function resolveEmailContext(req, eventId, input, deps = {}) {
     if (eventId === 'inbox_message_received') return inboxContext(user, payload, base, lookup, deps);
 
     if (eventId === 'artist_registration_completed' || eventId === 'client_registration_completed') {
-        if (!user) return fail(401, 'Iniciá sesión para confirmar el correo de bienvenida.');
+        if (!user) return fail(401, 'Inicia sesión para confirmar el correo de bienvenida.');
         const artist = eventId.startsWith('artist_');
         const row = await lookup(artist ? 'artists_db' : 'clients_db', { user_id: user.id });
         if (!row) return fail(403, 'No se encontró tu perfil para enviar el correo.');
@@ -216,7 +232,7 @@ async function resolveEmailContext(req, eventId, input, deps = {}) {
     }
 
     if (eventId.startsWith('job_board_')) {
-        if (!user) return fail(401, 'Iniciá sesión para enviar esta notificación.');
+        if (!user) return fail(401, 'Inicia sesión para enviar esta notificación.');
         let application = payload.application_id ? await lookup('job_board_applications', { id: payload.application_id }) : null;
         const requestId = application?.request_id || payload.request_id;
         const request = requestId ? await lookup('job_board_requests', { id: requestId })
@@ -261,7 +277,7 @@ async function resolveEmailContext(req, eventId, input, deps = {}) {
         }
         if (user && !isArtist && !isClient) return fail(403, 'Esta cotización no corresponde a tu cuenta.');
     } else {
-        if (!user) return fail(401, 'Iniciá sesión para enviar esta notificación.');
+        if (!user) return fail(401, 'Inicia sesión para enviar esta notificación.');
         // Artists can record an agreement reached offline in the existing panel.
         // Its persisted status, ownership, and recipients remain authoritative.
         const offlineDecision = isArtist && ['client_approved_quotation', 'client_rejected_quotation'].includes(eventId)
@@ -279,13 +295,13 @@ async function resolveEmailContext(req, eventId, input, deps = {}) {
     if (eventId === 'client_left_rating') {
         // Reseña verificada (verified_reviews) del cliente sobre esta cotización.
         const review = await lookup('verified_reviews', { quotation_id: quote.id, reviewer_user_id: user.id });
-        if (!review) return fail(409, 'Guardá la reseña antes de enviar el aviso.');
+        if (!review) return fail(409, 'Guarda la reseña antes de enviar el aviso.');
         entity += `:review:${review.id}`;
         persisted = { rating: review.rating, rating_comment: String(review.comment || '').slice(0, 500) };
     } else if (eventId === 'dispute_artist_response') {
         if (!payload.dispute_id) return fail(400, 'Falta la disputa asociada al correo.');
         const dispute = await lookup('quotation_disputes', { id: payload.dispute_id, quotation_id: quote.id });
-        if (!dispute || !String(dispute.artist_response || '').trim()) return fail(409, 'Guardá la respuesta antes de enviar el aviso.');
+        if (!dispute || !String(dispute.artist_response || '').trim()) return fail(409, 'Guarda la respuesta antes de enviar el aviso.');
         entity += `:dispute:${dispute.id}:${dispute.artist_responded_at || ''}`;
         persisted = {
             dispute_id: dispute.id, dispute_title: dispute.title || '',
@@ -295,7 +311,7 @@ async function resolveEmailContext(req, eventId, input, deps = {}) {
     } else if (eventId.startsWith('chat_message_')) {
         const message = payload.message_id ? await lookup('chat_messages', { id: payload.message_id, quotation_id: quote.quote_id, sender_id: user.id })
             : await latestChatMessage(quote.quote_id, user.id, deps);
-        if (!message) return fail(409, 'Guardá el mensaje antes de enviar la notificación.');
+        if (!message) return fail(409, 'Guarda el mensaje antes de enviar la notificación.');
         if (message.is_read === true) return { ok: true, skip: true, reason: 'already_read' };
         // Un correo por conversación, destinatario y ventana de 15 min.
         const recipientRole = eventId === 'chat_message_to_client' ? 'client' : 'artist';
@@ -314,7 +330,7 @@ async function resolveEmailContext(req, eventId, input, deps = {}) {
     } else if (eventId.startsWith('session_')) {
         if (!payload.session_id) return fail(400, 'Falta la sesión asociada al correo.');
         const session = await lookup('quotation_sessions', { id: payload.session_id, quotation_id: quote.id });
-        if (!session) return fail(409, 'Guardá la sesión antes de enviar la notificación.');
+        if (!session) return fail(409, 'Guarda la sesión antes de enviar la notificación.');
         const expectedStatus = eventId.slice('session_'.length);
         if (session.status !== expectedStatus) return fail(409, 'El estado de la sesión cambió. No se envió una notificación anterior.');
         entity += `:session:${session.id}:${session.updated_at || session.session_date}`;
@@ -324,9 +340,16 @@ async function resolveEmailContext(req, eventId, input, deps = {}) {
         // EM-N7: el mensaje del artista viaja como extracto en este aviso
         // (el chat no manda un segundo correo por la misma acción).
         entity += `:${quote.quote_status}:${quote.artist_responded_at || ''}:${quote.rating || ''}`;
-        const latest = isArtist ? await latestChatMessage(quote.quote_id, user.id, deps).catch(() => null) : null;
-        const recent = latest && (!quote.artist_responded_at || Math.abs(Date.parse(latest.created_at) - Date.parse(quote.artist_responded_at)) < 10 * 60 * 1000);
-        if (recent) persisted.message_preview = String(latest.message || '').slice(0, 400);
+        // EP-11: primero el mensaje guardado con la propuesta (proposal_message,
+        // 20261116120000). Solo si no hay, el último mensaje del chat escrito a
+        // mano: una bienvenida o ausencia automática no es "Mensaje de <artista>".
+        const proposalMessage = String(quote.proposal_message || '').trim();
+        if (proposalMessage) persisted.message_preview = proposalMessage.slice(0, 400);
+        else {
+            const latest = isArtist ? await latestWrittenChatMessage(quote.quote_id, user.id, deps).catch(() => null) : null;
+            const recent = latest && (!quote.artist_responded_at || Math.abs(Date.parse(latest.created_at) - Date.parse(quote.artist_responded_at)) < 10 * 60 * 1000);
+            if (recent) persisted.message_preview = String(latest.message || '').slice(0, 400);
+        }
     } else if (eventId !== 'client_quotation_submitted') entity += `:${quote.quote_status}:${quote.artist_responded_at || ''}:${quote.rating || ''}`;
     const context = { ok: true, idempotencyKey: entity, payload: buildQuotationEmailPayload(quote, artist, persisted, base, CLIENT_EVENTS.has(eventId) ? 'artist' : 'client') };
     if (defer) context.defer = defer;
@@ -338,6 +361,9 @@ function buildQuotationEmailPayload(quote, artist, persisted, base, role) {
     const clean = publicQuote(quote);
     return withLinks({
         ...clean, ...persisted, quote_id: quote.quote_id,
+        // Código que lee la persona (quotations_db.short_code); sin él, el quote_id.
+        // quote_id sigue siendo la llave de los enlaces.
+        quote_code: visibleCode(quote),
         drive_folder: safeUrl(quote.drive_folder_url || '') || '',
         client_name: quote.client_full_name, artist_name: artist?.name || quote.artist_name,
         artist_email: artist?.email || quote.artist_email,

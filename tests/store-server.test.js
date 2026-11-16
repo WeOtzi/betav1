@@ -65,7 +65,7 @@ function fakeRepo(overrides = {}) {
                 ? {
                     id: ORDER_ID, order_number: 'ST-ABCD1234', buyer_user_id: USER_ID, status: 'pending_payment',
                     currency: 'USD', total_amount: 50, payment_provider: 'manual', expected_collector: 'seller',
-                    payment_instructions: 'Transferí USD 50 al alias luna.tattoo', seller_contact: '@luna en Instagram',
+                    payment_instructions: 'Transfiere USD 50 al alias luna.tattoo', seller_contact: '@luna en Instagram',
                     expires_at: '2026-10-31T12:00:00.000Z',
                     items: [{ kind: 'design', title: 'Luna', license_tier: 'personal', quantity: 1, unit_price: 50, line_total: 50 }],
                 }
@@ -296,7 +296,7 @@ test('descarga: 401 sin sesión, sin tocar el repo', async () => {
     await handlers.handleDownloadUrl(downloadReq(), res);
     assert.equal(res.statusCode, 401);
     assert.equal(res.body.success, false);
-    assert.match(res.body.error, /Iniciá sesión/);
+    assert.match(res.body.error, /Inicia sesión/);
 });
 
 test('descarga: 400 con ids que no son UUID', async () => {
@@ -529,7 +529,7 @@ test('checkout manual: el comprador dueño recibe las instrucciones del pedido',
     const res = fakeRes();
     await handlers.handleCheckout({ headers: {}, params: { id: ORDER_ID } }, res);
     assert.equal(res.statusCode, 200);
-    assert.deepEqual(res.body, { success: true, checkout: { mode: 'manual', instructions: 'Transferí USD 50 al alias luna.tattoo' } });
+    assert.deepEqual(res.body, { success: true, checkout: { mode: 'manual', instructions: 'Transfiere USD 50 al alias luna.tattoo' } });
 });
 
 test('checkout: 401 sin sesión, 400 id inválido, 404 si no es el comprador', async () => {

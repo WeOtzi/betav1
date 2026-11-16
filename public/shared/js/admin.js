@@ -2699,6 +2699,8 @@ function togglePassword(inputId) {
 }
 
 function showToast(message, type = 'info') {
+    // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+    if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message);
     let container = document.getElementById('toast-container');
     if (!container) {
         container = document.createElement('div');
@@ -2902,8 +2904,16 @@ function renderBodyPartsManagerFunc(mode) {
             </button>
         `;
     } else if (mode === 'edit') {
-        const node = editingNode || { id: '', label: '', sides: 'both', sensitivity: 5, pain_level: 5, description: '', tattoo_info: '', experience_info: '' };
+        const node = editingNode || { id: '', label: '', sides: 'both', sensitivity: 5, pain_level: 5, description: '', tattoo_info: '', experience_info: '', fun_fact: '' };
         const isRoot = !parentNodeForAdd && (!editingNode || !editingNode.parent_id);
+        // "Dato curioso" (body_parts.fun_fact, migración 20261116100000): el campo
+        // aparece cuando la base ya tiene la columna; sin ella no se ofrece ni se escribe.
+        const funFactField = window.ConfigManager?.bodyPartsSupportFunFact?.() ? `
+                <div class="form-group">
+                    <label for="node-fun-fact">Dato curioso</label>
+                    <textarea id="node-fun-fact" rows="2" placeholder="Un dato breve de la zona. Se muestra en la ficha del cotizador.">${escapeHtml(node.fun_fact || '')}</textarea>
+                </div>
+` : '';
         const sensitivity = node.sensitivity || 5;
         const painLevel = node.pain_level || 5;
 
@@ -2941,12 +2951,13 @@ function renderBodyPartsManagerFunc(mode) {
                     <div style="margin-top: 10px; padding: 10px; background: rgba(var(--primary-rgb), 0.05); border: 1px dashed var(--primary-color); border-radius: 6px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <span style="font-size: 0.85em; font-weight: 600; color: var(--primary-color);"><i class="fa-solid fa-wand-magic-sparkles"></i> Generar con IA</span>
-                            <button type="button" class="btn btn-primary btn-sm" onclick="generateBodyPartIcon()" style="font-size: 0.8em; padding: 2px 8px;">Generar</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="ai-generate-btn" onclick="generateBodyPartIcon()" style="font-size: 0.8em; padding: 2px 8px;">Generar</button>
                         </div>
                         <div class="row-group" style="gap: 8px;">
                             <input type="text" id="ai-style" placeholder="Estilo (ej: Minimalist line art)" value="${window.ConfigManager.getValue('gemini.defaultStyle') || ''}" style="font-size: 0.85em;">
                             <input type="text" id="ai-bg" placeholder="Fondo (ej: White)" value="${window.ConfigManager.getValue('gemini.defaultBackgroundColor') || ''}" style="font-size: 0.85em;">
                         </div>
+                        <p id="ai-generate-status" role="status" aria-live="polite" style="margin: 8px 0 0; font-size: 0.8em; color: var(--text-secondary);"></p>
                     </div>
 
                     <div id="node-image-preview" style="margin-top: 8px;">
@@ -3001,7 +3012,7 @@ function renderBodyPartsManagerFunc(mode) {
                     <label>Experiencia de Tatuaje</label>
                     <textarea id="node-experience-info" rows="2" placeholder="Cómo se siente tatuarse aquí...">${node.experience_info || ''}</textarea>
                 </div>
-
+${funFactField}
                 <div class="form-section-title">Media del Modal Expandido</div>
                 
                 <div class="form-group">
@@ -3183,6 +3194,8 @@ async function saveNodeEdit() {
         description: document.getElementById('node-description').value.trim() || null,
         tattoo_info: document.getElementById('node-tattoo-info').value.trim() || null,
         experience_info: document.getElementById('node-experience-info').value.trim() || null,
+        // undefined (sin el campo en el formulario) = no tocar la columna.
+        fun_fact: document.getElementById('node-fun-fact') ? document.getElementById('node-fun-fact').value.trim() : undefined,
         sort_order: editingNode?.sort_order || (currentBodyPartsConfig.length + 1),
         // Expanded media settings
         expanded_media_type: document.getElementById('node-expanded-media-type')?.value || 'none',
@@ -3437,12 +3450,81 @@ async function handleExpandedMediaUpload(input) {
     input.value = '';
 }
 
+// IA de imágenes: OpenAI (GPT Image 2.6) por defecto; Gemini solo como proveedor
+// heredado. La clave vive en el servidor y nunca pasa por el navegador. El
+// servidor decide modelo, tamaño y calidad; con sesión de superadmin respeta el
+// modelo elegido en el panel si está en su lista blanca. Una imagen puede
+// tardar entre medio minuto y dos minutos: no hay timeout en el navegador.
+const AI_IMAGE_MODELS = ['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'];
+const AI_IMAGE_PROVIDER_LABELS = {
+    openai: 'OpenAI (GPT Image 2.6)',
+    gemini: 'Gemini (proveedor heredado)',
+    none: 'apagada (AI_IMAGE_PROVIDER=off)'
+};
+
+// Estado de la IA de imágenes según el servidor. Lee la configuración pública
+// ya saneada (aiImages: { enabled, provider }), que nunca trae claves.
+async function refreshAiImagesStatus() {
+    const note = document.getElementById('api-gemini-provider');
+    let ai = null;
+    try {
+        const response = await fetch('/shared/js/app-config.json', { cache: 'no-store' });
+        const publicConfig = await response.json();
+        ai = publicConfig && publicConfig.aiImages ? publicConfig.aiImages : null;
+    } catch (_) {
+        ai = null;
+    }
+    updateAPIStatus('gemini', ai && ai.enabled ? 'configured' : 'none');
+    if (note) {
+        if (!ai) {
+            note.textContent = 'No pudimos consultar el estado de la IA de imágenes en el servidor.';
+        } else if (ai.enabled) {
+            note.textContent = `Proveedor activo: ${AI_IMAGE_PROVIDER_LABELS[ai.provider] || ai.provider}. La clave está cargada en el servidor y no se muestra aquí.`;
+        } else if (ai.provider === 'none') {
+            note.textContent = 'La generación de imágenes está apagada en el servidor (AI_IMAGE_PROVIDER=off).';
+        } else {
+            note.textContent = 'Falta la clave en el servidor: carga OPENAI_API_KEY en su .env y reinicia la aplicación.';
+        }
+    }
+    return ai;
+}
+
+async function requestAiImage({ prompt, aspectRatio = '1:1', model } = {}) {
+    const auth = await _getApifyAuthHeaders();
+    const headers = { 'Content-Type': 'application/json' };
+    if (auth && auth.Authorization) headers.Authorization = auth.Authorization;
+    const body = { prompt, aspectRatio };
+    if (model) body.model = model;
+    const response = await fetch('/api/ai/generate-image', { method: 'POST', headers, body: JSON.stringify(body) });
+    // Si un proxy corta una espera larga, la respuesta puede no ser JSON.
+    const data = await response.json().catch(() => null);
+    if (!data || !data.success || !/^data:image\/(png|jpeg|webp);base64,/.test(String(data.image || ''))) {
+        throw new Error((data && data.error) || `El servidor no devolvió una imagen (HTTP ${response.status}).`);
+    }
+    return data;
+}
+
+// Cada generación es una imagen paga y puede tardar hasta dos minutos: mientras
+// dura, el botón que la disparó queda deshabilitado (no se puede repetir el
+// clic) y marcado como ocupado.
+function setAiImageButtonBusy(button, busy) {
+    if (!button) return;
+    button.disabled = busy;
+    if (busy) button.setAttribute('aria-busy', 'true');
+    else button.removeAttribute('aria-busy');
+}
+
 async function generateBodyPartIcon(specificNode = null) {
     const config = window.ConfigManager?.get();
     if (!config?.gemini?.enabled) {
-        showToast('Gemini AI no está habilitado', 'error');
+        showToast('La IA de imágenes no está habilitada', 'error');
         return;
     }
+
+    // Desde el formulario (un solo ícono): botón y estado propios.
+    const button = specificNode ? null : document.getElementById('ai-generate-btn');
+    const status = specificNode ? null : document.getElementById('ai-generate-status');
+    if (button && button.disabled) return;
 
     const nodeLabel = specificNode ? specificNode.label : document.getElementById('node-label').value.trim();
     const style = specificNode ? (config.gemini.defaultStyle || 'Minimalist line art') : document.getElementById('ai-style').value.trim();
@@ -3453,23 +3535,14 @@ async function generateBodyPartIcon(specificNode = null) {
         return;
     }
 
-    showToast(`Generando icono para "${nodeLabel}"...`, 'info');
+    showToast(`Generando icono para "${nodeLabel}"… puede tardar hasta dos minutos.`, 'info');
+    setAiImageButtonBusy(button, true);
+    if (status) status.textContent = 'Generando… puede tardar hasta dos minutos. No cierres esta ventana.';
 
     try {
         const prompt = `Create a ${style} icon of a human body part: ${nodeLabel}. The icon should be ${style}. Background color: ${bg}. Resolution: 1024x1024. Only the body part should be visible, centered.`;
 
-        const response = await fetch('/api/gemini/generate-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt,
-                model: config.gemini.model,
-                aspectRatio: '1:1',
-                imageSize: '1K'
-            })
-        });
-
-        const data = await response.json();
+        const data = await requestAiImage({ prompt, aspectRatio: '1:1', model: config.gemini.model });
 
         if (data.success && data.image) {
             // If called from the edit form (single generation)
@@ -3491,6 +3564,9 @@ async function generateBodyPartIcon(specificNode = null) {
         console.error('Generation error:', err);
         showToast(`Error al generar: ${err.message}`, 'error');
         return null;
+    } finally {
+        setAiImageButtonBusy(button, false);
+        if (status) status.textContent = '';
     }
 }
 
@@ -3499,11 +3575,11 @@ async function generateAllBodyPartIcons() {
 
     const config = window.ConfigManager?.get();
     if (!config?.gemini?.enabled) {
-        showToast('Gemini AI no está habilitado', 'error');
+        showToast('La IA de imágenes no está habilitada', 'error');
         return;
     }
 
-    showToast('Iniciando generación masiva... Esto puede tardar.', 'info');
+    showToast('Iniciando generación masiva… Cada icono puede tardar hasta dos minutos.', 'info');
 
     // Helper to traverse and update
     async function traverseAndUpdate(nodes) {
@@ -3641,12 +3717,11 @@ function loadAPIsSection() {
     // Google Maps
     document.getElementById('api-gmaps-key').value = config.googleMaps?.apiKey || '';
 
-    // Gemini AI
-    document.getElementById('api-gemini-key').value = config.gemini?.apiKey || '';
-    document.getElementById('api-gemini-model').value = config.gemini?.model || 'gemini-3-pro-image-preview';
+    // IA de imágenes (OpenAI por defecto). La clave vive solo en el servidor;
+    // los ids api-gemini-* se conservan por compatibilidad.
+    document.getElementById('api-gemini-model').value = AI_IMAGE_MODELS.includes(config.gemini?.model) ? config.gemini.model : AI_IMAGE_MODELS[0];
     document.getElementById('api-gemini-style').value = config.gemini?.defaultStyle || 'Minimalist line art';
     document.getElementById('api-gemini-bg').value = config.gemini?.defaultBackgroundColor || 'White';
-    document.getElementById('api-gemini-enabled').checked = config.gemini?.enabled || false;
     
     // Google Calendar
     const gcalendarClientId = document.getElementById('api-gcalendar-client-id');
@@ -3675,7 +3750,8 @@ function loadAPIsSection() {
     updateAPIStatus('n8n', config.n8n?.webhookUrl ? 'configured' : 'none');
     updateAPIStatus('emailjs', config.emailjs?.serviceId ? 'configured' : 'none');
     updateAPIStatus('gmaps', config.googleMaps?.apiKey ? 'configured' : 'none');
-    updateAPIStatus('gemini', config.gemini?.apiKey ? 'configured' : 'none');
+    // IA de imágenes: el estado real lo informa el servidor (la clave no llega al navegador).
+    refreshAiImagesStatus();
 
     // Apify lives in app_settings (server-side), not localStorage. Fetch async.
     if (typeof loadApifySavedInfo === 'function') {
@@ -3724,6 +3800,8 @@ function updateAPIStatus(api, status) {
         'connected': { icon: 'fa-circle-check', text: 'Conectado', class: 'connected' },
         'configured': { icon: 'fa-circle', text: 'Configurado', class: 'warning' },
         'error': { icon: 'fa-circle-xmark', text: 'Error', class: 'disconnected' },
+        // Prueba en curso de la IA de imágenes: queda a la vista toda la espera.
+        'working': { icon: 'fa-circle-notch fa-spin', text: 'Generando… puede tardar hasta dos minutos', class: 'warning' },
         'none': { icon: 'fa-circle', text: 'Sin configurar', class: '' }
     };
     
@@ -3803,7 +3881,7 @@ function saveSupabaseAPI() {
 
 async function testN8NAPI() {
     if (!window.EmailClient) {
-        showToast('El servicio de correo no está cargado. Recargá la página.', 'error');
+        showToast('El servicio de correo no está cargado. Recarga la página.', 'error');
         return;
     }
     const recipient = window.prompt('Enviar un correo de prueba. Email del destinatario:', '');
@@ -3811,7 +3889,7 @@ async function testN8NAPI() {
     showToast('Enviando correo de prueba...', 'info');
     const result = await window.EmailClient.sendTest('artist_registration_completed', recipient.trim(), 'n8n');
     updateAPIStatus('n8n', result?.success ? 'connected' : 'error');
-    showToast(result?.success ? 'El servidor SMTP aceptó el correo. Revisá la bandeja del destinatario.' : (result?.error || 'No se pudo confirmar el correo.'), result?.success ? 'success' : 'error');
+    showToast(result?.success ? 'El servidor SMTP aceptó el correo. Revisa la bandeja del destinatario.' : (result?.error || 'No se pudo confirmar el correo.'), result?.success ? 'success' : 'error');
 }
 
 function saveN8NAPI() {
@@ -4057,64 +4135,61 @@ function saveGoogleMapsAPI() {
     updateAPIStatus('gmaps', apiKey ? 'configured' : 'none');
 }
 
+// Prueba de punta a punta de la IA de imágenes: genera una imagen real con el
+// proveedor activo (consume cuota). No pide la clave: vive en el servidor.
+// (El nombre testGeminiAPI se conserva porque lo llama el HTML del panel.)
+// Cada clic es una imagen paga y la espera puede llegar a dos minutos: mientras
+// dura no se puede volver a disparar y el estado "Generando…" queda a la vista
+// (el aviso emergente se va a los 4 segundos).
+let aiImageTestRunning = false;
 async function testGeminiAPI() {
-    const apiKey = document.getElementById('api-gemini-key').value.trim();
+    if (aiImageTestRunning) return;
+    aiImageTestRunning = true;
     const model = document.getElementById('api-gemini-model').value;
-    
-    if (!apiKey) {
-        showToast('Por favor ingresa la API Key', 'error');
-        return;
-    }
-    
-    showToast('Generando imagen de prueba...', 'info');
-    updateAPIStatus('gemini', 'none');
-    
+    const button = document.getElementById('api-gemini-test');
+
+    setAiImageButtonBusy(button, true);
+    showToast('Generando imagen de prueba… puede tardar hasta dos minutos.', 'info');
+    updateAPIStatus('gemini', 'working');
+
     try {
-        const response = await fetch('/api/gemini/generate-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt: 'A simple minimalist line art icon of a circle',
-                model,
-                aspectRatio: '1:1',
-                imageSize: '1K'
-            })
+        const data = await requestAiImage({
+            prompt: 'A simple minimalist line art icon of a circle',
+            aspectRatio: '1:1',
+            model
         });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            updateAPIStatus('gemini', 'connected');
-            showToast('Conexión exitosa. Imagen generada.', 'success');
-            // We could show the image in a modal or log it, but success is enough for config test
-        } else {
-            throw new Error(data.error);
-        }
+        updateAPIStatus('gemini', 'connected');
+        const provider = AI_IMAGE_PROVIDER_LABELS[data.provider] || data.provider || 'el proveedor activo';
+        showToast(`Conexión correcta: imagen generada con ${provider}${data.model ? ` · ${data.model}` : ''}.`, 'success');
     } catch (err) {
         updateAPIStatus('gemini', 'error');
         showToast('Error: ' + err.message, 'error');
+    } finally {
+        aiImageTestRunning = false;
+        setAiImageButtonBusy(button, false);
     }
 }
 
 function saveGeminiAPI() {
-    const apiKey = document.getElementById('api-gemini-key').value.trim();
     const model = document.getElementById('api-gemini-model').value;
     const defaultStyle = document.getElementById('api-gemini-style').value.trim();
     const defaultBackgroundColor = document.getElementById('api-gemini-bg').value.trim();
-    const enabled = document.getElementById('api-gemini-enabled').checked;
 
+    // "enabled" no se guarda desde aquí: la IA de imágenes se enciende y se apaga
+    // en el servidor (clave y AI_IMAGE_PROVIDER) y ConfigManager toma ese valor.
     window.ConfigManager?.update({
         gemini: {
-            apiKey,
+            // La clave ya no se guarda en el navegador (vive en el servidor):
+            // se limpia cualquier valor que haya quedado de antes.
+            apiKey: '',
             model,
             defaultStyle,
-            defaultBackgroundColor,
-            enabled
+            defaultBackgroundColor
         }
     });
 
-    showToast('Configuración de Gemini AI guardada', 'success');
-    updateAPIStatus('gemini', apiKey ? 'configured' : 'none');
+    showToast('Configuración de la IA de imágenes guardada', 'success');
+    refreshAiImagesStatus();
 }
 
 // ============================================
@@ -4494,7 +4569,7 @@ async function testAllConnections() {
                 const svcMap = {
                     'supabase': 'supabase',
                     'n8n': 'n8n',
-                    'gemini': 'gemini',
+                    'gemini': 'gemini', // IA de imágenes (OpenAI): clave histórica del servicio
                     'google-maps': 'gmaps',
                     'google-drive': 'gdrive',
                     'emailjs': 'emailjs',
@@ -4822,7 +4897,7 @@ function openRowEditor({ table, row, isNew = false, title, subtitle, idColumn, i
     document.getElementById('row-editor-title').textContent = title || (isNew ? `Nueva fila · ${table}` : `Editar fila · ${table}`);
     document.getElementById('row-editor-subtitle').innerHTML = subtitle == null
         ? (isNew
-            ? 'Completá los campos. Los vacíos usan el valor por defecto de la tabla.'
+            ? 'Completa los campos. Los vacíos usan el valor por defecto de la tabla.'
             : `Identificada por <code>${escapeHtml(String(idColumn))} = ${escapeHtml(String(idValue))}</code>. Solo se guardan los campos que cambies. Vacío = <code>null</code>.`)
         : subtitle;
 
@@ -4831,7 +4906,7 @@ function openRowEditor({ table, row, isNew = false, title, subtitle, idColumn, i
         fieldsEl.innerHTML = `<div class="form-group">
             <label for="rowedit-rawjson">Fila (JSON)</label>
             <textarea id="rowedit-rawjson" rows="8" class="rowedit-input" style="font-family:monospace;">${escapeHtml(JSON.stringify(row, null, 2))}</textarea>
-            <small class="form-hint">No se pudo inferir el esquema (tabla vacía). Editá el JSON de la fila a insertar.</small>
+            <small class="form-hint">No se pudo inferir el esquema (tabla vacía). Edita el JSON de la fila a insertar.</small>
         </div>`;
     } else {
         const skipKeys = isNew ? ['id', 'created_at', 'updated_at'] : [];
@@ -4862,7 +4937,7 @@ async function saveRowEditor(event) {
                 // Only send filled fields so table defaults / NOT NULL apply.
                 if (coerced !== null) values[col] = coerced;
             });
-            if (Object.keys(values).length === 0) { showToast('Completá al menos un campo.', 'error'); return; }
+            if (Object.keys(values).length === 0) { showToast('Completa al menos un campo.', 'error'); return; }
             await _fetchAdminJson(base, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ values })
@@ -5625,7 +5700,8 @@ function loadAIProfileSettings() {
         document.getElementById('ai-profile-enabled').checked = settings.enabled;
     }
     if (document.getElementById('ai-profile-model')) {
-        document.getElementById('ai-profile-model').value = settings.model || 'gemini-3-pro-image-preview';
+        // El modelo lo define el servidor (OpenAI GPT Image): el selector es informativo.
+        document.getElementById('ai-profile-model').value = '';
     }
     if (document.getElementById('ai-profile-temp')) {
         document.getElementById('ai-profile-temp').value = settings.temperature || 0.7;
@@ -7282,7 +7358,7 @@ function loadStudioImagesTab() {
         sdGalleryUploader = WeOtziUploader.attachGallery(gallery, { supabase: client, bucket: 'studio-photos', pathPrefix: s.id + '/gallery', initialUrls: photoUrls, accept: 'image/*' });
     } else {
         sdGalleryUploader = null;
-        gallery.innerHTML = '<p class="sd-panel-hint">Subida no disponible (sin cliente Supabase). Pegá URLs en los campos de arriba.</p>';
+        gallery.innerHTML = '<p class="sd-panel-hint">Subida no disponible (sin cliente Supabase). Pega URLs en los campos de arriba.</p>';
     }
 }
 
@@ -7319,7 +7395,7 @@ async function loadStudioLocations() {
     try {
         sdLocations = await _sdFetchChildren('studio_locations', 'studio_id', currentStudioDetailId, 'sort_order.asc');
         if (!sdLocations.length) {
-            listEl.innerHTML = '<p class="sd-panel-hint">Sin sedes. Agregá la primera con "Nueva sede".</p>';
+            listEl.innerHTML = '<p class="sd-panel-hint">Sin sedes. Agrega la primera con "Nueva sede".</p>';
             return;
         }
 
@@ -7569,7 +7645,7 @@ async function loadStudioSpots() {
     try {
         sdSpots = await _sdFetchChildren('studio_spots', 'studio_id', currentStudioDetailId, 'created_at.desc');
         if (!sdSpots.length) {
-            listEl.innerHTML = '<p class="sd-panel-hint">Sin spots. Creá uno con "Nuevo spot".</p>';
+            listEl.innerHTML = '<p class="sd-panel-hint">Sin spots. Crea uno con "Nuevo spot".</p>';
             return;
         }
         const openCount = sdSpots.filter(s => s.status === 'open').length;
@@ -7819,7 +7895,7 @@ async function loadOpsTable() {
         sdOpsRows = await _sdFetchChildren(currentOpsTable, 'studio_id', currentStudioDetailId, 'created_at.desc');
         if (!sdOpsRows.length) {
             head.innerHTML = '<tr><th>Sin datos</th></tr>';
-            body.innerHTML = '<tr><td style="padding:16px;opacity:.6;">Sin registros. Usá "Agregar".</td></tr>';
+            body.innerHTML = '<tr><td style="padding:16px;opacity:.6;">Sin registros. Usa "Agregar".</td></tr>';
             return;
         }
         const cols = Object.keys(sdOpsRows[0]);
