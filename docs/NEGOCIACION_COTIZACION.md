@@ -94,8 +94,9 @@ aprueba el cliente.
 
 - **Qué cuenta como "con cuenta".** La regla mira `client_user_id`, no el
   origen. Quedan sin vínculo las cotizaciones de invitado y las manuales cuyo
-  correo no coincide con una cuenta de cliente. Una cotización manual o una
-  "Nueva cita" creada con el correo de un cliente registrado nace vinculada
+  correo no coincide con una cuenta de cliente verificada. Una cotización manual
+  o una "Nueva cita" creada con el correo de un cliente registrado, que ya lo
+  confirmó, nace vinculada
   (`create_manual_quotation`) y también espera la aprobación del cliente, que la
   ve y la acepta en su panel. Una sin vínculo (de invitado o manual) pasa a
   estar vinculada cuando esa persona se registra o entra con ese correo
@@ -121,14 +122,24 @@ aprueba el cliente.
   vínculo entró en ese instante), el diálogo muestra el motivo que devuelve
   (`isClientApprovalRejection`), no el genérico; en ese caso el turno apartado
   ya quedó reservado, igual que en la 2.5.0.
-- **Límite conocido.** `create_manual_quotation` vincula por correo sin
-  comprobar que la cuenta lo haya confirmado; el reclamo
-  (`POST /api/client/quotations/claim`), la decisión del cliente y
-  `link_quotation_contact` sí lo comprueban. (Las rutas que vinculan a la cuenta
-  que tiene la sesión iniciada, como ocultar o completar una cotización, no lo
-  miran, pero ahí la cuenta ya pudo entrar.) Si la cuenta vinculada por una
-  manual no puede entrar, el artista no puede cerrar esa cotización: la cancela
-  y la crea de nuevo sin correo. Al 16 nov 2026 no hay cuentas sin confirmar.
+- **Solo cuentas con el correo verificado (2.5.2).** Todas las vías que
+  vinculan una cotización a una cuenta usan el mismo criterio que
+  `isEmailVerified` (`lib/cot-cliente.js`): correo confirmado
+  (`email_confirmed_at`) y sin la marca de QA `qa_unverified_email`, ni en
+  `app_metadata` ni en `user_metadata`. Son `create_manual_quotation` (migración
+  `20261117110000`), `link_quotation_contact`, el reclamo
+  (`POST /api/client/quotations/claim`), la decisión del cliente, el enlace
+  para compartir, el cotizador web (`services/quotation-intake.js`) y ocultar o
+  completar una cotización (`canClaimByEmail`, `services/account-modes.js`).
+  Una cotización manual con el correo de una cuenta que todavía no lo confirmó
+  nace sin vínculo: el artista registra el acuerdo como en una de invitado, y
+  la cotización se vincula sola cuando el cliente confirma su correo
+  (`link_client_quotations_on_email_confirm`). Supabase Auth exige confirmar el
+  correo para iniciar sesión (`mailer_autoconfirm: false` al 16 nov 2026), así
+  que en las vías con sesión iniciada el filtro importa sobre todo para las
+  cuentas de QA, que se crean ya confirmadas pero con la marca. Hasta la 2.5.1,
+  una manual podía vincularse a una cuenta que no podía entrar, y el artista
+  solo podía cancelarla y crearla de nuevo sin correo.
 
 - **Con una contrapropuesta del cliente pendiente, no.** Primero la resuelve:
   la acepta, envía otra propuesta o mantiene la suya. Una contrapropuesta solo

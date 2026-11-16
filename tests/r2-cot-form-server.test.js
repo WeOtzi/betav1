@@ -836,7 +836,7 @@ test('P32: clona una solicitud PROPIA a un borrador sin artista, con referencias
     assert.equal(saved[0].body.quotation.reference_images_count, 2);
     assert.deepEqual(saved[0].body.extras.reference_notes, ['nota nueva', 'vieja 2']);
     // El intake real acepta ese cuerpo y fija el origen.
-    const prepared = intake.normalizeIntake({ ...saved[0].body, quotation: { ...saved[0].body.quotation, artist_id: null } }, { id: 'u1', email: 'qa@example.test' }, null);
+    const prepared = intake.normalizeIntake({ ...saved[0].body, quotation: { ...saved[0].body.quotation, artist_id: null } }, { id: 'u1', email: 'qa@example.test', raw: { email_confirmed_at: '2026-11-16T12:00:00Z' } }, null);
     assert.equal(prepared.q.quote_status, 'in_progress');
     assert.equal(prepared.q.artist_id, null);
     assert.equal(prepared.q.client_user_id, 'u1');

@@ -1,13 +1,19 @@
 'use strict';
 const { resolveBearerUser } = require('../lib/auth/supabase-auth');
 const { pgrest } = require('../lib/postgrest');
+const { isEmailVerified } = require('../lib/cot-cliente');
 
 function testingEnabled() { return process.env.AUDIT_REGISTRATION_OPEN === 'true'; }
+// Vínculo por correo (hide/complete de una cotización sin dueño): solo con el
+// correo verificado de verdad, el mismo criterio que lib/cot-cliente.js y que
+// las funciones SQL que vinculan cuentas (link_quotation_contact,
+// create_manual_quotation).
 function canClaimByEmail(user, quotation) {
-    return !quotation.client_user_id && user.raw?.app_metadata?.qa_unverified_email !== true && Boolean(user.email) && String(quotation.client_email || '').toLowerCase() === user.email.toLowerCase();
+    return !!user && !!quotation && !quotation.client_user_id && isEmailVerified(user)
+        && String(quotation.client_email || '').trim().toLowerCase() === String(user.email).trim().toLowerCase();
 }
 function clientProfile(user) {
-    return { user_id: user.id, email: user.email, full_name: user.raw?.user_metadata?.full_name || user.raw?.user_metadata?.name || user.email.split('@')[0], email_verified: Boolean(user.raw?.email_confirmed_at) && user.raw?.app_metadata?.qa_unverified_email !== true };
+    return { user_id: user.id, email: user.email, full_name: user.raw?.user_metadata?.full_name || user.raw?.user_metadata?.name || user.email.split('@')[0], email_verified: isEmailVerified(user) };
 }
 // ── acceso (ACC-08): el artista que pasa a modo cliente ya aceptó los mismos
 // Términos al registrarse; se reutiliza esa aceptación (dato del servidor).
