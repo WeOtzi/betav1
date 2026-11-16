@@ -131,9 +131,21 @@
         let book = [];
         let fromQuotes = [];
         try { book = await D().ArtistClients.listForArtist(user.id); } catch (e) { if (!e.missingSchema) console.warn('[quotation-new] libreta', e); }
-        try { fromQuotes = M.clientsFromQuotes(await D().Quotations.listClientContactsForArtist(user.id)); } catch (e) { console.warn('[quotation-new] contactos', e); }
+        try { fromQuotes = M.clientsFromQuotes(await loadQuoteClients(user.id)); } catch (e) { console.warn('[quotation-new] contactos', e); }
         clientsCache = M.mergeClients(book, fromQuotes);
         return clientsCache;
+    }
+
+    // Clientes de cotizaciones anteriores. El contacto de una cotización recibida lo
+    // decide el servidor (P20/P23: solo con el perfil verificado y nunca en una
+    // rechazada); el navegador ya no lee esas columnas. Si el servidor no responde
+    // (o en la demo), quedan los nombres y la ciudad.
+    async function loadQuoteClients(userId) {
+        const info = D().QuotationInfo;
+        if (info && typeof info.clientContacts === 'function') {
+            try { return await info.clientContacts(); } catch (e) { console.warn('[quotation-new] contactos (servidor)', e); }
+        }
+        return D().Quotations.listClientNamesForArtist(userId);
     }
 
     // ---------------------------------------------------------------- render

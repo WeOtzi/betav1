@@ -103,6 +103,77 @@ test('contacto: visible solo con artista verificado y cotización no rechazada; 
     }
 });
 
+// SEG-01: el buscador de clientes de la cotización manual leía en el navegador el email,
+// WhatsApp e Instagram de TODAS las cotizaciones del artista (rechazadas incluidas).
+const CONTACT_ROWS = [
+    { quote_status: 'client_rejected', source: 'web_chat', quotation_medium: 'web', client_full_name: 'Rita Rechazo', client_email: 'rita@example.com', client_whatsapp: '+54 11 5555 0001', client_instagram: '@rita', client_city_residence: 'Rosario', created_at: '2026-11-12T10:00:00Z' },
+    { quote_status: 'pending', source: 'web_chat', quotation_medium: 'web', client_full_name: 'Lucía Fernández', client_email: 'lucia@example.com', client_whatsapp: '+57 300 111 2233', client_instagram: '@lucia.f', client_city_residence: 'Medellín', created_at: '2026-11-10T10:00:00Z' },
+    { quote_status: 'responded', source: 'manual', quotation_medium: 'manual', client_full_name: 'Marina Ibáñez', client_email: 'marina@example.com', client_whatsapp: '+54 9 11 4444 0002', client_instagram: null, client_city_residence: 'Buenos Aires', created_at: '2026-11-08T10:00:00Z' },
+    { quote_status: 'client_approved', source: 'web_chat', quotation_medium: 'web', client_full_name: 'marina ibáñez', client_email: 'marina@example.com', client_whatsapp: null, client_instagram: null, client_city_residence: 'Buenos Aires', created_at: '2026-11-05T10:00:00Z' },
+    { quote_status: 'pending', source: 'web_chat', quotation_medium: 'web', client_full_name: '   ', client_email: 'sin-nombre@example.com', created_at: '2026-11-01T10:00:00Z' }
+];
+
+test('buscador de clientes: el contacto viaja solo donde la regla lo permite (P20/P23)', () => {
+    const names = (list) => list.map((c) => c.client_full_name);
+    // Artista sin verificar: nombres y ciudad; contacto solo de sus cotizaciones manuales.
+    const unverified = logic.clientContacts({ rows: CONTACT_ROWS, artist: { verification_state: 'No' } });
+    assert.deepEqual(names(unverified), ['Rita Rechazo', 'Lucía Fernández', 'Marina Ibáñez']);
+    assert.deepEqual(unverified.map((c) => c.contact_visible), [false, false, true]);
+    assert.deepEqual(unverified[1], {
+        client_full_name: 'Lucía Fernández', client_city_residence: 'Medellín', created_at: '2026-11-10T10:00:00Z',
+        client_email: null, client_whatsapp: null, client_instagram: null, contact_visible: false
+    });
+    assert.equal(unverified[2].client_email, 'marina@example.com', 'manual: el contacto lo cargó el propio artista');
+    assert.doesNotMatch(JSON.stringify(unverified), /rita@example\.com|5555 0001|@rita|lucia@example\.com|300 111|@lucia|sin-nombre/);
+    // La misma clienta en una cotización recibida no se repite como fila sin contacto.
+    assert.equal(unverified.filter((c) => c.client_full_name.toLowerCase() === 'marina ibáñez').length, 1);
+
+    // Verificado: contacto de las recibidas, salvo la rechazada por el cliente.
+    const verified = logic.clientContacts({ rows: CONTACT_ROWS, artist: { verification_state: 'Yes' } });
+    assert.deepEqual(verified.map((c) => [c.client_full_name, c.contact_visible, c.client_email]), [
+        ['Rita Rechazo', false, null],
+        ['Lucía Fernández', true, 'lucia@example.com'],
+        ['Marina Ibáñez', true, 'marina@example.com'],
+        ['marina ibáñez', true, 'marina@example.com']
+    ]);
+    assert.doesNotMatch(JSON.stringify(verified), /rita@example\.com|5555 0001|@rita/, 'rechazada: ni el verificado');
+    assert.deepEqual(logic.clientContacts({ rows: null, artist: null }), []);
+    assert.deepEqual(logic.clientContacts(), []);
+});
+
+test('GET client-contacts: exige sesión y entrega el contacto según el artista que llama', async () => {
+    const closed = harness({ users: USERS, contacts: CONTACT_ROWS });
+    const anon = await call(closed.handlers.clientContacts, {});
+    assert.equal(anon.statusCode, 401);
+    assert.deepEqual(closed.db.contactReads, [], 'sin sesión no se lee nada');
+
+    const hidden = await call(closed.handlers.clientContacts, { headers: ARTIST_AUTH });
+    assert.equal(hidden.statusCode, 200);
+    assert.equal(hidden.headers['Cache-Control'], 'no-store');
+    assert.equal(hidden.body.verification_state, 'No');
+    assert.deepEqual(closed.db.contactReads, [ARTIST], 'siempre las cotizaciones del que llama');
+    assert.deepEqual(hidden.body.contacts.map((c) => [c.client_full_name, c.client_city_residence, c.contact_visible]), [
+        ['Rita Rechazo', 'Rosario', false], ['Lucía Fernández', 'Medellín', false], ['Marina Ibáñez', 'Buenos Aires', true]
+    ]);
+    assert.doesNotMatch(JSON.stringify(hidden.body), /rita@example\.com|lucia@example\.com|300 111|5555 0001|quote_status|quotation_medium/);
+
+    const verified = harness({ users: USERS, contacts: CONTACT_ROWS, artist: { user_id: ARTIST, verification_state: 'Yes' } });
+    const shown = await call(verified.handlers.clientContacts, { headers: ARTIST_AUTH });
+    assert.equal(shown.body.verification_state, 'Yes');
+    assert.equal(shown.body.contacts.find((c) => c.client_full_name === 'Lucía Fernández').client_whatsapp, '+57 300 111 2233');
+    assert.equal(shown.body.contacts.find((c) => c.client_full_name === 'Rita Rechazo').client_email, null);
+
+    // Otro artista solo ve lo suyo (acá, nada).
+    const other = await call(verified.handlers.clientContacts, { headers: { authorization: 'Bearer otro' } });
+    assert.deepEqual(other.body.contacts, []);
+    // Un fallo de la base no devuelve el error crudo.
+    const broken = harness({ users: USERS });
+    broken.repo.listContactsForArtist = async () => { throw new Error('PGRST500 detalle interno'); };
+    const failed = await call(broken.handlers.clientContacts, { headers: ARTIST_AUTH });
+    assert.equal(failed.statusCode, 500);
+    assert.doesNotMatch(JSON.stringify(failed.body), /PGRST|interno/);
+});
+
 test('contacto: la respuesta no lleva datos cuando no corresponde', () => {
     const hidden = logic.contactResponse({ quote: quoteRow(), artist: { verification_state: 'No' } });
     assert.deepEqual(hidden, { visible: false, reason: 'not_verified', verification_state: 'No', email: null, whatsapp: null, instagram: null, preference: null });
@@ -323,9 +394,10 @@ function fakeRes() {
     };
 }
 
-function harness({ quote = quoteRow(), artist = { user_id: ARTIST, name: 'Mateo Rivas', username: 'mateoink.wo', verification_state: 'No' }, users = {}, clients = [CLIENT], manual = null } = {}) {
-    const db = { quote: { ...quote }, links: [], touched: [], emails: [], claimedLinks: [] };
+function harness({ quote = quoteRow(), artist = { user_id: ARTIST, name: 'Mateo Rivas', username: 'mateoink.wo', verification_state: 'No' }, users = {}, clients = [CLIENT], manual = null, contacts = [] } = {}) {
+    const db = { quote: { ...quote }, links: [], touched: [], emails: [], claimedLinks: [], contactReads: [] };
     const repo = {
+        listContactsForArtist: async (artistId) => { db.contactReads.push(artistId); return artistId === ARTIST ? contacts.map((row) => ({ ...row })) : []; },
         getQuote: async (quoteId) => (db.quote && db.quote.quote_id === quoteId ? { ...db.quote } : null),
         getQuoteById: async (id) => (db.quote && db.quote.id === id ? { ...db.quote } : null),
         getArtist: async (userId) => (artist && artist.user_id === userId ? { ...artist } : null),
@@ -601,6 +673,7 @@ test('register: rutas del frente, límites propios y una línea en server.js ant
     const limiter = (req, res, next) => next();
     routes.register(app, { repo: {}, resolveBearerUser: async () => null, emailService: {}, applicationBase: () => '', reservedHandles: () => new Set(), logger: console, publicLimiter: limiter, shareLimiter: limiter });
     assert.deepEqual(seen, [
+        'GET /api/cot-detalle/client-contacts',
         'GET /api/cot-detalle/quotations/:quoteId/info',
         'GET /api/cot-detalle/quotations/:quoteId/client-profile',
         'GET /api/cot-detalle/quotations/:quoteId/sheet',
@@ -647,7 +720,20 @@ test('repositorio: columnas explícitas y enlaces sin exponer el hash', () => {
     };
     fakeQuery.raw = async (rpcPath, opts) => { calls.push({ rpcPath, opts }); return null; };
     const repo = repoModule.createRepo({ query: fakeQuery });
+    // Buscador de clientes: lo mínimo para aplicar la regla de contacto, sin salud ni notas.
+    assert.deepEqual(repoModule.CONTACTS_SELECT.split(','), ['quote_status', 'source', 'quotation_medium', 'client_full_name',
+        'client_email', 'client_whatsapp', 'client_instagram', 'client_city_residence', 'created_at']);
+    const listed = [];
+    const contactsRepo = repoModule.createRepo({ query: (table) => {
+        const q = { select(cols) { listed.push(['select', table, cols]); return q; }, eq(c, v) { listed.push(['eq', c, v]); return q; },
+            order(c, o) { listed.push(['order', c, o]); return q; }, limit(n) { listed.push(['limit', n]); return q; }, execute: async () => [] };
+        return q;
+    } });
     return (async () => {
+        await contactsRepo.listContactsForArtist(ARTIST);
+        assert.deepEqual(listed, [['select', 'quotations_db', repoModule.CONTACTS_SELECT], ['eq', 'artist_id', ARTIST],
+            ['order', 'created_at', { ascending: false }], ['limit', 300]]);
+        assert.deepEqual(await contactsRepo.listContactsForArtist(null), [], 'sin artista no consulta');
         await repo.claimQuote(77, CLIENT, { client_email: 'a@b.co' });
         const claim = calls.find((c) => c.table === 'quotations_db' && c.op === 'patch');
         assert.deepEqual(claim.body, { client_email: 'a@b.co', client_user_id: CLIENT });

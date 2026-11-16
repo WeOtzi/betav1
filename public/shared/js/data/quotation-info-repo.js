@@ -5,6 +5,8 @@
  * lib/routes/cot-detalle.js (el servidor decide qué se puede ver):
  *   · info(quoteId)            contacto del cliente según la regla de
  *                              verificación, si está registrado y enlaces activos
+ *   · clientContacts()         clientes de las cotizaciones del artista para el
+ *                              buscador de la cotización manual (misma regla)
  *   · clientProfile(quoteId)   perfil del cliente registrado
  *   · sheet(quoteId)           hoja exportable (PDF / imagen)
  *   · createShareLink / revokeShareLinks   enlace público /cotizacion/<token>
@@ -101,6 +103,12 @@
         accessToken: accessToken,
 
         info: function (quoteId) { return call('GET', quotePath(quoteId, '/info')); },
+        // Clientes de las cotizaciones del artista (buscador de la cotización manual).
+        // El servidor entrega el contacto solo donde la regla P20/P23 lo permite.
+        clientContacts: async function () {
+            var body = await call('GET', '/api/cot-detalle/client-contacts');
+            return Array.isArray(body.contacts) ? body.contacts : [];
+        },
         clientProfile: function (quoteId) { return call('GET', quotePath(quoteId, '/client-profile')); },
         sheet: function (quoteId) { return call('GET', quotePath(quoteId, '/sheet')); },
 

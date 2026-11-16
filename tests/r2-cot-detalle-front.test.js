@@ -826,6 +826,17 @@ test('páginas: el detalle, el listado y la hoja manual cargan los módulos en o
         assert.ok(order(html, 'postgrest-client.js', 'data/quotation-info-repo.js'), rel);
     }
     const created = read('public/shared/js/quotation-new.js');
+    // SEG-01: el buscador de clientes ya no lee el contacto desde el navegador.
+    assert.doesNotMatch(created, /listClientContactsForArtist/);
+    assert.match(created, /const info = D\(\)\.QuotationInfo;\s+if \(info && typeof info\.clientContacts === 'function'\) \{\s+try \{ return await info\.clientContacts\(\); \}/);
+    assert.match(created, /return D\(\)\.Quotations\.listClientNamesForArtist\(userId\);/, 'respaldo: solo nombres');
+    const quotationsRepo = read('public/shared/js/data/quotations-repo.js');
+    assert.doesNotMatch(quotationsRepo, /listClientContactsForArtist/);
+    const namesOnly = /async listClientNamesForArtist\(artistUserId, limit = 300\) \{[\s\S]*?\.select\('([^']+)'\)/.exec(quotationsRepo);
+    assert.ok(namesOnly, 'método de respaldo');
+    assert.equal(namesOnly[1], 'client_full_name, client_city_residence, created_at', 'sin email, WhatsApp ni Instagram');
+    const infoRepo = read('public/shared/js/data/quotation-info-repo.js');
+    assert.match(infoRepo, /clientContacts: async function \(\) \{\s+var body = await call\('GET', '\/api\/cot-detalle\/client-contacts'\);\s+return Array\.isArray\(body\.contacts\) \? body\.contacts : \[\];/);
     assert.match(created, /window\.WoQuoteShare\.openDialog\(\{ quoteId, clientName: quotePayload\.client_full_name \|\| '', created: true \}\)/);
     assert.ok(created.indexOf('window.WoQuoteShare.openDialog') > created.indexOf('D().Quotations.createManual(quotePayload, details)'), 'después de crearla');
 });

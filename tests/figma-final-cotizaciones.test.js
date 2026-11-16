@@ -234,7 +234,9 @@ test('/my-quotations/new reuses the exact listing markup and auto-opens the shee
 test('the data layer adds named methods instead of ad-hoc CRUD', () => {
     const repo = read('public', 'shared', 'js', 'data', 'quotations-repo.js');
     assert.match(repo, /async createManual\(quote, details\)[\s\S]*c\.rpc\('create_manual_quotation', \{ p_quote: quote, p_details: details \}\)/);
-    assert.match(repo, /async listClientContactsForArtist\(artistUserId/);
+    // Ronda 2 · SEG-01: el contacto del cliente lo entrega el servidor; acá solo nombres.
+    assert.match(repo, /async listClientNamesForArtist\(artistUserId/);
+    assert.doesNotMatch(repo, /listClientContactsForArtist/);
     const newRepo = read('public', 'shared', 'js', 'data', 'quotation-new-repo.js');
     assert.match(newRepo, /D\.ManualQuotes = ManualQuotes/);
     assert.match(newRepo, /D\.ArtistClients = ArtistClients/);

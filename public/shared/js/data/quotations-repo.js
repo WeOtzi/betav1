@@ -187,12 +187,14 @@
         // la RLS no deja ver ni reclamar filas ajenas (CC-02).
 
         // ---- cotización manual del artista (Figma final 801:556 · /my-quotations/new) ----
-        // Contactos de clientes de cotizaciones anteriores del artista (buscador
-        // "Buscar cliente por nombre, correo o teléfono"). Incluye archivadas.
-        async listClientContactsForArtist(artistUserId, limit = 300) {
-            const { data } = await run('quotations.listClientContactsForArtist', (c) =>
+        // Nombres de clientes de cotizaciones anteriores del artista (respaldo del
+        // buscador de clientes). SIN datos de contacto: el email, WhatsApp e Instagram
+        // los entrega solo el servidor según la regla P20/P23
+        // (WeotziData.QuotationInfo.clientContacts → GET /api/cot-detalle/client-contacts).
+        async listClientNamesForArtist(artistUserId, limit = 300) {
+            const { data } = await run('quotations.listClientNamesForArtist', (c) =>
                 c.from('quotations_db')
-                    .select('client_full_name, client_email, client_whatsapp, client_instagram, client_city_residence, created_at')
+                    .select('client_full_name, client_city_residence, created_at')
                     .eq('artist_id', artistUserId)
                     .order('created_at', { ascending: false })
                     .limit(limit)
