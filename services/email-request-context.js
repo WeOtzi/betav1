@@ -5,6 +5,7 @@ const { resolveBearerUser, verifyAdminCaller } = require('../lib/auth/supabase-a
 const { deliveryKey } = require('./email-delivery-ledger');
 const { serverOnlyEventIds } = require('./email-event-mapping');
 const { DEFAULT_PUBLIC_BASE, safeUrl } = require('../lib/email-format');
+const { visibleCode } = require('../lib/quote-code');
 
 const ADMIN_EVENTS = new Set(['ambassador_status_updated', 'platform_update', 'password_reset_temp']);
 const ARTIST_EVENTS = new Set(['artist_responded_quotation', 'chat_message_to_client', 'session_scheduled', 'session_rescheduled', 'session_completed', 'session_cancelled',
@@ -360,6 +361,9 @@ function buildQuotationEmailPayload(quote, artist, persisted, base, role) {
     const clean = publicQuote(quote);
     return withLinks({
         ...clean, ...persisted, quote_id: quote.quote_id,
+        // Código que lee la persona (quotations_db.short_code); sin él, el quote_id.
+        // quote_id sigue siendo la llave de los enlaces.
+        quote_code: visibleCode(quote),
         drive_folder: safeUrl(quote.drive_folder_url || '') || '',
         client_name: quote.client_full_name, artist_name: artist?.name || quote.artist_name,
         artist_email: artist?.email || quote.artist_email,

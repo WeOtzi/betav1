@@ -205,3 +205,54 @@ test('scripts/email-preview.js escribe previews en output/email-previews', () =>
     assert.match(src, /output', 'email-previews'/);
     assert.match(fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8'), /output\/email-previews\//);
 });
+
+// REQ-06 (P16): el cliente ve en el correo el mismo código de 6 caracteres que
+// en "Solicitud enviada" y en su panel; el quote_id queda para los enlaces.
+test('correos de cotización: muestran el código corto y arman los enlaces con el quote_id', () => {
+    const { SPECS } = require('../lib/email-render/specs');
+    const { buildQuotationEmailPayload } = require('../services/email-request-context');
+    const QUOTE_ID = 'QN0123456789abcdef0123456789abcdef';
+    const CODE = 'ABC234';
+    // Lo que lee la persona: asunto, preheader y cuerpo sin las URL.
+    const shown = (out) => `${out.subject}\n${out.preheader}\n${out.text.replace(/https?:\/\/\S+/g, '')}\n${out.html.replace(/https?:\/\/[^"'\s<]+/g, '')}`;
+    const submitted = { ...fixtureFor('client_quotation_submitted'), quote_id: QUOTE_ID };
+
+    const client = renderEmail('client_quotation_submitted', { ...submitted, quote_code: CODE }, { role: 'client' });
+    assert.equal(client.subject, `Recibimos tu solicitud ${CODE}`);
+    assert.match(client.text, new RegExp(`Cotización[\\s\\S]{0,12}${CODE}`));
+    assert.ok(!shown(client).includes(QUOTE_ID), 'el quote_id interno no queda a la vista');
+    assert.ok(client.cta.url.endsWith(`/client/dashboard?quote=${QUOTE_ID}`), client.cta.url);
+    const admin = renderEmail('client_quotation_submitted', { ...submitted, quote_code: CODE }, { role: 'admin' });
+    assert.equal(admin.subject, `Nueva cotización ${CODE}`);
+
+    // Sin código (base sin la migración 20261116110000) queda el quote_id de siempre.
+    const plain = renderEmail('client_quotation_submitted', submitted, { role: 'client' });
+    assert.equal(plain.subject, `Recibimos tu solicitud ${QUOTE_ID}`);
+    assert.match(plain.text, new RegExp(`Cotización[\\s\\S]{0,12}${QUOTE_ID}`));
+
+    // El envío pedido desde el navegador arma el payload con la fila guardada.
+    const row = { quote_id: QUOTE_ID, short_code: CODE, quote_status: 'pending', client_full_name: 'Lucía Fernández', client_email: 'lucia.cliente@example.com', artist_name: 'Mateo Rivas' };
+    const built = buildQuotationEmailPayload(row, null, {}, 'https://beta.weotzi.com', 'client');
+    assert.deepEqual([built.quote_id, built.quote_code], [QUOTE_ID, CODE]);
+    assert.equal(buildQuotationEmailPayload({ ...row, short_code: null }, null, {}, 'https://beta.weotzi.com', 'client').quote_code, QUOTE_ID);
+    assert.equal(renderEmail('client_quotation_submitted', built, { role: 'client' }).subject, `Recibimos tu solicitud ${CODE}`);
+
+    // Ningún correo de cotización del render propio deja el quote_id a la vista
+    // cuando el payload trae el código (quote_code o la fila con short_code).
+    let checked = 0;
+    for (const eventId of Object.keys(SPECS)) {
+        const fixture = fixtureFor(eventId);
+        if (!fixture || !fixture.quote_id) continue;
+        for (const extra of [{ quote_code: CODE }, { short_code: CODE }]) {
+            // chat_url del fixture nombra otra cotización: sin él, el enlace sale del quote_id.
+            const payload = { ...fixture, quote_id: QUOTE_ID, chat_url: undefined, ...extra };
+            for (const role of rolesFor(eventId, payload)) {
+                const out = renderEmail(eventId, payload, { role });
+                assert.ok(!shown(out).includes(QUOTE_ID), `${eventId}/${role}: muestra el quote_id interno`);
+                if (/[?&]quote=/.test(out.cta.url)) assert.ok(out.cta.url.includes(`quote=${QUOTE_ID}`), `${eventId}/${role}: ${out.cta.url}`);
+                checked += 1;
+            }
+        }
+    }
+    assert.ok(checked >= 30, `solo se revisaron ${checked} correos`);
+});
