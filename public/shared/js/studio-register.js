@@ -1121,6 +1121,8 @@
                 + '<a class="wo-btn wo-btn--secondary" href="' + esc(url('/studio/dashboard#roster')) + '">Invitar artistas</a>';
         result(pending ? 'Terminemos de configurar tu estudio' : 'Tu estudio ya tiene lugar en We Ötzi',
             '<h2>' + (pending ? 'Configuración pendiente' : 'Tus próximos pasos') + '</h2>' + summaryRows(rows) + '<div class="sr-actions">' + actions + '</div>');
+        // Feedback de la beta: encuesta corta con el registro terminado (sale una sola vez).
+        if (!pending && window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('registro_estudio', { delay: 1500 });
         $('retry-media')?.addEventListener('click', async event => {
             const button = event.currentTarget; button.disabled = true; button.textContent = 'Subiendo imágenes…';
             try { const updated = await window.WeOtziStudioMedia.finish(completedStudio, existingSession?.user.email || studio.email || value('reg-email')); showComplete({ ...updated, mediaPending: false, mediaError: null }); }

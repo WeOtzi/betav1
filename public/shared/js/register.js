@@ -5402,6 +5402,8 @@ async function submitFormNow() {
                 window.WeOtziStudioInvite?.afterFinalize(finalizeData);
                 renderArtistEmailConfirmation(newEmail);
                 goToStep('success');
+                // Feedback de la beta: encuesta corta tras el registro (sale una sola vez).
+                if (window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('registro_tatuador', { delay: 1500 });
                 return;
             }
 
@@ -5486,6 +5488,8 @@ async function submitFormNow() {
             const hasStudioClaim = renderStudioClaim(finalizeData.studio_claim_url, finalizeData.studio_claim_expires_at);
             window.WeOtziStudioInvite?.afterFinalize(finalizeData);
             goToStep('success');
+            // Feedback de la beta: encuesta corta tras el registro (sale una sola vez).
+            if (window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('registro_tatuador', { delay: 1500 });
             // Con link de alta del estudio no se redirige solo: el artista
             // tiene que poder copiarlo o compartirlo antes de ir al panel.
             if (!hasStudioClaim) {
@@ -5753,6 +5757,8 @@ async function submitFormNow() {
         btnNext.disabled = false;
         renderSuccessScreen(requestedReturnTo || authUrls.dashboard);
         goToStep('success');
+        // Feedback de la beta: encuesta corta tras el registro (sale una sola vez).
+        if (window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('registro_tatuador', { delay: 1500 });
 
         // Auto-redirect to dashboard after 3 seconds (loader post-auth v3)
         setTimeout(() => {

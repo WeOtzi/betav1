@@ -128,8 +128,11 @@
     function factsHtml(quote) {
         var facts = M.clientFacts(quote, new Date());
         var minor = facts.some(function (f) { return f.key === 'age' && f.alert; });
+        // Flash Tattoos: la solicitud vino de un flash de la galería (flash-model.js).
+        var flash = window.WoFlash ? window.WoFlash.snapshotView(quote) : null;
         return '<div class="qdi-panel qdi-client">'
             + '<div class="qdi-head"><h2 class="qd-section-label" id="qdi-title">Datos del cliente</h2>'
+            + (flash ? '<span class="qdi-flag wo-flash-badge" title="' + esc('Flash «' + flash.title + '»' + (flash.priceLabel ? ' · ' + flash.priceLabel : '')) + '">Flash</span>' : '')
             + (minor ? '<span class="qdi-flag qdi-flag--alert">Menor de edad</span>' : '') + '</div>'
             + '<dl class="qdi-facts">' + facts.map(function (f) {
                 return '<div class="qdi-fact' + (f.wide ? ' is-wide' : '') + (f.alert ? ' is-alert' : '') + (f.highlight ? ' is-highlight' : '') + '">'

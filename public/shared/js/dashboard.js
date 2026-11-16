@@ -3367,6 +3367,11 @@ function parseJsonArraySafe(value) {
     }
 }
 
+// Flash Tattoos (flash-model.js): los flashes llevan un id estable.
+function withFlashId(item) {
+    return item && item.category === 'flash' && window.WoFlash ? window.WoFlash.ensureId(item) : item;
+}
+
 function normalizeDashboardGalleryFeedItems() {
     const normalized = [];
     const seen = new Set();
@@ -3380,13 +3385,13 @@ function normalizeDashboardGalleryFeedItems() {
         // Conserva nombre, caption/permalink de IG, duración e importación
         // (Figma 2003:862): antes se perdían al guardar desde el dashboard.
         const extras = window.WodGallery ? window.WodGallery.pickExtras(raw) : {};
-        normalized.push({
+        normalized.push(withFlashId({
             ...extras,
             url,
             category,
             kind: raw?.kind === 'video' || raw?.media_type === 'video' || isUrlVideo(url) ? 'video' : 'image',
             created_at: raw?.created_at || new Date().toISOString()
-        });
+        }));
         seen.add(url);
     }
 
@@ -3716,7 +3721,8 @@ async function handleGalleryUpload(e) {
 
         if (uploaded.length > 0) {
             const now = new Date().toISOString();
-            const newFeedItems = uploaded.map((item) => ({
+            // Flash Tattoos: un flash nace con id estable (la reserva lo usa).
+            const newFeedItems = uploaded.map((item) => withFlashId({
                 ...item,
                 category: selectedCategory,
                 created_at: now
@@ -4443,7 +4449,8 @@ async function handleGalleryEditUpload(e) {
 
         if (uploaded.length > 0) {
             const now = new Date().toISOString();
-            const newFeedItems = uploaded.map((item) => ({
+            // Flash Tattoos: un flash nace con id estable (la reserva lo usa).
+            const newFeedItems = uploaded.map((item) => withFlashId({
                 ...item,
                 category: selectedCategory,
                 created_at: now

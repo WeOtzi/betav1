@@ -50,6 +50,16 @@
     var MAX_TEMPLATES = 20;
     var MAX_TEMPLATE_TITLE = 80;
 
+    // Flash Tattoos (flash-model.js): se busca al usarlo, así el orden de los
+    // <script> no importa y la página sin flashes no lo necesita.
+    function flashModel() {
+        if (typeof self !== 'undefined' && self.WoFlash) return self.WoFlash;
+        if (typeof module === 'object' && module.exports && typeof require === 'function') {
+            try { return require('./flash-model.js'); } catch (_) { return null; }
+        }
+        return null;
+    }
+
     /* ------------------------------ utilidades ------------------------------ */
     function clean(value) { return String(value == null ? '' : value).trim(); }
     function round2(n) { return Math.round(n * 100) / 100; }
@@ -1015,6 +1025,12 @@
         var q = quote || {};
         var now = opts && Number.isFinite(timeMs(opts.now)) ? timeMs(opts.now) : Date.now();
         var p = prefill && typeof prefill === 'object' ? prefill : {};
+        // Flash Tattoos: la solicitud de un flash llega con el precio del flash
+        // (y la duración del turno, si el cliente eligió uno) ya cargados. Lo
+        // que pida quien abre el diálogo (prefill) sigue mandando.
+        var F = flashModel();
+        var flashPrefill = F && F.isFlashQuote(q) ? F.respondPrefill(q) : null;
+        if (flashPrefill) p = Object.assign({}, flashPrefill, p);
         var extras = extrasFromManual(manual);
         var pe = p.extras && typeof p.extras === 'object' ? p.extras : {};
         var amount = parseMoney(q.artist_budget_amount);

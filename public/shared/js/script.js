@@ -3641,6 +3641,8 @@ async function submitQuotation() {
         saveClientDataForRegistration();
         clearDraftFromLocalStorage();
         renderSubmittedSuccess({ warnings });
+        // Feedback de la beta: encuesta corta tras "Solicitud enviada" (solo con cuenta; sale una sola vez).
+        if (_authenticatedUserId && window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('cotizacion_enviada', { delay: 2000 });
         _dbg('Quotation submitted:', formData.quote_id);
     } catch (error) {
         formData.quote_status = 'in_progress';

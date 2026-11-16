@@ -1348,6 +1348,8 @@
                     ctx.toast(result.updated ? 'Propuesta actualizada. Le avisamos al cliente.' : 'Propuesta enviada al cliente.');
                 }
             }
+            // Feedback de la beta: encuesta corta tras enviar la propuesta (sale una sola vez).
+            if (window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('propuesta_enviada', { delay: 2000 });
         } catch (error) {
             console.error('[quote-respond] enviar', error);
             if (active !== session) return;

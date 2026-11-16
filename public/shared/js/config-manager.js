@@ -2039,6 +2039,63 @@ document.head.appendChild(modesScript);
 })();
 
 // ---------------------------------------------------------------------------
+// Feedback de la beta: botón "Comentarios" + encuestas cortas (wo-feedback.js).
+// En /support y /backoffice no existe. En el resto deja un stub de
+// window.WoFeedback (survey() queda en cola y pide el módulo) y carga el
+// módulo solo si hay sesión (o una encuesta pendiente de otra página): sin
+// sesión, las páginas públicas no descargan nada. Opt-out del botón por
+// página: <html data-wo-feedback="off"> (las encuestas siguen funcionando).
+// ---------------------------------------------------------------------------
+(function () {
+  'use strict';
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    if (window.__woFeedbackLoader) return;
+    var me = document.currentScript;
+    var match = me && me.src ? /^(.*\/shared\/)js\/[^\/?#]+(?:[?#].*)?$/.exec(me.src) : null;
+    if (!match) return;
+    var base = match[1];
+    // Ruta de la app sin el prefijo de despliegue (/beta, /preview/<rama>).
+    var prefix = (/^[a-z]+:\/\/[^\/]+(\/.*)?\/shared\/$/i.exec(base) || [])[1] || '';
+    var path = String((window.location && window.location.pathname) || '/');
+    if (prefix && path.indexOf(prefix + '/') === 0) path = path.slice(prefix.length);
+    if (/^\/(support|backoffice)(\/|$)/i.test(path)) return;
+    window.__woFeedbackLoader = true;
+    var requested = false;
+    var load = function () {
+      if (requested) return;
+      requested = true;
+      var s = document.createElement('script');
+      s.src = base + 'js/wo-feedback.js';
+      s.defer = true;
+      s.setAttribute('data-wo-feedback', '');
+      (document.head || document.documentElement).appendChild(s);
+    };
+    if (!window.WoFeedback) {
+      var queue = [];
+      window.WoFeedback = {
+        pending: true,
+        __queue: queue,
+        survey: function (key, options) { queue.push([key, options || {}]); load(); return true; },
+        open: function () { queue.push(['__open']); load(); return true; }
+      };
+    }
+    var root = document.documentElement;
+    if (root && root.getAttribute && root.getAttribute('data-wo-feedback') === 'off') return;
+    var wanted = window.WEOTZI_PREVIEW === true;
+    try {
+      var ls = window.localStorage;
+      if (ls.getItem('wo_fb_pending')) wanted = true;
+      for (var i = 0; !wanted && i < ls.length; i++) {
+        var k = ls.key(i);
+        if (k && /^sb-[a-z0-9]+-auth-token$/i.test(k) && /access_token/.test(ls.getItem(k) || '')) wanted = true;
+      }
+    } catch (e) { /* sin almacenamiento: sin botón */ }
+    if (wanted) load();
+  } catch (err) { /* el feedback es mejora progresiva: nunca bloquea la página */ }
+})();
+
+// ---------------------------------------------------------------------------
 // DS · Controles propios (select, fecha, prefijo fijo, editor de texto).
 // Carga única en todas las páginas: este bloque vive en config-manager.js y en
 // wo-icons.js (entre los dos cubren todas las páginas). Opt-out: [data-native].

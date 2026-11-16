@@ -464,6 +464,8 @@
         // Ronda 2 (cot-form): rango tentativo en ISO (preferred_date_from), menor de
         // edad (client_is_minor) y sede elegida por el cliente (preferred_location_label).
         const preferred = M.toDate(q.preferred_date_from || q.client_preferred_date);
+        // Flash Tattoos: la solicitud vino de un flash publicado en la galería.
+        const flashTag = flashOf(q) ? '<span class="qd-tag wo-flash-badge">Flash</span>' : '';
         const tags = [
             [q.client_city_residence, q.client_country].filter(Boolean).join(', '),
             M.styleName(q.tattoo_style) !== 'Sin definir' ? M.styleName(q.tattoo_style) : '',
@@ -478,10 +480,35 @@
                 <div>
                     <p class="qd-eyebrow">Expediente de cotización</p>
                     <h1 class="qd-title" id="qd-title">${esc(q.client_full_name || 'Cliente')}</h1>
-                    <div class="qd-tags">${tags.map((tag) => `<span class="qd-tag">${esc(tag)}</span>`).join('')}</div>
+                    <div class="qd-tags">${flashTag}${tags.map((tag) => `<span class="qd-tag">${esc(tag)}</span>`).join('')}</div>
                 </div>
                 <div class="qd-identity-actions" id="qd-identity-actions"></div>
             </section>`;
+    }
+
+    // Flash Tattoos: instantánea del flash que pidió el cliente (flash-model.js).
+    function flashOf(q) {
+        return window.WoFlash ? window.WoFlash.snapshotView(q) : null;
+    }
+
+    function flashBlockHtml(q) {
+        const flash = flashOf(q);
+        if (!flash) return '';
+        const image = safeUrl(flash.image);
+        const facts = [
+            ['Precio del flash', flash.priceLabel || '—'],
+            ['Tamaño', flash.size || '—'],
+            ['Tipo', flash.modeLabel],
+        ];
+        return `
+            <div class="wo-flash-block" aria-label="Flash pedido">
+                ${image ? `<a class="wo-flash-block-media" href="${esc(image)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir la imagen del flash en otra pestaña"><img src="${esc(image)}" alt="Flash ${esc(flash.title)}" loading="lazy" width="96" height="96"></a>` : ''}
+                <div class="wo-flash-block-body">
+                    <p class="qd-label"><span class="wo-flash-badge">Flash</span> Flash de tu galería · tal cual</p>
+                    <p class="wo-flash-block-title">${esc(flash.title)}</p>
+                    <dl class="wo-flash-block-facts">${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+                </div>
+            </div>`;
     }
 
     // cot-detalle (P13): cada referencia con SU comentario del cliente y la
@@ -578,6 +605,7 @@
             <section class="qd-dossier" aria-label="Propuesta y evaluación">
                 <div class="qd-proposal">
                     <p class="qd-section-label">La propuesta</p>
+                    ${flashBlockHtml(q)}
                     <div class="qd-proposal-copy">
                         <img class="qd-quote-mark" src="${esc(appUrl('/shared/assets/quotation-detail-quote-mark.svg'))}" alt="" width="16" height="14">
                         <p>${esc(q.tattoo_idea_description || q.project_description || 'Sin descripción')}</p>
@@ -1094,7 +1122,10 @@
             return;
         }
         const budgetInput = document.getElementById('qd-budget');
-        const amount = (budgetInput && budgetInput.value.trim()) || (M.numberFrom(q.artist_budget_amount) != null ? M.groupThousands(M.numberFrom(q.artist_budget_amount)) : '');
+        // Flash Tattoos: sin presupuesto cargado, llega el precio del flash (y la duración del turno).
+        const flashPrefill = window.WoFlash && window.WoFlash.isFlashQuote(q) ? window.WoFlash.respondPrefill(q) : null;
+        const amount = (budgetInput && budgetInput.value.trim()) || (M.numberFrom(q.artist_budget_amount) != null ? M.groupThousands(M.numberFrom(q.artist_budget_amount)) : '')
+            || (flashPrefill && flashPrefill.amount) || '';
         const requote = q.quote_status === 'expired';
         openDialog({
             title: requote ? 'Volver a cotizar' : 'Aceptar y enviar presupuesto',
@@ -1105,10 +1136,10 @@
             submitClass: 'wo-btn--accent',
             body: `<div class="qd-dialog-grid">
                 ${field('Presupuesto', `<input class="wo-input" name="amount" inputmode="decimal" value="${esc(amount)}" placeholder="410.000" required>`)}
-                ${field('Moneda', currencySelect(q.artist_budget_currency || q.client_budget_currency))}
+                ${field('Moneda', currencySelect(q.artist_budget_currency || (flashPrefill && flashPrefill.currency) || q.client_budget_currency))}
                 ${field('Sesiones', `<input class="wo-input" name="sessions" type="number" min="1" max="30" value="${esc(M.intFrom(q.tattoo_estimated_sessions) || 1)}" required>`)}
                 ${depositField(q)}
-                ${durationFields(M.minutesFrom(q.artist_session_minutes) || 120)}
+                ${durationFields(M.minutesFrom(q.artist_session_minutes) || (flashPrefill && flashPrefill.minutes) || 120)}
                 <div class="wo-field is-wide">${expiryControl(q, 'qd-dialog')}</div>
                 ${window.WoSlotHold ? window.WoSlotHold.respondFieldHtml(q) : ''}
                 ${field('Disponibilidad', `<input class="wo-input" name="availability" maxlength="140" value="${esc(q.artist_availability || '')}" placeholder="Fines de semana, desde agosto">`, true)}
@@ -1154,6 +1185,8 @@
                 }));
                 await reloadAll();
                 showToast('Respuesta enviada al cliente.');
+                // Feedback de la beta: encuesta corta tras enviar la propuesta (sale una sola vez).
+                if (window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('propuesta_enviada', { delay: 2000 });
             },
         });
     }
@@ -1376,6 +1409,8 @@
                     ? 'Acuerdo confirmado y primera sesión agendada. No pudimos guardar el lugar: elígelo desde la sesión.'
                     : 'Acuerdo confirmado y primera sesión agendada.';
                 showToast(edit ? 'Acuerdo actualizado.' : done, edit ? {} : { link: { href: calendarUrl(first, { session: created && created.id, quote: true }), label: 'Ver en el calendario →' } });
+                // Feedback de la beta: encuesta de la primera sesión agendada (sale una sola vez por persona).
+                if (!edit && window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('primera_sesion_agendada', { delay: 2000 });
             },
         });
         if (askPlace) place = flow.mountLocation(overlay.querySelector('[data-ws-location-slot]'), { quoteId: q.quote_id });
@@ -1523,6 +1558,8 @@
                 noticeSession('session_scheduled', created && created.id);
                 await reloadAll();
                 showToast(awaitsClient ? 'Sesión propuesta. Te avisamos cuando el cliente la confirme.' : 'Sesión agendada.', { link: { href: calendarUrl(date, { session: created && created.id, quote: true }), label: 'Ver en el calendario →' } });
+                // Feedback de la beta: encuesta de la primera sesión agendada (sale una sola vez por persona).
+                if (window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('primera_sesion_agendada', { delay: 2000 });
             },
         });
         if (flow) place = flow.mountLocation(overlay.querySelector('[data-ws-location-slot]'), { quoteId: q.quote_id });
