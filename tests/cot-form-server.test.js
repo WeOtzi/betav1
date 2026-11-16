@@ -131,7 +131,9 @@ test('config pública: gemini.enabled y aiImages reflejan la IA de imágenes con
     };
     // gemini.enabled conserva el nombre que lee el frontend: vale lo mismo que aiImages.enabled.
     assert.deepEqual(flags({ OPENAI_API_KEY: 'k' }), { gemini: true, ai: { enabled: true, provider: 'openai' } });
-    assert.deepEqual(flags({ GEMINI_API_KEY: 'g' }), { gemini: true, ai: { enabled: true, provider: 'gemini' } }, 'Gemini queda como proveedor heredado');
+    // Gemini queda como proveedor heredado, solo si se pide: su clave sola no enciende nada (SCI-09).
+    assert.deepEqual(flags({ GEMINI_API_KEY: 'g' }), { gemini: false, ai: { enabled: false, provider: 'openai' } });
+    assert.deepEqual(flags({ GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'gemini' }), { gemini: true, ai: { enabled: true, provider: 'gemini' } });
     assert.deepEqual(flags({ OPENAI_API_KEY: 'k', GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'gemini' }), { gemini: true, ai: { enabled: true, provider: 'gemini' } });
     assert.deepEqual(flags({}), { gemini: false, ai: { enabled: false, provider: 'openai' } });
     assert.deepEqual(flags({ OPENAI_API_KEY: 'k', AI_IMAGE_PROVIDER: 'off' }), { gemini: false, ai: { enabled: false, provider: 'none' } });

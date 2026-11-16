@@ -313,28 +313,28 @@ navegador ni al backoffice. Sin clave, `POST /api/ai/generate-image` y
 | Variable | Valor | Uso |
 |---|---|---|
 | `OPENAI_API_KEY` | `sk-…` | Clave de la API de OpenAI. **Secreta.** Es la misma que usa el chat de soporte (`SUPPORT_CHAT_ENABLED`) |
-| `AI_IMAGE_PROVIDER` | vacío / `openai` / `gemini` / `off` | Vacío: OpenAI si hay `OPENAI_API_KEY`; si no, Gemini si hay `GEMINI_API_KEY`. `gemini` fuerza el proveedor heredado. `off` apaga las imágenes con IA aunque haya claves (el chat de soporte sigue) |
+| `AI_IMAGE_PROVIDER` | vacío / `openai` / `gemini` / `off` | Vacío: OpenAI. `gemini` usa el proveedor heredado (necesita `GEMINI_API_KEY`; esa clave sola **no** lo activa). `off` apaga las imágenes con IA aunque haya claves (el chat de soporte sigue) |
 | `AI_IMAGE_MODEL` | `gpt-image-2.6-flare` (default) / `gpt-image-2.6-sunburst` | Modelo general. `flare` es el rápido de uso cotidiano; `sunburst`, el de trabajo detallado. Un valor desconocido cae al default |
 | `AI_REFERENCE_MODEL` | mismos valores | Modelo de la referencia con IA del cotizador. Vacío o desconocido (p. ej. un ID viejo de Gemini): usa `AI_IMAGE_MODEL` |
 | `AI_IMAGE_QUALITY` | `low` / `medium` (default) / `high` | Calidad pedida a OpenAI. Más calidad = más costo y más espera |
 | `AI_IMAGE_TIMEOUT_MS` | ms; default `120000` | Espera máxima al proveedor. Vencida, el endpoint responde 504 |
 | `AI_REFERENCE_DAILY_CAP` | default `300` | Tope diario de imágenes del cotizador (por proceso) |
 | `AI_IMAGE_DAILY_CAP` | default `500` | Tope diario del endpoint genérico (`GEMINI_DAILY_CAP` sigue valiendo como alias) |
-| `GEMINI_API_KEY` | `AIza…` | Solo para el proveedor heredado |
+| `GEMINI_API_KEY` | `AIza…` | Solo para el proveedor heredado (`AI_IMAGE_PROVIDER=gemini`) |
 
 Alta (una sola vez):
 
-1. Crear la clave en la consola de OpenAI (conviene un proyecto propio con límite de gasto mensual) y cargar `OPENAI_API_KEY` en el `.env` del servidor.
+1. Crear la clave en la consola de OpenAI (conviene un proyecto propio con límite de gasto mensual) y cargar `OPENAI_API_KEY` en el `.env` del servidor. Si la clave es **restringida**, necesita permiso de **imágenes** (generar) y de **lectura de modelos** (lo usa el chequeo de salud): sin el segundo, el chequeo informa `HTTP 401` aunque las imágenes se generen bien.
 2. **Verificar la organización en OpenAI** si la consola lo pide: los modelos GPT Image pueden exigirlo. Sin esa verificación la API responde 403 y la plataforma muestra "No pudimos generar la imagen" (`502 ai_error`); el motivo queda en el log: `[ai-image] generación: provider HTTP 403 …`.
 3. Reiniciar PM2 con `--update-env` (es un despliegue de Opción B: cambian `server.js` y `lib/`).
-4. Probar: Backoffice → APIs → **IA de imágenes (OpenAI)** → **Probar** (genera una imagen real: consume cuota). "Probar todas las conexiones" y `GET /api/health/gemini` (clave histórica del servicio) consultan el modelo sin generar nada ni gastar cuota, y devuelven `metadata.provider` y `metadata.model`.
+4. Probar: Backoffice → APIs → **IA de imágenes (OpenAI)** → **Probar** (genera una imagen real: consume cuota). "Probar todas las conexiones" y `GET /api/health/gemini` (clave histórica del servicio) consultan el modelo sin generar nada ni gastar cuota, y devuelven `metadata.provider` y `metadata.model`. Ese `healthy` solo dice que la clave puede leer el modelo: **no reemplaza la prueba real** (una organización sin verificar pasa el chequeo y falla al generar).
 
 Notas:
 
 - **Tiempo de espera y proxy.** Una imagen puede tardar entre 30 y 90 s en calidad media o alta. El proxy PHP público (`deployments/hostinger/proxy.php`) corta cada pedido a los **60 s** (`CURLOPT_TIMEOUT`): si la generación tarda más, el navegador recibe un 502 del proxy aunque el servidor termine bien (y la imagen se paga igual). Mientras ese límite no se suba para estas rutas, conviene `AI_IMAGE_TIMEOUT_MS=55000` (el servidor corta antes, con un 504 claro) y, si hay muchos cortes, `AI_IMAGE_QUALITY=low`.
 - Qué viaja a OpenAI: el prompt (en el cotizador lo arma el servidor con la idea, el estilo, la zona y el color), el modelo, el tamaño y un `safety_identifier` (SHA-256 de la llave del borrador o del id de la cuenta). Nunca email, nombre ni IP. La política de privacidad (sección 6) nombra a OpenAI como proveedor: si se activa el proveedor heredado (Gemini), hay que actualizarla antes.
 - Límites propios: 6 imágenes por borrador y 30 por IP por hora en el cotizador; 20 por hora por IP en el endpoint genérico; más los topes diarios de la tabla. En el cotizador, lo que no genera imagen no descuenta del tope diario.
-- Errores que conviene reconocer en el log: `HTTP 401` (clave inválida), `HTTP 403` (organización sin verificar o sin acceso al modelo), `HTTP 429 insufficient_quota` (sin saldo) y `HTTP 429 rate_limit_exceeded` (límite por minuto). El navegador nunca recibe ese detalle.
+- Errores que conviene reconocer en el log: `HTTP 401` (clave inválida), `HTTP 403` (organización sin verificar o sin acceso al modelo), `HTTP 429 insufficient_quota` (sin saldo) y `HTTP 429 rate_limit_exceeded` (límite por minuto). Cada línea trae además `req=<id>` (el `x-request-id` de OpenAI: es lo que pide su soporte para rastrear un pedido) y, en los bloqueos de contenido, `etapa=` (`input` u `output`) y `categorias=`. Un `HTTP 400` con `unknown_parameter`, `invalid_value` o similar es un fallo de integración (`502 ai_error`), no un bloqueo. El navegador nunca recibe ese detalle.
 - Compatibilidad: `POST /api/gemini/generate-image` sigue respondiendo (alias de `POST /api/ai/generate-image`) y la bandera pública `gemini.enabled` conserva el nombre.
 
 ---

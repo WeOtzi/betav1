@@ -467,15 +467,16 @@ test('P7: ruta de IA — exige llave de borrador, respeta el tope diario y no fi
     assert.equal(t.body.code, 'ai_timeout');
 
     // Sin clave de ningún proveedor (o con la IA apagada): 503 sin llegar a generar.
-    for (const offEnv of [{}, { OPENAI_API_KEY: '' }, { OPENAI_API_KEY: 'k', AI_IMAGE_PROVIDER: 'off' }]) {
+    // La clave de Gemini sola tampoco alcanza (SCI-09): el proveedor heredado se pide a propósito.
+    for (const offEnv of [{}, { OPENAI_API_KEY: '' }, { OPENAI_API_KEY: 'k', AI_IMAGE_PROVIDER: 'off' }, { GEMINI_API_KEY: 'g' }]) {
         const off = routes.createAiReferenceHandler({ env: offEnv, generateImage: async () => { throw new Error('no'); } });
         const o = fakeRes();
         await off({ body: { submission_key: KEY, idea: 'Una golondrina con rosas' } }, o);
         assert.equal(o.statusCode, 503, JSON.stringify(offEnv));
         assert.equal(o.body.code, 'ai_unavailable');
     }
-    // Gemini queda como proveedor heredado: con solo su clave la ruta sigue generando.
-    const legacy = routes.createAiReferenceHandler({ env: { GEMINI_API_KEY: 'g' }, budget: routes.createDailyBudget(5),
+    // Gemini queda como proveedor heredado: con AI_IMAGE_PROVIDER=gemini la ruta sigue generando.
+    const legacy = routes.createAiReferenceHandler({ env: { GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'gemini' }, budget: routes.createDailyBudget(5),
         generateImage: async () => ({ mimeType: 'image/png', base64: 'AAAA' }) });
     const l = fakeRes();
     await legacy({ body: { submission_key: KEY, idea: 'Una golondrina con rosas' } }, l);

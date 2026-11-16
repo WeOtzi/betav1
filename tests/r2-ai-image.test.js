@@ -165,12 +165,14 @@ test('OpenAI: el tipo de la imagen sale de sus bytes (jpeg, png o webp)', async 
 // ---------------------------------------------------------------------------
 // Selección de proveedor
 // ---------------------------------------------------------------------------
-test('proveedor según variables: OpenAI por defecto, Gemini heredado, apagado explícito', () => {
+test('proveedor según variables: OpenAI por defecto, Gemini solo si se pide, apagado explícito', () => {
     const info = (env) => aiImage.providerInfo(env);
     assert.deepEqual(info({}), { provider: 'openai', configured: false, model: 'gpt-image-2.6-flare' });
     assert.deepEqual(info({ OPENAI_API_KEY: 'k' }), { provider: 'openai', configured: true, model: 'gpt-image-2.6-flare' });
     assert.deepEqual(info({ OPENAI_API_KEY: 'k', GEMINI_API_KEY: 'g' }), { provider: 'openai', configured: true, model: 'gpt-image-2.6-flare' });
-    assert.deepEqual(info({ GEMINI_API_KEY: 'g' }), { provider: 'gemini', configured: true, model: 'gemini-2.5-flash-image' });
+    // SCI-09: la clave de Gemini sola NO cambia de proveedor (los textos legales nombran a OpenAI).
+    assert.deepEqual(info({ GEMINI_API_KEY: 'g' }), { provider: 'openai', configured: false, model: 'gpt-image-2.6-flare' });
+    assert.deepEqual(info({ GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'gemini' }), { provider: 'gemini', configured: true, model: 'gemini-2.5-flash-image' });
     assert.deepEqual(info({ OPENAI_API_KEY: 'k', GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'Gemini ' }), { provider: 'gemini', configured: true, model: 'gemini-2.5-flash-image' });
     assert.deepEqual(info({ OPENAI_API_KEY: 'k', AI_IMAGE_PROVIDER: 'gemini' }), { provider: 'gemini', configured: false, model: 'gemini-2.5-flash-image' });
     assert.deepEqual(info({ GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'openai' }), { provider: 'openai', configured: false, model: 'gpt-image-2.6-flare' });
@@ -181,7 +183,8 @@ test('proveedor según variables: OpenAI por defecto, Gemini heredado, apagado e
         assert.deepEqual(info({ OPENAI_API_KEY: 'k', GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: off }), { provider: 'none', configured: false, model: null });
     }
     assert.equal(aiImage.isConfigured({ OPENAI_API_KEY: 'k' }), true);
-    assert.equal(aiImage.isConfigured({ GEMINI_API_KEY: 'g' }), true);
+    assert.equal(aiImage.isConfigured({ GEMINI_API_KEY: 'g' }), false);
+    assert.equal(aiImage.isConfigured({ GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'gemini' }), true);
     assert.equal(aiImage.isConfigured({}), false);
     assert.equal(aiImage.isConfigured({ OPENAI_API_KEY: 'k', AI_IMAGE_PROVIDER: 'off' }), false);
     assert.doesNotMatch(JSON.stringify(info({ OPENAI_API_KEY: KEY })), /sk-/, 'providerInfo nunca incluye la clave');
@@ -193,11 +196,25 @@ test('Gemini heredado: delega en lib/gemini-image.js con su URL y su cabecera', 
         seen.push({ url, opts });
         return reply(200, { candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: 'QUJD' } }] } }] });
     };
-    const image = await aiImage.generateImage({ prompt: 'p', model: 'gpt-image-2.6-flare', aspectRatio: '3:4', userKey: 'u', env: { GEMINI_API_KEY: 'g-key' }, fetchImpl });
+    const GEMINI_ENV = { GEMINI_API_KEY: 'g-key', AI_IMAGE_PROVIDER: 'gemini' };
+    const image = await aiImage.generateImage({ prompt: 'p', model: 'gpt-image-2.6-flare', aspectRatio: '3:4', userKey: 'u', env: GEMINI_ENV, fetchImpl });
     assert.deepEqual(image, { mimeType: 'image/png', base64: 'QUJD', model: 'gemini-2.5-flash-image', provider: 'gemini' });
     assert.equal(seen[0].url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent');
     assert.equal(seen[0].opts.headers['x-goog-api-key'], 'g-key');
     assert.equal(JSON.parse(seen[0].opts.body).generationConfig.imageConfig.aspectRatio, '3:4');
+
+    // OAI-06: toda proporción que acepta el guard llega a Gemini como una que Gemini conoce
+    // (3:2 y 2:3 van a la más cercana; antes caían a 1:1 sin avisar).
+    const sentAspect = { '1:1': '1:1', '4:3': '4:3', '3:2': '4:3', '16:9': '16:9', '3:4': '3:4', '2:3': '3:4', '9:16': '9:16' };
+    assert.deepEqual(Object.keys(sentAspect).sort(), [...aiImage.ASPECT_RATIOS].sort());
+    for (const [asked, sent] of Object.entries(sentAspect)) {
+        seen.length = 0;
+        await aiImage.generateImage({ prompt: 'p', aspectRatio: asked, env: GEMINI_ENV, fetchImpl });
+        assert.equal(JSON.parse(seen[0].opts.body).generationConfig.imageConfig.aspectRatio, sent, asked);
+    }
+    seen.length = 0;
+    await aiImage.generateImage({ prompt: 'p', env: GEMINI_ENV, fetchImpl });
+    assert.equal(JSON.parse(seen[0].opts.body).generationConfig.imageConfig.aspectRatio, '1:1', 'sin proporción: cuadrado');
 
     // Con las dos claves y sin AI_IMAGE_PROVIDER, manda OpenAI.
     const both = recorder();
@@ -205,17 +222,22 @@ test('Gemini heredado: delega en lib/gemini-image.js con su URL y su cabecera', 
     assert.equal(viaOpenAi.provider, 'openai');
     assert.equal(both.calls[0].url, 'https://api.openai.com/v1/images/generations');
 
+    // SCI-09: con SOLO la clave de Gemini (sin AI_IMAGE_PROVIDER) no se genera con Google.
+    seen.length = 0;
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: { GEMINI_API_KEY: 'g-key' }, fetchImpl }), (e) => e.code === 'not_configured' && e.status === 503);
+    assert.equal(seen.length, 0, 'ningún pedido a Gemini');
+
     // El 429 de Gemini sale con el mismo código que el de OpenAI.
     await assert.rejects(
-        aiImage.generateImage({ prompt: 'p', env: { GEMINI_API_KEY: 'g-key' }, fetchImpl: async () => reply(429, { error: { message: 'quota' } }) }),
-        (e) => e.status === 429 && e.code === 'rate_limited');
+        aiImage.generateImage({ prompt: 'p', env: GEMINI_ENV, fetchImpl: async () => reply(429, { error: { message: 'quota' } }) }),
+        (e) => e.status === 429 && e.code === 'rate_limited' && e.providerStatus === 429);
 });
 
 // ---------------------------------------------------------------------------
 // Errores
 // ---------------------------------------------------------------------------
 test('sin clave: not_configured (503) y ningún pedido al proveedor', async () => {
-    for (const env of [{}, { OPENAI_API_KEY: '' }, { OPENAI_API_KEY: KEY, AI_IMAGE_PROVIDER: 'off' }, { OPENAI_API_KEY: KEY, AI_IMAGE_PROVIDER: 'gemini' }, null]) {
+    for (const env of [{}, { OPENAI_API_KEY: '' }, { OPENAI_API_KEY: KEY, AI_IMAGE_PROVIDER: 'off' }, { OPENAI_API_KEY: KEY, AI_IMAGE_PROVIDER: 'gemini' }, { GEMINI_API_KEY: 'g' }, null]) {
         const { calls, fetchImpl } = recorder();
         await assert.rejects(aiImage.generateImage({ prompt: 'p', env, fetchImpl }), (e) => e.code === 'not_configured' && e.status === 503);
         assert.equal(calls.length, 0);
@@ -233,6 +255,7 @@ test('400 con contenido bloqueado: blocked (422), con code, con type o solo con 
         { error: { message: 'Rejected.', type: 'invalid_request_error', code: 'content_policy_violation' } },
         { error: { message: 'x', type: 'image_generation_user_error' } },
         { error: { message: 'Your request was rejected as a result of our safety system.' } },
+        { error: { message: 'This request violates our content policy.', type: 'invalid_request_error', code: 'codigo_nuevo', param: null } },
         { error: { code: 'moderation_blocked' } }
     ]) {
         await assert.rejects(run(payload), failsWith({ code: 'blocked', status: 422, providerStatus: 400 }));
@@ -241,12 +264,101 @@ test('400 con contenido bloqueado: blocked (422), con code, con type o solo con 
     for (const payload of [
         { error: { message: "Invalid value: 'gpt-image-9'.", type: 'invalid_request_error', code: 'invalid_value' } },
         { error: { message: 'Billing hard limit has been reached', type: 'invalid_request_error', code: 'billing_hard_limit_reached' } },
+        // OAI-02 / SCI-06: el pedido siempre lleva moderation:'auto'. Si la API rechaza ese
+        // parámetro, el mensaje lo nombra y no por eso es "contenido bloqueado".
+        { error: { message: "Unknown parameter: 'moderation'.", type: 'invalid_request_error', param: 'moderation', code: 'unknown_parameter' } },
+        { error: { message: "Invalid value: 'auto'. Supported values for 'moderation' are: 'low'.", type: 'invalid_request_error', param: 'moderation', code: 'invalid_value' } },
+        { error: { message: "Unsupported parameter: 'moderation' is not supported with this model.", type: 'invalid_request_error', param: 'moderation', code: 'unsupported_parameter' } },
+        { error: { message: "Unknown parameter: 'moderation'." } },
+        // Con `param` o con un código de pedido inválido, el mensaje no se interpreta.
+        { error: { message: "Invalid 'moderation': see the content policy guide.", type: 'invalid_request_error', param: 'moderation' } },
+        { error: { message: 'The model does not exist. See our content policy.', code: 'model_not_found' } },
         { error: 'bad request' },
         {},
         null
     ]) {
-        await assert.rejects(run(payload), failsWith({ code: 'provider', status: 502, providerStatus: 400 }));
+        await assert.rejects(run(payload), failsWith({ code: 'provider', status: 502, providerStatus: 400 }), JSON.stringify(payload));
     }
+});
+
+test('el detalle para el log lleva el id del pedido y la etapa del bloqueo, antes del mensaje y sin la clave', async () => {
+    // OAI-04: x-request-id y error.moderation_details (solo etapa y categorías, acotadas).
+    const withHeaders = (status, payload, id) => ({ ...reply(status, payload), headers: { get: (name) => (String(name).toLowerCase() === 'x-request-id' ? id : null) } });
+    const blocked = async () => withHeaders(400, { error: {
+        message: `Your request was rejected by the safety system. ${'x'.repeat(400)}`, type: 'image_generation_user_error', code: 'moderation_blocked',
+        moderation_details: { moderation_stage: 'input', categories: ['sexual', 'violence/graphic', 'con espacios <b>', 42], otro: `dato ${KEY}` }
+    } }, 'req_abc123DEF');
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: blocked }), (e) => {
+        failsWith({ code: 'blocked', status: 422, providerStatus: 400, requestId: 'req_abc123DEF', moderationStage: 'input' })(e);
+        assert.match(e.detail, /^HTTP 400 moderation_blocked req=req_abc123DEF etapa=input categorias=sexual,violence\/graphic,conespaciosb: Your request was rejected/);
+        assert.ok(e.detail.length <= 300, 'el detalle sigue acotado');
+        assert.doesNotMatch(e.message, /req_|etapa|sexual/, 'el mensaje público no trae nada de esto');
+        return true;
+    });
+    // Un id con caracteres raros se limpia y se acorta; sin id no aparece "req=".
+    const weird = async () => withHeaders(500, { error: { message: 'boom' } }, `req\r\nx-evil: 1 ${'z'.repeat(200)}`);
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: weird }), (e) => {
+        assert.match(e.detail, /^HTTP 500 req=reqx-evil1z+: boom$/);
+        assert.equal(e.requestId.length, 64);
+        return true;
+    });
+    for (const headers of [undefined, null, {}, { get: () => null }, { get: () => 42 }]) {
+        const plain = async () => ({ ...reply(403, { error: { message: 'no', code: 'x' } }), headers });
+        await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: plain }), (e) => e.detail === 'HTTP 403 x: no' && !('requestId' in e));
+    }
+    // moderation_details con forma inesperada no rompe ni ensucia el detalle.
+    for (const details of ['texto', 7, [], { moderation_stage: {}, categories: 'sexual' }, { categories: [] }]) {
+        const odd = async () => reply(400, { error: { message: 'no', code: 'moderation_blocked', moderation_details: details } });
+        await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: odd }), (e) => e.code === 'blocked' && e.detail === 'HTTP 400 moderation_blocked: no');
+    }
+    // Una respuesta 200 inservible también deja el id para reclamar.
+    const empty = async () => withHeaders(200, { data: [] }, 'req_200');
+    await assert.rejects(aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: empty }), (e) => e.code === 'provider' && /sin data\[0\]\.b64_json req=req_200$/.test(e.detail));
+});
+
+test('isRefundable: el cupo diario solo se devuelve si consta que el proveedor no generó nada', async () => {
+    const failure = async (fetchImpl, extra = {}) => {
+        try { await aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl, ...extra }); } catch (error) { return error; }
+        throw new Error('debía fallar');
+    };
+    // Rechazos 4xx: contenido bloqueado, clave, verificación, cuota.
+    for (const [status, payload] of [
+        [400, { error: { code: 'moderation_blocked' } }], [400, { error: { code: 'invalid_value', param: 'size' } }],
+        [401, { error: { code: 'invalid_api_key' } }], [403, { error: { message: 'verify' } }], [429, { error: { code: 'insufficient_quota' } }]
+    ]) {
+        assert.equal(aiImage.isRefundable(await failure(async () => reply(status, payload))), true, `HTTP ${status}`);
+    }
+    // El pedido no salió: sin clave, prompt vacío o fallo al conectar.
+    assert.equal(aiImage.isRefundable(await failure(async () => okReply(), { env: {} })), true);
+    assert.equal(aiImage.isRefundable(await failure(async () => okReply(), { prompt: ' ' })), true);
+    for (const code of ['ENOTFOUND', 'ECONNREFUSED', 'UND_ERR_CONNECT_TIMEOUT']) {
+        const error = await failure(async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code } }); });
+        assert.equal(error.notSent, true, code);
+        assert.equal(aiImage.isRefundable(error), true, code);
+    }
+    // Pudo generarse (y cobrarse): vencimiento, 5xx, corte a mitad de camino, 200 inservible, bloqueo de salida.
+    const hang = (url, opts) => new Promise((resolve, reject) => {
+        opts.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    });
+    assert.equal(aiImage.isRefundable(await failure(hang, { timeoutMs: 20 })), false, 'timeout');
+    for (const status of [500, 502, 503]) assert.equal(aiImage.isRefundable(await failure(async () => reply(status, null))), false, `HTTP ${status}`);
+    for (const code of ['ECONNRESET', 'UND_ERR_SOCKET', '']) {
+        const error = await failure(async () => { throw Object.assign(new TypeError('fetch failed'), code ? { cause: { code } } : {}); });
+        assert.equal(aiImage.isRefundable(error), false, code || 'sin causa');
+    }
+    assert.equal(aiImage.isRefundable(await failure(async () => reply(200, { data: [] }))), false, '200 sin imagen');
+    assert.equal(aiImage.isRefundable(await failure(async () => okReply('QUJD'))), false, '200 con algo que no es imagen');
+    const output = await failure(async () => reply(400, { error: { code: 'moderation_blocked', moderation_details: { moderation_stage: 'output' } } }));
+    assert.equal(output.code, 'blocked');
+    assert.equal(aiImage.isRefundable(output), false, 'bloqueo sobre la imagen ya generada');
+    // Errores sin forma conocida: no se devuelve.
+    for (const unknown of [null, undefined, {}, new Error('x'), { code: 'provider', status: 502 }, { code: 'blocked', status: 422 }]) {
+        assert.equal(aiImage.isRefundable(unknown), false);
+    }
+    // Proveedor heredado: su 4xx también cuenta; su "sin imagen" (respuesta 200) no.
+    const gemini = { GEMINI_API_KEY: 'g', AI_IMAGE_PROVIDER: 'gemini' };
+    assert.equal(aiImage.isRefundable(await failure(async () => reply(429, { error: { message: 'quota' } }), { env: gemini })), true);
+    assert.equal(aiImage.isRefundable(await failure(async () => reply(200, { candidates: [] }), { env: gemini })), false);
 });
 
 test('401 y 403: provider (502); el detalle queda para el log sin la clave', async () => {
@@ -315,6 +427,34 @@ test('timeout: 504 al cortar por tiempo, también si se corta mientras llega el 
     assert.equal(image.provider, 'openai');
 });
 
+test('timeout: un valor enorme se acota en vez de cortar al instante', async () => {
+    // OAI-03: por encima de 2^31-1 ms Node dispara el temporizador a 1 ms y todo daba 504.
+    assert.equal(aiImage.MAX_TIMEOUT_MS, 280000);
+    assert.ok(aiImage.MAX_TIMEOUT_MS < 300000 && aiImage.MAX_TIMEOUT_MS >= aiImage.DEFAULT_TIMEOUT_MS);
+    // El proveedor tarda un poco (más que 1 ms) y respeta la señal de corte.
+    const slow = (url, opts) => new Promise((resolve, reject) => {
+        const timer = setTimeout(() => resolve(okReply()), 40);
+        opts.signal.addEventListener('abort', () => { clearTimeout(timer); reject(Object.assign(new Error('aborted'), { name: 'AbortError' })); });
+    });
+    const warnings = [];
+    const onWarning = (warning) => warnings.push(warning.name);
+    process.on('warning', onWarning);
+    try {
+        for (const value of ['3000000000', '2147483648', '999999999999']) {
+            const image = await aiImage.generateImage({ prompt: 'p', env: { ...ENV, AI_IMAGE_TIMEOUT_MS: value }, fetchImpl: slow });
+            assert.equal(image.provider, 'openai', `AI_IMAGE_TIMEOUT_MS=${value}`);
+        }
+        for (const timeoutMs of [3000000000, 2147483648, Number.MAX_SAFE_INTEGER]) {
+            const image = await aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: slow, timeoutMs });
+            assert.equal(image.provider, 'openai', `timeoutMs=${timeoutMs}`);
+        }
+        await new Promise((resolve) => setImmediate(resolve));
+    } finally {
+        process.removeListener('warning', onWarning);
+    }
+    assert.ok(!warnings.includes('TimeoutOverflowWarning'), 'el temporizador nunca se arma con un valor fuera de rango');
+});
+
 test('base64 inválido, imagen que no es imagen o demasiado grande: provider (502)', async () => {
     const run = (b64) => aiImage.generateImage({ prompt: 'p', env: ENV, fetchImpl: async () => okReply(b64) });
     const html = Buffer.from('<html><script>alert(1)</script></html>').toString('base64');
@@ -353,11 +493,15 @@ test('salud: consulta el modelo activo sin gastar cuota y nunca devuelve la clav
     assert.deepEqual(seen[0].opts.headers, { Authorization: `Bearer ${KEY}` });
 
     const gemini = [];
-    await aiImage.checkHealth({ env: { GEMINI_API_KEY: 'g-key' }, fetchImpl: async (url, opts) => { gemini.push({ url, opts }); return reply(200, {}); } });
+    await aiImage.checkHealth({ env: { GEMINI_API_KEY: 'g-key', AI_IMAGE_PROVIDER: 'gemini' }, fetchImpl: async (url, opts) => { gemini.push({ url, opts }); return reply(200, {}); } });
     assert.doesNotMatch(gemini[0].url, /g-key|key=/, 'la clave de Gemini va en la cabecera, no en la URL');
     assert.equal(gemini[0].opts.headers['x-goog-api-key'], 'g-key');
+    // Con solo la clave de Gemini no hay proveedor configurado: ni siquiera se consulta.
+    assert.deepEqual(await aiImage.checkHealth({ env: { GEMINI_API_KEY: 'g-key' }, fetchImpl: async () => { throw new Error('no debería llamar'); } }),
+        { status: 'unconfigured', metadata: { provider: 'openai', model: 'gpt-image-2.6-flare' } });
 
-    for (const [status, hint] of [[401, /clave fue rechazada/], [403, /verificación/], [404, /modelo no existe/], [429, /cuota/], [500, /HTTP 500/]]) {
+    // OAI-05: el 401 también llega con una clave válida sin permiso de lectura de modelos.
+    for (const [status, hint] of [[401, /clave fue rechazada o no tiene permiso para consultar modelos/], [403, /verificación/], [404, /modelo no existe/], [429, /cuota/], [500, /HTTP 500/]]) {
         const fetchImpl = async () => reply(status, { error: { message: `Incorrect API key provided: ${KEY}` } });
         await assert.rejects(aiImage.checkHealth({ env: ENV, fetchImpl }), (e) => {
             assert.match(e.message, new RegExp(`OpenAI respondió HTTP ${status}`));
