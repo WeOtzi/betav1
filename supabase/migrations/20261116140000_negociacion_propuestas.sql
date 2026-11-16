@@ -214,6 +214,32 @@ begin
         using errcode = '42501';
     end if;
 
+    -- Contrapropuesta del cliente pendiente: el artista no registra el acuerdo
+    -- por su cuenta. Si no, el trigger de sincronización la descartaba ("La
+    -- cotización cambió de estado.") y la cotización quedaba aprobada por
+    -- ambas partes sin que el cliente hubiera aceptado. Primero la resuelve:
+    -- la acepta, envía otra propuesta o mantiene la suya (negociacion_resolve
+    -- corre con service_role y cierra la propuesta antes de tocar la
+    -- cotización, así que no pasa por acá). El cliente acepta la propuesta
+    -- original por el servidor (lib/routes/cot-cliente.js), también con
+    -- service_role: puede hacerlo con su contrapropuesta pendiente.
+    -- IF anidados a propósito: auth.uid() y la tabla de propuestas solo se
+    -- consultan cuando quien escribe es un usuario final y, la tabla, cuando
+    -- es el artista de la cotización (su RLS le deja leerla).
+    if v_restricted
+       and old.quote_status = 'responded'
+       and new.quote_status = 'client_approved' then
+      if (select auth.uid()) = old.artist_id then
+        if exists (
+          select 1 from public.quotation_proposals p
+           where p.quotation_id = new.id and p.kind = 'counter' and p.status = 'pending'
+        ) then
+          raise exception 'El cliente propuso cambios: acéptalos, envía otra propuesta o mantén la tuya antes de registrar el acuerdo.'
+            using errcode = '42501';
+        end if;
+      end if;
+    end if;
+
     if new.quote_status = 'client_approved' then
       -- Aprobada por ambas partes (acepta el cliente, el artista acepta la
       -- contrapropuesta o el artista registra el acuerdo).

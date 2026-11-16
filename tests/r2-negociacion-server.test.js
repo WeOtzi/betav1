@@ -586,3 +586,22 @@ test('documentación del frente y lista de imágenes pendientes', () => {
     }
     assert.deepEqual(JSON.parse(read('docs/plans/ronda2-assets/negociacion.json')), []);
 });
+
+test('REQ-13: con una contrapropuesta del cliente pendiente, el artista no registra el acuerdo por su cuenta', () => {
+    const sql = read('supabase/migrations/20261116140000_negociacion_propuestas.sql');
+    const guard = sql.slice(sql.indexOf('create or replace function public.negociacion_quotation_guard()'), sql.indexOf('revoke all on function public.negociacion_quotation_guard()'));
+    const rule = /if v_restricted\s+and old\.quote_status = 'responded'\s+and new\.quote_status = 'client_approved' then\s+if \(select auth\.uid\(\)\) = old\.artist_id then\s+if exists \(\s+select 1 from public\.quotation_proposals p\s+where p\.quotation_id = new\.id and p\.kind = 'counter' and p\.status = 'pending'\s+\) then\s+raise exception 'El cliente propuso cambios: acéptalos, envía otra propuesta o mantén la tuya antes de registrar el acuerdo\.'\s+using errcode = '42501';/;
+    assert.match(guard, rule);
+    // Va antes del sello: si se rechaza, la cotización no queda "aprobada por ambas partes".
+    assert.ok(guard.search(rule) < guard.indexOf("new.agreement_approved_at := coalesce(new.agreement_approved_at, now());"));
+    // El guardia corre con los derechos de quien escribe: el artista lee las propuestas de sus cotizaciones.
+    assert.doesNotMatch(guard, /security definer/);
+    assert.match(sql, /q\.client_user_id = \(select auth\.uid\(\)\) or q\.artist_id = \(select auth\.uid\(\)\)/);
+    // El servidor (aceptar la contrapropuesta, o el cliente que acepta la propuesta original) no pasa por la regla:
+    // negociacion_resolve cierra la propuesta antes de cambiar el estado.
+    const resolve = sql.slice(sql.indexOf('create or replace function public.negociacion_resolve('));
+    assert.ok(resolve.indexOf("set status = 'accepted', resolved_by = p_actor") < resolve.indexOf("quote_status = 'client_approved'"));
+    // El mensaje es el mismo que muestra el expediente antes de abrir el diálogo.
+    assert.match(read('public/shared/js/quotation-detail-figma.js'), /const COUNTER_PENDING_MESSAGE = 'El cliente propuso cambios: acéptalos, envía otra propuesta o mantén la tuya antes de registrar el acuerdo\.';/);
+    assert.match(read('docs/NEGOCIACION_COTIZACION.md'), /REQ-13/);
+});

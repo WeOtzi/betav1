@@ -84,6 +84,29 @@ artista ya no puede editar directo `final_budget_amount`, `final_budget_currency
 responde `42501` ("El acuerdo ya está aprobado por ambas partes…"). El enlace
 "editá el acuerdo" del expediente abre el formulario de cambio propuesto.
 
+### El artista registra el acuerdo (REQ-13)
+
+El artista puede pasar una cotización respondida a `client_approved` desde el
+expediente ("Confirmar acuerdo y agendar"): es el camino para lo que se
+acordó por fuera de la app.
+
+- **Con una contrapropuesta del cliente pendiente, no.** Primero la resuelve:
+  la acepta, envía otra propuesta o mantiene la suya. El expediente lo avisa
+  antes de abrir el diálogo y antes de reservar el turno, y la base lo rechaza
+  con `42501` ("El cliente propuso cambios: acéptalos, envía otra propuesta o
+  mantén la tuya antes de registrar el acuerdo."). Antes, registrar el acuerdo
+  descartaba la contrapropuesta y la cotización quedaba "aprobada por ambas
+  partes" sin que el cliente hubiera aceptado.
+- La regla solo frena al artista que escribe desde el navegador. El servidor
+  (aceptar la contrapropuesta, o el cliente que acepta la propuesta original)
+  no pasa por ella.
+- **Pendiente de decisión del dueño.** Sin contrapropuesta pendiente, el
+  artista todavía puede registrar el acuerdo de una cotización cuyo cliente
+  tiene cuenta, sin que ese cliente lo apruebe en la app, y queda sellada como
+  aprobada por ambas partes. Si eso no debe pasar: extender la misma regla a
+  `old.client_user_id is not null` y quitar `client_approved` de las opciones
+  del artista cuando la cotización tiene cliente con cuenta.
+
 ## Chat cerrado tras el rechazo
 
 Policy **restrictiva** `chat_closed_after_client_rejection` sobre

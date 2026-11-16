@@ -1180,8 +1180,40 @@
         }
     }
 
+    // REQ-13 (P4 / P23): con una contrapropuesta del cliente pendiente, el artista primero la
+    // resuelve (aceptar, otra propuesta o mantener la suya). Registrar el acuerdo por su cuenta
+    // la descartaba y la cotización quedaba "aprobada por ambas partes" sin que el cliente
+    // hubiera aceptado. La base también lo rechaza (negociacion_quotation_guard); acá se avisa
+    // antes de abrir el diálogo y antes de reservar el turno.
+    const COUNTER_PENDING_MESSAGE = 'El cliente propuso cambios: acéptalos, envía otra propuesta o mantén la tuya antes de registrar el acuerdo.';
+    async function clientCounterPending(q) {
+        const repo = D().Negotiation;
+        if (!q || q.quote_status !== 'responded' || !repo || typeof repo.state !== 'function' || state.scenario || isPreviewEnv()) return false;
+        try {
+            const res = await repo.state(q.quote_id || q.id, 'artist');
+            const pending = res && res.available !== false ? res.pending : null;
+            return !!(pending && pending.kind === 'counter' && (pending.status || 'pending') === 'pending');
+        } catch (_) {
+            // Sin respuesta decide la base: el guardia rechaza el cambio de estado.
+            return false;
+        }
+    }
     function openAgreementDialog(edit) {
         if (!guardWrite()) return;
+        const q = state.quote;
+        if (edit || !q || q.quote_status !== 'responded') { showAgreementDialog(edit); return; }
+        clientCounterPending(q).then((blocked) => {
+            if (!state.quote || state.quote.id !== q.id) return;
+            if (blocked) {
+                showToast(COUNTER_PENDING_MESSAGE, { error: true });
+                const panel = document.querySelector('[data-wqn-mount]');
+                if (panel && !panel.hidden && typeof panel.scrollIntoView === 'function') panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            showAgreementDialog(false);
+        });
+    }
+    function showAgreementDialog(edit) {
         const q = state.quote;
         const existing = M.orderedSessions(state.sessions).length;
         // Turnos: si el turno reservado ya creó la primera sesión, no se pide otra.
@@ -1225,6 +1257,9 @@
                     ...readDeposit(data.deposit_pct, value),
                 };
                 if (!edit) patch.quote_status = 'client_approved';
+                // REQ-13: el cliente pudo proponer cambios con el diálogo ya abierto. Se vuelve a
+                // mirar ANTES de reservar el turno, para no dejarlo tomado si el acuerdo no se guarda.
+                if (!edit && await clientCounterPending(q)) throw userError(COUNTER_PENDING_MESSAGE);
                 // Turnos: con turno apartado, la primera sesión se agenda desde el apartado
                 // (crea la sesión y bloquea el turno). Si choca, no se guarda nada. El aviso
                 // al cliente es el del acuerdo (from_agreement: sin booking_slot_confirmed).

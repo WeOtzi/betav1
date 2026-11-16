@@ -366,3 +366,46 @@ test('sin sesión, en demo o sin migración el panel no aparece ni rompe la pág
     await settle();
     assert.deepEqual([anon.calls.length, m3.hidden], [0, true]);
 });
+
+// ---------------------------------------------------------------- REQ-13 · expediente del artista
+test('REQ-13: el expediente no abre "Confirmar acuerdo" con una contrapropuesta del cliente pendiente', async () => {
+    const detail = fs.readFileSync(path.resolve(__dirname, '../public/shared/js/quotation-detail-figma.js'), 'utf8').replace(/\r\n/g, '\n');
+    const fn = /    async function clientCounterPending\(q\) \{\n[\s\S]*?\n    \}\n/.exec(detail);
+    assert.ok(fn, 'la comprobación está en el controlador del expediente');
+    const make = (repo, extra) => {
+        const ctx = Object.assign({ scenario: null, preview: false }, extra);
+        const calls = [];
+        const D = () => ({ Negotiation: repo ? { state: async (id, role) => { calls.push([id, role]); return repo(); } } : undefined });
+        // eslint-disable-next-line no-new-func
+        const check = new Function('D', 'state', 'isPreviewEnv', `${fn[0]}; return clientCounterPending;`)(D, { scenario: ctx.scenario }, () => ctx.preview);
+        return { check, calls };
+    };
+    const responded = { id: 7, quote_id: 'WO-7', quote_status: 'responded' };
+
+    // Contrapropuesta pendiente: bloquea. Pregunta por el quote_id y como artista.
+    const blocked = make(() => ({ success: true, pending: pending() }));
+    assert.equal(await blocked.check(responded), true);
+    assert.deepEqual(blocked.calls, [['WO-7', 'artist']]);
+    // Sin pendiente, con una enmienda pendiente o con la contrapropuesta ya resuelta: no bloquea.
+    assert.equal(await make(() => ({ success: true, pending: null })).check(responded), false);
+    assert.equal(await make(() => ({ success: true, pending: { ...pending(), kind: 'amendment' } })).check(responded), false);
+    assert.equal(await make(() => ({ success: true, pending: { ...pending(), status: 'rejected' } })).check(responded), false);
+    // Migración sin aplicar, error de red, sin el módulo, vista simulada o vista previa: decide la base.
+    assert.equal(await make(() => ({ success: true, available: false, pending: pending() })).check(responded), false);
+    assert.equal(await make(() => { throw new Error('red'); }).check(responded), false);
+    assert.equal(await make(null).check(responded), false);
+    assert.equal(await make(() => ({ pending: pending() }), { scenario: 'demo' }).check(responded), false);
+    assert.equal(await make(() => ({ pending: pending() }), { preview: true }).check(responded), false);
+    // Solo se pregunta en "respondida" (una contrapropuesta no vive en otro estado).
+    const other = make(() => ({ pending: pending() }));
+    assert.equal(await other.check({ id: 7, quote_id: 'WO-7', quote_status: 'pending' }), false);
+    assert.equal(other.calls.length, 0);
+
+    // Se mira antes de abrir y, otra vez, antes de reservar el turno y de guardar.
+    assert.match(detail, /if \(edit \|\| !q \|\| q\.quote_status !== 'responded'\) \{ showAgreementDialog\(edit\); return; \}\n\s+clientCounterPending\(q\)\.then\(\(blocked\) => \{[\s\S]*?showToast\(COUNTER_PENDING_MESSAGE, \{ error: true \}\);[\s\S]*?showAgreementDialog\(false\);/);
+    const submit = detail.slice(detail.indexOf('function showAgreementDialog(edit)'), detail.indexOf('function syncAgreementExtras()'));
+    const recheck = submit.indexOf('if (!edit && await clientCounterPending(q)) throw userError(COUNTER_PENDING_MESSAGE);');
+    assert.ok(recheck > 0, 'se vuelve a comprobar al confirmar');
+    assert.ok(recheck < submit.indexOf('window.WoSlotHold.confirmFor('), 'antes de reservar el turno');
+    assert.ok(recheck < submit.indexOf('await updateQuote(patch);'), 'antes de guardar el acuerdo');
+});
