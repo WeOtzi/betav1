@@ -533,3 +533,33 @@ test('textos nuevos en español neutro (sin voseo)', () => {
     const r2Block = ec.slice(ec.indexOf('registro (ronda 2 · N4) ── continuar'), ec.indexOf('RESEND_COOLDOWN_SECONDS: RESEND_COOLDOWN_SECONDS'));
     (r2Block.match(/'[^'\n]{12,}'/g) || []).forEach((s) => assert.doesNotMatch(s, voseo, s));
 });
+
+// RS-04: el alta de artista pide hasta 50 miniaturas y sondea la confirmación cada 12 s. Con el
+// limitador global de 300 por IP, dos o tres altas desde la misma red dejaban todo /api/ en 429.
+test('RS-04: las miniaturas de Instagram y el sondeo de confirmación no gastan el limitador global', () => {
+    const server = read('server.js');
+    const reSource = /const OWN_LIMITED_GET_RE = (\/.+\/i);\n/.exec(server);
+    const fnSource = /const hasOwnGetLimiter = (\(req\) => .+);\n/.exec(server);
+    assert.ok(reSource && fnSource, 'server.js define la excepción');
+    const hasOwnGetLimiter = new Function(`const OWN_LIMITED_GET_RE = ${reSource[1]}; return ${fnSource[1]};`)();
+    // req con forma de Express montado en app.use('/api/'): baseUrl '/api', path sin query.
+    const req = (method, p, extra = {}) => Object.assign({ method, baseUrl: '/api', path: p }, extra);
+    for (const p of ['/instagram/proxy-thumb', '/register/confirmation-status', '/register/confirmation-status/', '/Instagram/Proxy-Thumb']) {
+        assert.equal(hasOwnGetLimiter(req('GET', p)), true, p);
+    }
+    for (const p of ['/instagram/preview', '/instagram/commit', '/register/artist-finalize', '/register/artist-draft', '/instagram/proxy-thumb/extra']) {
+        assert.equal(hasOwnGetLimiter(req('GET', p)), false, p);
+    }
+    assert.equal(hasOwnGetLimiter(req('POST', '/instagram/proxy-thumb')), false, 'solo GET');
+    assert.equal(hasOwnGetLimiter(req('POST', '/register/confirmation-status')), false);
+    // Un query string con la ruta exceptuada no saltea el límite global.
+    assert.equal(hasOwnGetLimiter(req('GET', '/gemini/generate-image', { originalUrl: '/api/gemini/generate-image?x=/api/instagram/proxy-thumb' })), false);
+    assert.equal(hasOwnGetLimiter({ method: 'GET', originalUrl: '/api/instagram/proxy-thumb' }), false);
+
+    assert.match(server, /skip: \(req\) => storeOrders\.isStoreWebhookRequest\(req\) \|\| require\('\.\/lib\/routes\/cot-form'\)\.isOwnLimitedPath\(req\) \|\| hasOwnGetLimiter\(req\),/);
+    // Las dos rutas exceptuadas tienen su propio limitador.
+    assert.match(server, /const igThumbLimiter = rateLimit\(\{\s+windowMs: 15 \* 60 \* 1000,\s+max: 600,/);
+    assert.match(server, /app\.get\('\/api\/instagram\/proxy-thumb', igThumbLimiter, async \(req, res\) => \{/);
+    assert.match(read('lib/routes/registro.js'), /app\.get\('\/api\/register\/confirmation-status', limiter, handlers\.confirmationStatus\);/);
+    assert.match(server, /'Demasiadas imágenes seguidas\. Prueba de nuevo en unos minutos\.'/);
+});

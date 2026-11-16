@@ -204,6 +204,16 @@ app.use(cors({
     credentials: true
 }));
 
+// GET de alta frecuencia que NO cuentan para el apiLimiter global porque tienen
+// limitador propio: las miniaturas del preview de Instagram (hasta 50 por alta,
+// igThumbLimiter) y el sondeo de confirmación de email (cada 12 s,
+// lib/routes/registro.js). Sumados a los autosaves, dos o tres altas desde la
+// misma red agotaban los 300 y todo /api/ de esa IP respondía 429, incluido
+// artist-finalize. Se evalúa sobre baseUrl + path (sin query string), nunca
+// sobre originalUrl, por el mismo motivo que isOwnLimitedPath.
+const OWN_LIMITED_GET_RE = /^\/api\/(instagram\/proxy-thumb|register\/confirmation-status)\/?$/i;
+const hasOwnGetLimiter = (req) => req.method === 'GET' && OWN_LIMITED_GET_RE.test(`${req.baseUrl || ''}${req.path || ''}`);
+
 // Rate limiting: General API endpoints
 // 300/15min covers the pre-auth registration wizard, which fires ~30-60 autosaves
 // to /api/register/artist-draft plus uniqueness checks, IG preview/commit, etc.
@@ -213,8 +223,9 @@ const apiLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     // El webhook de pagos de la Store tiene su limiter propio (storeWebhookLimiter);
-    // el cotizador (intake, sugerencias, Job Board) también (lib/routes/cot-form.js).
-    skip: (req) => storeOrders.isStoreWebhookRequest(req) || require('./lib/routes/cot-form').isOwnLimitedPath(req),
+    // el cotizador (intake, sugerencias, Job Board) también (lib/routes/cot-form.js),
+    // igual que las miniaturas de Instagram y el sondeo de confirmación (hasOwnGetLimiter).
+    skip: (req) => storeOrders.isStoreWebhookRequest(req) || require('./lib/routes/cot-form').isOwnLimitedPath(req) || hasOwnGetLimiter(req),
     message: { success: false, error: 'Too many requests, please try again later.' }
 });
 
@@ -6038,16 +6049,25 @@ app.post('/api/register/check-uniqueness-legacy', async (req, res) => {
 // CORP header so thumbnails can render in /register-artist (Step 8 grid)
 // and in the IGImport modal preview.
 //
-// Hostname allowlist prevents abusing the endpoint as an open proxy. The
-// igSignupLimiter rate-limit (already on /api/instagram/*) provides
-// protection against high-volume abuse.
+// Hostname allowlist prevents abusing the endpoint as an open proxy.
+// igThumbLimiter (propio; el apiLimiter global saltea esta ruta) corta el
+// abuso por volumen: 600 cada 15 min por IP alcanza para una docena de altas
+// simultáneas desde la misma red (50 miniaturas cada una, cacheadas 1 h).
 
 const ALLOWED_IG_CDN_HOSTS = [
     /\.cdninstagram\.com$/,
     /\.fbcdn\.net$/
 ];
 
-app.get('/api/instagram/proxy-thumb', async (req, res) => {
+const igThumbLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 600,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Demasiadas imágenes seguidas. Prueba de nuevo en unos minutos.' }
+});
+
+app.get('/api/instagram/proxy-thumb', igThumbLimiter, async (req, res) => {
     const targetUrl = String(req.query.url || '');
     if (!targetUrl) {
         return res.status(400).json({ success: false, error: 'Missing url parameter' });
