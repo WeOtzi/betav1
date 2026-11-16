@@ -36,8 +36,8 @@
   },
   {
     "question": "¿Puedo cancelar una cotización?",
-    "answer": "Sí, el cliente puede cancelar una cotización desde su panel mientras esté en estado 'pendiente' o 'respondida'. Si ya fue aprobada y hay un anticipo involucrada, coordina con el artista directamente.",
-    "tags": ["cancelar", "cancelación", "cotización", "rechazar"]
+    "answer": "Sí, el cliente puede cancelar una cotización desde su panel mientras esté en estado 'pendiente' o 'respondida'. Si ya fue aprobada y hay un anticipo involucrado, coordina con el artista directamente.",
+    "tags": ["cancelar", "cancelación", "cotización", "rechazar", "anticipo", "seña"]
   },
   {
     "question": "¿Cómo subo imágenes de referencia?",

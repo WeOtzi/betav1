@@ -3813,7 +3813,7 @@ function isStudioSelectionResolved() {
 
 // ---------- Disponibilidad en vivo (email / nombre artístico / instagram) ----------
 // Chequea /api/register/check-uniqueness al salir de cada campo para avisar
-// EN EL PASO, no recién al final del acordeón. El estado alimenta el gate
+// EN EL PASO, y no solo al final del acordeón. El estado alimenta el gate
 // (isGroupReady/validateGroup); window.__weotziUsernameAvailability —que el
 // gate ya leía— ahora sí se escribe desde aquí. Instagram duplicado NO
 // bloquea: solo advierte que se validará después.
@@ -3891,7 +3891,7 @@ function renderUniqueState(kind) {
     } else if (kind === 'username') {
         msg.textContent = 'Ese nombre artístico ya está en uso. Prueba una opción libre:';
     } else {
-        msg.textContent = 'Este Instagram ya está asociado a otra cuenta. Puedes registrarte igual: lo vamos a validar después.';
+        msg.textContent = 'Este Instagram ya está asociado a otra cuenta. Puedes registrarte de todos modos: lo vamos a validar después.';
     }
     msg.hidden = false;
 }
@@ -4616,7 +4616,7 @@ function validateStep(step) {
             if (!iso) {
                 isValid = false;
                 errorElement = document.getElementById('birth_date');
-                errorMessage = 'Carga tu fecha de nacimiento.';
+                errorMessage = 'Completa tu fecha de nacimiento.';
                 break;
             }
             if (!isAdultBirthDate(iso)) {

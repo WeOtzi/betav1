@@ -284,7 +284,7 @@
         too_many_pending: 'Tienes demasiados pedidos esperando pago. Paga o cancela alguno antes de crear otro.',
         pending_order_exists: 'Ya tienes un pedido de este producto esperando pago. Lo encuentras en Mis compras.',
         exclusive_cooldown: 'Hace poco dejaste vencer o cancelaste una reserva de este diseño. Vas a poder reservarlo de nuevo en unos días.',
-        variant_required: 'Elige una variante: talle, color o modelo.',
+        variant_required: 'Elige una variante: talla, color o modelo.',
         variant_unavailable: 'Esa variante ya no está disponible.',
         out_of_stock: 'No hay stock suficiente para esa cantidad.',
         invalid_quantity: 'Elige una cantidad entre 1 y 20.',

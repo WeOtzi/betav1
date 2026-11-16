@@ -1962,7 +1962,7 @@
         const t = currentTrip;
         if (!t.share_enabled || t.share_slug !== pendingShareSlug) {
             // Un solo click: el portapapeles recibe una promesa que se resuelve
-            // recién cuando el enlace quedó activo (ClipboardItem conserva el
+            // solo cuando el enlace quedó activo (ClipboardItem conserva el
             // gesto del usuario). Sin ClipboardItem se mantiene el flujo seguro
             // de dos pasos: activar primero y copiar en el segundo click.
             const ClipboardItemCtor = window.ClipboardItem;

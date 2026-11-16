@@ -8,7 +8,7 @@
  *
  *   - El usuario demo es vendedor: 3 diseños (uno con exclusiva disponible, uno
  *     reservado por un pedido con pago informado y uno retirado por venta
- *     exclusiva) y 3 merch (remera con talles, print y stickers), con pedidos
+ *     exclusiva) y 3 merch (camiseta con tallas, print y stickers), con pedidos
  *     recibidos en cada estado.
  *   - Y es comprador: le compró un diseño (licencia personal con archivos) y una
  *     tote a «Mara Ink», un vendedor ficticio que vive solo en la pseudo-tabla
@@ -149,7 +149,7 @@
             contact_channel: 'WhatsApp +54 9 11 5555-0100 · respondo en el día',
             payment_instructions: 'Transfiere el monto exacto, en la moneda del producto, al alias de ejemplo DEMO.STORE.WO y mándame el comprobante por WhatsApp.',
             shipping_policy: 'Despacho en 3 días hábiles por correo con seguimiento.',
-            return_policy: 'Cambios de talle dentro de los 10 días, con la prenda sin uso. Los diseños digitales no tienen devolución una vez descargados.',
+            return_policy: 'Cambios de talla dentro de los 10 días, con la prenda sin uso. Los diseños digitales no tienen devolución una vez descargados.',
             pickup_address: 'Dirección de ejemplo · Palermo, Buenos Aires',
             authorship_attested_at: daysAgo(36), created_at: daysAgo(40), updated_at: daysAgo(5)
         };
@@ -187,12 +187,12 @@
                 design_width_cm: 12, design_height_cm: 10, design_style: 'Blackwork', placement_suggestion: 'Esternón o espalda',
                 images: img('polilla-lunar.svg', 'Polilla con luna creciente'), published_at: daysAgo(40),
                 sales_count: 1, licenses_issued: 1, exclusive_sold_at: daysAgo(12), retired_at: daysAgo(12), updated_at: daysAgo(12) }),
-            product({ id: M1, kind: 'merch', currency: 'ARS', title: 'Remera Golondrina', category: 'Remeras', tags: ['remera', 'algodón'],
-                description: 'Remera de algodón peinado con la golondrina estampada en el pecho y la espalda.',
+            product({ id: M1, kind: 'merch', currency: 'ARS', title: 'Camiseta Golondrina', category: 'Camisetas', tags: ['camiseta', 'algodón'],
+                description: 'Camiseta de algodón peinado con la golondrina estampada en el pecho y la espalda.',
                 price_amount: 28000, shipping_price_amount: 6500, ships_to_countries: ['AR', 'UY'], ships_to_note: 'Argentina y Uruguay',
                 pickup_available: true, pickup_note: PICKUP_NOTE, sales_count: 1,
-                images: [{ path: 'demo/store/remera-golondrina.svg', alt: 'Remera negra con la golondrina, frente' },
-                    { path: 'demo/store/remera-golondrina-espalda.svg', alt: 'Remera negra con la golondrina, espalda' }] }),
+                images: [{ path: 'demo/store/remera-golondrina.svg', alt: 'Camiseta negra con la golondrina, frente' },
+                    { path: 'demo/store/remera-golondrina-espalda.svg', alt: 'Camiseta negra con la golondrina, espalda' }] }),
             product({ id: M2, kind: 'merch', title: 'Print «Serpiente»', category: 'Prints', tags: ['print', 'giclée'],
                 description: 'Impresión giclée sobre papel de algodón, firmada y numerada.',
                 price_amount: 40, shipping_price_amount: 15, ships_to_note: 'Envíos a todo el mundo', pickup_available: true,
@@ -218,11 +218,11 @@
         ];
 
         tables.store_product_variants = [
-            variant({ id: id(201), product_id: M1, label: 'Talle S', size: 'S', color: 'Negro', sku: 'REM-GOL-S', stock: 4, sort_order: 0 }),
-            variant({ id: id(202), product_id: M1, label: 'Talle M', size: 'M', color: 'Negro', sku: 'REM-GOL-M', stock: 9, sort_order: 1 }),
-            variant({ id: id(203), product_id: M1, label: 'Talle L', size: 'L', color: 'Negro', sku: 'REM-GOL-L', stock: 0, sort_order: 2 }),
-            variant({ id: id(204), product_id: M1, label: 'Talle XL', size: 'XL', color: 'Negro', sku: 'REM-GOL-XL', stock: 6, sort_order: 3 }),
-            variant({ id: id(205), product_id: M1, label: 'Talle XXL', size: 'XXL', color: 'Negro', sku: 'REM-GOL-XXL', stock: 0, active: false, sort_order: 4 }),
+            variant({ id: id(201), product_id: M1, label: 'Talla S', size: 'S', color: 'Negro', sku: 'REM-GOL-S', stock: 4, sort_order: 0 }),
+            variant({ id: id(202), product_id: M1, label: 'Talla M', size: 'M', color: 'Negro', sku: 'REM-GOL-M', stock: 9, sort_order: 1 }),
+            variant({ id: id(203), product_id: M1, label: 'Talla L', size: 'L', color: 'Negro', sku: 'REM-GOL-L', stock: 0, sort_order: 2 }),
+            variant({ id: id(204), product_id: M1, label: 'Talla XL', size: 'XL', color: 'Negro', sku: 'REM-GOL-XL', stock: 6, sort_order: 3 }),
+            variant({ id: id(205), product_id: M1, label: 'Talla XXL', size: 'XXL', color: 'Negro', sku: 'REM-GOL-XXL', stock: 0, active: false, sort_order: 4 }),
             variant({ id: id(206), product_id: M2, label: 'A3', size: 'A3', sku: 'PRT-SER-A3', stock: 12, sort_order: 0 }),
             variant({ id: id(207), product_id: M2, label: 'A4', size: 'A4', sku: 'PRT-SER-A4', price_amount: 28, stock: null, sort_order: 1 }),
             variant({ id: id(208), product_id: M3, label: 'Pack x6', sku: 'STK-6', stock: 3, sort_order: 0 }),
@@ -312,7 +312,7 @@
         tables.store_order_items = [
             item({ id: id(501), order_id: O1, product_id: D2, title: 'Serpiente y peonías', image_path: 'demo/store/serpiente-peonias.svg',
                 license_tier: 'exclusive', license_holder_name: camila.name, terms_accepted_at: hoursAgo(30), unit_price: 380000, line_total: 380000, created_at: hoursAgo(30) }),
-            item({ id: id(502), order_id: O2, product_id: M1, variant_id: id(202), kind: 'merch', title: 'Remera Golondrina', variant_label: 'Talle M',
+            item({ id: id(502), order_id: O2, product_id: M1, variant_id: id(202), kind: 'merch', title: 'Camiseta Golondrina', variant_label: 'Talla M',
                 image_path: 'demo/store/remera-golondrina.svg', terms_version: null, unit_price: 28000, line_total: 28000, created_at: daysAgo(2) }),
             item({ id: id(503), order_id: O3, product_id: M2, variant_id: id(206), kind: 'merch', title: 'Print «Serpiente»', variant_label: 'A3',
                 image_path: 'demo/store/print-serpiente.svg', terms_version: null, unit_price: 40, line_total: 40, created_at: daysAgo(5) }),

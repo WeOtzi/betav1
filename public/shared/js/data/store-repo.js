@@ -533,7 +533,7 @@
             const inserts = [];
             desired.forEach((v, index) => {
                 const label = textOrNull(v && v.label, 60);
-                if (!label) throw validationError('Cada variante necesita un nombre, por ejemplo «Talle M».');
+                if (!label) throw validationError('Cada variante necesita un nombre, por ejemplo «Talla M».');
                 const clean = {
                     label,
                     size: textOrNull(v.size, 20),

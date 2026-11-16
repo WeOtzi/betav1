@@ -224,6 +224,7 @@
     // duran más en pantalla.
     function notify(message, tone = 'info') {
         if (!message) return;
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message); // la base todavía puede responder en voseo
         const kind = tone === 'error' || tone === 'success' ? tone : 'info';
         announce(message, kind);
         const toast = $('ast-toast');
@@ -916,7 +917,7 @@
                 '<p class="wo-empty-title">' + (isDesign ? 'Todavía no subiste diseños' : 'Todavía no cargaste merch') + '</p>' +
                 '<p>' + (isDesign
                     ? 'Sube tu flash, elige qué licencias ofreces y publícalo en tu Store.'
-                    : 'Carga remeras, prints o stickers con sus variantes y stock.') + '</p>' +
+                    : 'Carga camisetas, prints o stickers con sus variantes y stock.') + '</p>' +
                 '<button type="button" class="wo-btn wo-btn--ghost" data-act="new" data-kind="' + kind + '"><i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i>' +
                 (isDesign ? 'Nuevo diseño' : 'Nuevo producto') + '</button></div>';
             return;
@@ -1366,8 +1367,8 @@
             return '<fieldset class="ast-variant" data-key="' + esc(v.key) + '">' +
                 '<legend class="ast-variant-legend">Variante ' + (i + 1) + (v.id ? '' : ' · nueva') + (v.active ? '' : ' · inactiva') + '</legend>' +
                 '<div class="ast-variant-grid">' +
-                field('label', 'Nombre <span class="req" aria-hidden="true">*</span>', v.label, ' maxlength="60" placeholder="Ej: Talle M"') +
-                field('size', 'Talle', v.size, ' maxlength="20"') +
+                field('label', 'Nombre <span class="req" aria-hidden="true">*</span>', v.label, ' maxlength="60" placeholder="Ej: Talla M"') +
+                field('size', 'Talla', v.size, ' maxlength="20"') +
                 field('color', 'Color', v.color, ' maxlength="30"') +
                 field('sku', 'SKU', v.sku, ' maxlength="40"') +
                 field('price', 'Precio propio', v.price, ' inputmode="decimal" placeholder="Usa el precio base"') +
@@ -1413,7 +1414,7 @@
                 !String(v.sku || '').trim() && !String(v.price || '').trim() && !String(v.stockInput || '').trim();
             if (isEmpty) return;
             const problems = [];
-            if (!label) problems.push('Pon un nombre, por ejemplo «Talle M».');
+            if (!label) problems.push('Pon un nombre, por ejemplo «Talla M».');
             let price = null;
             if (String(v.price || '').trim()) {
                 price = M.parseAmount(v.price);
@@ -2366,7 +2367,7 @@
         if (v.method === 'shipping') delivery = order.shipping_address ? '<p class="ast-address">' + addressHtml(order.shipping_address) + '</p>' : '<p>Sin dirección cargada.</p>';
         else if (v.method === 'pickup') {
             const pickup = order.pickup_details || ((state.settings || {}).pickup_address) || '';
-            delivery = '<p>' + esc(order.pickup_details ? 'Retira en: ' + pickup : (pickup ? 'Retira en tu dirección de retiro: ' + pickup + '. Se la mostramos a quien compra cuando confirmas el pago.' : 'Retira en el estudio. Carga la dirección de retiro en Ajustes.')) + '</p>';
+            delivery = '<p>' + esc(order.pickup_details ? 'Se retira en: ' + pickup : (pickup ? 'Se retira en tu dirección de retiro: ' + pickup + '. Se la mostramos a quien compra cuando confirmas el pago.' : 'Se retira en el estudio. Carga la dirección de retiro en Ajustes.')) + '</p>';
         } else delivery = '<p>Descarga digital: quien compra baja el original, el stencil y el certificado desde su cuenta cuando confirmas el pago.</p>';
         sections.push('<section class="ast-or-section" aria-labelledby="ast-or-delivery-h"><h3 class="ast-or-h" id="ast-or-delivery-h" tabindex="-1">Entrega · ' + esc(v.methodLabel) + '</h3>' + delivery + '</section>');
 
@@ -2582,7 +2583,7 @@
             confirmLabel: 'Ya lo devolví · reembolsar',
             cancelLabel: 'Volver',
             tone: 'danger',
-            input: { label: 'Motivo (opcional)', maxLength: 300, placeholder: view.kind === 'design' ? 'Ej: Quien compra se arrepintió antes de usar la licencia.' : 'Ej: Me quedé sin stock del talle.' }
+            input: { label: 'Motivo (opcional)', maxLength: 300, placeholder: view.kind === 'design' ? 'Ej: Quien compra se arrepintió antes de usar la licencia.' : 'Ej: Me quedé sin stock de la talla.' }
         });
         if (!confirmed) return;
         try {

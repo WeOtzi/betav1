@@ -578,7 +578,7 @@
         if (can.refund) {
             actions += '<form class="sds-form" data-sds-form="refund">'
                 + '<p class="sds-form-title">Reembolsar</p>'
-                + '<p class="sds-help">Revoca las licencias y devuelve el stock si no se despachó. Confirma que el dinero ya se devolvió.</p>'
+                + '<p class="sds-help">Se revocan las licencias y se devuelve el stock si no se despachó. Confirma que el dinero ya se devolvió.</p>'
                 + '<div class="form-group"><label for="sds-refund-reason">Motivo del reembolso</label>'
                 + '<textarea id="sds-refund-reason" name="reason" rows="2" maxlength="300" required></textarea></div>'
                 + '<button type="submit" class="action-btn danger-btn">Reembolsar pedido</button>'

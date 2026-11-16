@@ -1242,7 +1242,7 @@
                     <p class="cal-quote-hint" id="quote-hint" hidden>${escapeHtml(QUOTE_HINT)}</p>
                     <div class="cal-quote-listbox" id="quote-listbox" role="listbox" aria-label="Cotizaciones" hidden></div>
                 </div>
-                <p class="cal-quote-create" hidden>¿Todavía no cargaste este trabajo? <a href="${escapeAttr(manualQuoteHref())}">Crear cotización manual</a></p>
+                <p class="cal-quote-create" hidden>¿Todavía no registraste este trabajo? <a href="${escapeAttr(manualQuoteHref())}">Crear cotización manual</a></p>
             </div>
         `;
     }

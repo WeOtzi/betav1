@@ -155,7 +155,7 @@ test('HTML: drawers y diálogos con role, aria-modal y título existente; arranc
     assert.match(js, /function wireLayers\(\)[\s\S]*?event\.key === 'Escape'[\s\S]*?event\.key !== 'Tab'/, 'focus trap con Escape y Tab');
 });
 
-test('HTML y JS: las grillas de productos no son aria-live; el contador de pedidos solo se reescribe si cambia', () => {
+test('HTML y JS: las cuadrículas de productos no son aria-live; el contador de pedidos solo se reescribe si cambia', () => {
     for (const id of ['ast-list-disenos', 'ast-list-merch']) {
         const grid = html.match(new RegExp('<div[^>]*id="' + id + '"[^>]*>'));
         assert.ok(grid, id);
@@ -618,7 +618,7 @@ test('ejecución: quitar una imagen que un pedido usa de miniatura no borra el o
     const countText = $('ast-order-count').textContent;
     assert.match(countText, /pedido/, 'el contador arranca con texto');
 
-    // Remera Golondrina: la portada es la miniatura del pedido O2. Se le suma una
+    // Camiseta Golondrina: la portada es la miniatura del pedido O2. Se le suma una
     // vista sin pedidos para poder quitar dos y que siga publicada.
     const FRONT = 'demo/store/remera-golondrina.svg';
     const BACK = 'demo/store/remera-golondrina-espalda.svg';
@@ -828,7 +828,7 @@ test('ejecución: pago informado y plazo vencido → «No recibí el pago» canc
     assert.deepEqual(page.errors, [], 'sin errores en consola');
 });
 
-test('ejecución: heic2any y heic-converter.js se inyectan recién con el primer HEIC/HEIF', async () => {
+test('ejecución: heic2any y heic-converter.js se inyectan solo con el primer HEIC/HEIF', async () => {
     const page = await bootPage();
     await page.start();
     assert.deepEqual(page.injected, [], 'nada de HEIC al abrir la página');
@@ -888,7 +888,7 @@ test('ejecución: si heic2any no carga, la imagen sigue sin convertir y el próx
     await page.go('?editar=' + sid(104));
     const pick = (files) => page.fire('ast-ed-form', 'change', formEvent('#ast-ed-images-input', { files }));
     await pick([{ name: 'a.heic', type: 'image/heic', size: 4096 }]);
-    assert.equal(renders.length, 1, 'la imagen se procesa igual');
+    assert.equal(renders.length, 1, 'la imagen se procesa de todos modos');
     assert.equal(renders[0].convertHeic, undefined, 'sin conversión');
     assert.deepEqual(page.injected.map((s) => s.src), ['https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js'], 'no sigue con heic-converter.js');
     fail = false;

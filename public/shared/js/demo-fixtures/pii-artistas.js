@@ -24,7 +24,7 @@
         // ficticio); si no, wo-demo.js deja pasar la lectura al backend real.
         // Sin esto, la primera entrada al panel de una cuenta nueva (demo
         // automático) respondía "sin perfil" y volvía al inicio del registro.
-        // OJO: store.rows() crea la tabla si no existe; por eso se mira has().
+        // ATENCIÓN: store.rows() crea la tabla si no existe; por eso se mira has().
         function ownRowInStore(store, rpcCtx) {
             var uid = rpcCtx && rpcCtx.userId;
             if (!uid || !store || typeof store.has !== 'function' || !store.has('artists_db')) return false;

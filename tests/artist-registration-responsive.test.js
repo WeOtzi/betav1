@@ -125,7 +125,8 @@ test('no quedan restos visibles del wizard paso-a-paso anterior', () => {
         /class="form-step/,
         /wo-step\d/,
         /data-step="\d/,
-        /presioná/i,
+        // La pista "Presioná ↵ para continuar" del wizard, en voseo o ya en tuteo.
+        /presioná|presiona(?!\p{L})/iu,
         /Usuario We Ötzi:/,
     ]) {
         assert.doesNotMatch(html, stale, `resto del diseño viejo: ${stale}`);

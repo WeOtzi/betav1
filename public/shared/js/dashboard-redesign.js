@@ -41,7 +41,7 @@
     if (!iso) return '';
     var d = new Date(iso); if (isNaN(d)) return '';
     var s = (Date.now() - d.getTime()) / 1000;
-    if (s < 60) return 'Recién';
+    if (s < 60) return 'Hace un momento';
     if (s < 3600) return 'Hace ' + Math.floor(s / 60) + ' min';
     if (s < 86400) return 'Hace ' + Math.floor(s / 3600) + ' h';
     var days = Math.floor(s / 86400);

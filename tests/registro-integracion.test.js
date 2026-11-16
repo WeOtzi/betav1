@@ -122,7 +122,7 @@ test('perfil público: la bio con formato se renderiza completa, sin partir en m
     // eslint-disable-next-line no-new-func
     const bioHasRichFormat = new Function(`${fn}\nreturn bioHasRichFormat;`)();
     assert.equal(bioHasRichFormat('<p>Hola. Soy tatuadora.</p>'), false);
-    assert.equal(bioHasRichFormat('Hola<br>chau'), false);
+    assert.equal(bioHasRichFormat('Hola<br>adiós'), false);
     assert.equal(bioHasRichFormat('<p>Hola <mark>resaltado</mark></p>'), true);
     assert.equal(bioHasRichFormat('<p><span style="font-size: 22px">grande</span></p>'), true);
     assert.equal(bioHasRichFormat('<ul><li>a</li></ul>'), true);

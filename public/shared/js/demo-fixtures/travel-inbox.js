@@ -319,7 +319,7 @@
             ['studios', 'Estudio Cactus', 'EC', 'Residencia en Ciudad de México', { studio: 'Estudio Cactus', city: 'Ciudad de México', reply_status: 'replied' }, 'Cualquier cosa avísanos', at(-5, '16:00'), 0, false, 'open', false, 'studio',
                 [['artist', 'Gracias por la info de la residencia.'], ['counterparty', 'Cualquier cosa avísanos']]],
             ['trips', 'Marta Vidal — Costa Ink', 'MV', 'Guest spot Barcelona', { studio: 'Costa Ink Barcelona', city: 'Barcelona', country: 'España', start_date: barcelonaTrip ? barcelonaTrip.start_date : null, end_date: barcelonaTrip ? barcelonaTrip.end_date : null, reply_status: 'replied' }, 'Te esperamos el 15 en el estudio, cualquier cosa por aquí', at(-2, '20:30'), 0, false, 'open', false, 'artist_trip',
-                [['artist', 'Llego a Barcelona el 14 a la noche.'], ['counterparty', 'Te esperamos el 15 en el estudio, cualquier cosa por aquí']]],
+                [['artist', 'Llego a Barcelona el 14 por la noche.'], ['counterparty', 'Te esperamos el 15 en el estudio, cualquier cosa por aquí']]],
             ['clients', 'Julián P.', 'JP', 'Consulta cerrada', { client: 'Julián P.', reply_status: 'replied' }, 'Perfecto, quedamos así.', daysAgo(30), 0, false, 'closed', true, 'client',
                 [['counterparty', 'Perfecto, quedamos así.']]]
         ];

@@ -136,7 +136,7 @@
         return !!q && APPROVED_STATUSES.indexOf(q.quote_status) !== -1 && !isDraftQuote(q);
     }
 
-    // El saldo/importe acordado recién está activo con la cotización aprobada
+    // El saldo/importe acordado solo está activo con la cotización aprobada
     // por ambas partes; antes es solo el presupuesto propuesto (P4).
     function agreementActive(q) { return approvedByBoth(q); }
 
@@ -992,7 +992,7 @@
         };
     }
 
-    // Tras "Confirmar acuerdo": el anticipo de la fila manual sigue a la acordada
+    // Tras "Confirmar acuerdo": el anticipo de la fila manual sigue al acordado
     // (el panel de pagos prioriza la fila manual). null si no hay nada que tocar.
     function agreementManualPatch(quote, manual) {
         if (!quote || !manual) return null;

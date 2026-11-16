@@ -338,7 +338,7 @@
         } catch (err) {
             console.error('[client-requests] listForClient:', err);
             requests = [];
-            notice('error', 'No pudimos cargar tus solicitudes. Prueba recargar la página.');
+            notice('error', 'No pudimos cargar tus solicitudes. Intenta recargar la página.');
         }
         await Promise.all([enrichArtists(), loadPendingOffers()]);
     }

@@ -184,9 +184,9 @@ const FIELD_LABELS = {
     'allergies': 'Alergias (opcional)'
 };
 
-// Placeholders en voseo para los campos cuya copy define el Figma. La tabla
-// `quotation_flow_config` todavía guarda algunos textos en tuteo; hasta que se
-// actualicen en la DB, la pantalla usa estos.
+// Placeholders en tuteo neutro para los campos cuya copy define el Figma. La
+// tabla `quotation_flow_config` todavía guarda algunos textos distintos; hasta
+// que se actualicen en la DB, la pantalla usa estos.
 const FIELD_PLACEHOLDERS = {
     'description': 'Cuéntanos tu idea con el mayor detalle posible…',
     'medical-details': 'Cuéntanos qué tenemos que tener en cuenta…',
@@ -1476,7 +1476,7 @@ function getIdeaMode() {
 function renderIdeaModeToggle() {
     const current = getIdeaMode();
     return `
-        <div class="q-mode-toggle" role="group" aria-label="¿Cómo vienes con la idea?">
+        <div class="q-mode-toggle" role="group" aria-label="¿Ya tienes una idea?">
             ${IDEA_MODE_OPTIONS.map((opt) => {
                 const selected = current === opt.value;
                 return `<button type="button" class="q-mode-card ${selected ? 'is-selected' : ''}"
@@ -2356,7 +2356,7 @@ function saveWebQuotation(mode, extra = {}) {
             _sessionExpiredNoticeShown = true;
             _authenticatedUserId = null;
             _setHeaderLoggedOut();
-            showToastMessage('Tu sesión venció. Tu solicitud se guarda igual; puedes volver a iniciar sesión cuando quieras.');
+            showToastMessage('Tu sesión venció. Tu solicitud se guarda de todos modos; puedes volver a iniciar sesión cuando quieras.');
         }
         saveDraftToLocalStorage();
         return result;
@@ -2365,7 +2365,7 @@ function saveWebQuotation(mode, extra = {}) {
     return request;
 }
 
-// El borrador del servidor recién tiene sentido con un correo de contacto:
+// El borrador del servidor solo tiene sentido con un correo de contacto:
 // antes de eso alcanza con el borrador local (y se ahorran llamadas al
 // intake, que tiene rate limit por borrador).
 function hasServerDraftData() {
@@ -3068,7 +3068,7 @@ async function handleFiles(files, options = {}) {
     }
 
     // Dos tandas en paralelo (elegir y soltar a la vez) no pasan el máximo:
-    // el cupo se vuelve a medir recién al agregar.
+    // el cupo se vuelve a medir solo al agregar.
     const room = Math.max(0, 4 - totalReferences());
     uploadedFiles = [...uploadedFiles, ...processedFiles.slice(0, room)];
     formData.reference_images_count = totalReferences();

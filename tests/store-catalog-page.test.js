@@ -210,7 +210,7 @@ test('store-catalog.js solo llama métodos que existen en WeotziData.Store, Weot
     }
 });
 
-test('store-catalog.js: copy en voseo sin exclamaciones y navegación terminada en →', () => {
+test('store-catalog.js: copy en tuteo neutro sin exclamaciones y navegación terminada en →', () => {
     const strings = [...catalogCode.matchAll(/'((?:[^'\\\n]|\\.)*)'/g)].map((m) => m[1]);
     for (const s of strings) assert.doesNotMatch(s, /[¡!]/, 'sin exclamaciones: ' + s);
     for (const copy of ['La Store todavía no está disponible.', 'Explora artistas →', 'Este artista todavía no publicó diseños ni merch.',
@@ -361,7 +361,7 @@ test('precios: la ficha pública trae price_amount; sin él se deduce solo cuand
     assert.equal(C.priceSummary(Object.assign({}, demo.item(P.D1).product, { license_artist_price: null, license_exclusive_price: null })).label, 'USD 35');
     assert.equal(C.pricedProduct(m1s).price_amount, 28000);
     assert.equal(C.kindLine(demo.item(P.D1).product), 'Diseño · Fine line');
-    assert.equal(C.kindLine(m1), 'Merch · Remeras');
+    assert.equal(C.kindLine(m1), 'Merch · Camisetas');
 });
 
 test('precios: la vitrina delega en Model.priceLabel / Model.merchPricing (sin copia local)', () => {
@@ -470,7 +470,7 @@ test('ficha de merch: variante, stock, cantidad, totales con envío y retiro, y 
     assert.equal(state.variantId, null, 'con varias variantes en stock no se preelige');
     const none = C.buyState(m1.product, state, flags);
     assert.equal(none.mode, 'blocked');
-    assert.equal(none.hint, 'Elige un talle para continuar.');
+    assert.equal(none.hint, 'Elige una talla para continuar.');
     assert.equal(none.amount, 'ARS 28.000');
 
     const small = m1.product.variants.find((v) => v.id === V.S);
@@ -478,14 +478,14 @@ test('ficha de merch: variante, stock, cantidad, totales con envío y retiro, y 
     assert.deepEqual(C.variantState(m1.product.variants.find((v) => v.id === V.L)), { available: false, max: 0, note: 'Sin stock' });
     assert.deepEqual(C.variantState(m1.product.variants.find((v) => v.id === V.M)), { available: true, max: 20, note: '' });
     assert.equal(C.variantState({ in_stock: true, low_stock: 1 }).note, 'Queda 1');
-    assert.equal(C.variantLegend(m1.product.variants).label, 'Talle');
+    assert.equal(C.variantLegend(m1.product.variants).label, 'Talla');
 
     const chosen = C.initialItemState(m1.product, flags, { variant: V.S, qty: '9' });
     assert.deepEqual([chosen.variantId, chosen.quantity], [V.S, 4], 'la cantidad se limita al stock');
     const two = C.buyState(m1.product, Object.assign({}, chosen, { quantity: 2 }), flags);
     assert.equal(two.mode, 'buy');
     assert.equal(two.amount, 'ARS 56.000');
-    assert.equal(two.caption, 'Talle S · ARS 28.000 × 2');
+    assert.equal(two.caption, 'Talla S · ARS 28.000 × 2');
     assert.deepEqual(two.rows.map((r) => [r.label, r.value]), [['Total con envío', 'ARS 62.500'], ['Total con retiro', 'ARS 56.000']]);
     assert.equal(two.rows[0].detail, 'Envío ARS 6.500');
     assert.equal(two.href, '/store/checkout/?item=' + P.M1 + '&variant=' + V.S + '&qty=2');
@@ -493,7 +493,7 @@ test('ficha de merch: variante, stock, cantidad, totales con envío y retiro, y 
     assert.equal(C.clampQty(99, Infinity), 20);
 
     const html = C.itemHtml(m1, flags, chosen);
-    assert.match(html, /<legend class="stc-legend">Talle<\/legend>/);
+    assert.match(html, /<legend class="stc-legend">Talla<\/legend>/);
     assert.match(html, new RegExp('value="' + V.S + '" checked>'));
     assert.match(html, new RegExp('value="' + V.L + '" disabled>'), 'sin stock: deshabilitada');
     assert.match(html, /<span class="stc-variant-note">Quedan 4<\/span>/);
@@ -530,9 +530,9 @@ test('ficha: galería accesible con miniaturas y alt', () => {
     const m1 = demo.item(P.M1);
     const html = C.itemHtml(m1, flagsFor(m1, VIEWERS.anon), C.initialItemState(m1.product, flagsFor(m1, VIEWERS.anon), {}));
     assert.match(html, /<section class="stc-gallery" aria-label="Imágenes del producto">/);
-    assert.match(html, /<img class="sts-img" src="\/shared\/assets\/demo\/store\/remera-golondrina\.svg" alt="Remera negra con la golondrina, frente"[^>]*loading="eager"/);
+    assert.match(html, /<img class="sts-img" src="\/shared\/assets\/demo\/store\/remera-golondrina\.svg" alt="Camiseta negra con la golondrina, frente"[^>]*loading="eager"/);
     assert.match(html, /<div class="stc-thumbs" role="group" aria-label="Elige una imagen">/);
-    assert.match(html, /data-stc-thumb="0" aria-pressed="true" aria-controls="stc-gallery-main" aria-label="Ver imagen 1 de 2: Remera negra con la golondrina, frente"/);
+    assert.match(html, /data-stc-thumb="0" aria-pressed="true" aria-controls="stc-gallery-main" aria-label="Ver imagen 1 de 2: Camiseta negra con la golondrina, frente"/);
     assert.match(html, /data-stc-thumb="1" aria-pressed="false"/);
     const d1 = demo.item(P.D1);
     const single = C.itemHtml(d1, flagsFor(d1, VIEWERS.anon), C.initialItemState(d1.product, flagsFor(d1, VIEWERS.anon), {}));

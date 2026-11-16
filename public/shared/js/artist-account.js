@@ -308,6 +308,7 @@
     function toast(msg, ok = true) {
         const el = $('aac-toast');
         if (!el) return;
+        if (window.WoNeutralEs) msg = window.WoNeutralEs.neutralize(msg); // la base todavía puede responder en voseo
         $('aac-toast-text').textContent = msg;
         el.classList.toggle('wo-alert--success', ok);
         el.classList.toggle('wo-alert--error', !ok);
@@ -2165,7 +2166,7 @@
     let gcalBusy = false;
     const GCAL_RETURN_MESSAGES = {
         denied: 'Cancelaste la conexión con Google Calendar.',
-        scope: 'Para sincronizar necesitamos permiso para ver y editar los eventos de tu calendario. Prueba de nuevo y deja tildado ese permiso.',
+        scope: 'Para sincronizar necesitamos permiso para ver y editar los eventos de tu calendario. Prueba de nuevo y deja marcado ese permiso.',
         state: 'El pedido de conexión no es válido. Prueba de nuevo desde este navegador.',
         expired: 'El pedido de conexión venció. Prueba de nuevo.',
         config: 'Google Calendar todavía no está disponible.'

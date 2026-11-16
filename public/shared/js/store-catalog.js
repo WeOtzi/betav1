@@ -172,7 +172,7 @@
     // precios posibles o uno aproximado; si no, el precio solo.
     function priceSummary(product) { return Model.priceLabel(product); }
 
-    // «Diseño · Fine line» / «Merch · Remeras».
+    // «Diseño · Fine line» / «Merch · Camisetas».
     function kindLine(product) {
         var p = product || {};
         var detail = p.kind === 'design' ? text(p.design_style) || text(p.category) : text(p.category);
@@ -214,7 +214,7 @@
 
     function variantLegend(variants) {
         var vs = list(variants).filter(Boolean);
-        if (vs.length && vs.every(function (v) { return text(v.size); })) return { label: 'Talle', prompt: 'Elige un talle' };
+        if (vs.length && vs.every(function (v) { return text(v.size); })) return { label: 'Talla', prompt: 'Elige una talla' };
         if (vs.length && vs.every(function (v) { return text(v.color) && !text(v.size); })) return { label: 'Color', prompt: 'Elige un color' };
         return { label: 'Variante', prompt: 'Elige una variante' };
     }

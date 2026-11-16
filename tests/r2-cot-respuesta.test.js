@@ -611,7 +611,7 @@ test('CSS del diálogo: ancho, 720 px de alto y responsive con tokens del DS', (
     assert.match(css, /\.qr-dialog \{\n\s*width: min\(1040px, 100%\);/, 'más ancho que el modal de 560');
     assert.match(css, /max-height: min\(688px, calc\(100dvh - var\(--space-8\)\)\);/, 'entra en 720 de alto');
     assert.match(css, /\.qr-body \{ min-height: 0; overflow-y: auto;/);
-    assert.match(css, /\.qr-grid \{ display: grid; grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/, 'campos alineados en grilla');
+    assert.match(css, /\.qr-grid \{ display: grid; grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/, 'campos alineados en cuadrícula');
     assert.match(css, /@media \(max-width: 720px\)/);
     assert.match(css, /@media \(max-width: 420px\)/);
     assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
@@ -667,7 +667,7 @@ test('migración: offered_slots, proposal_message y artist_message_templates (id
     assert.ok(name >= '20261116120000' && name.slice(0, 14) <= '20261116120999', 'timestamp dentro del rango del frente');
 });
 
-test('panel del cliente: fechas ofrecidas, mensaje, complejidad y saldo recién con el acuerdo', () => {
+test('panel del cliente: fechas ofrecidas, mensaje, complejidad y saldo solo con el acuerdo', () => {
     const quote = {
         quote_id: 'QT-1', quote_status: 'responded', artist_responded_at: '2026-11-16T15:00:00Z', artist_budget_amount: '500', artist_budget_currency: 'USD',
         tattoo_estimated_sessions: '2', artist_availability: 'Prefiero tardes; sáb 5 dic 2026 · 14:00–17:00; 10 al 15 dic 2026',
@@ -693,7 +693,7 @@ test('panel del cliente: fechas ofrecidas, mensaje, complejidad y saldo recién 
     const legacy = CQP.renderProposal({ quote_id: 'QT-2', quote_status: 'responded', artist_responded_at: '2026-11-16T15:00:00Z', artist_budget_amount: '500', artist_availability: 'Fines de semana' }, {});
     assert.match(legacy, /<dt>Disponibilidad<\/dt><dd>Fines de semana<\/dd>/);
     assert.doesNotMatch(legacy, /Fechas que te ofrece el artista/);
-    // Saldo: recién con la cotización aprobada por ambas partes.
+    // Saldo: solo con la cotización aprobada por ambas partes.
     const pay = (status) => CQP.renderProposal(Object.assign({}, clean, { quote_status: status }), {
         manual, payments: { summary: PM.summarize(Object.assign({}, clean, { quote_status: status }), manual, [{ id: 'p', quotation_id: 1, kind: 'deposit', method: 'cash', amount: 100, currency: 'USD', paid_on: '2026-11-16' }]) },
     });

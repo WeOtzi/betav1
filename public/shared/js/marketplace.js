@@ -257,7 +257,7 @@ function setText(id, value) {
 }
 
 // Catálogo de estilos del registro (alias de etiquetas históricas). Si falla,
-// marketplace-core usa su copia local de los alias: el filtro sigue andando.
+// marketplace-core usa su copia local de los alias: el filtro sigue funcionando.
 async function loadStyleCatalog() {
     try {
         const base = window.WEOTZI_BASE_PATH || '';

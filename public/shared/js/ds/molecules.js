@@ -308,7 +308,7 @@
       '<button type="button" class="wo-mol-results-head__filter">' + icon('sliders') + '<span>FILTROS</span></button></header>' +
       '<div class="wo-mol-results-head__tools"><strong>6 solicitudes encontradas</strong>' +
       '<label><span>ORDENAR</span><select aria-label="Ordenar solicitudes"><option>Más recientes</option></select></label>' +
-      '<div class="wo-mol-results-head__views" role="group" aria-label="Vista"><button type="button" data-results-view="grid" aria-pressed="true" aria-label="Ver en grilla">' + icon('grid') + '</button><button type="button" data-results-view="list" aria-pressed="false" aria-label="Ver en lista">' + icon('list') + '</button></div></div>' +
+      '<div class="wo-mol-results-head__views" role="group" aria-label="Vista"><button type="button" data-results-view="grid" aria-pressed="true" aria-label="Ver en cuadrícula">' + icon('grid') + '</button><button type="button" data-results-view="list" aria-pressed="false" aria-label="Ver en lista">' + icon('list') + '</button></div></div>' +
       '<div class="wo-mol-results-head__tags" aria-label="Filtros activos"><button type="button" data-filter-chip="FINE LINE" aria-label="Quitar filtro Fine Line">FINE LINE ' + icon('x') + '</button><button type="button" data-filter-chip="BLACKWORK" aria-label="Quitar filtro Blackwork">BLACKWORK ' + icon('x') + '</button></div></section>';
   }
 
@@ -516,7 +516,7 @@
       field('NOMBRE COMPLETO *', '<input name="name" autocomplete="name" placeholder="Tu nombre" required aria-required="true">') +
       '<div class="wo-mol-form-row">' + field('EMAIL *', '<input name="email" type="email" autocomplete="email" placeholder="tu@email.com" required aria-required="true">') +
       field('CIUDAD', '<input name="city" autocomplete="address-level2" placeholder="Buenos Aires">') + '</div>' +
-      field('ESTILO *', '<select name="style" required aria-required="true"><option value="" selected disabled>Selecciona tú estilo principal</option><option>Fine Line</option><option>Blackwork</option></select>') + terms() + '</div>' +
+      field('ESTILO *', '<select name="style" required aria-required="true"><option value="" selected disabled>Selecciona tu estilo principal</option><option>Fine Line</option><option>Blackwork</option></select>') + terms() + '</div>' +
       '<button class="wo-mol-auth__primary" type="submit">REGISTRARME ' + icon('arrow-right') + '</button>' + formFeedback() + separator() + socialButtons() +
       '<p class="wo-mol-auth__switch">¿YA TIENES CUENTA? <a href="/artist/login">INGRESAR</a></p></form>';
   }

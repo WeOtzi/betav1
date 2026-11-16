@@ -258,7 +258,7 @@ test('P4: el diálogo abre ancho, con cuatro pestañas y los datos de usuario es
     assert.ok(!templates.includes(XSS), 'el título de la plantilla guardada se escapa');
     assert.match(templates, /data-qr-template-delete="tpl-1"/, 'solo las propias se pueden eliminar');
     assert.doesNotMatch(templates, /data-qr-template-delete="default-/);
-    assert.equal(env.calls.availability.length, 0, 'la agenda se pide recién al entrar a Disponibilidad');
+    assert.equal(env.calls.availability.length, 0, 'la agenda se pide solo al entrar a Disponibilidad');
 });
 
 // ------------------------------------------------------------ disponibilidad
@@ -636,7 +636,7 @@ test('turno pedido: antes de reservarlo se valida la propuesta completa en el se
     await d.submit();
     await flush();
     assert.deepEqual(order, ['validate', 'confirm', 'save']);
-    // Destildado: el turno se libera después de guardar.
+    // Desmarcado: el turno se libera después de guardar.
     order.length = 0;
     dialog.open(makeCtx().ctx);
     const d2 = driver(env);

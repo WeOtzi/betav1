@@ -1,7 +1,7 @@
 'use strict';
 // Ronda 2 · frente cot-pasos · P10 — paso "¿Qué estilo estás buscando?".
 // Modelo puro (palabras clave por estilo, estilos del artista, orden de la
-// grilla), endpoint público sin PII y contrato del front.
+// cuadrícula), endpoint público sin PII y contrato del front.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -173,7 +173,7 @@ test('estilos del artista: los subestilos del catálogo cuentan para su estilo r
 });
 
 // ---------------------------------------------------------------------------
-// Orden de la grilla
+// Orden de la cuadrícula
 // ---------------------------------------------------------------------------
 test('con artista: sus estilos primero con la insignia "artist"; el resto en orden de catálogo', () => {
     const view = Model.arrangeStyles(CATALOG, { artistStyles: ['Blackwork', 'Japones', 'Fine Line'], idea: 'un dragón japonés' });
@@ -198,7 +198,7 @@ test('sin artista: recomendados primero; sin idea reconocible queda el catálogo
     assert.ok(view.items.slice(view.recommendedCount).every((item) => item.badge === null));
     assert.equal(view.items.length, CATALOG.length);
 
-    const plain = Model.arrangeStyles(CATALOG, { idea: 'algo lindo' });
+    const plain = Model.arrangeStyles(CATALOG, { idea: 'algo bonito' });
     assert.equal(plain.mode, 'plain');
     assert.deepEqual(plain.items.map((item) => item.style.id), CATALOG.map((style) => style.id));
     // Artista sin estilos reconocibles: se comporta como "sin artista".
@@ -340,7 +340,7 @@ test('repo tattoo_styles: árbol con subestilos, lectura pública por la capa Po
 });
 
 // ---------------------------------------------------------------------------
-// Front: grilla con insignias
+// Front: cuadrícula con insignias
 // ---------------------------------------------------------------------------
 function browser() {
     const sandbox = { console };
@@ -397,7 +397,7 @@ test('front: el aviso explica el orden, en español neutro', () => {
     assert.equal(step.hintText(step.arrange(styles, { idea: 'nada' }), {}), '');
 });
 
-test('script.js delega la grilla y usa el mismo criterio para el aviso de estilos distintos', () => {
+test('script.js delega la cuadrícula y usa el mismo criterio para el aviso de estilos distintos', () => {
     const script = read('public', 'shared', 'js', 'script.js');
     const fn = script.slice(script.indexOf('function renderStylesGrid(styles)'), script.indexOf('function toggleStyleSelection(styleId)'));
     assert.match(fn, /window\.WoQuotationStyle\.render\(grid, styles, \{/);

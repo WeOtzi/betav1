@@ -136,7 +136,7 @@
                     + '<dt class="qd-label">' + esc(f.label) + '</dt><dd>' + esc(f.value) + '</dd></div>';
             }).join('') + '</dl>'
             + '<p class="qdi-note">' + (M.isManualQuote(quote)
-                ? 'Cotización manual: aquí aparece solo lo que cargaste al crearla.'
+                ? 'Cotización manual: aquí aparece solo lo que ingresaste al crearla.'
                 : 'Lo declaró el cliente al pedir la cotización. Confírmalo antes de tatuar.') + '</p>'
             + (minor ? '<p class="qdi-note qdi-note--alert">Es menor de edad: pide la autorización de su madre, padre o tutor antes de agendar.</p>' : '')
             + '</div>';
@@ -176,7 +176,7 @@
                     + (requested ? 'Ver estado de la verificación' : 'Verificar mi perfil') + '</a>');
         }
         var rows = M.contactRows(contact);
-        if (!rows.length) return '<p class="qdi-muted">' + (contact.reason === 'manual' ? 'No cargaste datos de contacto en esta cotización.' : 'El cliente no dejó datos de contacto.') + '</p>';
+        if (!rows.length) return '<p class="qdi-muted">' + (contact.reason === 'manual' ? 'No ingresaste datos de contacto en esta cotización.' : 'El cliente no dejó datos de contacto.') + '</p>';
         return '<dl class="qdi-contact-list">' + rows.map(function (row) {
             var href = row.href ? safeHref(row.href) : '';
             var external = href && href.indexOf('mailto:') !== 0;
@@ -185,7 +185,7 @@
                 + '</dd></div>';
         }).join('') + '</dl>'
             + '<p class="qdi-note">' + (contact.reason === 'manual'
-                ? 'Contacto que cargaste al crear la cotización.'
+                ? 'Contacto que ingresaste al crear la cotización.'
                 : 'Lo ves porque tu perfil está verificado. Úsalo solo para esta cotización.') + '</p>';
     }
 

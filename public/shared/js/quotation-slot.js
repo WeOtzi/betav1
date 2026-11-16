@@ -260,7 +260,7 @@
         if (!info || !info.enabled || !iso) return '';
         var slots = slotsForDay(u, iso);
         if (slots === null) return '<div class="q-cal-slots"><p class="bk-note">Buscando horarios…</p></div>';
-        if (!slots.length) return '<div class="q-cal-slots"><p class="bk-note">Ese día no tiene turnos libres. Puedes enviar la solicitud igual y el artista te propone horario.</p></div>';
+        if (!slots.length) return '<div class="q-cal-slots"><p class="bk-note">Ese día no tiene turnos libres. Puedes enviar la solicitud de todos modos y el artista te propone horario.</p></div>';
         var chosen = fd.requested_slot && fd.requested_slot.start;
         return '<div class="q-cal-slots"><p class="bk-eyebrow" id="q-cal-slots-title">Turnos de ese día</p>' +
             '<ul class="bk-chips" aria-labelledby="q-cal-slots-title">' + slots.map(function (s) {

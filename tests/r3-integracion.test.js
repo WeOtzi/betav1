@@ -214,7 +214,7 @@ const rows = {
     withdrawal: { id: 'w1', artist_user_id: ART, kind: 'withdrawal', status: 'completed', amount: 1240.5, currency: 'usd', title: 'Retiro a Lemon', metadata_json: { settlement: { outcome: 'completed', reference: 'TRX-9', note: null, settled_at: '2026-11-12T14:59:00Z' } } }
 };
 
-test('modelo: fila decidida → decisión, textos en voseo y link a la sección de Cuenta', () => {
+test('modelo: fila decidida → decisión, textos en tuteo neutro y link a la sección de Cuenta', () => {
     const doc = SDM.fromRow('document', rows.document);
     assert.equal(doc.outcome, 'rejected');
     assert.match(SDM.describe(doc).title, /^Rechazamos tu documento de identidad$/);

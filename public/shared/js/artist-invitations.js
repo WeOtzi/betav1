@@ -1021,6 +1021,7 @@
     }
 
     function showInlineError(trigger, message) {
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message); // la base todavía puede responder en voseo
         const host = trigger?.closest('.inv-detail-aside, .inv-feature, .inv-row') || document.getElementById('invitations-list');
         if (!host) return;
         host.querySelector('.inv-action-error')?.remove();

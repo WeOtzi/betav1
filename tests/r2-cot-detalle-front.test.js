@@ -508,7 +508,7 @@ test('detalle: contacto visible (verificado o manual) con enlaces; rechazada lo 
 
     const manual = loadInfoModule({ info: { contact: { ...contact, reason: 'manual' }, client: { registered: false }, share } });
     const own = (await manual.fire({ quote: { ...ROW, source: 'manual' }, stage: 'responded', readOnly: false }))['qd-client-info-slot'].innerHTML;
-    assert.match(own, /Contacto que cargaste al crear la cotización\./);
+    assert.match(own, /Contacto que ingresaste al crear la cotización\./);
 });
 
 test('detalle: error del servidor ofrece reintentar; la vista de demostración no llama al servidor', async () => {

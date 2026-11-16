@@ -118,7 +118,7 @@
         return !!q && PAYABLE_STATUSES.indexOf(q.quote_status) !== -1 && !isDraft(q) && !q.is_archived;
     }
 
-    // Ronda 2 · cot-respuesta (P4): el saldo/importe ACORDADO recién está activo
+    // Ronda 2 · cot-respuesta (P4): el saldo/importe ACORDADO solo está activo
     // cuando la cotización está aprobada por ambas partes (el cliente aceptó la
     // propuesta o el artista registró el acuerdo). Antes es solo el presupuesto
     // PROPUESTO: se muestra, pero no como deuda ni como saldo pendiente.
@@ -169,8 +169,8 @@
         return null;
     }
 
-    // Anticipo requerido: la de la cotización manual (801:556, artist_manual_quotes)
-    // y, si no hay fila manual, la que pidió el artista al responder o acordar
+    // Anticipo requerido: el de la cotización manual (801:556, artist_manual_quotes)
+    // y, si no hay fila manual, el que pidió el artista al responder o acordar
     // una solicitud de cliente (quotations_db.artist_deposit_*, COT-A-09).
     function depositRequired(manual, quote) {
         if (manual) {
@@ -219,7 +219,7 @@
      * Estado de cobro de una cotización.
      *   { currency, total, paid, balance, others, count, percent, lastPaidOn,
      *     deposit: { required, currency, pct, paid, status } | null }
-     * status del anticipo: 'paid' (cubierta con pagos de anticipo o con lo cobrado en
+     * status del anticipo: 'paid' (cubierto con pagos de anticipo o con lo cobrado en
      * total) · 'partial' · 'pending'.
      */
     function summarize(quote, manual, payments, opts) {
@@ -460,7 +460,7 @@
     }
 
     function depositLabel(status) {
-        if (status === 'paid') return 'Pagada';
+        if (status === 'paid') return 'Pagado';
         if (status === 'partial') return 'Parcial';
         return 'Pendiente';
     }

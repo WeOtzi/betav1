@@ -52,7 +52,7 @@ test('reminders model sorts open items by date and priority, done items last', (
     assert.deepEqual(Model.sort(list).map((r) => r.id), ['c', 'b', 'a', 'd', 'e']);
 });
 
-test('reminders model validates form input with rioplatense messages', () => {
+test('reminders model validates form input with neutral Spanish messages', () => {
     assert.throws(() => Model.toRow({ title: '   ' }), /Escribe un título/);
     assert.throws(() => Model.toRow({ title: 'x'.repeat(141) }), /hasta 140/);
     assert.throws(() => Model.toRow({ title: 'ok', due_date: '2026-02-30' }), /fecha válida/);

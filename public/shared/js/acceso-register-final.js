@@ -1401,13 +1401,13 @@
         overlay.className = 'wo-overlay ra-resume-overlay';
         const where = opts.groupLabel ? ` Te quedaste en <strong>${escapeHtml(opts.groupLabel)}</strong>.` : '';
         const filesNote = opts.localFilesLost
-            ? '<p class="ra-resume-note">Las fotos que subiste desde tu dispositivo no se guardan en el borrador: vas a tener que volver a cargarlas.</p>'
+            ? '<p class="ra-resume-note">Las fotos que subiste desde tu dispositivo no se guardan en el borrador: vas a tener que volver a subirlas.</p>'
             : '';
         overlay.innerHTML = `
             <div class="wo-modal ra-resume" role="dialog" aria-modal="true" aria-labelledby="ra-resume-title" aria-describedby="ra-resume-text" tabindex="-1">
                 <p class="ra-eyebrow">Registro en curso</p>
                 <h2 class="wo-modal-title ra-resume-title" id="ra-resume-title">¿Seguimos donde lo dejaste?</h2>
-                <p class="ra-resume-text" id="ra-resume-text">Guardamos lo que completaste.${where} Puedes continuar o empezar de cero (se borra lo que cargaste).</p>
+                <p class="ra-resume-text" id="ra-resume-text">Guardamos lo que completaste.${where} Puedes continuar o empezar de cero (se borra lo que completaste).</p>
                 ${filesNote}
                 <div class="wo-modal-actions ra-resume-actions">
                     <button type="button" class="ra-ghost ra-resume-restart" data-resume="restart">Empezar de cero</button>

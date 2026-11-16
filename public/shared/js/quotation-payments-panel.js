@@ -5,7 +5,7 @@
  * mismo esquema que «Sesiones del proyecto» (eyebrow mono, titular, barra de
  * avance y filas con regla). Muestra el saldo pendiente REAL (acordado −
  * cobrado), el anticipo requerido de la cotización manual (801:556) como
- * pendiente/parcial/pagada, la lista de pagos (ver comprobante · anular) y la
+ * pendiente/parcial/pagado, la lista de pagos (ver comprobante · anular) y la
  * acción REGISTRAR PAGO (abre WoPaymentDialog con la cotización fija).
  *
  * Se monta en #qd-payments-slot cuando quotation-detail-figma.js emite
@@ -79,7 +79,7 @@
     function blockHtml(quote, readOnly) {
         var s = M.summarize(quote, cache.manual, cache.payments, { convert: convertFn() });
         var money = M.formatMoney;
-        // Ronda 2 · cot-respuesta (P4): el saldo acordado se activa recién cuando la cotización
+        // Ronda 2 · cot-respuesta (P4): el saldo acordado se activa solo cuando la cotización
         // está aprobada por ambas partes. Antes el total es solo el presupuesto propuesto.
         var proposed = s.active === false;
         var title;

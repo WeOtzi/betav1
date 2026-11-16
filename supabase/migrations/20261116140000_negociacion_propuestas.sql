@@ -9,7 +9,7 @@
 --   chat queda cerrado para las dos partes.
 -- P25. Con el acuerdo aprobado, cualquiera de las dos partes propone cambios
 --   de precio, sesiones, anticipo o condiciones. No rigen hasta que la otra parte
---   los aprueba: recién ahí se aplican, de forma atómica, y queda el historial.
+--   los aprueba: solo entonces se aplican, de forma atómica, y queda el historial.
 -- P4-saldo. "Aprobada por ambas partes" queda inequívoco en la base:
 --   quotations_db.agreement_approved_at IS NOT NULL (y agreement_version ≥ 1).
 --
@@ -387,8 +387,8 @@ create policy chat_closed_after_client_rejection
 -- 5. Alta y resolución atómicas (solo service_role)
 -- ====================================================================
 
--- Anticipo vigente de una cotización: la de quotations_db o, si viene de una
--- cotización manual enviada, la de esa fila. NULL = sin anticipo.
+-- Anticipo vigente de una cotización: el de quotations_db o, si viene de una
+-- cotización manual enviada, el de esa fila. NULL = sin anticipo.
 create or replace function public.negociacion_deposit_pct(p_quote public.quotations_db)
 returns numeric
 language sql
@@ -874,8 +874,8 @@ begin
            agreement_version = greatest(coalesce(q.agreement_version, 0), 1) + 1
      where q.id = v_q.id;
 
-    -- La cotización manual enviada guarda su propia anticipo y el panel de pagos
-    -- la prefiere: se mantiene alineada con el acuerdo.
+    -- La cotización manual enviada guarda su propio anticipo y el panel de pagos
+    -- lo prefiere: se mantiene alineado con el acuerdo.
     if v_touch_deposit then
       update public.artist_manual_quotes m
          set deposit_pct = coalesce(v_pct, 0),

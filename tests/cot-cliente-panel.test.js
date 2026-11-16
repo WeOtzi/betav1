@@ -126,7 +126,7 @@ test('anticipo y pagos: estado del anticipo, pagado y saldo; sin pasarela invent
     ]);
     const html = UI.renderProposal(quote, { now: NOW, manual, payments: { summary } });
     assert.match(html, /Anticipo y pagos/);
-    assert.match(html, /<dt>Estado del anticipo<\/dt><dd>Pagada<\/dd>/);
+    assert.match(html, /<dt>Estado del anticipo<\/dt><dd>Pagado<\/dd>/);
     assert.match(html, /<dt>Pagado<\/dt><dd>90\.000 ARS<\/dd>/);
     assert.match(html, /<dt>Saldo<\/dt><dd>210\.000 ARS<\/dd>/);
     assert.match(html, /Transferencia/);

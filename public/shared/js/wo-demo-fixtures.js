@@ -432,7 +432,7 @@
         var TRIPS = [
             ['Barcelona', 'España', 'Europa', 19, 33, 'guest_spot', 'confirmado', 'Zorro Rojo Tattoo', null, 'Llevar máquinas de línea y cartuchos 3RL.', 'barcelona-zorro-rojo', true, 41.3874, 2.1686, 14],
             ['Madrid', 'España', 'Europa', 35, 42, 'guest_spot', 'pendiente', 'La Nave Tattoo', null, 'Confirmar fechas con el estudio.', null, false, 40.4168, -3.7038, 6],
-            ['Ciudad de México', 'México', 'Norteamérica', 70, 77, 'convencion', 'planificado', null, 'Expo Tattoo México', 'Sacar pasajes con anticipación.', null, false, 19.4326, -99.1332, 21],
+            ['Ciudad de México', 'México', 'Norteamérica', 70, 77, 'convencion', 'planificado', null, 'Expo Tattoo México', 'Comprar pasajes con anticipación.', null, false, 19.4326, -99.1332, 21],
             ['Montevideo', 'Uruguay', 'Sudamérica', -50, -43, 'guest_spot', 'finalizado', 'Ink Society', null, 'Buena respuesta, repetir el año que viene.', null, false, -34.9011, -56.1645, 9],
             ['Lima', 'Perú', 'Sudamérica', -100, -93, 'guest_spot', 'finalizado', 'Lima Ink Studio', null, null, null, false, -12.0464, -77.0428, 5]
         ];
@@ -504,7 +504,7 @@
         /* -------------------------------- reseñas -------------------------------- */
         tables.verified_reviews = [
             ['DEMO-C01', 'martin', 5, 'Una experiencia excelente y un trabajo impecable. Cuidó cada detalle del retrato.', ['trato', 'resultado', 'puntualidad'], 2],
-            ['DEMO-C02', 'paula', 5, 'El dotwork quedó exactamente como lo imaginé. Muy prolija y clara con los cuidados.', ['resultado', 'higiene'], 11],
+            ['DEMO-C02', 'paula', 5, 'El dotwork quedó exactamente como lo imaginé. Muy ordenada y clara con los cuidados.', ['resultado', 'higiene'], 11],
             ['DEMO-C04', 'rocio', 4, 'Líneas finísimas y muy buen ojo para la composición. Repetiría sin dudar.', ['resultado', 'trato'], 20]
         ].map(function (r, i) {
             var q = quotesById[r[0]];
@@ -526,9 +526,9 @@
             ['spots', 'Costa Ink Collective', 'CI', 'Guest spot · Valparaíso', { spot_title: 'Guest spot · Valparaíso · 2 semanas', city: 'Valparaíso', dates: T.dateOnly(12) + ' → ' + T.dateOnly(26) }, '¿Puedes confirmar si llegas el lunes o el martes? Te reservamos la estación de la ventana.', 25, 1, true, false, 'studio_spot'],
             ['support', 'Soporte We Ötzi', 'WO', 'Verificación de perfil', { ticket: 'SOP-1042' }, 'Recibimos tus documentos. En 48 h te confirmamos la verificación.', 190, 1, false, false, 'support'],
             ['invitations', 'La Aguja Negra', 'LA', 'Invitación · guest artist de primavera', { studio: 'La Aguja Negra', role: 'guest', split: '70/30' }, 'Te mandamos la invitación formal con las condiciones. Cualquier duda, aquí estamos.', 20, 0, false, false, 'studio_membership'],
-            ['studios', 'Zorro Rojo Tattoo', 'ZR', 'Guest spot Barcelona · logística', { studio: 'Zorro Rojo Tattoo', city: 'Barcelona' }, 'Perfecto, te esperamos el 22. Trae tu portfolio impreso para la vidriera.', 60 * 26, 0, false, false, 'studio'],
+            ['studios', 'Zorro Rojo Tattoo', 'ZR', 'Guest spot Barcelona · logística', { studio: 'Zorro Rojo Tattoo', city: 'Barcelona' }, 'Perfecto, te esperamos el 22. Trae tu portfolio impreso para la vitrina.', 60 * 26, 0, false, false, 'studio'],
             ['spots', 'Bang Bang NYC', 'BB', 'Residency · Nueva York', { spot_title: 'Residency · Nueva York · 3 a 6 meses', city: 'Nueva York' }, 'Quedaste en la lista corta. Te contamos novedades la semana que viene.', 60 * 50, 0, false, true, 'studio_spot'],
-            ['trips', 'Expo Tattoo México', 'EM', 'Stand y acreditación', { city: 'Ciudad de México', event: 'Expo Tattoo México' }, 'Tu acreditación de artista quedó confirmada. Te mandamos el mapa del predio.', 60 * 80, 0, false, false, 'artist_trip']
+            ['trips', 'Expo Tattoo México', 'EM', 'Stand y acreditación', { city: 'Ciudad de México', event: 'Expo Tattoo México' }, 'Tu acreditación de artista quedó confirmada. Te mandamos el mapa del recinto.', 60 * 80, 0, false, false, 'artist_trip']
         ];
         tables.inbox_threads = THREADS.map(function (t, i) {
             return {
@@ -546,9 +546,9 @@
             [1, 'counterparty', 'Recibimos tus documentos. En 48 h te confirmamos la verificación.', 190],
             [2, 'counterparty', 'Te mandamos la invitación formal con las condiciones. Cualquier duda, aquí estamos.', 20],
             [3, 'artist', 'Confirmo que llego el 22 y me quedo dos semanas.', 60 * 28],
-            [3, 'counterparty', 'Perfecto, te esperamos el 22. Trae tu portfolio impreso para la vidriera.', 60 * 26],
+            [3, 'counterparty', 'Perfecto, te esperamos el 22. Trae tu portfolio impreso para la vitrina.', 60 * 26],
             [4, 'counterparty', 'Quedaste en la lista corta. Te contamos novedades la semana que viene.', 60 * 50],
-            [5, 'counterparty', 'Tu acreditación de artista quedó confirmada. Te mandamos el mapa del predio.', 60 * 80]
+            [5, 'counterparty', 'Tu acreditación de artista quedó confirmada. Te mandamos el mapa del recinto.', 60 * 80]
         ];
         tables.inbox_messages = MESSAGES.map(function (m, i) {
             return {

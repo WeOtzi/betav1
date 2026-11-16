@@ -154,7 +154,7 @@ test('enmienda: precio, sesiones, anticipo y condiciones; nunca por debajo de lo
     for (const bad of ['0', '31', '2.5', 'dos']) assert.equal(M.normalizeChanges('amendment', { final_sessions: bad }, current).ok, false, bad);
     for (const bad of ['101', '-1', 'mucho']) assert.equal(M.normalizeChanges('amendment', { artist_deposit_pct: bad }, current).ok, false, bad);
     assert.equal(M.normalizeChanges('amendment', { final_comment: 'x'.repeat(601) }, current).ok, false);
-    // El anticipo de la cotización manual es la vigente si quotations_db no tiene una propia.
+    // El anticipo de la cotización manual es el vigente si quotations_db no tiene uno propio.
     assert.equal(M.currentValues('amendment', agreed(), { manualDepositPct: 30 }).artist_deposit_pct, 30);
 });
 

@@ -286,7 +286,7 @@
             + '</div>'
             + '</div>'
             + '<div class="qr-msg-main">'
-            + field('Mensaje para el cliente (opcional)', '<textarea class="wo-textarea" id="qr-message" name="message" maxlength="' + model.MAX_MESSAGE + '" placeholder="Cuéntale cómo vas a encarar el diseño." aria-describedby="qr-message-help">' + esc(state.v.message) + '</textarea>', '', 'qr-message-help', channel)
+            + field('Mensaje para el cliente (opcional)', '<textarea class="wo-textarea" id="qr-message" name="message" maxlength="' + model.MAX_MESSAGE + '" placeholder="Cuéntale cómo vas a abordar el diseño." aria-describedby="qr-message-help">' + esc(state.v.message) + '</textarea>', '', 'qr-message-help', channel)
             + '<div class="qr-vars" role="group" aria-label="Insertar una variable en el mensaje">'
             + model.VARIABLES.map(function (variable) {
                 return '<button type="button" class="qr-chip qr-chip--var" data-qr-var="' + esc(variable.key) + '" title="' + esc(variable.hint) + '">{{' + esc(variable.key) + '}}</button>';
@@ -1324,7 +1324,7 @@
                 await hold.confirmFor(quote);
             }
             var result = await repo.save(quoteId, payload);
-            // Destildado: el turno se libera para otros clientes (no queda apartado hasta que venza).
+            // Desmarcado: el turno se libera para otros clientes (no queda apartado hasta que venza).
             if (reserveOffered && !reserve && hold && typeof hold.releaseFor === 'function') {
                 await hold.releaseFor(quote, 'artist_declined').catch(function (error) { console.warn('[quote-respond] liberar turno', error); });
             }

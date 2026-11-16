@@ -322,7 +322,7 @@ test('merch: variante, cantidad, envío y retiro con los códigos del SQL; el st
     assert.equal(order.shipping_address.country, 'AR');
     assert.equal(row(store, 'store_product_variants', V.S).stock, 2);
     const it = store.rows('store_order_items').find((i) => i.order_id === order.id);
-    assert.deepEqual([it.kind, it.variant_label, it.quantity, it.license_tier], ['merch', 'Talle S', 2, null]);
+    assert.deepEqual([it.kind, it.variant_label, it.quantity, it.license_tier], ['merch', 'Talla S', 2, null]);
 
     // Override de precio por variante y envío sin restricción de países.
     const print = ok(rpc(store, 'create_store_order', orderArgs({ p_product_id: P.M2, p_variant_id: V.A4, p_fulfillment_method: 'shipping',
@@ -334,8 +334,8 @@ test('merch: variante, cantidad, envío y retiro con los códigos del SQL; el st
 
     // Cancelación (sin pago informado): el comprador puede y el stock vuelve.
     fails(rpc(store, 'cancel_store_order', { p_order_id: order.id, p_reason: null }, { userId: client(11) }), 'not_found');
-    const cancelled = ok(rpc(store, 'cancel_store_order', { p_order_id: order.id, p_reason: 'Cambio de talle' }, buyer));
-    assert.deepEqual([cancelled.status, cancelled.cancel_reason], ['cancelled', 'Cambio de talle']);
+    const cancelled = ok(rpc(store, 'cancel_store_order', { p_order_id: order.id, p_reason: 'Cambio de talla' }, buyer));
+    assert.deepEqual([cancelled.status, cancelled.cancel_reason], ['cancelled', 'Cambio de talla']);
     assert.equal(row(store, 'store_product_variants', V.S).stock, 4);
     fails(rpc(store, 'cancel_store_order', { p_order_id: order.id, p_reason: null }, buyer), 'invalid_status');
     // El vendedor también cancela pendientes sin pago informado.
@@ -382,9 +382,9 @@ test('reembolso: merch sin despachar restituye stock; despachado solo soporte; l
     const { store, client } = makeStore();
     fails(rpc(store, 'refund_store_order', { p_order_id: O.O2, p_reason: 'x' }, { userId: client(1) }), 'forbidden');
     fails(rpc(store, 'refund_store_order', { p_order_id: O.O1, p_reason: 'x' }), 'invalid_status');
-    const refunded = ok(rpc(store, 'refund_store_order', { p_order_id: O.O2, p_reason: 'Sin talle' }));
+    const refunded = ok(rpc(store, 'refund_store_order', { p_order_id: O.O2, p_reason: 'Sin talla' }));
     assert.equal(refunded.status, 'refunded');
-    assert.equal(row(store, 'store_product_variants', V.M).stock, 10, 'vuelve la remera M');
+    assert.equal(row(store, 'store_product_variants', V.M).stock, 10, 'vuelve la camiseta M');
     assert.equal(row(store, 'store_products', P.M1).sales_count, 0);
     assert.deepEqual(store.rows('store_payments').filter((p) => p.order_id === O.O2).map((p) => p.status), ['succeeded', 'refunded']);
 
@@ -467,9 +467,9 @@ test('reembolso: quién reembolsó va a las notas; soporte resuelve la marca y e
     const { store, client } = makeStore();
     const support = { userId: client(12), isSupport: true };
     ok(rpc(store, 'confirm_store_order_payment', confirmArgs(O.O2, 'TR-OTRA')));
-    const bySeller = ok(rpc(store, 'refund_store_order', { p_order_id: O.O2, p_reason: 'Sin talle' }));
-    assert.deepEqual([bySeller.metadata_json.refund_reason, bySeller.metadata_json.needs_support], ['Sin talle', true], 'el duplicado sigue a la vista de soporte');
-    assert.deepEqual(notesOf(store, O.O2).map((n) => [n.kind, n.note, n.actor_id]), [['refund', 'Sin talle', ME]]);
+    const bySeller = ok(rpc(store, 'refund_store_order', { p_order_id: O.O2, p_reason: 'Sin talla' }));
+    assert.deepEqual([bySeller.metadata_json.refund_reason, bySeller.metadata_json.needs_support], ['Sin talla', true], 'el duplicado sigue a la vista de soporte');
+    assert.deepEqual(notesOf(store, O.O2).map((n) => [n.kind, n.note, n.actor_id]), [['refund', 'Sin talla', ME]]);
 
     ok(rpc(store, 'confirm_store_order_payment', confirmArgs(O.O3, 'TR-OTRA')));
     const bySupport = ok(rpc(store, 'refund_store_order', { p_order_id: O.O3, p_reason: 'Llegó dañado' }, support));
@@ -481,7 +481,7 @@ test('reembolso: quién reembolsó va a las notas; soporte resuelve la marca y e
     }
 });
 
-test('pago informado: la reserva sigue 7 días después del plazo; recién ahí se vence y queda marcado para soporte', () => {
+test('pago informado: la reserva sigue 7 días después del plazo; solo entonces se vence y queda marcado para soporte', () => {
     const { store, client } = makeStore();
     const other = { userId: client(9) };
     // O1 (pago informado) reserva D2. Vence el plazo, pero dentro de la gracia.
@@ -590,7 +590,7 @@ test('vitrina y ficha públicas: la identidad y Mara Ink resuelven; el resto dev
     assert.deepEqual(front.products.map((p) => p.id).sort(), [P.D1, P.D2, P.M1, P.M2, P.M3].sort());
     const tee = front.products.find((p) => p.id === P.M1);
     assert.deepEqual(tee.variants.map((v) => [v.label, v.in_stock, v.low_stock]),
-        [['Talle S', true, 4], ['Talle M', true, null], ['Talle L', false, 0], ['Talle XL', true, null]]);
+        [['Talla S', true, 4], ['Talla M', true, null], ['Talla L', false, 0], ['Talla XL', true, null]]);
     assert.equal(tee.price_from, 28000);
     const print = front.products.find((p) => p.id === P.M2);
     assert.equal(print.price_from, 28, 'mínimo entre variantes con override');

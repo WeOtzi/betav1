@@ -325,6 +325,7 @@
         const el = statusEl();
         if (!el) return;
         if (!text) { el.hidden = true; el.textContent = ''; return; }
+        if (window.WoNeutralEs) text = window.WoNeutralEs.neutralize(text); // la base todavía puede responder en voseo
         el.className = 'studio-status studio-status-' + kind;
         el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
         el.textContent = text;
@@ -414,7 +415,7 @@
 
     function showFormError(form, problem) {
         const el = form.querySelector('#sv-form-error');
-        if (el) { el.textContent = problem.error; el.hidden = false; }
+        if (el) { el.textContent = window.WoNeutralEs ? window.WoNeutralEs.neutralize(problem.error) : problem.error; el.hidden = false; }
         const input = problem.field && form.querySelector('#' + problem.field);
         if (input) {
             input.setAttribute('aria-invalid', 'true');

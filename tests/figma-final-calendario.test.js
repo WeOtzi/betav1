@@ -179,7 +179,7 @@ test('turno form renders the quote combobox, hint and manual-quote link of 801:5
     assert.match(calendarJs, /Cotización a vincular/);
     assert.match(calendarJs, /Busca por cliente, proyecto o número de cotización/);
     assert.match(calendarJs, /Elige una cotización para asociar este turno al cliente y a su proyecto\./);
-    assert.match(calendarJs, /¿Todavía no cargaste este trabajo\? <a href="\$\{escapeAttr\(manualQuoteHref\(\)\)\}">Crear cotización manual<\/a>/);
+    assert.match(calendarJs, /¿Todavía no registraste este trabajo\? <a href="\$\{escapeAttr\(manualQuoteHref\(\)\)\}">Crear cotización manual<\/a>/);
     // La hoja abre como cita con la fecha elegida en el calendario.
     assert.match(calendarJs, /new URLSearchParams\(\{ origen: 'cita', fecha: dateKey\(state\.selectedDate \|\| new Date\(\)\) \}\)/);
     assert.doesNotMatch(calendarJs, /escapeAttr\(appUrl\(MANUAL_QUOTE_PATH\)\)/);

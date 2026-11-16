@@ -195,7 +195,7 @@ test('repositorio: valida destinos y lista de espera antes de tocar PostgREST', 
     await assert.rejects(data.PayoutDestinations.save('u', { method: 'paypal', accountIdentifier: 'x@y.com' }), /metodo no disponible/);
     await assert.rejects(data.PayoutDestinations.save('u', { method: 'lemon', accountIdentifier: '12' }), /identificador invalido/);
     await assert.rejects(data.PayoutDestinations.save('u', { method: 'lemon', accountIdentifier: 'lemon.ana', metadata: { card: { CVV: '123' } } }), /tarjeta no permitida/);
-    await assert.rejects(data.CardWaitlist.join('u', 'no-es-mail'), /email invalido/);
+    await assert.rejects(data.CardWaitlist.join('u', 'no-es-correo'), /email invalido/);
     await assert.rejects(data.WalletMovements.requestWithdrawal({ destinationId: 'd', amount: 0 }), /datos invalidos/);
     await assert.rejects(data.AvailabilityLocations.setAgendaStatus('u', 'l', 'borrada'), /estado invalido/);
     assert.equal(calls, 0);

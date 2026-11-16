@@ -481,7 +481,7 @@
                 context: { studio: 'Palermo Tattoo Club', spot_id: spotBySlug['palermo-tattoo-club'].id, start_date: dateOnly(20), end_date: dateOnly(47) },
                 messages: [
                     ['artist', 'Me sumo al guest de blackwork con agenda propia para las cuatro semanas.', at(-34, '11:00')],
-                    ['studio', 'Confirmado. Te esperamos el ' + dayMonth(20) + '; te reservamos la estación junto a la vidriera.', at(-27, '17:15')]
+                    ['studio', 'Confirmado. Te esperamos el ' + dayMonth(20) + '; te reservamos la estación junto a la vitrina.', at(-27, '17:15')]
                 ]
             });
         }

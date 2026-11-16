@@ -44,7 +44,7 @@
     const MSG = {
         unavailable: 'Todavía no podemos recibir solicitudes de baja desde aquí. Escríbenos por el soporte de la app.',
         loadError: 'No pudimos leer el estado de tu solicitud. Prueba de nuevo en un rato.',
-        blockersError: 'No pudimos revisar los pendientes de tu cuenta ahora. Soporte los revisa igual antes de aprobar.',
+        blockersError: 'No pudimos revisar los pendientes de tu cuenta ahora. Soporte los revisa de todos modos antes de aprobar.',
         confirm: 'Escribe ' + CONFIRM_WORD + ' para confirmar.',
         reasonLong: 'El motivo puede tener hasta ' + REASON_MAX + ' caracteres.',
         generic: 'No pudimos registrar la solicitud. Prueba de nuevo.',
@@ -258,7 +258,7 @@
             const split = splitBlockers(state.blockers);
             let html = blockerListHtml(split.blocking.concat(split.warnings), 'No encontramos pendientes. Soporte lo vuelve a revisar antes de aprobar.');
             if (split.blocking.length) {
-                html += '<p class="wo-alert wo-alert--warning">Puedes enviar la solicitud igual: soporte la deja en espera hasta que estos pendientes estén resueltos.</p>';
+                html += '<p class="wo-alert wo-alert--warning">Puedes enviar la solicitud de todos modos: soporte la deja en espera hasta que estos pendientes estén resueltos.</p>';
             }
             box.innerHTML = html;
         }

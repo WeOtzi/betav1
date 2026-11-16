@@ -399,7 +399,7 @@ async function loadArtistData(refOrUsername) {
         // Barra, franja del dueño y botón compartir según quién mira (antes de
         // pintar: la galería y la bio dependen de si es el dueño).
         applyViewerChrome();
-        // La galería se pinta recién en populateProfile, con el estado ya resuelto.
+        // La galería se pinta solo en populateProfile, con el estado ya resuelto.
         igValidationState = resolveIgValidationState(publicProfilePreferences);
         populateProfile();
         hideLoading();
@@ -475,7 +475,7 @@ async function loadPublicProfilePreferences(artistUserId) {
 }
 
 // Insignias públicas del artista (ronda 2, P21). Sin el repo o sin la RPC queda
-// null y el perfil se pinta igual, sin Most Wanted.
+// null y el perfil se pinta de todos modos, sin Most Wanted.
 async function loadPublicBadges(artistUserId) {
     if (!artistUserId || typeof WeotziData?.ProfilePublic?.getBadges !== 'function') return null;
     try {
@@ -1319,7 +1319,7 @@ function renderStyles(styles) {
     stylesContainer.innerHTML = '';
 
     if (!styles.length) {
-        stylesContainer.textContent = 'Sin estilos cargados';
+        stylesContainer.textContent = 'Sin estilos registrados';
         return;
     }
 

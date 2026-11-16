@@ -135,7 +135,7 @@
     }
 
     // persist=false (apertura por URL con ?plantilla=): arma la nota sin
-    // guardarla; recién se inserta cuando el artista la edita. Así recargar o
+    // guardarla; solo se inserta cuando el artista la edita. Así recargar o
     // compartir el link no duplica notas en quotation_notes.
     function applyTemplate(key, persist = true) {
         const template = M.templateByKey(key);

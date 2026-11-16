@@ -1362,7 +1362,7 @@
                 '<button type="button" class="wo-btn wo-btn--direct" data-modal="accept">Aceptar contraoferta</button>' +
                 '<button type="button" class="wo-btn wo-btn--secondary" data-modal="reject">Rechazar</button>' +
             '</div>' +
-            '<p class="apx-modal-sep">O contra-propón otras condiciones</p>' +
+            '<p class="apx-modal-sep">O haz una contrapropuesta con otras condiciones</p>' +
             '<form class="apx-modal-form" data-modal="counter-form">' +
                 '<div class="wo-field"><label class="wo-label" for="apx-co-price">Precio</label>' +
                     '<input type="number" min="1" step="1" id="apx-co-price" class="wo-input" placeholder="450"></div>' +
@@ -1445,7 +1445,7 @@
                 '<button type="button" class="wo-btn wo-btn--direct" data-modal="accept">Aceptar contraoferta</button>' +
                 '<button type="button" class="wo-btn wo-btn--secondary" data-modal="reject">Rechazar</button>' +
             '</div>' +
-            '<p class="apx-modal-sep">O contra-propón otras condiciones</p>' +
+            '<p class="apx-modal-sep">O haz una contrapropuesta con otras condiciones</p>' +
             '<form class="apx-modal-form" data-modal="spot-counter-form">' +
                 '<div class="wo-field"><label class="wo-label" for="apx-spot-split">Split para el artista (%)</label>' +
                     '<input type="number" min="0" max="100" step="1" id="apx-spot-split" class="wo-input" placeholder="66"></div>' +

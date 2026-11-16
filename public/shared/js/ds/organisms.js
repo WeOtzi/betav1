@@ -412,7 +412,7 @@
   function renderJobBoard() {
     return '<section class="wo-org wo-org-job-board" data-figma-node="34:525">' +
       '<a class="wo-org-job-board__back" href="/job-board">← EXPLORAR</a><p class="wo-org-kicker">JOB BOARD</p>' +
-      '<header><div><h2>6 solicitudes encontradas</h2><p>Resultados para Fine Line + Black &amp; Grey + Blackwork.</p></div><div class="wo-org-job-board__tools"><button type="button">Más recientes⌄</button><span><button class="is-active" type="button" aria-label="Vista grilla">' + icon('grid') + '</button><button type="button" aria-label="Vista lista">' + icon('menu') + '</button></span></div></header>' +
+      '<header><div><h2>6 solicitudes encontradas</h2><p>Resultados para Fine Line + Black &amp; Grey + Blackwork.</p></div><div class="wo-org-job-board__tools"><button type="button">Más recientes⌄</button><span><button class="is-active" type="button" aria-label="Vista cuadrícula">' + icon('grid') + '</button><button type="button" aria-label="Vista lista">' + icon('menu') + '</button></span></div></header>' +
       '<div class="wo-org-job-board__query"><span>FINE LINE ×</span><span>BLACK &amp; GREY ×</span><span>BLACKWORK ×</span></div>' +
       '<div class="wo-org-job-board__section-head"><h3>Recomendado para ti</h3><a href="#todos">VER TODO →</a></div>' +
       '<div class="wo-org-job-carousel" role="list" aria-label="Solicitudes recomendadas">' + DATA.jobs.map(function (job) {

@@ -544,6 +544,7 @@
     }
 
     function showFormError(layer, message) {
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message); // la base todavía puede responder en voseo
         const node = layer.querySelector('[data-form-error]');
         if (!node) { status('error', message); return; }
         node.textContent = message;

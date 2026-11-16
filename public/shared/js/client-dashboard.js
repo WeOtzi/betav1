@@ -134,7 +134,7 @@ async function loadClientProfile() {
     // El Figma del dashboard no tiene card de "Centro de cuenta": el acceso es el
     // tile Ö de la topbar. Aquí sólo se pintan el saludo del hero y ese tile.
 
-    // Saludo del hero (voseo, según hora local)
+    // Saludo del hero (según hora local)
     const greetingEl = document.getElementById('hero-greeting');
     if (greetingEl) {
         const hour = new Date().getHours();
@@ -596,7 +596,7 @@ function formatRelative(dateStr) {
     const then = new Date(dateStr).getTime();
     if (Number.isNaN(then)) return '';
     const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
-    if (mins < 1) return 'Recién';
+    if (mins < 1) return 'Hace un momento';
     if (mins < 60) return `Hace ${mins}m`;
     const hours = Math.round(mins / 60);
     if (hours < 24) return `Hace ${hours}h`;
@@ -1957,7 +1957,7 @@ async function handleProfileUpdate(event) {
                 if (uploadError) {
                     console.error('Upload error:', uploadError);
                     if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('not found')) {
-                        alert('El almacenamiento de fotos no esta configurado. Contacta al administrador.');
+                        alert('El almacenamiento de fotos no está configurado. Contacta al administrador.');
                     } else {
                         throw uploadError;
                     }

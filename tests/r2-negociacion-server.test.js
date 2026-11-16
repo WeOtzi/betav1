@@ -306,9 +306,9 @@ test('POST aceptar contrapropuesta: solo el artista; cotización aprobada, aviso
     assert.equal(calls.resolve.length, 0);
 
     res = fakeRes();
-    await handlers.resolve(req(ARTIST, { quoteId: 'WO-7', proposalId: PID, action: 'accept' }, { note: ' Dale ' }), res);
+    await handlers.resolve(req(ARTIST, { quoteId: 'WO-7', proposalId: PID, action: 'accept' }, { note: ' De acuerdo ' }), res);
     assert.equal(res.statusCode, 200);
-    assert.deepEqual(calls.resolve, [{ proposalId: PID, actor: ARTIST, action: 'accept', note: 'Dale' }]);
+    assert.deepEqual(calls.resolve, [{ proposalId: PID, actor: ARTIST, action: 'accept', note: 'De acuerdo' }]);
     assert.deepEqual([res.body.quote_status, res.body.agreement.approved, res.body.proposal.status], ['client_approved', true, 'accepted']);
     assert.equal(calls.emails[0].id, 'negotiation_counter_accepted');
     assert.equal(calls.emails[0].payload.recipient_email, 'lucia@example.com');
@@ -466,7 +466,7 @@ test('render: textos por rol, filas antes → después, escape y preheader', () 
     assert.doesNotMatch(out.html, /<script>alert|<img src=x/);
     assert.ok(out.preheader.length >= 40 && out.preheader.length <= 110);
     assert.match(out.headers['List-Unsubscribe'], /\/artist\/account#notificaciones/);
-    // EP-10: el pie compartido no conjuga (el cuerpo va en tuteo; "Recibes" era voseo).
+    // EP-10: el pie compartido no conjuga (el cuerpo va en tuteo; "Recibís" era voseo).
     assert.equal(mail.eventId, 'negotiation_counter_proposed');
     assert.match(out.text, /Este aviso te llega por tu actividad en We Ötzi\./);
     assert.doesNotMatch(`${out.text} ${out.html}`, /Recib[ií]s/);
@@ -495,7 +495,8 @@ test('el comprobante del rechazo ya no promete una propuesta nueva (la cotizaci�
     const intro = receipt.intro({ artist_name: 'Mateo' });
     assert.match(intro, /quedó finalizada/);
     assert.match(intro, /inicia una cotización nueva/);
-    assert.doesNotMatch(intro + receipt.preheader({}), /propuesta nueva|escribile|Podés/);
+    // La promesa vieja no vuelve en ninguna de las dos formas (voseo o tuteo).
+    assert.doesNotMatch(intro + receipt.preheader({}), /propuesta nueva|escribile|escríbele|Podés/);
 });
 
 // ---------------------------------------------------------------- migración

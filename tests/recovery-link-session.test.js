@@ -28,7 +28,7 @@ test('explicit recovery return waits for a recovered session',async()=>{
  const p=page('?recovery=1');await tick();await tick();
  assert.equal(p.element('rc-view-password').hidden,false);
 });
-test('ACC-05: el cliente de Supabase llega recién cuando ConfigManager.ready() resuelve',async()=>{
+test('ACC-05: el cliente de Supabase llega solo cuando ConfigManager.ready() resuelve',async()=>{
  let ready=false,release;
  const auth={onAuthStateChange(){},getSession:async()=>({data:{session:{user:{email:'qa@example.invalid'}}}})};
  const ConfigManager={ready:()=>new Promise(r=>{release=()=>{ready=true;r();};}),getSupabaseClient:()=>ready?{auth}:null};

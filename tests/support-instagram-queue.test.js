@@ -75,7 +75,7 @@ test('no lee ni escribe tablas desde el navegador', () => {
     assert.doesNotMatch(source, /artist_instagram_verifications'?\)/);
 });
 
-test('copy: instrucciones en voseo, botones del contrato y sin signos de exclamación', () => {
+test('copy: instrucciones en tuteo neutro, botones del contrato y sin signos de exclamación', () => {
     assert.match(source, /Abre los mensajes directos de @weotzi, busca el mensaje de \$\{esc\(handle/);
     assert.match(source, /y copia el código\./);
     for (const label of ['VALIDAR CON CÓDIGO', 'VALIDAR SIN CÓDIGO', 'RECHAZAR']) assert.ok(source.includes(label), label);
@@ -548,11 +548,11 @@ test('validar sin código manda force:true con la nota y rechazar manda la nota'
     await flush();
     sandbox.SupportInstagramQueue.open('v9');
 
-    doc.getElementById('igq-note').value = 'Mandó captura del DM por mail';
+    doc.getElementById('igq-note').value = 'Mandó captura del DM por correo';
     doc.getElementById('igq-act-force').dispatch('click');
     await flush();
     const force = page.calls.find((c) => c.url.endsWith('/v9/confirm'));
-    assert.deepEqual(force.body, { force: true, note: 'Mandó captura del DM por mail' });
+    assert.deepEqual(force.body, { force: true, note: 'Mandó captura del DM por correo' });
     assert.match(doc.getElementById('igq-feedback').textContent, /falta aplicar la migración/);
 
     doc.getElementById('igq-note').value = 'La cuenta no es del artista';

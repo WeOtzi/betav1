@@ -347,13 +347,13 @@
             parts.push('<div class="cqp-payments"><h4 class="cqp-subtitle">Anticipo y pagos</h4><dl class="cqp-summary">');
             if (depositAmount) {
                 var depStatus = summary && summary.deposit ? summary.deposit.status : 'pending';
-                var depLabel = depStatus === 'paid' ? 'Pagada' : depStatus === 'partial' ? 'Pago parcial' : 'Pendiente';
+                var depLabel = depStatus === 'paid' ? 'Pagado' : depStatus === 'partial' ? 'Pago parcial' : 'Pendiente';
                 parts.push(row('Anticipo' + (b && b.depositPct ? ' (' + b.depositPct + '%)' : ''), money(depositAmount, depositCurrency)));
                 parts.push(row('Estado del anticipo', depLabel, 'cqp-row--' + depStatus));
             }
             if (summary && summary.count) {
                 parts.push(row('Pagado', money(summary.paid, summary.currency)));
-                // El saldo acordado se activa recién con la cotización aprobada por ambas partes.
+                // El saldo acordado se activa solo con la cotización aprobada por ambas partes.
                 if (summary.balance != null && summary.active !== false) parts.push(row('Saldo', money(summary.balance, summary.currency)));
             }
             parts.push('</dl>');

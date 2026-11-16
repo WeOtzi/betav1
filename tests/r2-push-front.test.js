@@ -224,7 +224,7 @@ test('con neutral-es.js cargado el aviso se pinta en tuteo; el cuerpo de un mens
 test('el aviso de la conversación que ya está en pantalla no muestra toast; el de otra sí', async () => {
     const chat = (id) => ({ title: `Mensaje de ${id}`, url: `/artist/inbox?quote=${id}`, tag: `chat:${id}`, kind: 'mensajes' });
     const b = browser({ pathname: '/artist/inbox', search: '?quote=Q1' });
-    assert.equal(b.window.WoNotify.ping(chat('Q1')), true, 'el aviso se procesa igual (evento wo:notify)');
+    assert.equal(b.window.WoNotify.ping(chat('Q1')), true, 'el aviso se procesa de todos modos (evento wo:notify)');
     await tick();
     assert.equal(toasts(b).length, 0, 'Q1 está abierta: sin toast');
     assert.ok(b.events.some(e => e.type === 'wo:notify' && e.detail.tag === 'chat:Q1'));
@@ -296,7 +296,7 @@ test('sonido: solo después de un gesto del usuario y respetando la preferencia'
     quiet.window.WoNotify.ping({ title: 'En silencio', tag: 'b' });
     await tick();
     assert.equal(quiet.audio.oscillators, 0, 'sonido apagado en este dispositivo');
-    assert.equal(toasts(quiet).length, 1, 'el aviso visual igual aparece');
+    assert.equal(toasts(quiet).length, 1, 'el aviso visual aparece de todos modos');
     quiet.window.WoNotify.ping({ title: 'Silencioso', tag: 'c', silent: true });
 
     const loud = browser();
@@ -343,7 +343,7 @@ test('el permiso de notificaciones se pide SOLO desde "Activar avisos", nunca al
 });
 
 // CF-11: la matriz de la cuenta emite 'wo:notif-pref-changed' al guardar un toggle; antes nadie
-// lo escuchaba y "Push" quedaba encendido sin ningún dispositivo suscripto.
+// lo escuchaba y "Push" quedaba encendido sin ningún dispositivo suscrito.
 test('CF-11: prender un toggle "Push" de la matriz suscribe este dispositivo; email o apagar, no', async () => {
     const USER = '11111111-1111-4111-8111-111111111111';
     const change = (b, detail) => b.document.dispatchEvent({ type: 'wo:notif-pref-changed', detail: Object.assign({ role: 'client', kind: 'mensajes' }, detail) });
@@ -368,7 +368,7 @@ test('CF-11: prender un toggle "Push" de la matriz suscribe este dispositivo; em
 
     change(b, { kind: 'cotizaciones', channel: 'push', value: true });
     await tick(60);
-    assert.equal(b.permissionRequests.length, 1, 'con el dispositivo ya suscripto no se repite');
+    assert.equal(b.permissionRequests.length, 1, 'con el dispositivo ya suscrito no se repite');
     assert.equal(b.server.subscribed.length, 1);
 
     // Permiso bloqueado en el navegador: no se pide de nuevo, se explica.
@@ -718,7 +718,7 @@ test('EP-07: en Safari el push con la app en foco también muestra la notificaci
         const focused = windowClient();
         const sw = serviceWorker({ windows: [focused], userAgent });
         await sw.push({ id: '0f0f0f0f-0000-4000-8000-000000000002', title: 'Mateo te escribió', body: 'Hola', url: '/client/chats?quote=WO-1', tag: 'chat:WO-1' });
-        assert.equal(sw.shown.length, 1, 'la notificación del sistema sale igual');
+        assert.equal(sw.shown.length, 1, 'la notificación del sistema sale de todos modos');
         assert.equal(sw.shown[0].title, 'Mateo te escribió');
         assert.equal(sw.shown[0].options.silent, true, 'muda: el sonido lo pone la página');
         assert.equal(sw.shown[0].options.renotify, false);
@@ -750,7 +750,7 @@ test('EP-07: en Safari el push con la app en foco también muestra la notificaci
         assert.equal(away.timers.length, 0);
         assert.equal(away.closed.length, 0);
 
-        // Un WebKit sin getNotifications muestra igual la notificación (no se puede retirar).
+        // Un WebKit sin getNotifications muestra de todos modos la notificación (no se puede retirar).
         const old = serviceWorker({ windows: [windowClient()], userAgent, getNotifications: false });
         await old.push({ title: 'Hola' });
         assert.equal(old.shown.length, 1);
@@ -998,7 +998,7 @@ test('wo-notify.css: avisos arriba a la derecha, sin desbordar en el teléfono y
     assert.match(js, /link\.href = sharedUrl\('css\/wo-notify\.css'\)/);
 });
 
-test('P26: sin el modelo de destinos, la actividad se muestra igual (sin enlaces)', async () => {
+test('P26: sin el modelo de destinos, la actividad se muestra de todos modos (sin enlaces)', async () => {
     const { context, feed } = clientDashboard();
     vm.runInContext(`
         feedModelPromise = Promise.resolve(null);
@@ -1121,7 +1121,7 @@ test('EP-08: "Tu actividad" muestra los avisos guardados como enlaces, y sigue i
     assert.match(feed.innerHTML, /<a class="client-feed-row" href="\/client\/dashboard\?session=44444444-4444-4444-8444-444444444444#mis-sesiones" data-feed-notice="n5">/);
     assert.doesNotMatch(feed.innerHTML, /Mateo respondió|Nuevo mensaje|propone cambios a tu propuesta/, 'solo los eventos de la lista del cliente');
 
-    // La lectura falla (o falta la tabla): el resto de la actividad se pinta igual.
+    // La lectura falla (o falta la tabla): el resto de la actividad se pinta de todos modos.
     vm.runInContext(`
         WeotziData.Notifications.listStored = function () { return Promise.reject(new Error('sin tabla')); };
         WeotziData.from = function (table) {

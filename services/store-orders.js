@@ -324,7 +324,7 @@ function createHandlers(deps = {}) {
             if (code === 'cannot_reopen') {
                 // El proveedor cobró, pero el pedido ya había vencido y no se
                 // pudo reabrir (sin stock, o el diseño se reservó o vendió para
-                // otro pedido). Es plata del comprador sin pedido: soporte la
+                // otro pedido). Es dinero del comprador sin pedido: soporte lo
                 // tiene que devolver o resolver a mano.
                 log.error(`[store] webhook: COBRO HUÉRFANO (store:cannot_reopen) · pedido ${payment.orderId} · proveedor ${provider.id} · referencia ${payment.reference} · ${payment.currency} ${payment.amount}. El pedido venció y no se pudo reabrir: hay que devolver el pago o resolverlo desde soporte.`);
             } else {

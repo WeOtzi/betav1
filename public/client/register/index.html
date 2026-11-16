@@ -267,7 +267,7 @@
                     <span class="cw-step-ghost" aria-hidden="true">03</span>
                     <div>
                         <h1 class="cw-title">¿Qué tipo de tatuajes te gustan?</h1>
-                        <p class="cw-sub">Tus gustos en general — no hace falta pensar en un tatuaje puntual todavía. Elige todos los que te representen.</p>
+                        <p class="cw-sub">Tus gustos en general — no hace falta pensar en un tatuaje en particular todavía. Elige todos los que te representen.</p>
                     </div>
                 </header>
 
@@ -403,7 +403,7 @@
     <script>
     // =========================================================================
     // Controlador del wizard de registro de cliente (módulo de página).
-    // La cuenta se crea RECIÉN en "Crear mi cuenta" (paso 04) vía
+    // La cuenta se crea SOLO en "Crear mi cuenta" (paso 04) vía
     // handleClientRegistration(payload) de client-auth.js. El borrador vive en
     // localStorage (sin contraseña ni foto). Datos SIEMPRE via WeotziData.*.
     // =========================================================================
@@ -979,7 +979,7 @@
                 sentAt: pendingConfirmation.sentAt,
                 client: window._supabase,
                 redirectTo: clientConfirmRedirectUrl(),
-                note: 'Guardamos tu progreso en este navegador. Cuando abras el link, terminamos tu perfil con lo que ya cargaste.',
+                note: 'Guardamos tu progreso en este navegador. Cuando abras el link, terminamos tu perfil con lo que ya completaste.',
                 // Ronda 2 (N4): esta pestaña se entera sola de la confirmación y sigue aquí.
                 watch: typeof EC.watchConfirmation === 'function' ? {
                     key: CLIENT_REGISTER_WATCH_KEY,
@@ -1104,7 +1104,7 @@
             if (session) return;
             var login = clientAppPath('/client/login');
             if (linkError) {
-                showMsg('El link de confirmación venció o ya se usó. Si ya confirmaste tu email, <a href="' + login + '">ingresa con tu contraseña</a>. Si no, ingresa igual: te ofrecemos reenviar el email.', 'error');
+                showMsg('El link de confirmación venció o ya se usó. Si ya confirmaste tu email, <a href="' + login + '">ingresa con tu contraseña</a>. Si no, ingresa de todos modos: te ofrecemos reenviar el email.', 'error');
             } else {
                 showMsg('Tu email está confirmado. <a href="' + login + '">Ingresa con tu contraseña</a> para continuar.', 'success');
             }

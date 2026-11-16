@@ -101,7 +101,7 @@ test('agreedTotal: final > artista > total de la cotización manual', () => {
     assert.equal(P.agreedTotal(quote({ final_budget_amount: null, artist_budget_amount: null })), null);
 });
 
-test('summarize: saldo real (acordado − cobrado), anticipo pendiente → parcial → pagada', () => {
+test('summarize: saldo real (acordado − cobrado), anticipo pendiente → parcial → pagado', () => {
     const manual = { currency: 'USD', total: 1000, deposit_pct: 30, deposit_amount: 300 };
     let s = P.summarize(quote(), manual, []);
     assert.equal(s.total, 1000);
@@ -125,7 +125,7 @@ test('summarize: saldo real (acordado − cobrado), anticipo pendiente → parci
     assert.equal(s.lastPaidOn, '2026-11-11');
     assert.equal(P.suggestAmount(s, 'balance'), 300);
 
-    // Un pago de sesión que ya cubre el anticipo la da por pagada.
+    // Un pago de sesión que ya cubre el anticipo lo da por pagado.
     s = P.summarize(quote(), manual, [pay({ kind: 'session', amount: 350 })]);
     assert.equal(s.deposit.status, 'paid');
 

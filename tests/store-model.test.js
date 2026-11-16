@@ -208,7 +208,7 @@ test('availableTiers: un diseño reservado bloquea todos los niveles (product_re
     const live = design({ reserved: undefined, reserved_order_id: 'o1', reserved_until: '2026-10-31T00:00:00Z' });
     const stale = design({ reserved: undefined, reserved_order_id: 'o1', reserved_until: '2026-10-29T00:00:00Z' });
     assert.equal(M.availableTiers(live, { now })[0].code, 'product_reserved');
-    assert.equal(M.availableTiers(stale, { now })[0].code, 'product_reserved', 'create_store_order rechaza igual');
+    assert.equal(M.availableTiers(stale, { now })[0].code, 'product_reserved', 'create_store_order rechaza de todos modos');
     assert.equal(M.availableTiers(design({ reserved: undefined, reserved_order_id: null, reserved_until: null }), { now })[0].available, true);
 });
 
@@ -356,7 +356,7 @@ test('validateProductDraft limpia el patch y respeta los checks de forma', () =>
     assert.equal(d.value.pickup_available, false);
     assert.deepEqual(d.value.tags, ['blackwork', 'fineline']);
 
-    const m = M.validateProductDraft({ kind: 'merch', title: 'Remera', price_amount: '0', license_personal_price: 5, ships_to_countries: 'ar, uy, ARG', shipping_price_amount: '-1' });
+    const m = M.validateProductDraft({ kind: 'merch', title: 'Camiseta', price_amount: '0', license_personal_price: 5, ships_to_countries: 'ar, uy, ARG', shipping_price_amount: '-1' });
     assert.equal(m.ok, false);
     assert.ok(m.errors.price_amount);
     assert.ok(m.errors.shipping_price_amount);
@@ -650,7 +650,7 @@ function order(extra) {
         fulfillment_method: 'shipping', fulfillment_status: 'unfulfilled', expected_collector: 'seller', payment_collected_by: null,
         currency: 'ARS', subtotal_amount: 70000, shipping_amount: 5000, total_amount: 75000,
         created_at: '2026-10-30T10:00:00Z', expires_at: '2026-10-31T10:00:00Z',
-        items: [{ kind: 'merch', title: 'Remera Ötzi', variant_label: 'XL', quantity: 2, unit_price: 35000, line_total: 70000 }]
+        items: [{ kind: 'merch', title: 'Camiseta Ötzi', variant_label: 'XL', quantity: 2, unit_price: 35000, line_total: 70000 }]
     }, extra || {});
 }
 

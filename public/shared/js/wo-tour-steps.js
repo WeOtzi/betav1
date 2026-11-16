@@ -9,7 +9,7 @@
  * `exitLabel` agrega el botón de salida del demo; con `exitAssist: true` esa
  * salida entrega al modo asistido (WoDemo.disable({ assist: true })).
  *
- * Copy: español rioplatense (voseo), sentence case, sin signos de exclamación
+ * Copy: español neutro con tuteo (sin voseo), sentence case, sin signos de exclamación
  * (regla 10 del DS). Para cambiar el guion alcanza con editar este archivo.
  */
 (function () {

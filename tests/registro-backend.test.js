@@ -379,12 +379,12 @@ test('bio: allowlist de formato enriquecido', () => {
         '<p><b>Negrita</b> <strong>fuerte</strong> <i>it</i> <em>em</em> <u>sub</u> <mark>resaltado</mark></p>' +
         '<ul><li>uno</li><li>dos</li></ul><ol><li>a</li></ol>' +
         '<span style="color: #c62828; background-color: #fff59d; font-size: 18px">color</span><br>' +
-        '<a href="mailto:hola@weotzi.com">mail</a>'
+        '<a href="mailto:hola@weotzi.com">correo</a>'
     );
     assert.match(html, /<b>Negrita<\/b> <strong>fuerte<\/strong> <i>it<\/i> <em>em<\/em> <u>sub<\/u> <mark>resaltado<\/mark>/);
     assert.match(html, /<ul><li>uno<\/li><li>dos<\/li><\/ul><ol><li>a<\/li><\/ol>/);
     assert.match(html, /<span style="color: #c62828; background-color: #fff59d; font-size: 18px">color<\/span><br>/);
-    assert.match(html, /<a href="mailto:hola@weotzi\.com" target="_blank" rel="noopener noreferrer">mail<\/a>/);
+    assert.match(html, /<a href="mailto:hola@weotzi\.com" target="_blank" rel="noopener noreferrer">correo<\/a>/);
 });
 
 test('bio: sin XSS', () => {

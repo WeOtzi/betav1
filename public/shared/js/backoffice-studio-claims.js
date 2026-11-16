@@ -604,7 +604,7 @@
                     + '<li>Esa cuenta pasa a administrar la ficha desde /studio/dashboard y tiene que completar el perfil.</li>'
                     + '<li>Los otros reclamos pendientes de este estudio quedan rechazados.</li>'
                     + '<li>Le avisamos por email.</li></ul>'
-                    + (view.claimantEmail && !view.emailConfirmed ? '<p class="bo-muted">Ojo: el email de esta cuenta todavía no está confirmado.</p>' : ''),
+                    + (view.claimantEmail && !view.emailConfirmed ? '<p class="bo-muted">Atención: el email de esta cuenta todavía no está confirmado.</p>' : ''),
                 noteLabel: 'Nota interna (opcional)',
                 placeholder: 'Ej.: verificado por Instagram y llamada al teléfono del estudio',
                 required: false,

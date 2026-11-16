@@ -594,7 +594,7 @@
     function close(opts) {
         opts = opts || {};
         if (!openFlag) return;
-        if (!opts.force && isDirty() && !window.confirm('Tienes cambios sin guardar en esta cotización. ¿Quieres salir igual?')) return;
+        if (!opts.force && isDirty() && !window.confirm('Tienes cambios sin guardar en esta cotización. ¿Quieres salir de todos modos?')) return;
         closePreview({ keepUrl: true });
         openFlag = false;
         const sheet = $('#qn-sheet');
@@ -1110,7 +1110,7 @@
         if (isNewRoute() && !openFlag) open(paramsOpts());
         else if (!isNewRoute() && openFlag) {
             // El Atrás del navegador pide la misma confirmación que "×" y "Cancelar".
-            if (isDirty() && !window.confirm('Tienes cambios sin guardar en esta cotización. ¿Quieres salir igual?')) {
+            if (isDirty() && !window.confirm('Tienes cambios sin guardar en esta cotización. ¿Quieres salir de todos modos?')) {
                 window.history.pushState({ qn: true }, '', sheetUrl || buildNewUrl({}));
                 pushedHistory = true;
                 return;

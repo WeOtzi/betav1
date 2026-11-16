@@ -290,8 +290,8 @@ test('perfil público: el precio de la banda es WeotziStoreModel.priceLabel, igu
     assert.equal(typeof C.priceSummary, 'function');
     const cases = [
         { kind: 'merch', title: 'Sticker', currency: 'ARS', price_amount: 3000, price_from: 3000, variants: [] },
-        { kind: 'merch', title: 'Remera', currency: 'USD', price_amount: 25, price_from: 25, variants: [{ id: 'v1' }, { id: 'v2' }] },
-        { kind: 'merch', title: 'Remera XL', currency: 'USD', price_amount: 25, price_from: 25, variants: [{ id: 'v1' }, { id: 'v2', price_amount: 30 }] },
+        { kind: 'merch', title: 'Camiseta', currency: 'USD', price_amount: 25, price_from: 25, variants: [{ id: 'v1' }, { id: 'v2' }] },
+        { kind: 'merch', title: 'Camiseta XL', currency: 'USD', price_amount: 25, price_from: 25, variants: [{ id: 'v1' }, { id: 'v2', price_amount: 30 }] },
         { kind: 'merch', title: 'Print', currency: 'USD', price_from: 20, variants: [{ id: 'v1', price_amount: 30 }, { id: 'v2' }] },
         { kind: 'merch', title: 'Print A3', currency: 'USD', price_from: 15, variants: [{ id: 'v1', price_amount: 15 }, { id: 'v2' }] },
         { kind: 'merch', title: 'Sin precio', currency: 'USD', variants: [] },
@@ -765,7 +765,7 @@ test('docs: el mapa lista las rutas de la Store, las tablas store_* y la migraci
         assert.ok(doc.includes('`' + table + '`'), table);
     }
     assert.ok(doc.includes('`resolve_store_order_flag`'), 'RPC de soporte en el mapa');
-    // Aplicada el 31 oct 2026 junto con el flag; el flag igual no protege la API.
+    // Aplicada el 31 oct 2026 junto con el flag; el flag de todos modos no protege la API.
     assert.match(doc, /Migración aplicada el 31 oct 2026/);
     assert.match(doc, /features\.store: true/);
     assert.match(doc, /`features\.store` es solo un gate de UI/);

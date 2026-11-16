@@ -13,7 +13,7 @@
 //     `support-attachments`), confirmación y acuse con el número de ticket;
 //   · envía la denuncia a POST /api/reports (lib/routes/denuncias.js), que
 //     crea el ticket de soporte con el expediente completo.
-// Carga sus estilos solo (/shared/css/wo-report.css). Alcanza con incluir este
+// Carga sus estilos solo (/shared/css/wo-report.css). Basta con incluir este
 // script: usa el cliente de Supabase de la página (ConfigManager).
 // API: window.WoReport.open({ kind, id, label }) · .refresh() · .close()
 // Al enviar dispara en document el CustomEvent 'wo:report-submitted'.

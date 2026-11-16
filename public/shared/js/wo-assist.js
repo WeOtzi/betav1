@@ -115,13 +115,13 @@
         'Escríbeme tu idea desde el enlace',
         'Consulta fechas en el enlace',
         'Mándame tu referencia en el enlace',
-        'Saca turno desde el enlace',
+        'Reserva turno desde el enlace',
         'Cuenta qué quieres tatuarte en el enlace',
         'Agenda tu sesión en el enlace',
         'Pide presupuesto en el enlace',
         'Mira mi agenda en el enlace',
         'Reserva tu lugar en el enlace',
-        'Cotiza sin vueltas en el enlace',
+        'Cotiza sin rodeos en el enlace',
         'Elige tu fecha en el enlace',
         'Sube tu idea y cotiza en el enlace',
         'Cotiza tu próximo tatuaje en el enlace',
@@ -159,7 +159,7 @@
         intro: 'Bienvenido a We Ötzi. Tu perfil ya tiene todo lo necesario para recibir cotizaciones: desde ahora, cada persona que entre a tu enlace puede pedirte un tatuaje con la información completa.',
         featuresTitle: 'Todo lo que puedes hacer en We Ötzi',
         features: [
-            { icon: 'file-text', name: 'Cotizaciones', text: 'Recibí pedidos completos y responde con tu presupuesto.' },
+            { icon: 'file-text', name: 'Cotizaciones', text: 'Recibe pedidos completos y responde con tu presupuesto.' },
             { icon: 'calendar', name: 'Calendario', text: 'Organiza tus sesiones y recordatorios en una sola agenda.' },
             { icon: 'briefcase', name: 'Job board', text: 'Encuentra personas que ya buscan tatuarse con tu estilo.' },
             { icon: 'map-pin', name: 'Spots e invitaciones', text: 'Postúlate a espacios en estudios y responde invitaciones.' },
@@ -1550,7 +1550,7 @@
         var gen = state.closeGen;
         var booting = whenReady().then(function () {
             if (demoOn() || gen !== state.closeGen) return false;
-            // Con arranque explícito el panel aparece ya (cargando); si no, recién con datos.
+            // Con arranque explícito el panel aparece ya (cargando); si no, solo cuando hay datos.
             if (state.explicit) { mount(); render(); }
             return fetchState(false).then(function (data) {
                 if (gen !== state.closeGen) return false;

@@ -58,6 +58,7 @@
     function status(elId, kind, msg) {
         const el = document.getElementById(elId);
         if (!el) return;
+        if (window.WoNeutralEs) msg = window.WoNeutralEs.neutralize(msg); // la base todavía puede responder en voseo
         el.className = 'studio-status studio-status-' + kind;
         el.textContent = msg;
         el.hidden = false;
@@ -1083,7 +1084,7 @@
                     </label>
                 </div>
                 <div class="studio-field wo-field">
-                    <label class="studio-label wo-label">Artistas sponsoreados</label>
+                    <label class="studio-label wo-label">Artistas patrocinados</label>
                     <div class="studio-check-grid" id="sponsor-artists">
                         ${artistOptions || '<p class="studio-help">Todavía no hay artistas activos en el roster.</p>'}
                     </div>

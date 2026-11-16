@@ -87,7 +87,7 @@
         emptyRequests: 'No hay solicitudes de verificación en este estado.',
         noteDeny: 'Escribe el motivo para denegar (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
         noteRevoke: 'Escribe el motivo para revocar la verificación (mínimo ' + NOTE_MIN + ' caracteres). Lo ve el artista.',
-        missingDocs: 'Faltan documentos obligatorios aprobados. Toca de nuevo para verificar igual.'
+        missingDocs: 'Faltan documentos obligatorios aprobados. Toca de nuevo para verificar de todos modos.'
     };
 
     // ---------------- helpers puros (testeados en Node) ----------------

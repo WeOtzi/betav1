@@ -13,7 +13,7 @@
  *       SOLO preview/demo: arma en memoria el estado de cada frame (acciones deshabilitadas;
  *       se avisa con un toast pasajero, no con un bloque en el layout).
  *   ?panel=notas[&nota=nueva|<id>][&plantilla=brief|preparacion|seguimiento|cuidados|pendientes]
- *       (?plantilla= arma la nota sin guardarla: se guarda recién cuando el artista la edita)
+ *       (?plantilla= arma la nota sin guardarla: se guarda solo cuando el artista la edita)
  *   ?modal=responder|rechazar|acuerdo|agendar|listo|disputa|responder-disputa|correccion|reabrir
  *
  * Enlaces: "Ver sesión" → /calendar?date=&event=session:<id>&quote=<quote_id>;
@@ -1101,7 +1101,7 @@
                 <div class="wo-field is-wide">${expiryControl(q, 'qd-dialog')}</div>
                 ${window.WoSlotHold ? window.WoSlotHold.respondFieldHtml(q) : ''}
                 ${field('Disponibilidad', `<input class="wo-input" name="availability" maxlength="140" value="${esc(q.artist_availability || '')}" placeholder="Fines de semana, desde agosto">`, true)}
-                ${q.client_user_id ? field('Mensaje para el cliente (opcional)', '<textarea class="wo-textarea" name="message" maxlength="2000" placeholder="Cuéntale cómo vas a encarar el diseño."></textarea>', true) : ''}
+                ${q.client_user_id ? field('Mensaje para el cliente (opcional)', '<textarea class="wo-textarea" name="message" maxlength="2000" placeholder="Cuéntale cómo vas a abordar el diseño."></textarea>', true) : ''}
             </div>`,
             onSubmit: async (form, data) => {
                 const value = readAmount(data.amount);
@@ -1127,7 +1127,7 @@
                 // Turnos: "Reservar el turno pedido" crea la sesión y bloquea el turno antes de responder.
                 if (data.reserve_slot === '1' && window.WoSlotHold) await window.WoSlotHold.confirmFor(q);
                 await updateQuote(patch);
-                // Destildado: el turno se libera para otros clientes (no queda apartado hasta que venza).
+                // Desmarcado: el turno se libera para otros clientes (no queda apartado hasta que venza).
                 if (data.reserve_slot_offered === '1' && data.reserve_slot !== '1' && window.WoSlotHold) {
                     await window.WoSlotHold.releaseFor(q, 'artist_declined').catch((error) => console.warn('[quotation-detail] liberar turno', error));
                 }
@@ -1251,7 +1251,7 @@
                 const value = readAmount(data.amount);
                 const count = M.intFrom(data.sessions);
                 if (!count) throw userError('Indica cuántas sesiones acordaron.');
-                if (count < existing) throw userError(`Ya hay ${existing} sesiones cargadas: no puedes acordar menos.`);
+                if (count < existing) throw userError(`Ya hay ${existing} sesiones registradas: no puedes acordar menos.`);
                 const minutes = readMinutes(data);
                 if (minutes < 15) throw userError('La duración por sesión tiene que ser de al menos 15 minutos.');
                 const first = edit ? null : holdSession ? holdSession.session_date : readDateTime(data.first, true);
@@ -1321,7 +1321,7 @@
     }
 
     // Ronda 2 · cot-respuesta: tras el acuerdo, el anticipo de la fila de la cotización manual
-    // (artist_manual_quotes) sigue a la acordada; el panel de pagos prioriza esa fila. Silencioso.
+    // (artist_manual_quotes) sigue al acordado; el panel de pagos prioriza esa fila. Silencioso.
     function syncAgreementExtras() {
         const repo = D().QuoteRespond;
         if (!repo || state.scenario || isPreviewEnv() || !state.quote) return;

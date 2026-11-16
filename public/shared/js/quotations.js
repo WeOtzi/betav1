@@ -166,7 +166,7 @@ async function initializeAdmin() {
     } catch (err) {
         console.error('Initialization error:', err);
         const list = document.getElementById('quotes-table-body');
-        if (list) list.innerHTML = '<div class="q-empty"><strong>No pudimos cargar tus cotizaciones.</strong>Prueba recargar la página.</div>';
+        if (list) list.innerHTML = '<div class="q-empty"><strong>No pudimos cargar tus cotizaciones.</strong>Intenta recargar la página.</div>';
     }
 }
 
@@ -602,7 +602,7 @@ function emptyStateHtml() {
     if (hasFilters) return '<div class="q-empty"><strong>No hay cotizaciones que coincidan.</strong>Prueba con otra búsqueda o limpia los filtros.</div>';
     if (filterConfig.scope === 'archived') return '<div class="q-empty"><strong>No tienes cotizaciones archivadas.</strong>Las cotizaciones que archives van a aparecer aquí.</div>';
     if (filterConfig.scope === 'drafts') return '<div class="q-empty"><strong>No tienes borradores.</strong>Los borradores de cotizaciones manuales que guardes aparecen aquí.</div>';
-    return '<div class="q-empty"><strong>Todavía no tienes cotizaciones.</strong>Cuando un cliente te pida un presupuesto, o cargues una cotización manual, la vas a ver aquí.</div>';
+    return '<div class="q-empty"><strong>Todavía no tienes cotizaciones.</strong>Cuando un cliente te pida un presupuesto, o crees una cotización manual, la vas a ver aquí.</div>';
 }
 
 function renderList() {

@@ -906,6 +906,7 @@
 
     // Aviso breve (confirmaciones). Los errores van al composer (role="alert").
     function notify(message, tone) {
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message); // la base todavía puede responder en voseo
         if (tone === 'error') {
             showComposerError(message);
             return;

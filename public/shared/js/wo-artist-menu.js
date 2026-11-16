@@ -113,7 +113,7 @@
         if (!t || isNaN(t)) return '';
         var diff = Date.now() - t;
         var min = Math.round(diff / 60000);
-        if (min < 1) return 'Recién';
+        if (min < 1) return 'Hace un momento';
         if (min < 60) return 'Hace ' + min + (min === 1 ? ' minuto' : ' minutos');
         var h = Math.round(min / 60);
         if (h < 24) return 'Hace ' + h + (h === 1 ? ' hora' : ' horas');
@@ -412,7 +412,7 @@
                         unread: !seen.has('ses:' + s.id), href: feedHref('session', { session: s }, '/calendar'),
                     };
                 }));
-                // Reservas confirmadas recién (Figma: "Reserva confirmada").
+                // Reservas confirmadas hace poco (Figma: "Reserva confirmada").
                 pushFeed(rows.filter(function (s) {
                     var stamp = new Date(s.updated_at || s.created_at || 0).getTime();
                     return String(s.status || '').toLowerCase() === 'confirmed' && stamp >= weekAgo;

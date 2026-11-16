@@ -149,7 +149,7 @@
      *     que la persona lo haya activado a mano con la señal ya presente);
      *   - sin consentimiento + GPC → todo lo no esencial apagado, sin banner;
      *   - sin consentimiento → todo apagado y se muestra el banner;
-     *   - banner desactivado en el backoffice → igual nada no esencial sin un
+     *   - banner desactivado en el backoffice → de todos modos nada no esencial sin un
      *     consentimiento vigente (desactivar el banner no es consentir).
      */
     function decide(input) {

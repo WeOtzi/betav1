@@ -627,7 +627,7 @@ function _buildSystemPrompt({ role, profile, pageContext, conversation }) {
         : 'Estás hablando con un visitante no autenticado.';
     return [
         'Eres el asistente de soporte oficial de WeOtzi, una plataforma para conectar tatuadores con clientes.',
-        'Respondes siempre en español neutro rioplatense, con tono cálido, profesional y conciso.',
+        'Respondes siempre en español neutro, tuteando al usuario (tú, nunca vos ni usted), sin voseo ni regionalismos, con tono cálido, profesional y conciso.',
         greeting,
         pageContext ? `Página actual del usuario: ${pageContext}.` : '',
         'Tienes acceso a herramientas (tools) para consultar cotizaciones, verificación y FAQ. Úsalas cuando aplique.',
@@ -4309,7 +4309,7 @@ app.post('/api/studio/notify', require('./lib/routes/emails').dispatchLimiter, a
                     ? `¡Te aceptaron en ${studio.name}!`
                     : `Actualización de tu postulación a ${studio.name}`,
                 body_text: decision === 'accepted'
-                    ? `Hola${artist.name ? ' ' + artist.name : ''},\n\n${studio.name} aceptó tu postulación al spot "${spot.title}" y te envió una invitación para sumarte como ${roleFromKind(spot.kind)}.\n\nAceptala en ${mailBase}/artist/invitations para quedar en el equipo del estudio. Mucha suerte y buena tinta.`
+                    ? `Hola${artist.name ? ' ' + artist.name : ''},\n\n${studio.name} aceptó tu postulación al spot "${spot.title}" y te envió una invitación para sumarte como ${roleFromKind(spot.kind)}.\n\nAcéptala en ${mailBase}/artist/invitations para quedar en el equipo del estudio. Mucha suerte y buena tinta.`
                     : `Hola${artist.name ? ' ' + artist.name : ''},\n\nGracias por postularte al spot "${spot.title}" en ${studio.name}. En esta oportunidad eligieron a otro artista, pero sigue atento al directorio para nuevas oportunidades: ${mailBase}/studio-spots`,
                 links: {
                     studio_profile:   `${mailBase}/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`,
@@ -5658,7 +5658,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             email, username, instagram, draftId,
             allowUserId: ownAuthUser ? ownAuthUser.id : undefined
         });
-        // Instagram duplicado NO bloquea (decision 26 ago): se registra igual y
+        // Instagram duplicado NO bloquea (decision 26 ago): se registra de todos modos y
         // el Instagram queda para validar despues. Solo email/username frenan.
         const blocking = conflicts.filter((c) => c !== 'instagram');
         if (blocking.length > 0) {
@@ -5688,7 +5688,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             throw new Error('Auth create returned no user id');
         }
 
-        // Desde aca todo lo que falle se compensa (catch de abajo).
+        // Desde aquí todo lo que falle se compensa (catch de abajo).
         // ── roster (ROSTER-03): un enlace de invitación válido fuerza el
         // estudio y la sede del enlace (lo que mande el cliente no cuenta).
         const studioInviteResolution = await rosterRoutes.service()
@@ -5742,7 +5742,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             ? await issueStudioClaimUrl(req, { studioId: studio.claimableStudioId, artistUserId: authUser.id })
             : null;
 
-        // ── confirmacion-email: recién con todo guardado se envía el email
+        // ── confirmacion-email: solo con todo guardado se envía el email
         // (si se compensara antes, el link apuntaría a una cuenta borrada).
         const confirmationSend = emailConfirmationRequired
             ? await sendServerSignupConfirmation(req, email, 'artist')
@@ -5900,7 +5900,7 @@ app.post('/api/artist/studio-claim-link', async (req, res) => {
 // ============================================
 // HTML enriquecido (WoRichText) con maximo 2000 caracteres de texto visible.
 // lib/bio-sanitizer.js aplica la allowlist; el panel/cuenta del artista deberian
-// guardar por aca en vez de escribir bio_description directo.
+// guardar por aquí en vez de escribir bio_description directo.
 app.post('/api/artist/profile/bio', async (req, res) => {
     try {
         const caller = await resolveBearerUser(req);
@@ -6050,7 +6050,7 @@ app.post('/api/register/check-uniqueness-legacy', async (req, res) => {
 // and in the IGImport modal preview.
 //
 // Hostname allowlist prevents abusing the endpoint as an open proxy.
-// igThumbLimiter (propio; el apiLimiter global saltea esta ruta) corta el
+// igThumbLimiter (propio; el apiLimiter global omite esta ruta) corta el
 // abuso por volumen: 600 cada 15 min por IP alcanza para una docena de altas
 // simultáneas desde la misma red (50 miniaturas cada una, cacheadas 1 h).
 

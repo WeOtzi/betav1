@@ -423,7 +423,7 @@
             }
             tzSelect.value = app.timezone;
         } else {
-            // Sugerencia local sin persistir (se guarda recién al cambiar).
+            // Sugerencia local sin persistir (se guarda solo al cambiar).
             const guess = Intl.DateTimeFormat().resolvedOptions?.().timeZone;
             if (guess && [...tzSelect.options].some((o) => o.value === guess)) {
                 tzSelect.value = guess;

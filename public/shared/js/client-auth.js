@@ -86,7 +86,7 @@ function postAuthDestination(fallback = '/client/dashboard') {
 
 function isOAuthCallbackUrl() {
     const loc = (typeof window !== 'undefined' && window.location) || {};
-    // ?code= de PKCE; ojo: "error_code=" (link vencido) NO es una vuelta de OAuth.
+    // ?code= de PKCE; atención: "error_code=" (link vencido) NO es una vuelta de OAuth.
     let hasCode = false;
     try { hasCode = new URLSearchParams(String(loc.search || '').replace(/^\?/, '')).has('code'); } catch (_) { hasCode = false; }
     return String(loc.hash || '').includes('access_token') || hasCode;
@@ -752,7 +752,7 @@ function clientTermsGateForOAuth() {
         }
         return false;
     }
-    // Solo cuenta como aceptación si la persona la vio: checkbox tildado o el
+    // Solo cuenta como aceptación si la persona la vio: checkbox marcado o el
     // aviso legal junto a los botones (/client/login).
     if (box || document.querySelector('.ca-legal')) rememberClientTermsForOAuth();
     return true;
@@ -852,7 +852,7 @@ async function handlePasswordRecovery(e) {
     if (e) e.preventDefault();
 
     // La recuperación vive ahora en /recover (código OTP de Supabase Auth).
-    // Solo redirigimos, con el email prefilleado si ya lo tipearon.
+    // Solo redirigimos, con el email prefilleado si ya lo escribieron.
     const emailInput = document.getElementById('login-email') || document.getElementById('register-email');
     const email = emailInput?.value.trim().toLowerCase();
     const qs = email ? '&email=' + encodeURIComponent(email) : '';

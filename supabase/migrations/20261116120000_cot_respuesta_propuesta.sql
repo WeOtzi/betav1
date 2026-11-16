@@ -104,7 +104,7 @@ create policy artist_message_templates_owner_delete on public.artist_message_tem
   using ((select auth.uid()) = user_id);
 
 -- Los privilegios por defecto de Supabase dan ALL (incluido TRUNCATE, que
--- saltea la RLS) a anon y authenticated en cada tabla nueva: se dejan solo
+-- omite la RLS) a anon y authenticated en cada tabla nueva: se dejan solo
 -- los cuatro que usa la app.
 revoke all on public.artist_message_templates from public, anon, authenticated;
 grant select, insert, update, delete on public.artist_message_templates to authenticated;
