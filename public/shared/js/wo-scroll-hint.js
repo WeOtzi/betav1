@@ -175,7 +175,12 @@
     }
     function schedule() {
       if (frame) return;
-      frame = (win.requestAnimationFrame || win.setTimeout)(update, 16);
+      frame = 1;
+      // rAF agrupa los avisos de un mismo cuadro; el temporizador cubre las pestañas donde rAF está en pausa.
+      var ran = false;
+      var run = function () { if (ran) return; ran = true; update(); };
+      if (win.requestAnimationFrame) win.requestAnimationFrame(run);
+      win.setTimeout(run, 250);
     }
     function settle() {
       win.clearTimeout(timer);
