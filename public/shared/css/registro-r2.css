@@ -130,3 +130,17 @@ body.registerclosedbeta-page input[type="radio"]:focus-visible{box-shadow:var(--
   .cw-styles.cw-styles--photos{grid-template-columns:repeat(2,minmax(0,1fr))}
   .ra-caption-editor{grid-template-columns:64px minmax(0,1fr);gap:var(--space-3);padding:var(--space-3)}
 }
+
+/* ============================================================================
+   Una pantalla en PC y tablet (ronda 2 · P2) — ingresos y registro
+   Los marcos del Figma están pensados para 1.024 px de alto. En ventanas más
+   bajas el panel del formulario pierde aire arriba y abajo para que el ingreso
+   entre sin desplazarse; el registro largo queda con scroll y el indicador
+   animado (wo-scroll-hint.js) avisa que hay más.
+   ========================================================================== */
+@media (min-width: 801px) and (max-height: 860px) {
+  .client-login-page .ca-form-col { padding-top: 20px; padding-bottom: 20px; align-items: flex-start; }
+  .client-login-page .ca-fields { gap: 14px; }
+  .artist-login-page .wo-auth-panel { padding-top: 28px; padding-bottom: 28px; }
+  .registerclosedbeta-page .wo-auth-panel { padding-top: 24px; padding-bottom: 24px; }
+}

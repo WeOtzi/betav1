@@ -1983,6 +1983,38 @@ document.head.appendChild(modesScript);
 })();
 
 // ---------------------------------------------------------------------------
+// Indicador de "hay más abajo" (ronda 2 · P2): si la pantalla no entra entera,
+// wo-scroll-hint.js muestra una flecha animada mientras la persona está arriba.
+// Carga única: este bloque vive en config-manager.js y en wo-icons.js (entre
+// los dos cubren todas las páginas). Opt-out: <html data-wo-scroll-hint="off">.
+// ---------------------------------------------------------------------------
+(function () {
+  'use strict';
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    if (window.__woScrollHintLoader) return;
+    var me = document.currentScript;
+    var match = me && me.src ? /^(.*\/shared\/)js\/[^\/?#]+(?:[?#].*)?$/.exec(me.src) : null;
+    if (!match) return;
+    var root = document.documentElement;
+    if (root && root.getAttribute && root.getAttribute('data-wo-scroll-hint') === 'off') return;
+    window.__woScrollHintLoader = true;
+    var base = match[1];
+    var head = document.head || document.documentElement;
+    var css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = base + 'css/wo-scroll-hint.css';
+    css.setAttribute('data-wo-scroll-hint', '');
+    head.appendChild(css);
+    var s = document.createElement('script');
+    s.src = base + 'js/wo-scroll-hint.js';
+    s.defer = true;
+    s.setAttribute('data-wo-scroll-hint', '');
+    head.appendChild(s);
+  } catch (err) { /* el indicador es mejora progresiva: nunca bloquea la página */ }
+})();
+
+// ---------------------------------------------------------------------------
 // DS · Controles propios (select, fecha, prefijo fijo, editor de texto).
 // Carga única en todas las páginas: este bloque vive en config-manager.js y en
 // wo-icons.js (entre los dos cubren todas las páginas). Opt-out: [data-native].
