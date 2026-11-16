@@ -1976,6 +1976,17 @@
         return !!left && !!right && left.getTime() === right.getTime();
     }
 
+    // ¿El guardado cambia el lugar o la duración de la sesión (con la misma fecha
+    // de inicio)? Se compara contra lo que mostraba el editor; una fecha de fin
+    // que no se puede leer no cuenta como cambio.
+    function sessionTermsChanged(event, payload) {
+        const norm = (value) => String(value || '').trim().toLowerCase();
+        const placeChanged = !!payload.location && norm(payload.location) !== norm(event.location);
+        const durationChanged = !!event.end && !!payload.ends_at && !!asDate(event.end) && !!asDate(payload.ends_at)
+            && !sameInstant(event.end, payload.ends_at);
+        return placeChanged || durationChanged;
+    }
+
     async function persist(kind, payload) {
         const Calendar = window.WeotziData.Calendar;
         if (kind === 'session') {
@@ -2002,7 +2013,16 @@
                 if (!flow || typeof flow.needsAgreement !== 'function' || !flow.needsAgreement(error)) throw error;
                 return flow.requestCalendarChange(event, payload);
             }
-            if (rescheduled) noticeSession('session_rescheduled', sessionQuoteRef(event, payload), event.baseId);
+            if (rescheduled) {
+                noticeSession('session_rescheduled', sessionQuoteRef(event, payload), event.baseId);
+            } else if (isOpenSession(event) && sessionTermsChanged(event, payload)) {
+                // Misma fecha, otro lugar u otra duración: para la base es una propuesta
+                // nueva (el cliente la vuelve a confirmar y su pedido de cambio pendiente
+                // queda reemplazado), así que el cliente se entera. El aviso sale con el
+                // estado que ya tiene la sesión: el servidor exige que coincidan.
+                const status = String(event.sessionStatus || '').toLowerCase();
+                noticeSession(status === 'rescheduled' ? 'session_rescheduled' : 'session_scheduled', sessionQuoteRef(event, payload), event.baseId);
+            }
             return result;
         }
         return Calendar.update(event.baseId, state.user.id, payload);

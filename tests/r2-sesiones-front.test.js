@@ -445,6 +445,82 @@ test('calendario: la ubicación sale de las sedes reales y viaja con su origen',
     assert.doesNotMatch(ui + read('public/shared/js/wo-session-flow.js'), /maps\.googleapis\.com|AIza/);
 });
 
+// EP-05: para la base, cambiar el lugar o la duración es una propuesta nueva (el cliente
+// la vuelve a confirmar y su pedido de cambio pendiente queda reemplazado). El calendario
+// solo avisaba cuando cambiaba el inicio.
+test('calendario: cambiar solo el lugar o la duración de una sesión también le avisa al cliente', async () => {
+    const cal = read('public/shared/js/calendar.js');
+    const slice = (from, to) => {
+        const start = cal.indexOf(from);
+        const end = cal.indexOf(to, start);
+        assert.ok(start >= 0 && end > start, `no encontré el bloque ${from.trim()}`);
+        return cal.slice(start, end);
+    };
+    // El código real de guardado del calendario, con sus dependencias reemplazadas por dobles.
+    const code = [
+        slice('    function asDate(value) {', '    function formatMonthYear('),
+        slice('    function sessionQuoteRef(event, payload) {', '    async function persistRemove('),
+    ].join('\n');
+
+    const START = '2026-12-01T15:00:00.000Z';
+    const END = '2026-12-01T18:00:00.000Z';
+    const event = (extra) => Object.assign({
+        baseId: 's-1', sourceType: 'quotation_session', start: START, end: END, location: 'Estudio Norte - Oroño 500, Rosario',
+        sessionStatus: 'scheduled', raw: { quotation: { quote_id: 'QN1' }, session: { id: 's-1' } },
+    }, extra);
+    const payload = (extra) => Object.assign({ starts_at: START, ends_at: END, location: 'Estudio Norte - Oroño 500, Rosario', notes: '' }, extra);
+
+    async function save(ev, body, { updateError = null } = {}) {
+        const out = { notices: [], updates: [], requested: [] };
+        const window = {
+            WeotziData: { Calendar: {
+                updateQuoteSession: async (id, data, opts) => { if (updateError) throw updateError; out.updates.push([id, { rescheduled: opts.rescheduled }]); return { id }; },
+                update: async () => ({}),
+            } },
+            QuotationClientNotices: { notifySession: async (quote, eventId, sessionId) => { out.notices.push([quote.quote_id, eventId, sessionId]); return { ok: true }; } },
+            WoSessionFlow: {
+                needsAgreement: (error) => !!error && error.code === 'needs_agreement',
+                requestCalendarChange: async (e) => { out.requested.push(e.baseId); return { requested: true }; },
+            },
+        };
+        const sandbox = { window, state: { user: { id: 'artista' } }, showToast() {} };
+        vm.runInNewContext(code, sandbox);
+        out.result = await sandbox.persistUpdate('session', ev, body);
+        await new Promise((resolve) => setImmediate(resolve));
+        return out;
+    }
+
+    // Solo el lugar → aviso con el estado que ya tiene la sesión (el servidor exige que coincidan).
+    const place = await save(event(), payload({ location: 'Sede Centro - Córdoba 1200, Rosario' }));
+    assert.deepEqual(place.notices, [['QN1', 'session_scheduled', 's-1']]);
+    assert.deepEqual(place.updates, [['s-1', { rescheduled: false }]], 'la sesión no pasa a "reprogramada" si la fecha no cambió');
+    // Solo la duración, en una sesión ya reprogramada.
+    const longer = await save(event({ sessionStatus: 'rescheduled' }), payload({ ends_at: '2026-12-01T19:00:00.000Z' }));
+    assert.deepEqual(longer.notices, [['QN1', 'session_rescheduled', 's-1']]);
+    // Cambió el inicio (con o sin otro lugar): un solo aviso, el de siempre.
+    const moved = await save(event(), payload({ starts_at: '2026-12-02T15:00:00.000Z', ends_at: '2026-12-02T18:00:00.000Z', location: 'Sede Centro' }));
+    assert.deepEqual(moved.notices, [['QN1', 'session_rescheduled', 's-1']]);
+    assert.deepEqual(moved.updates, [['s-1', { rescheduled: true }]]);
+
+    // Sin cambios para el cliente: no se avisa.
+    assert.deepEqual((await save(event(), payload({ notes: 'Traer referencia impresa' }))).notices, [], 'solo las notas privadas');
+    assert.deepEqual((await save(event(), payload({ location: '  estudio norte - oroño 500, rosario ' }))).notices, [], 'el mismo lugar escrito distinto');
+    assert.deepEqual((await save(event(), payload({ location: null }))).notices, [], 'sin lugar en el formulario no se cambia el guardado');
+    assert.deepEqual((await save(event(), payload({ ends_at: undefined }))).notices, [], 'una fecha de fin ilegible no cuenta como cambio');
+    assert.deepEqual((await save(event(), payload({ ends_at: null }))).notices, []);
+    // Una sesión ya realizada (o ausente) conserva su estado y no avisa.
+    for (const sessionStatus of ['completed', 'no_show', 'cancelled']) {
+        assert.deepEqual((await save(event({ sessionStatus }), payload({ location: 'Sede Centro' }))).notices, [], sessionStatus);
+    }
+    // Sesión confirmada: la base pide acuerdo → sale el pedido de cambio, no este aviso.
+    const agreed = await save(event(), payload({ location: 'Sede Centro' }), { updateError: Object.assign(new Error('P28'), { code: 'needs_agreement' }) });
+    assert.deepEqual([agreed.notices, agreed.requested, agreed.result], [[], ['s-1'], { requested: true }]);
+    await assert.rejects(() => save(event(), payload({ location: 'Sede Centro' }), { updateError: new Error('otro error') }), /otro error/);
+
+    // La página carga la versión nueva del script.
+    assert.match(read('public/calendar/index.html'), /\/shared\/js\/calendar\.js\?v=20261116-r2b"/);
+});
+
 test('archivos nuevos: español neutro (tuteo), sin CRUD ad-hoc y con estilos del DS', () => {
     const files = [
         'public/shared/js/wo-session-model.js', 'public/shared/js/wo-session-ui.js', 'public/shared/js/wo-session-flow.js',
