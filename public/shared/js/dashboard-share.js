@@ -123,8 +123,11 @@
     }
 
     /* ------------- ronda 2: compartidos, historia y tarjeta OG ------------- */
-    // Cada compartido del perfil suma a Most Wanted (POST /api/artist/profile-share;
-    // el servidor cuenta una vez por persona, canal y hora). Nunca frena la UI.
+    // Registra cada compartido del perfil (POST /api/artist/profile-share; el
+    // servidor cuenta una vez por persona, canal y hora). Los que salen de este
+    // panel van con la sesión del artista: quedan guardados para estadísticas
+    // (is_owner) pero NO puntúan en Most Wanted, donde nadie suma a su propio
+    // perfil. Nunca frena la UI.
     function trackShare(channel) {
         var u = username();
         if (!u || (window.WoDemo && window.WoDemo.enabled)) return;

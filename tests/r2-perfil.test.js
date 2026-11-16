@@ -336,6 +336,13 @@ test('migración 20261116180000: misma fórmula que lib/most-wanted.js, privileg
     assert.match(SQL, /from public\.artist_profile_shares sh/);
     // SEG-06 · compartidos: los del propio artista no suman.
     assert.match(SQL, /from public\.artist_profile_shares sh\s+where sh\.created_at >= v_since\s+and not sh\.is_owner\s+and \(sh\.sharer_user_id is null or sh\.sharer_user_id <> sh\.artist_id\)/);
+    // RS-08: el panel "Compartir mi perfil" manda la sesión del artista, así que esos compartidos
+    // entran con is_owner y no puntúan; el comentario del panel ya no dice lo contrario.
+    assert.match(DASH_SHARE_JS, /if \(token\) headers\.Authorization = 'Bearer ' \+ token;/);
+    assert.match(read('lib', 'routes', 'perfil.js'), /isOwner: Boolean\(user && user\.id && user\.id === artist\.user_id\)/);
+    assert.doesNotMatch(DASH_SHARE_JS, /Cada compartido del perfil suma a Most Wanted/);
+    assert.match(DASH_SHARE_JS, /NO puntúan en Most Wanted/);
+    assert.match(read('public', 'artist', 'dashboard', 'index.html'), /<script src="\/shared\/js\/dashboard-share\.js\?v=20261116-r2b"><\/script>/);
     // SEG-06 · cotizaciones: con cuenta sin tope; de invitado hasta 3 y nunca las manuales.
     assert.match(SQL, /count\(distinct qd\.client_user_id\)\s+filter \(where qd\.client_user_id is not null\)\)::integer as n_account/);
     assert.match(SQL, new RegExp(`least\\(count\\(distinct nullif\\(lower\\(btrim\\(qd\\.client_email\\)\\), ''\\)\\)\\s+filter \\(where qd\\.client_user_id is null\\s+and coalesce\\(qd\\.source, ''\\) <> 'manual'\\s+and coalesce\\(qd\\.quotation_medium, ''\\) <> 'manual'\\), ${MostWanted.CAPS.guestQuotes}\\)::integer as n_guest`));
