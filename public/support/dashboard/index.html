@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="/shared/css/support-dashboard.css">
     <link rel="stylesheet" href="/shared/css/support-dashboard-store.css">
     <link rel="stylesheet" href="/shared/css/support-dashboard-reports.css?v=20261116-r2b">
+    <link rel="stylesheet" href="/shared/css/support-dashboard-feedback.css?v=20261117-feedback">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="/shared/js/config-manager.js"></script>
@@ -110,6 +111,14 @@
                     <path d="M19 7l-3 7a3 3 0 0 0 6 0z"/>
                 </svg>
                 DISPUTAS <span class="dsq-count" hidden></span>
+            </a>
+            <!-- feedback de la beta: botón "Comentarios" y encuestas cortas (support-dashboard-feedback.js) -->
+            <a href="#" class="nav-item nav-menu-item" data-tab="feedback">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M4 4h16v12H9l-5 4z"/>
+                    <path d="M8 9h8M8 12h5"/>
+                </svg>
+                FEEDBACK <span class="fbq-count" hidden></span>
             </a>
             <div class="nav-divider"></div>
             <button class="nav-item nav-logout" onclick="handleLogout()">LOGOUT</button>
@@ -214,6 +223,13 @@
                         <path d="M19 7l-3 7a3 3 0 0 0 6 0z"/>
                     </svg>
                     DISPUTAS <span class="dsq-count" hidden></span>
+                </button>
+                <button class="tab-btn" data-tab="feedback" type="button">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M4 4h16v12H9l-5 4z"/>
+                        <path d="M8 9h8M8 12h5"/>
+                    </svg>
+                    FEEDBACK <span class="fbq-count" hidden></span>
                 </button>
             </div>
 
@@ -330,5 +346,8 @@
     <!-- Pestaña DISPUTAS (ronda 2 · P28): disputas de sesiones; al resolverlas la cotización deja de figurar en disputa -->
     <script src="/shared/js/data/support-disputes-repo.js?v=20261116-r2b"></script>
     <script src="/shared/js/support-dashboard-disputes.js?v=20261116-r2b"></script>
+    <!-- Pestaña FEEDBACK (beta cerrada): resumen, lista filtrable, detalle con capturas, estado/nota y CSV -->
+    <script src="/shared/js/data/support-feedback-repo.js?v=20261117-feedback"></script>
+    <script src="/shared/js/support-dashboard-feedback.js?v=20261117-feedback"></script>
 </body>
 </html>

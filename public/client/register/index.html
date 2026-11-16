@@ -958,6 +958,8 @@
             pendingConfirmation = null;
             window.WO_CLIENT_REGISTER_RESUME = false;
             if (EC) EC.clearFiles(PHOTO_STASH_KEY);
+            // Feedback de la beta: encuesta corta tras el registro (sale una sola vez).
+            if (window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('registro_cliente', { delay: 1500 });
         }
 
         // ---------------- Confirma tu email ----------------

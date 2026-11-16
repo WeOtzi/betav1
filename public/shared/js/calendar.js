@@ -2012,6 +2012,8 @@
         if (kind === 'session') {
             const created = await Calendar.createQuoteSession(payload);
             noticeSession('session_scheduled', sessionQuoteRef(null, payload), created && created.id);
+            // Feedback de la beta: encuesta de la primera sesión agendada (sale una sola vez por persona).
+            if (window.WoFeedback && typeof window.WoFeedback.survey === 'function') window.WoFeedback.survey('primera_sesion_agendada', { delay: 2000 });
             return created;
         }
         return Calendar.create(state.user.id, payload);

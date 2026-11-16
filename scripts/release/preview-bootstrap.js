@@ -324,6 +324,23 @@
         }
         if (path === '/api/artist/public-profile-metrics' && method === 'GET') return json({ success: true, metrics: { tattooCount: 4, tattooCountLabel: '4+', responseRate: 91, responseRateLabel: '91%', avgResponseMinutes: 240, responseTimeLabel: 'Menos de 24 h' }, preview: true });
         if (path === '/api/currencies' && method === 'GET') return json({ success: true, currencies: clone(st.rows('currencies')), preview: true });
+        // Feedback de la beta (wo-feedback.js): se guarda solo en este navegador.
+        if (path === '/api/feedback/surveys' || path === '/api/feedback' || /^\/api\/feedback\/surveys\/[a-z0-9_]{3,40}\/dismiss$/.test(path)) {
+            if (!session) return json({ success: false, error: 'Inicia la sesión ficticia.', preview: true }, 401);
+            let saved = [];
+            try { saved = JSON.parse(readStorage('feedback') || '[]'); } catch (_) { saved = []; }
+            const keys = saved.filter(item => item.kind === 'survey').map(item => item.survey_key);
+            if (method === 'GET') return json({ success: true, roles: ['artist', 'client'], keys, answered: keys, dismissed: [], preview: true });
+            if (method !== 'POST') return blocked(path);
+            const dismissKey = (path.match(/^\/api\/feedback\/surveys\/([a-z0-9_]+)\/dismiss$/) || [])[1];
+            const row = dismissKey ? { kind: 'survey', survey_key: dismissKey, dismissed: true } : Object.assign({}, input || {}, { attachments: [] });
+            if (!dismissKey && row.kind !== 'survey' && String(row.message || '').trim().length < 10) return json({ success: false, field: 'message', error: 'Cuéntanos un poco más: al menos 10 caracteres.', preview: true }, 400);
+            if (row.kind === 'survey' && keys.includes(row.survey_key)) return json({ success: true, duplicate: true, preview: true });
+            saved.push(Object.assign(row, { created_at: new Date().toISOString() }));
+            writeStorage('feedback', JSON.stringify(saved.slice(-50)));
+            record(path, 'simulated', 'Feedback guardado solamente en el navegador.');
+            return json({ success: true, id: 'preview-' + saved.length, message: '¡Gracias! Leemos todo lo que nos mandas para mejorar We Ötzi.', preview: true }, dismissKey ? 200 : 201);
+        }
         if (path === '/api/quotations/intake' && method === 'POST') {
             if (!input || !['draft', 'submit'].includes(input.mode) || !/^[\da-f-]{36}$/i.test(input.submission_key || '')) return json({ error: 'Solicitud de prueba no válida.', preview: true }, 400);
             const q = input.quotation || {};
