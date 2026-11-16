@@ -17,11 +17,16 @@
 //   session_feedback_received       la otra parte calificó y dejó un registro.
 //   session_no_show                 el artista registró que el cliente no vino.
 //
-// Payload común (lib/sesiones.js emailPayload): quote_id, client_*/artist_*,
+// Payload común (lib/sesiones.js emailPayload): quote_id, quote_code, client_*/artist_*,
 // session_id, session_number, session_date, duration_hours, location (dirección
 // completa), location_maps, edit_window_days. Cada correo sale una vez por rol
 // (cliente y artista) con su texto y sus enlaces.
 // ===========================================================================
+
+// Código que lee la persona: el corto de la cotización (short_code) y, si la
+// base todavía no lo tiene, el quote_id. El quote_id queda para los enlaces.
+const { visibleCode } = require('../../lib/quote-code');
+const code = (d) => visibleCode(d);
 
 const enc = (value) => encodeURIComponent(String(value == null ? '' : value));
 const firstName = (value) => String(value || '').trim().split(/\s+/)[0] || '';
@@ -38,6 +43,7 @@ const both = (p) => [p.client_email, p.artist_email].filter(Boolean);
 // Solo lo necesario para una plantilla externa (lista blanca: sin la fila entera).
 const attribs = (p) => ({
     quote_id: or(p.quote_id, '-'),
+    quote_code: or(code(p), '-'),
     client_name: or(p.client_name, 'Cliente'),
     artist_name: or(p.artist_name, 'Artista'),
     session_number: p.session_number != null ? String(p.session_number) : '',
@@ -69,7 +75,7 @@ function sessionRows(d, ctx, extra = []) {
         ['Duración', d.duration_hours ? `${ctx.f.value(Number(d.duration_hours))} h` : ''],
         ['Lugar', d.location],
         ...extra,
-        ['Cotización', d.quote_id],
+        ['Cotización', code(d)],
     ];
 }
 
@@ -174,7 +180,7 @@ module.exports = {
                 ['Lugar propuesto', d.proposed_location],
                 ['Motivo', ctx.f.text(d.change_note, 400)],
                 ['Sesión', d.session_number ? `N.º ${d.session_number}` : ''],
-                ['Cotización', d.quote_id],
+                ['Cotización', code(d)],
             ],
             cta: (d, ctx) => ({ label: d.requested_by_role === ctx.role ? 'Ver la sesión' : 'Responder el pedido', url: roleUrl(d, ctx) }),
             secondary: () => null,
@@ -261,6 +267,7 @@ module.exports = {
         recipients: (p) => [].concat(p.support_email || [], Array.isArray(p.support_emails) ? p.support_emails : []).filter(Boolean),
         attribs: (p) => ({
             quote_id: or(p.quote_id, '-'),
+            quote_code: or(code(p), '-'),
             ticket_number: p.ticket_number != null ? String(p.ticket_number) : '',
             dispute_reason: or(p.dispute_reason_label, ''),
             opened_by_role: or(p.opened_by_role, ''),
@@ -270,7 +277,7 @@ module.exports = {
             audience: 'admin',
             category: 'transactional',
             eyebrow: 'DISPUTA DE SESIÓN',
-            subject: (d) => `Disputa de sesión${d.ticket_number ? ` · ticket N.º ${d.ticket_number}` : ''}${d.quote_id ? ` · ${d.quote_id}` : ''}`,
+            subject: (d) => `Disputa de sesión${d.ticket_number ? ` · ticket N.º ${d.ticket_number}` : ''}${code(d) ? ` · ${code(d)}` : ''}`,
             preheader: (d) => `${d.opened_by_role === 'artist' ? or(d.artist_name, 'El artista') : or(d.client_name, 'El cliente')} pidió una disputa sobre una sesión. Revisa el caso.`,
             headline: () => 'Pidieron una disputa sobre una sesión',
             intro: (d) => `${d.opened_by_role === 'artist' ? `El artista ${or(d.artist_name, '')}`.trim() : `El cliente ${or(d.client_name, '')}`.trim()} pidió abrir una disputa. El ticket quedó registrado en support_tickets (kind "disputa") y la cotización figura en disputa hasta que lo resuelvas.`,
@@ -283,7 +290,8 @@ module.exports = {
                 ['Fecha de la sesión', ctx.f.dateTime(d.session_date)],
                 ['Sesión', d.session_number ? `N.º ${d.session_number}` : ''],
                 ['Lugar', d.location],
-                ['Cotización', d.quote_id],
+                ['Cotización', code(d)],
+                ['Referencia interna', d.quote_id && d.quote_id !== code(d) ? d.quote_id : ''],
             ],
             cta: (d, ctx) => ({ label: 'Abrir el panel de soporte', url: ctx.f.url(d.queue_url) || ctx.url('/support/dashboard') }),
         },

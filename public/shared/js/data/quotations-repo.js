@@ -62,8 +62,8 @@
         // Listado del cliente: propias por user_id o email, no ocultas. FIX
         // (doc §4-B): el email se escapa con orValue para no romper el .or().
         async listForClient(userId, email, select = '*') {
-            const { data } = await run('quotations.listForClient', (c) =>
-                c.from('quotations_db').select(select)
+            const { data } = await runWithCode('quotations.listForClient', select, (c, cols) =>
+                c.from('quotations_db').select(cols)
                     .or(`client_user_id.eq.${userId},client_email.ilike.${orValue(email)}`)
                     .is('client_deleted_at', null)
                     .order('created_at', { ascending: false })
@@ -218,26 +218,49 @@
         // Columnas para el chat: sin datos de salud ni contacto del cliente.
         // La RLS del artista ("Artists can view own quotations") acota.
         async getForArtistByQuoteId(quoteId, select = CHAT_QUOTE_COLUMNS) {
-            const { data } = await run('quotations.getForArtistByQuoteId', (c) =>
-                c.from('quotations_db').select(select).eq('quote_id', quoteId).maybeSingle()
+            const { data } = await runWithCode('quotations.getForArtistByQuoteId', select, (c, cols) =>
+                c.from('quotations_db').select(cols).eq('quote_id', quoteId).maybeSingle()
             );
             return data || null;
         },
         // Lado cliente (clients_select_own_quotations acota a las propias).
         async getForClientByQuoteId(quoteId, select = CHAT_QUOTE_COLUMNS) {
-            const { data } = await run('quotations.getForClientByQuoteId', (c) =>
-                c.from('quotations_db').select(select).eq('quote_id', quoteId).maybeSingle()
+            const { data } = await runWithCode('quotations.getForClientByQuoteId', select, (c, cols) =>
+                c.from('quotations_db').select(cols).eq('quote_id', quoteId).maybeSingle()
             );
             return data || null;
         },
     };
 
     // Columnas de quotations_db que necesita el chat (lista, banner y tarjeta).
-    const CHAT_QUOTE_COLUMNS = 'id, quote_id, artist_id, artist_name, artist_username, client_user_id, client_full_name, ' +
+    // short_code es el código corto que ve el cliente (buscador y encabezado).
+    const CHAT_QUOTE_COLUMNS = 'id, quote_id, short_code, artist_id, artist_name, artist_username, client_user_id, client_full_name, ' +
         'quote_status, tattoo_style, tattoo_body_part, tattoo_size, tattoo_estimated_sessions, final_budget_amount, ' +
         'final_budget_currency, final_sessions, artist_budget_amount, artist_budget_currency, artist_session_minutes, ' +
         'artist_responded_at, client_deleted_at, created_at, updated_at';
     Quotations.CHAT_COLUMNS = CHAT_QUOTE_COLUMNS;
+
+    // short_code llega con la migración 20261116110000. Si la base todavía no
+    // tiene la columna (42703 / PGRST204), la lectura se repite sin ella para
+    // no perder la lista: el código corto es un dato más, no una condición.
+    function selectColumns(select) {
+        return String(select || '').split(',').map((c) => c.trim()).filter(Boolean);
+    }
+    function isMissingShortCode(error) {
+        const cause = (error && error.cause) || {};
+        const text = [error && error.code, error && error.message, cause.code, cause.message, cause.details].filter(Boolean).join(' ');
+        return /42703|PGRST204/.test(text) && /short_code/.test(text);
+    }
+    async function runWithCode(label, select, build) {
+        try {
+            return await run(label, (c) => build(c, select));
+        } catch (error) {
+            const columns = selectColumns(select);
+            const reduced = columns.filter((c) => c !== 'short_code');
+            if (reduced.length === columns.length || !reduced.length || !isMissingShortCode(error)) throw error;
+            return run(label, (c) => build(c, reduced.join(', ')));
+        }
+    }
 
     // ===================== quotation_notes (key = int id) =====================
     const Notes = {

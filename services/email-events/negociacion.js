@@ -37,6 +37,11 @@ function actor(d) {
     return text(d.actor_name, d.actor_role === 'artist' ? 'Tu artista' : d.actor_role === 'client' ? 'Tu cliente' : 'La otra parte');
 }
 
+// Código que lee la persona: el corto de la cotización (short_code) y, si la
+// base todavía no lo tiene, el quote_id. El quote_id queda para los enlaces.
+const { visibleCode } = require('../../lib/quote-code');
+const code = d => text(visibleCode(d));
+
 // Filas "Dato: antes → después" (changes_rows = [[etiqueta, texto], ...]).
 function changeRows(d) {
     const list = Array.isArray(d.changes_rows) ? d.changes_rows : [];
@@ -46,7 +51,7 @@ function changeRows(d) {
 }
 
 function rows(d, before = [], after = []) {
-    return [['Cotización', text(d.quote_id)], ...before, ...changeRows(d), ...after];
+    return [['Cotización', code(d)], ...before, ...changeRows(d), ...after];
 }
 
 // Siempre absoluto: el del payload (lo arma el servidor) o el panel del rol.
@@ -64,6 +69,7 @@ function link(label) {
 function attribs(p) {
     return {
         quote_id: text(p.quote_id),
+        quote_code: code(p),
         recipient_name: text(p.recipient_name),
         recipient_role: text(p.recipient_role),
         actor_name: text(p.actor_name),
@@ -90,7 +96,7 @@ const EVENTS = {
         'Aviso al artista cuando el cliente modifica la propuesta recibida (presupuesto, zona, tamaño, estilo, color o idea).',
         {
             audience: 'artist',
-            subject: d => `${text(d.client_name, 'Tu cliente')} propone cambios en la cotización ${text(d.quote_id)}`,
+            subject: d => `${text(d.client_name, 'Tu cliente')} propone cambios en la cotización ${code(d)}`,
             preheader: () => 'Revisa el antes y el después: puedes aceptar los cambios o enviar otra propuesta.',
             eyebrow: 'COTIZACIÓN / CAMBIOS PROPUESTOS',
             headline: () => 'Tu cliente propone cambios.',
@@ -105,7 +111,7 @@ const EVENTS = {
         'Aviso al cliente cuando el artista acepta su contrapropuesta: la cotización queda aprobada por ambas partes.',
         {
             audience: 'client',
-            subject: d => `${text(d.artist_name, 'Tu artista')} aceptó tus cambios · ${text(d.quote_id)}`,
+            subject: d => `${text(d.artist_name, 'Tu artista')} aceptó tus cambios · ${code(d)}`,
             preheader: () => 'La cotización quedó aprobada por ambas partes con las condiciones que propusiste.',
             eyebrow: 'COTIZACIÓN / APROBADA',
             headline: () => 'Tus cambios fueron aceptados.',
@@ -120,7 +126,7 @@ const EVENTS = {
         'Aviso al cliente cuando el artista no aplica su contrapropuesta y mantiene la propuesta original.',
         {
             audience: 'client',
-            subject: d => `${text(d.artist_name, 'Tu artista')} mantiene su propuesta · ${text(d.quote_id)}`,
+            subject: d => `${text(d.artist_name, 'Tu artista')} mantiene su propuesta · ${code(d)}`,
             preheader: () => 'Tu artista prefirió no aplicar los cambios. Puedes aceptar, rechazar o proponer otros.',
             eyebrow: 'COTIZACIÓN / PROPUESTA VIGENTE',
             headline: () => 'El artista mantiene su propuesta.',
@@ -135,7 +141,7 @@ const EVENTS = {
         'Aviso a la contraparte (cliente o artista) cuando la otra parte propone cambiar el acuerdo ya aprobado.',
         {
             audience: 'client',
-            subject: d => `${actor(d)} propone cambiar el acuerdo · ${text(d.quote_id)}`,
+            subject: d => `${actor(d)} propone cambiar el acuerdo · ${code(d)}`,
             preheader: () => 'El acuerdo actual sigue vigente hasta que apruebes o rechaces los cambios propuestos.',
             eyebrow: 'ACUERDO / CAMBIO PROPUESTO',
             headline: () => 'Te proponen un cambio al acuerdo.',
@@ -150,7 +156,7 @@ const EVENTS = {
         'Aviso a quien propuso el cambio cuando la otra parte lo aprueba: el acuerdo queda actualizado.',
         {
             audience: 'client',
-            subject: d => `${actor(d)} aprobó los cambios al acuerdo · ${text(d.quote_id)}`,
+            subject: d => `${actor(d)} aprobó los cambios al acuerdo · ${code(d)}`,
             preheader: () => 'El acuerdo ya está actualizado con los cambios que propusiste y quedó en el historial.',
             eyebrow: 'ACUERDO / ACTUALIZADO',
             headline: () => 'El acuerdo quedó actualizado.',
@@ -165,7 +171,7 @@ const EVENTS = {
         'Aviso a quien propuso el cambio cuando la otra parte lo rechaza: el acuerdo sigue como estaba.',
         {
             audience: 'client',
-            subject: d => `${actor(d)} no aprobó los cambios al acuerdo · ${text(d.quote_id)}`,
+            subject: d => `${actor(d)} no aprobó los cambios al acuerdo · ${code(d)}`,
             preheader: () => 'El acuerdo sigue como estaba. Puedes proponer otro cambio o escribirle por el chat.',
             eyebrow: 'ACUERDO / SIN CAMBIOS',
             headline: () => 'El acuerdo sigue igual.',
@@ -180,7 +186,7 @@ const EVENTS = {
         'Aviso a la contraparte cuando quien propuso cambios (contrapropuesta o enmienda) los retira.',
         {
             audience: 'client',
-            subject: d => `${actor(d)} retiró su propuesta de cambios · ${text(d.quote_id)}`,
+            subject: d => `${actor(d)} retiró su propuesta de cambios · ${code(d)}`,
             preheader: () => 'Ya no hay cambios pendientes de tu respuesta en esta cotización. Todo sigue como estaba.',
             eyebrow: 'COTIZACIÓN / SIN CAMBIOS PENDIENTES',
             headline: () => 'Ya no hay cambios pendientes.',

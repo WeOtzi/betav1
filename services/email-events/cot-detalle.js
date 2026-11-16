@@ -14,6 +14,10 @@
 // salud ni de contacto del cliente.
 // ===========================================================================
 
+// Código que lee la persona: el corto de la cotización (short_code) y, si la
+// base todavía no lo tiene, el quote_id. El quote_id queda para los enlaces.
+const { visibleCode } = require('../../lib/quote-code');
+
 function text(value, fallback = '') {
     const s = String(value == null ? '' : value).trim();
     return s || fallback;
@@ -32,6 +36,7 @@ module.exports = {
         recipient: p => p.artist_email || p.recipient_email || null,
         attribs: p => ({
             quote_id: text(p.quote_id),
+            quote_code: text(visibleCode(p)),
             artist_name: text(p.artist_name, 'Hola'),
             client_name: text(p.client_name, 'Tu cliente'),
             quotation_url: text(p.quotation_url),
@@ -40,13 +45,13 @@ module.exports = {
         render: {
             audience: 'artist',
             category: 'quotations',
-            subject: d => `${text(d.client_name, 'Tu cliente')} vinculó la cotización ${text(d.quote_id)} a su cuenta`,
+            subject: d => `${text(d.client_name, 'Tu cliente')} vinculó la cotización ${text(visibleCode(d))} a su cuenta`,
             preheader: d => `${text(d.client_name, 'Tu cliente').slice(0, 40)} abrió tu enlace y ya tiene cuenta: pueden seguir por el chat.`,
             eyebrow: 'COTIZACIÓN / CLIENTE VINCULADO',
             headline: () => 'Tu cliente ya tiene cuenta.',
             intro: d => `${text(d.client_name, 'Tu cliente')} abrió el enlace que le compartiste y vinculó la cotización a su cuenta de We Ötzi. Desde ahora puede responder tu propuesta y escribirte por el chat de la cotización.`,
             rows: d => [
-                ['Cotización', text(d.quote_id)],
+                ['Cotización', text(visibleCode(d))],
                 ['Cliente', text(d.client_name, 'Tu cliente')]
             ],
             cta: (d, ctx) => ({ label: 'Abrir la cotización', url: ctx.url(detailPath(d)) })

@@ -614,6 +614,7 @@ test('POST claim: vincula la cotización a la cuenta del cliente y avisa al arti
     assert.equal(db.emails[0].eventId, 'shared_quotation_linked');
     assert.equal(db.emails[0].payload.artist_email, 'mateo@example.com');
     assert.equal(db.emails[0].payload.quotation_url, 'https://beta.weotzi.com/my-quotations/detail?quote=COT-AB12CD');
+    assert.equal(db.emails[0].payload.quote_code, 'COT-AB12CD', 'sin código corto se muestra el quote_id');
     assert.equal(db.emails[0].options.idempotencyKey, `cot-detalle:linked:COT-AB12CD:${CLIENT}`);
     assert.doesNotMatch(JSON.stringify(db.emails[0].payload), /SECRETO|300 111|lucia@example\.com/, 'el aviso no lleva contacto ni salud');
 
@@ -624,6 +625,38 @@ test('POST claim: vincula la cotización a la cuenta del cliente y avisa al arti
     // La hoja pública ahora dice que ya tiene cuenta.
     const sheet = await call(handlers.publicSheet, { params: { token } });
     assert.equal(sheet.body.sheet.claim.linked, true);
+});
+
+test('CF-03: la hoja pública y el aviso de vínculo llevan el código corto de la cotización', async () => {
+    const manual = quoteRow({ source: 'manual', quotation_medium: 'manual', quote_status: 'responded', client_email: null, artist_budget_amount: '900', artist_budget_currency: 'USD' });
+    const { handlers, db, repo } = harness({ users: USERS, quote: manual, manual: MANUAL_DETAILS });
+    const asked = [];
+    repo.getShortCode = async (id) => { asked.push(id); return 'AB23CD'; };
+    const created = await call(handlers.createShare, { params: { quoteId: 'COT-AB12CD' }, headers: ARTIST_AUTH });
+    const token = created.body.url.split('/').pop();
+    const open = await call(handlers.publicSheet, { params: { token } });
+    assert.equal(open.body.sheet.short_code, 'AB23CD');
+    assert.equal(open.body.sheet.quote_id, 'COT-AB12CD');
+    assert.ok(asked.length >= 1 && asked.every((id) => id === manual.id), 'se pide por el id de la cotización');
+    await call(handlers.claim, { params: { token }, headers: { authorization: 'Bearer cliente' } });
+    assert.equal(db.emails[0].payload.quote_code, 'AB23CD');
+    assert.equal(db.emails[0].payload.quote_id, 'COT-AB12CD');
+
+    // Base sin la columna (la lectura falla): la hoja sale igual, con el quote_id como referencia.
+    const legacy = harness({ users: USERS, quote: manual, manual: MANUAL_DETAILS });
+    legacy.repo.getShortCode = async () => { throw new Error('42703 column short_code does not exist'); };
+    const made = await call(legacy.handlers.createShare, { params: { quoteId: 'COT-AB12CD' }, headers: ARTIST_AUTH });
+    const plain = await call(legacy.handlers.publicSheet, { params: { token: made.body.url.split('/').pop() } });
+    assert.equal(plain.statusCode, 200);
+    assert.equal(plain.body.sheet.short_code, null);
+
+    // El repositorio real lo lee aparte y nunca lanza.
+    const stub = (result) => () => {
+        const q = { select: () => q, eq: () => q, limit: () => q, single: () => q, execute: async () => { if (result instanceof Error) throw result; return result; } };
+        return q;
+    };
+    assert.equal(await repoModule.createRepo({ query: stub(new Error('42703')) }).getShortCode(77), null);
+    assert.equal(await repoModule.createRepo({ query: stub({ short_code: 'AB23CD' }) }).getShortCode(77), 'AB23CD');
 });
 
 test('POST claim: una cotización recibida no se vincula a una cuenta con otro correo', async () => {
@@ -771,5 +804,9 @@ test('email shared_quotation_linked: solo servidor, al artista, sin datos privad
     assert.doesNotMatch(out.html, /<b>Lucía<\/b>/, 'escapa el nombre');
     assert.doesNotMatch(out.html + out.text, /SECRETO|300 111/);
     const attribs = def.attribs({ quote_id: 'COT-1', client_whatsapp: 'x', client_health_conditions: 'y' });
-    assert.deepEqual(Object.keys(attribs).sort(), ['artist_name', 'chat_url', 'client_name', 'quotation_url', 'quote_id']);
+    assert.deepEqual(Object.keys(attribs).sort(), ['artist_name', 'chat_url', 'client_name', 'quotation_url', 'quote_code', 'quote_id']);
+    // CF-03: con código corto, el asunto y la fila lo muestran; el enlace sigue por quote_id.
+    const coded = renderEmail('shared_quotation_linked', { quote_id: 'COT-AB12CD', quote_code: 'AB23CD', artist_email: 'mateo@example.com', client_name: 'Lucía' }, { role: 'artist' });
+    assert.match(coded.subject, /vinculó la cotización AB23CD a su cuenta$/);
+    assert.equal(coded.cta.url, 'https://beta.weotzi.com/my-quotations/detail?quote=COT-AB12CD');
 });

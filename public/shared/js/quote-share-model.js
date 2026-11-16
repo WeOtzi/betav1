@@ -182,7 +182,8 @@
         var artistLine = [clean(a.studio), clean(a.city)].filter(Boolean).join(' · ');
         var url = clean(o.url);
         return {
-            ref: clean(s.quote_id),
+            // Código corto visible (el mismo de la pantalla de éxito y del panel); sin él, el quote_id.
+            ref: clean(s.short_code) || clean(s.quote_id),
             statusLabel: clean(s.status_label) || 'Cotización',
             statusTone: STATUS_TONE[s.status] || 'open',
             byline: 'Cotización de ' + (clean(a.name) || 'tu artista') + ' · We Ötzi',

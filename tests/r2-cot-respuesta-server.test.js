@@ -252,7 +252,24 @@ test('P25: propuesta actualizada — sin cambio de estado, con historial y aviso
     assert.equal(mail.payload.message_preview, 'Hola Lucía, te espero.');
     assert.match(mail.payload.quotation_url, /^https:\/\/beta\.weotzi\.com\/client\/dashboard\?quote=QT-ABCD-XYZ-0077$/);
     assert.equal(mail.payload.artist_email, undefined, 'el correo es solo para el cliente');
+    assert.equal(mail.payload.quote_code, 'QT-ABCD-XYZ-0077', 'sin código corto se muestra el quote_id');
     assert.deepEqual(res.email, { ok: true, skipped: false });
+
+    // CF-03: con código corto (leído aparte), el correo muestra ese código; el enlace sigue por quote_id.
+    const coded = fakeDeps({ quote: quoteRow({ quote_status: 'responded' }) });
+    const asked = [];
+    coded.deps.repo.getShortCode = async (id) => { asked.push(id); return 'AB23CD'; };
+    await logic.handleProposal(REQ, 'QT-1', body(), coded.deps);
+    assert.deepEqual(asked, [77]);
+    assert.equal(coded.calls.emails[0].payload.quote_code, 'AB23CD');
+    assert.equal(coded.calls.emails[0].payload.quote_id, 'QT-ABCD-XYZ-0077');
+    assert.match(coded.calls.emails[0].payload.quotation_url, /\?quote=QT-ABCD-XYZ-0077$/);
+    // Si esa lectura falla, el aviso sale igual con el quote_id.
+    const broken = fakeDeps({ quote: quoteRow({ quote_status: 'responded' }) });
+    broken.deps.repo.getShortCode = async () => { throw new Error('42703 column short_code does not exist'); };
+    const out = await logic.handleProposal(REQ, 'QT-1', body(), broken.deps);
+    assert.deepEqual(out.email, { ok: true, skipped: false });
+    assert.equal(broken.calls.emails[0].payload.quote_code, 'QT-ABCD-XYZ-0077');
 
     // Sin email del cliente no se intenta el envío.
     const guest = fakeDeps({ quote: quoteRow({ quote_status: 'responded', client_email: null }) });

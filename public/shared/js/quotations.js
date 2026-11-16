@@ -533,6 +533,7 @@ function applyFiltersAndSort() {
             q.client_full_name,
             q.client_city_residence,
             q.quote_id || q.id,
+            q.short_code, // el código corto que el cliente puede dictarle al artista
             q.tattoo_idea_description,
             q.project_description
         ].filter(Boolean).join(' ').toLowerCase();

@@ -848,7 +848,20 @@ test('rutas: el cliente confirma → RPC con su id, correo a ambos y Google Cale
     assert.equal(mail.sent[0].options.actorUserId, CLIENT, 'quien confirma no recibe el push de su comprobante');
     assert.equal(mail.sent[0].payload.app_base_url, BASE);
     assert.equal(mail.sent[0].payload.location, FULL_ADDRESS);
+    assert.equal(mail.sent[0].payload.quote_code, quoteRow().quote_id, 'sin código corto se muestra el quote_id');
     assert.deepEqual(synced, [ARTIST]);
+
+    // CF-03: el código corto se lee aparte y es lo que muestran los correos de sesiones.
+    const coded = setup({ getShortCode: async (id) => (id === quoteRow().id ? 'AB23CD' : null) });
+    await call(coded.app, 'POST /api/sesiones/:sessionId/confirm', { params: { sessionId: SESSION }, user: { id: CLIENT } });
+    await settle();
+    assert.equal(coded.mail.sent[0].payload.quote_code, 'AB23CD');
+    assert.equal(coded.mail.sent[0].payload.quote_id, quoteRow().quote_id, 'los enlaces siguen por quote_id');
+    const broken = setup({ getShortCode: async () => { throw new Error('42703'); } });
+    const res3 = await call(broken.app, 'POST /api/sesiones/:sessionId/confirm', { params: { sessionId: SESSION }, user: { id: CLIENT } });
+    assert.equal(res3.statusCode, 200, 'un fallo al leer el código no rompe la confirmación');
+    await settle();
+    assert.equal(broken.mail.sent[0].payload.quote_code, quoteRow().quote_id);
 
     // Reintento: ya estaba confirmada → sin segundo correo.
     const again = setup({ confirm: async () => ({ already: true }) });

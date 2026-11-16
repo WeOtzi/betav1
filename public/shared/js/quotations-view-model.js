@@ -123,7 +123,11 @@
         return '';
     }
 
+    // Referencia que se lee en el listado: el código corto que también ve el
+    // cliente (short_code); sin él, el quote_id de siempre.
     function shortRef(quote) {
+        var code = quote && quote.short_code != null ? String(quote.short_code).trim() : '';
+        if (code) return code;
         if (quote && quote.quote_id) return String(quote.quote_id);
         return 'COT-' + String(quote && quote.id != null ? quote.id : '').slice(-4).toUpperCase();
     }

@@ -15,6 +15,10 @@
 // respuesta sigue saliendo por artist_responded_quotation.
 // ===========================================================================
 
+// Código que lee la persona: el corto de la cotización (short_code) y, si la
+// base todavía no lo tiene, el quote_id. El quote_id queda para los enlaces.
+const { visibleCode } = require('../../lib/quote-code');
+
 function text(value, fallback = '') {
     const out = String(value == null ? '' : value).trim();
     return out || fallback;
@@ -33,6 +37,7 @@ const EVENTS = {
         recipient: p => p.client_email || p.recipient_email || null,
         attribs: p => ({
             quote_id: text(p.quote_id),
+            quote_code: text(visibleCode(p)),
             client_name: text(p.client_name),
             artist_name: text(p.artist_name, 'Tu artista'),
             budget_text: text(p.budget_text, 'A confirmar'),
@@ -67,7 +72,7 @@ const EVENTS = {
                 ['Disponibilidad', text(d.availability_note)],
                 ['Estudio o ubicación', text(d.location)],
                 ['Vigencia de la propuesta', text(d.expiry_text)],
-                ['Cotización', text(d.quote_id)]
+                ['Cotización', text(visibleCode(d))]
             ],
             // El servidor manda quotation_url (withLinks); sin ella, el panel del cliente.
             cta: (d, ctx) => ({
