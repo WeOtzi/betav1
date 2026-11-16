@@ -6910,6 +6910,7 @@ app.get('/travel/t/:slug', (req, res) => {
 require('./lib/routes/perfil').register(app, { publicDir: path.join(__dirname, 'public'), startJob: require.main === module });
 
 require('./lib/routes/turnos').register(app, { gcalService, startJob: require.main === module }); // ── turnos ── reservas online
+require('./lib/routes/flash').register(app); // ── flash ── Flash Tattoos: reserva de un flash con precio fijo (lib/flash.js)
 require('./lib/routes/sesiones').register(app, { gcalService }); // ── sesiones ── confirmación del cliente, cambios, ubicación y registro
 
 require('./lib/routes/estudio-registro').register(app, { applicationBase }); // frente estudio-registro: reclamos y bienvenida
