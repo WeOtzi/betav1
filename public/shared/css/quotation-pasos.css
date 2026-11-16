@@ -23,6 +23,10 @@
 
 .qp-style-hint[hidden] { display: none; }
 
+/* Grilla plegada: botón para desplegar el resto del catálogo. */
+.qp-style-more { margin-top: var(--space-6); }
+.qp-style-more[hidden] { display: none; }
+
 .qp-style-badge {
   position: absolute;
   top: var(--space-2);

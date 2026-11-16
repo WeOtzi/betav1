@@ -454,11 +454,15 @@ test('estilos: la grilla se ordena, avisa el motivo, delega el clic y conserva e
     assert.equal(cards()[0].getAttribute('aria-pressed'), 'false');
     assert.ok(!cards()[0].classList.contains('selected'));
 
-    // Portada rota → ícono de respaldo.
-    const img = grid.querySelector('.style-card-img');
+    // Portada rota: la del catálogo cae a la foto propia del estilo y, si también falla, al ícono.
+    assert.equal(grid.querySelectorAll('.style-card-img').length, 3, 'los estilos sin portada usan su foto propia');
+    const img = grid.querySelectorAll('.style-card-img').find((el) => /cdn\.example\.test/.test(el.getAttribute('src')));
     img.dispatchEvent(createEvent('error'));
-    assert.equal(grid.querySelector('.style-card-img'), null);
-    assert.equal(grid.querySelectorAll('.style-card-placeholder').length, 3);
+    assert.equal(img.getAttribute('src'), '/shared/assets/ronda2/registro/estilos/realismo.webp');
+    assert.equal(img.getAttribute('data-fallback'), null);
+    img.dispatchEvent(createEvent('error'));
+    assert.equal(grid.querySelectorAll('.style-card-img').length, 2);
+    assert.equal(grid.querySelectorAll('.style-card-placeholder').length, 1);
 
     // Sin artista: recomendados por la idea.
     ctx.artistStyles = null; ctx.artistName = '';
@@ -620,4 +624,39 @@ test('wizard: borrador del selector anterior y texto del pre-cotizador', () => {
     assert.deepEqual(pre.results, [{ ok: true }]);
     assert.equal(pre.get('formData.tattoo_body_part'), 'Brazo: Antebrazo');
     assert.equal(pre.get('formData.tattoo_body_side'), 'Izquierdo');
+});
+
+test('estilos: con catálogo largo la grilla se pliega y el botón despliega el resto', () => {
+    const { document, window } = page(['quotation-style-model.js', 'quotation-style-step.js']);
+    const block = document.createElement('div');
+    const grid = document.createElement('div');
+    block.appendChild(grid);
+    document.body.appendChild(block);
+    const styles = Array.from({ length: 16 }, (_, i) => ({ id: 'e' + (i + 1), name: 'Estilo ' + (i + 1), slug: 'estilo-' + (i + 1) }));
+    const selected = new Set(['e15']);
+    const ctx = { idea: '', isSelected: (id) => selected.has(id), onToggle: () => {} };
+    window.WoQuotationStyle.render(grid, styles, ctx);
+    const ids = () => grid.querySelectorAll('.style-card[data-style-id]').map((c) => c.getAttribute('data-style-id'));
+    const limit = window.WoQuotationStyle.COLLAPSED_COUNT;
+    assert.equal(limit, 10);
+    assert.deepEqual(ids(), styles.slice(0, limit).map((s) => s.id).concat(['e15']), 'las primeras y, siempre, la elegida');
+    const more = block.querySelector('.qp-style-more');
+    assert.ok(more, 'botón debajo de la grilla');
+    assert.equal(more.textContent, 'Ver los 5 estilos restantes');
+    assert.equal(more.getAttribute('aria-expanded'), 'false');
+    more.click();
+    assert.equal(ids().length, 16);
+    assert.equal(more.textContent, 'Ver menos estilos');
+    assert.equal(more.getAttribute('aria-expanded'), 'true');
+    more.click();
+    assert.equal(ids().length, limit + 1);
+    assert.equal(block.querySelectorAll('.qp-style-more').length, 1, 'no duplica el botón');
+
+    // Catálogo corto: sin botón, todo a la vista.
+    const shortBlock = document.createElement('div');
+    const shortGrid = document.createElement('div');
+    shortBlock.appendChild(shortGrid);
+    document.body.appendChild(shortBlock);
+    window.WoQuotationStyle.render(shortGrid, styles.slice(0, 12), ctx);
+    assert.equal(shortGrid.querySelectorAll('.style-card[data-style-id]').length, 12);
 });

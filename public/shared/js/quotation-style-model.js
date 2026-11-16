@@ -769,7 +769,51 @@
         };
     }
 
+    // Portada de respaldo: fotos propias de los estilos principales
+    // (/shared/assets/ronda2/registro/estilos/<slug>.webp) para los estilos del
+    // catálogo que no tienen cover_image_url. La clave es compactKey(nombre).
+    var COVER_BASE = '/shared/assets/ronda2/registro/estilos/';
+    var COVER_BY_KEY = {
+        realismo: 'realismo', hiperrealismo: 'hiperrealismo', microrealismo: 'microrealismo',
+        fineline: 'fine-line', finelinebotanico: 'fine-line', linework: 'fine-line',
+        blackwork: 'blackwork', ornamentalblackwork: 'blackwork',
+        blackgrey: 'black-and-grey', blackandgrey: 'black-and-grey', blackgray: 'black-and-grey', blackandgray: 'black-and-grey', negroygris: 'black-and-grey',
+        tradicional: 'tradicional-americano', tradicionalamericano: 'tradicional-americano', oldschool: 'tradicional-americano',
+        neotradicional: 'neotradicional',
+        japones: 'tradicional-japones', tradicionaljapones: 'tradicional-japones', irezumi: 'tradicional-japones',
+        neojapones: 'neojapones',
+        tribal: 'tribal', neotribal: 'tribal', polinesio: 'tribal', maori: 'tribal',
+        geometrico: 'geometrico', dotwork: 'dotwork', pointillism: 'dotwork', puntillismo: 'dotwork', mandala: 'dotwork',
+        minimalista: 'minimalista', ornamental: 'ornamental',
+        lettering: 'lettering', caligrafia: 'caligrafia',
+        acuarela: 'acuarela', watercolor: 'acuarela',
+        ilustrativo: 'ilustrativo', ilustracionbotanica: 'ilustrativo', sketch: 'ilustrativo', boceto: 'ilustrativo',
+        surrealismo: 'surrealismo', surrealista: 'surrealismo',
+        abstracto: 'abstracto', abstractbrush: 'abstracto', freehandabstract: 'abstracto',
+        newschool: 'new-school', trashpolka: 'trash-polka', chicano: 'chicano',
+        biomecanico: 'biomecanico', bioorganico: 'bioorganico',
+        anime: 'anime', manga: 'manga', darkart: 'dark-art', horror: 'dark-art',
+        ignorant: 'ignorant-style', ignorantstyle: 'ignorant-style'
+    };
+
+    function coverKey(value) {
+        return compactKey(String(value == null ? '' : value).replace(/\([^)]*\)/g, ' '));
+    }
+
+    // Ruta de la foto de respaldo de un estilo ('' si no hay una que le corresponda).
+    function fallbackCover(name) {
+        var slug = COVER_BY_KEY[coverKey(name)];
+        if (!slug) {
+            // "Sketch / Boceto", "Nordico / Viking": se prueba cada parte del nombre.
+            var parts = String(name == null ? '' : name).split(/[\/,]/);
+            for (var i = 0; i < parts.length && !slug; i++) slug = COVER_BY_KEY[coverKey(parts[i])];
+        }
+        return slug ? COVER_BASE + slug + '.webp' : '';
+    }
+
     return {
+        COVER_BASE: COVER_BASE,
+        fallbackCover: fallbackCover,
         WEIGHTS: WEIGHTS,
         MIN_SCORE: MIN_SCORE,
         DEFAULT_LIMIT: DEFAULT_LIMIT,

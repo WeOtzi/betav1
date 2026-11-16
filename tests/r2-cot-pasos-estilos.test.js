@@ -371,7 +371,12 @@ test('front: tarjetas con insignia "Artista" / "Recomendado", check y datos esca
     assert.match(rec, /aria-pressed="false"/);
     assert.match(rec, /<button type="button" class="style-card" data-style-id="id-2"/, 'sin elegir no lleva la clase selected');
     assert.match(read('public', 'shared', 'css', 'quotation-pasos.css'), /\.style-card:not\(\.selected\) \.style-check \{ display: none; \}/);
-    assert.match(rec, /style-card-placeholder/);
+    // Sin portada en el catálogo: usa la foto propia del estilo; sin foto propia, el ícono.
+    assert.match(rec, /<img src="\/shared\/assets\/ronda2\/registro\/estilos\/tradicional-japones\.webp" alt="" class="style-card-img" loading="lazy">/);
+    assert.match(artist, /src="https:\/\/cdn\.example\.test\/r\.jpg"[^>]* data-fallback="\/shared\/assets\/ronda2\/registro\/estilos\/realismo\.webp"/, 'portada del catálogo con respaldo propio');
+    const bare = step.cardHtml({ style: { id: 'id-9', name: 'Estilo sin foto' }, badge: null, matches: [] }, false);
+    assert.match(bare, /style-card-placeholder/);
+    assert.doesNotMatch(bare, /<img/);
 
     const hostile = step.cardHtml({ style: { id: '"><img src=x onerror=alert(1)>', name: '<b>Hack</b>', cover_image_url: 'javascript:alert(1)' }, badge: null, matches: [] }, false);
     assert.doesNotMatch(hostile, /<b>Hack<\/b>|<img src=x|javascript:/);
@@ -408,4 +413,20 @@ test('script.js delega la grilla y usa el mismo criterio para el aviso de estilo
     assert.ok(at('/shared/js/quotation-style-model.js') < at('/shared/js/quotation-style-step.js'));
     assert.ok(at('/shared/js/quotation-style-step.js') < at('/shared/js/script.js'));
     assert.ok(at('/shared/css/quotation-ds.css') < at('/shared/css/quotation-pasos.css'));
+});
+
+test('portadas de respaldo: cada estilo del catálogo cae en una foto que existe', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const cases = {
+        'Japonés': 'tradicional-japones', 'Black & Grey': 'black-and-grey', 'Fine Line': 'fine-line', 'Neo-Tradicional': 'neotradicional',
+        'Tradicional': 'tradicional-americano', 'Surrealista': 'surrealismo', 'Mandala': 'dotwork', 'Neotribal (Neo Tribal)': 'tribal',
+        'Sketch / Boceto': 'ilustrativo', 'Ignorant': 'ignorant-style', 'Acuarela': 'acuarela', 'Dark Art': 'dark-art', 'TRASH POLKA': 'trash-polka'
+    };
+    for (const [name, slug] of Object.entries(cases)) {
+        const cover = Model.fallbackCover(name);
+        assert.equal(cover, '/shared/assets/ronda2/registro/estilos/' + slug + '.webp', name);
+        assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', cover)), 'existe ' + cover);
+    }
+    for (const name of ['Floral', 'Pixel Art', 'Art Deco', '', null, undefined]) assert.equal(Model.fallbackCover(name), '', String(name));
 });
