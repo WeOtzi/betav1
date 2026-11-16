@@ -923,6 +923,31 @@
         for (var i = 0; i < hosts.length; i++) mountSettings(hosts[i]);
     }
 
+    /* --------------------- matriz de avisos: se prendió un toggle "Push" --------------------- */
+    function announceEnable(result) {
+        if (result.ok) present({ title: 'Avisos activados', body: result.push ? 'Este dispositivo ya recibe los avisos de We Ötzi.' : 'Verás los avisos mientras tengas We Ötzi abierto.', tag: 'push-enabled' }, { local: true });
+        else if (result.reason === 'denied') present({ title: 'El navegador bloqueó los avisos', body: 'Puedes permitirlos desde la configuración de tu navegador.', tag: 'push-denied' }, { local: true, silent: true });
+    }
+    // La matriz (cuenta del cliente) emite 'wo:notif-pref-changed' al guardar un
+    // toggle. Si prende uno de Push y este dispositivo no está suscripto, se
+    // suscribe ahí mismo: el evento nace de un clic, así que el navegador deja
+    // pedir el permiso. Si no, quedaría "Push" encendido sin ningún dispositivo.
+    // No pisa lo que la persona eligió para este dispositivo (bloqueado o apagado).
+    function onPrefChanged(event) {
+        var detail = (event && event.detail) || {};
+        if (detail.channel !== 'push' || detail.value !== true) return;
+        status().then(function (s) {
+            if (!s.signedIn || !s.supported || !s.serverEnabled || s.subscribed) return undefined;
+            if (s.permission === 'denied') { announceEnable({ ok: false, reason: 'denied' }); return undefined; }
+            if (s.off) {
+                present({ title: 'Los avisos están apagados en este dispositivo', body: 'Actívalos en "Avisos en este dispositivo" para recibirlos aquí.', tag: 'push-off' }, { local: true, silent: true });
+                return undefined;
+            }
+            unlockAudio();
+            return enablePush().then(announceEnable);
+        }).catch(function (error) { warn('preferencia de push', error); });
+    }
+
     /* --------------------- invitación a activar los avisos (dashboards) --------------------- */
     function maybePrompt() {
         var path = ((window.location && window.location.pathname) || '').replace(/\/+$/, '');
@@ -947,10 +972,7 @@
                                 snooze();
                                 removeToast(entry);
                                 unlockAudio();
-                                enablePush().then(function (result) {
-                                    if (result.ok) present({ title: 'Avisos activados', body: result.push ? 'Este dispositivo ya recibe los avisos de We Ötzi.' : 'Verás los avisos mientras tengas We Ötzi abierto.', tag: 'push-enabled' }, { local: true });
-                                    else if (result.reason === 'denied') present({ title: 'El navegador bloqueó los avisos', body: 'Puedes permitirlos desde la configuración de tu navegador.', tag: 'push-denied' }, { local: true, silent: true });
-                                });
+                                enablePush().then(announceEnable);
                             }
                         },
                         { label: 'Ahora no', run: function () { snooze(); removeToast(entry); } }
@@ -1039,6 +1061,7 @@
     function init() {
         document.addEventListener('pointerdown', unlockAudio, { passive: true });
         document.addEventListener('keydown', unlockAudio);
+        document.addEventListener('wo:notif-pref-changed', onPrefChanged);
         if (navigator.serviceWorker && typeof navigator.serviceWorker.addEventListener === 'function') {
             navigator.serviceWorker.addEventListener('message', function (event) {
                 var data = event && event.data;

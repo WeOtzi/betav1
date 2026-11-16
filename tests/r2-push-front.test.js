@@ -322,6 +322,87 @@ test('el permiso de notificaciones se pide SOLO desde "Activar avisos", nunca al
     assert.doesNotMatch(src.slice(src.indexOf('function syncPush('), src.indexOf('function enablePush()')), /requestPermission/);
 });
 
+// CF-11: la matriz de la cuenta emite 'wo:notif-pref-changed' al guardar un toggle; antes nadie
+// lo escuchaba y "Push" quedaba encendido sin ningún dispositivo suscripto.
+test('CF-11: prender un toggle "Push" de la matriz suscribe este dispositivo; email o apagar, no', async () => {
+    const USER = '11111111-1111-4111-8111-111111111111';
+    const change = (b, detail) => b.document.dispatchEvent({ type: 'wo:notif-pref-changed', detail: Object.assign({ role: 'client', kind: 'mensajes' }, detail) });
+    const titles = (b) => toasts(b).map(t => t.textContent);
+
+    const b = browser({ push: true, session: USER, pathname: '/client/profile' });
+    await tick(40);
+    assert.equal(b.permissionRequests.length, 0, 'cargar la página no pide permiso');
+    change(b, { channel: 'email', value: true });
+    change(b, { channel: 'push', value: false });
+    change(b, { channel: 'sms', value: true });
+    await tick(40);
+    assert.equal(b.permissionRequests.length, 0, 'solo cuenta prender Push');
+    assert.equal(b.server.subscribed.length, 0);
+
+    change(b, { channel: 'push', value: true });
+    await tick(60);
+    assert.equal(b.permissionRequests.length, 1, 'el clic sobre el toggle dispara el pedido de permiso');
+    assert.equal(b.server.subscribed.length, 1, 'y el dispositivo queda registrado en el servidor');
+    assert.equal((await b.window.WoNotify.status()).subscribed, true);
+    assert.ok(titles(b).some(t => /Avisos activados/.test(t)));
+
+    change(b, { kind: 'cotizaciones', channel: 'push', value: true });
+    await tick(60);
+    assert.equal(b.permissionRequests.length, 1, 'con el dispositivo ya suscripto no se repite');
+    assert.equal(b.server.subscribed.length, 1);
+
+    // Permiso bloqueado en el navegador: no se pide de nuevo, se explica.
+    const denied = browser({ push: true, session: USER, permission: 'denied', pathname: '/client/profile' });
+    await tick(40);
+    change(denied, { channel: 'push', value: true });
+    await tick(60);
+    assert.equal(denied.permissionRequests.length, 0);
+    assert.equal(denied.server.subscribed.length, 0);
+    assert.ok(titles(denied).some(t => /El navegador bloqueó los avisos/.test(t)));
+
+    // "Desactivar en este dispositivo" es una elección de la persona: el toggle no la pisa.
+    const off = browser({ push: true, session: USER, permission: 'granted', pathname: '/client/profile', local: new Map([['wo_notify_push_off', '1']]) });
+    await tick(40);
+    change(off, { channel: 'push', value: true });
+    await tick(60);
+    assert.equal(off.permissionRequests.length, 0);
+    assert.equal(off.server.subscribed.length, 0);
+    assert.equal(off.local.get('wo_notify_push_off'), '1');
+    assert.ok(titles(off).some(t => /apagados en este dispositivo/.test(t)));
+
+    // Sin soporte de push o sin sesión no hay nada que suscribir.
+    const unsupported = browser({ push: false, session: USER, pathname: '/client/profile' });
+    await tick(40);
+    change(unsupported, { channel: 'push', value: true });
+    await tick(60);
+    assert.equal(unsupported.permissionRequests.length, 0);
+    const anon = browser({ push: true, pathname: '/client/profile' });
+    change(anon, { channel: 'push', value: true });
+    await tick(60);
+    assert.equal(anon.permissionRequests.length, 0);
+
+    // El emisor sigue siendo la matriz del cliente, después de guardar.
+    assert.match(read('public', 'shared', 'js', 'client-profile.js'), /new CustomEvent\('wo:notif-pref-changed', \{\s*detail: \{ role: 'client', kind, channel, value \}/);
+});
+
+test('CF-11: el registro del cliente ya no dice que el push es "Próximamente" ni lo guarda apagado', () => {
+    const html = read('public', 'client', 'register', 'index.html');
+    assert.match(html, /<input type="checkbox" id="cw-notif-push" checked>/);
+    assert.doesNotMatch(html, /Próximamente|próximamente/);
+    assert.doesNotMatch(html, /push: false, \/\/ sin backend de push/);
+    assert.match(html, /bindToggle\('cw-notif-push', 'notifPush'\);/);
+    // Apagado se guarda por evento (formato de la matriz); prendido no escribe la clave.
+    assert.match(html, /if \(state\.notifPush === false\) \{\s*\['postulaciones', 'mensajes', 'cotizaciones'\]\.forEach\(function \(kind\) \{ notifPrefs\[kind\] = \{ push: false \}; \}\);/);
+    const prefs = require('../lib/notification-prefs');
+    assert.deepEqual(Object.keys(prefs.CLIENT_NOTIF_DEFAULTS), ['postulaciones', 'mensajes', 'cotizaciones']);
+    const client = { defaults: prefs.CLIENT_NOTIF_DEFAULTS };
+    assert.equal(prefs.resolvePreference({ email_updates: true }, 'mensajes', 'push', client), true, 'sin la clave vale el valor por defecto');
+    assert.equal(prefs.resolvePreference({ mensajes: { push: false } }, 'mensajes', 'push', client), false);
+    assert.equal(prefs.resolvePreference({ mensajes: { push: false } }, 'mensajes', 'email', client), true, 'apagar push no toca el email');
+    // El formato plano viejo (push:false fijo de todos los registros anteriores) no apaga nada.
+    assert.equal(prefs.resolvePreference({ push: false }, 'cotizaciones', 'push', client), true);
+});
+
 // EP-04: si el servidor perdió la suscripción, el navegador la repone al próximo ingreso
 // (antes esperaba 3 días, con la tarjeta diciendo que los avisos seguían activos).
 test('la suscripción se reenvía una vez por pestaña aunque el marcador de 3 días esté vigente', async () => {

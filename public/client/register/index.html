@@ -228,13 +228,13 @@
                             <span class="knob"></span>
                         </label>
                     </li>
-                    <li class="is-disabled">
+                    <li>
                         <div>
-                            <p class="cw-notif-title">Notificaciones push <span class="wo-tag wo-tag--soft">Próximamente</span></p>
-                            <p class="cw-notif-desc">Avisos en tiempo real cuando alguien te responde.</p>
+                            <p class="cw-notif-title">Notificaciones push</p>
+                            <p class="cw-notif-desc">Avisos en tiempo real cuando alguien te responde. Al entrar a tu panel puedes activarlos en tu dispositivo.</p>
                         </div>
-                        <label class="wo-toggle" aria-label="Notificaciones push (próximamente)">
-                            <input type="checkbox" id="cw-notif-push" disabled>
+                        <label class="wo-toggle" aria-label="Notificaciones push">
+                            <input type="checkbox" id="cw-notif-push" checked>
                             <span class="knob"></span>
                         </label>
                     </li>
@@ -421,7 +421,7 @@
             maxStep: 1,
             firstName: '', lastName: '', email: '', username: '',
             country: '', city: '',
-            notifEmail: true, notifWhatsapp: false, notifDiscovery: false,
+            notifEmail: true, notifPush: true, notifWhatsapp: false, notifDiscovery: false,
             termsAccepted: false,
             styles: [], intent: '', artistChoice: '',
             artistUserId: null, artistLabel: ''
@@ -468,7 +468,8 @@
                     firstName: state.firstName, lastName: state.lastName,
                     email: state.email, username: state.username,
                     country: state.country, city: state.city,
-                    notifEmail: state.notifEmail, notifWhatsapp: state.notifWhatsapp,
+                    notifEmail: state.notifEmail, notifPush: state.notifPush,
+                    notifWhatsapp: state.notifWhatsapp,
                     notifDiscovery: state.notifDiscovery,
                     termsAccepted: state.termsAccepted,
                     styles: state.styles, intent: state.intent,
@@ -492,7 +493,7 @@
                  'intent', 'artistChoice', 'artistUserId', 'artistLabel'].forEach(function (k) {
                     if (d[k] !== undefined && d[k] !== null) state[k] = d[k];
                 });
-                ['notifEmail', 'notifWhatsapp', 'notifDiscovery', 'termsAccepted'].forEach(function (k) {
+                ['notifEmail', 'notifPush', 'notifWhatsapp', 'notifDiscovery', 'termsAccepted'].forEach(function (k) {
                     if (typeof d[k] === 'boolean') state[k] = d[k];
                 });
                 if (Array.isArray(d.styles)) state.styles = d.styles;
@@ -900,13 +901,19 @@
             var photoUrl = await uploadPhoto(uid);
 
             // Preferencias de aviso (user_preferences.notification_prefs).
+            // Push: prendido no escribe nada (vale el valor por defecto del servidor,
+            // lib/notification-prefs.js). Apagado se guarda por evento, en el mismo
+            // formato de la matriz de /client/profile#notificaciones.
             try {
-                await WeotziData.Prefs.saveSection(uid, 'notification_prefs', {
+                var notifPrefs = {
                     email_updates: state.notifEmail,
-                    push: false, // sin backend de push (Omitidos v1)
                     whatsapp_session_confirmations: state.notifWhatsapp,
                     weekly_discovery: state.notifDiscovery
-                });
+                };
+                if (state.notifPush === false) {
+                    ['postulaciones', 'mensajes', 'cotizaciones'].forEach(function (kind) { notifPrefs[kind] = { push: false }; });
+                }
+                await WeotziData.Prefs.saveSection(uid, 'notification_prefs', notifPrefs);
             } catch (e) { console.warn('No se pudieron guardar las preferencias de aviso:', e); }
 
             // Patch de clients_db (foto y ciudad, best-effort).
@@ -1189,6 +1196,7 @@
                 scheduleSave();
             });
             bindToggle('cw-notif-email', 'notifEmail');
+            bindToggle('cw-notif-push', 'notifPush');
             bindToggle('cw-notif-whatsapp', 'notifWhatsapp');
             bindToggle('cw-notif-discovery', 'notifDiscovery');
             bindToggle('cw-terms', 'termsAccepted');
