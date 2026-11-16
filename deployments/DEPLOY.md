@@ -398,6 +398,42 @@ no se rompe.
 - Una cotización rechazada por el cliente no deja escribir en el chat a ninguna
   de las dos partes.
 
+### Contacto del cliente y verificación (P20, REQ-11) — decisión del dueño antes de publicar
+
+Desde esta ronda el email, WhatsApp e Instagram del cliente los ve solo el tatuador
+con `verification_state = 'Yes'` (o en una cotización manual suya). Al 2026-11-16 en
+la base viva **no hay ningún tatuador verificado**: 125 en `No`, 1 en `Requested`, 0 en
+`Yes`. Con el código puesto, todos los artistas dejan de ver el contacto.
+
+El caso que más duele son las cotizaciones de clientes **sin cuenta**: ahí tampoco hay
+chat (se habilita cuando el cliente crea su cuenta), así que el artista se queda sin
+ninguna vía. Hoy son 9 activas con artista asignado (6 `pending`, 2 `responded`,
+1 `en_progreso`). El candado ya lo dice ("tu propuesta le llega por correo y el chat
+se habilita cuando la cree"), pero no reemplaza la decisión.
+
+Antes del deploy, elegir una:
+
+1. **Verificar desde soporte** (`/support/dashboard` → Verificación) a los artistas
+   activos; como mínimo a los que tienen cotizaciones en curso (hoy son 6 artistas
+   con 13 cotizaciones activas):
+
+   ```sql
+   select a.user_id, a.username, a.verification_state, count(*) as cotizaciones_activas,
+          count(*) filter (where q.client_user_id is null) as de_invitados
+     from public.quotations_db q
+     join public.artists_db a on a.user_id = q.artist_id
+    where q.quote_status in ('pending', 'responded', 'client_approved', 'en_progreso')
+    group by 1, 2, 3
+    order by de_invitados desc, cotizaciones_activas desc;
+   ```
+
+2. **Regla de transición con fecha**: tratar como verificados a los artistas con
+   cotizaciones activas hasta que soporte los revise. No está implementada: es un
+   cambio en `contactAccess` (`lib/cot-detalle.js`) y hay que pedirlo antes de publicar.
+
+**Comprobar** después: con un artista verificado, el expediente muestra el contacto;
+con uno sin verificar y un cliente sin cuenta, el candado no menciona el chat.
+
 ### Limpieza de `session_logs` (SEG-03)
 
 El registro de sesión del navegador guardaba la dirección completa. En la base

@@ -448,6 +448,25 @@ test('detalle: sin verificación el contacto NO sale de la fila; aviso y CTA a v
     const requested = loadInfoModule({ info: { ...info, contact: { ...info.contact, verification_state: 'Requested' } } });
     const html2 = (await requested.fire({ quote: ROW, stage: 'pending', readOnly: false }))['qd-client-info-slot'].innerHTML;
     assert.match(html2, /Tu verificación está en revisión/);
+
+    // REQ-11: el cliente de ROW no tiene cuenta, así que no hay chat al que mandarlo.
+    const GUEST = /Este cliente todavía no tiene cuenta: tu propuesta le llega por correo y el chat se habilita cuando la cree\./;
+    const CHAT = /Mientras tanto, escríbele por el chat de la cotización\./;
+    for (const guestHtml of [html, html2]) {
+        assert.match(guestHtml, GUEST);
+        assert.doesNotMatch(guestHtml, CHAT, 'sin cuenta no se lo manda a un chat que no existe');
+    }
+    // Con cuenta el chat existe: queda el texto de siempre, en las dos variantes.
+    for (const state of ['No', 'Requested']) {
+        const withAccount = loadInfoModule({ info: { ...info, contact: { ...info.contact, verification_state: state }, client: { registered: true } } });
+        const accountHtml = (await withAccount.fire({ quote: { ...ROW, client_user_id: 'c-1' }, stage: 'pending', readOnly: false }))['qd-client-info-slot'].innerHTML;
+        assert.match(accountHtml, CHAT, state);
+        assert.doesNotMatch(accountHtml, GUEST, state);
+    }
+    // Una respuesta sin el dato (servidor anterior) conserva el texto de siempre.
+    const legacy = loadInfoModule({ info: { ...info, client: undefined } });
+    assert.match((await legacy.fire({ quote: ROW, stage: 'pending', readOnly: false }))['qd-client-info-slot'].innerHTML, CHAT);
+    assert.match(read('public/my-quotations/detail/index.html'), /\/shared\/js\/quotation-detail-info\.js\?v=20261116-r2b"/);
     assert.match(html2, /Ver estado de la verificación/);
 });
 

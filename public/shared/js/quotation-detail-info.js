@@ -143,11 +143,17 @@
                     'El cliente rechazó esta cotización: sus datos de contacto ya no se muestran.');
             }
             var requested = contact.verification_state === 'Requested';
+            // El chat de la cotización solo existe cuando el cliente tiene cuenta:
+            // a un invitado no se lo puede mandar a un chat que no está.
+            var guest = !!cache.info.client && cache.info.client.registered === false;
+            var meanwhile = guest
+                ? 'Este cliente todavía no tiene cuenta: tu propuesta le llega por correo y el chat se habilita cuando la cree.'
+                : 'Mientras tanto, escríbele por el chat de la cotización.';
             return lockedHtml(
                 requested ? 'Tu verificación está en revisión' : 'Verifica tu perfil para ver el contacto',
-                requested
-                    ? 'Cuando aprobemos tu perfil verás aquí el email, WhatsApp e Instagram del cliente. Mientras tanto, escríbele por el chat de la cotización.'
-                    : 'El email, WhatsApp e Instagram del cliente se muestran solo a tatuadores con el perfil verificado. Mientras tanto, escríbele por el chat de la cotización.',
+                (requested
+                    ? 'Cuando aprobemos tu perfil verás aquí el email, WhatsApp e Instagram del cliente. '
+                    : 'El email, WhatsApp e Instagram del cliente se muestran solo a tatuadores con el perfil verificado. ') + meanwhile,
                 '<a class="qd-btn qd-btn--accent" href="' + esc(appUrl('/artist/account#verificacion')) + '">'
                     + (requested ? 'Ver estado de la verificación' : 'Verificar mi perfil') + '</a>');
         }
