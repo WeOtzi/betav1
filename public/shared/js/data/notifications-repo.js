@@ -45,14 +45,33 @@
 
     const Notifications = {
         // Avisos recientes del usuario (los más nuevos primero).
-        async listRecent(userId, { since = null, limit = 20, unreadOnly = false } = {}) {
+        // role / eventIds acotan la lectura en la base (los mensajes de un chat
+        // activo no desplazan del límite a los demás avisos).
+        async listRecent(userId, { since = null, limit = 20, unreadOnly = false, role = null, eventIds = null } = {}) {
             const { data } = await D.run('notifications.listRecent', (c) => {
                 let q = c.from('user_notifications').select(COLUMNS).eq('user_id', userId);
                 if (since) q = q.gte('created_at', since);
                 if (unreadOnly) q = q.is('read_at', null);
+                if (role) q = q.eq('role', role);
+                if (Array.isArray(eventIds) && eventIds.length) q = q.in('event_id', eventIds);
                 return q.order('created_at', { ascending: false }).limit(limit);
             });
             return data || [];
+        },
+
+        // Avisos guardados de un rol para una lista de eventos (campana del
+        // artista y "Tu actividad" del cliente; el mapeo a ítems vive en
+        // notification-feed-model.js). Sin la tabla (migración pendiente)
+        // devuelve [] en silencio.
+        async listStored(userId, { role = null, eventIds = [], days = 14, limit = 20 } = {}) {
+            if (!userId || !Array.isArray(eventIds) || !eventIds.length) return [];
+            const since = new Date(Date.now() - Math.max(1, Number(days) || 14) * 86400000).toISOString();
+            try {
+                return await Notifications.listRecent(userId, { since, limit, role, eventIds });
+            } catch (error) {
+                if (error && /^(42P01|PGRST205)$/.test(String(error.code || ''))) return [];
+                throw error;
+            }
         },
 
         async markRead(id) {

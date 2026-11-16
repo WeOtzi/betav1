@@ -640,6 +640,49 @@ function loadFeedModel() {
     return feedModelPromise;
 }
 
+// EP-08: contrapropuestas, cambios al acuerdo y novedades de sesiones solo
+// existían como un aviso de 9 segundos. "Tu actividad" las toma de los avisos
+// que el servidor ya guarda (user_notifications, RLS de dueño). El repositorio
+// lo carga wo-notify.js; si todavía no llegó, se pide acá. Sin él, o sin la
+// tabla, la actividad se muestra igual con el resto de las filas.
+let noticesRepoPromise = null;
+function loadNoticesRepo() {
+    const ready = () => {
+        const repo = typeof WeotziData !== 'undefined' && WeotziData ? WeotziData.Notifications : null;
+        return repo && typeof repo.listStored === 'function' ? repo : null;
+    };
+    if (ready()) return Promise.resolve(ready());
+    if (!noticesRepoPromise) {
+        noticesRepoPromise = new Promise((resolve) => {
+            try {
+                const script = document.createElement('script');
+                script.src = '/shared/js/data/notifications-repo.js';
+                script.onload = () => resolve(ready());
+                script.onerror = () => resolve(null);
+                document.head.appendChild(script);
+            } catch (_) {
+                resolve(null);
+            }
+        });
+    }
+    return noticesRepoPromise;
+}
+
+async function storedNoticeEvents(feedModel) {
+    if (!feedModel || typeof feedModel.clientNoticeEvents !== 'function' || !currentClient || !currentClient.user_id) return [];
+    try {
+        const repo = await loadNoticesRepo();
+        if (!repo) return [];
+        const stored = await repo.listStored(currentClient.user_id, {
+            role: 'client', eventIds: feedModel.STORED_NOTICE_EVENTS.client, days: feedModel.STORED_NOTICE_DAYS, limit: 12
+        });
+        return feedModel.clientNoticeEvents(stored);
+    } catch (error) {
+        console.warn('No pudimos cargar los avisos guardados:', error && error.message);
+        return [];
+    }
+}
+
 async function loadActivityFeed() {
     const container = document.getElementById('activity-feed');
     if (!container) return;
@@ -715,6 +758,9 @@ async function loadActivityFeed() {
             });
         }
 
+        // EP-08: negociación y sesiones (avisos guardados), aunque no haya cotizaciones cargadas.
+        (await storedNoticeEvents(feedModel)).forEach(event => events.push(event));
+
         // Postulaciones recibidas en el job board
         jbRequests.forEach(req => {
             (req.job_board_applications || []).forEach(app => {
@@ -757,7 +803,7 @@ function renderActivityFeed(events) {
             <span class="client-feed-text">${escapeFeedHtml(row.text)}</span>
             <span class="client-feed-time">${escapeFeedHtml(formatRelative(row.at))}</span>`;
         if (!href) return `<div class="client-feed-row">${inner}</div>`;
-        return `<a class="client-feed-row" href="${escapeFeedHtml(href)}"${row.quoteId ? ` data-feed-quote="${escapeFeedHtml(row.quoteId)}" data-feed-ver="${escapeFeedHtml(row.ver || '')}"` : ''}>${inner}
+        return `<a class="client-feed-row" href="${escapeFeedHtml(href)}"${row.quoteId ? ` data-feed-quote="${escapeFeedHtml(row.quoteId)}" data-feed-ver="${escapeFeedHtml(row.ver || '')}"` : ''}${row.noticeId ? ` data-feed-notice="${escapeFeedHtml(row.noticeId)}"` : ''}>${inner}
             <span class="client-feed-go" aria-hidden="true"><i data-wo-icon="arrow-right"></i></span></a>`;
     }).join('');
     if (window.WoIcons && typeof window.WoIcons.hydrate === 'function') window.WoIcons.hydrate(container);
@@ -767,6 +813,14 @@ function renderActivityFeed(events) {
     if (container.dataset && !container.dataset.feedLinksBound && typeof container.addEventListener === 'function') {
         container.dataset.feedLinksBound = '1';
         container.addEventListener('click', (event) => {
+            // EP-08: abrir un aviso guardado lo marca leído (mejor esfuerzo; no frena el enlace).
+            const notice = event.target && event.target.closest ? event.target.closest('a[data-feed-notice]') : null;
+            if (notice) {
+                try {
+                    const repo = typeof WeotziData !== 'undefined' && WeotziData ? WeotziData.Notifications : null;
+                    if (repo && typeof repo.markRead === 'function') Promise.resolve(repo.markRead(notice.dataset.feedNotice)).catch(() => {});
+                } catch (_) { /* nunca rompe la navegación */ }
+            }
             const row = event.target && event.target.closest ? event.target.closest('a[data-feed-quote]') : null;
             if (!row || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             const quoteId = row.dataset.feedQuote;

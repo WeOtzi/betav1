@@ -841,3 +841,181 @@ test('P26: sin el modelo de destinos, la actividad se muestra igual (sin enlaces
     await vm.runInContext('loadActivityFeed()', context);
     assert.match(feed.innerHTML, /<a class="client-feed-row" href="\/client\/dashboard\?quote=WO-1&amp;ver=propuesta" data-feed-quote="WO-1" data-feed-ver="propuesta">/);
 });
+
+// ---------------------------------------------------------------- EP-08 · avisos guardados en la campana y en "Tu actividad"
+const NOTICE_ROWS = () => [
+    { id: 'n1', role: 'artist', event_id: 'negotiation_counter_proposed', title: '  Lucía propone cambios\n a tu propuesta AB23CD ', body: 'Revisa <b>los</b> cambios', url: '/my-quotations/detail?quote=WO-1&ver=propuesta', created_at: '2026-11-16T10:00:00Z', read_at: null },
+    { id: 'n2', role: 'artist', event_id: 'chat_message_to_artist', title: 'Nuevo mensaje', url: '/artist/inbox?quote=WO-1', created_at: '2026-11-16T10:01:00Z', read_at: null },
+    { id: 'n3', role: 'artist', event_id: 'session_change_requested', title: 'Lucía pidió cambiar la sesión', url: 'https://evil.example/x', created_at: '2026-11-16T10:02:00Z', read_at: '2026-11-16T10:03:00Z' },
+    { id: 'n4', role: 'client', event_id: 'negotiation_amendment_proposed', title: 'Mateo propone un cambio al acuerdo', url: '/client/dashboard?quote=WO-1&ver=acuerdo', created_at: '2026-11-16T10:04:00Z', read_at: null },
+    { id: 'n5', role: 'client', event_id: 'session_confirmation_requested', title: 'Confirma tu sesión con Mateo', url: '/client/dashboard?session=44444444-4444-4444-8444-444444444444#mis-sesiones', created_at: '2026-11-16T10:05:00Z', read_at: null },
+    { id: 'n6', role: 'client', event_id: 'artist_responded_quotation', title: 'Mateo respondió', url: '/client/dashboard?quote=WO-1', created_at: '2026-11-16T10:06:00Z', read_at: null },
+    { id: 'n7', role: 'artist', event_id: 'session_dispute_opened', title: '   ', url: '/my-quotations/detail?quote=WO-1', created_at: '2026-11-16T10:07:00Z' },
+    { id: 'n1', role: 'artist', event_id: 'negotiation_counter_proposed', title: 'Repetida', url: '/my-quotations', created_at: '2026-11-16T10:08:00Z' }
+];
+
+test('EP-08: una fila de user_notifications se vuelve un ítem con destino interno; lo que ya tiene fila propia se descarta', () => {
+    const items = FM.storedNoticeItems(NOTICE_ROWS(), 'artist');
+    assert.deepEqual(items.map((i) => i.key), ['ntf:n1', 'ntf:n3'], 'ni el mensaje (ya tiene su ítem), ni lo del cliente, ni la fila sin título, ni la repetida');
+    assert.deepEqual(items[0], {
+        key: 'ntf:n1', id: 'n1', type: 'aviso', eventId: 'negotiation_counter_proposed', icon: 'inbox',
+        title: 'Lucía propone cambios a tu propuesta AB23CD', desc: 'Revisa <b>los</b> cambios',
+        ts: '2026-11-16T10:00:00Z', unread: true, href: '/my-quotations/detail?quote=WO-1&ver=propuesta'
+    });
+    // Sesiones con su ícono; un destino externo nunca es enlace; leído en la base = leído.
+    assert.deepEqual([items[1].icon, items[1].href, items[1].unread], ['calendar', null, false]);
+    // Leído desde la campana (user_notification_reads) aunque la fila siga sin read_at.
+    assert.equal(FM.storedNoticeItems(NOTICE_ROWS(), 'artist', { seen: new Set(['ntf:n1']) })[0].unread, false);
+    // Acepta la respuesta de la capa de datos ({ data }) y entradas vacías.
+    assert.equal(FM.storedNoticeItems({ data: NOTICE_ROWS() }, 'artist').length, 2);
+    assert.deepEqual(FM.storedNoticeItems(null, 'artist'), []);
+    assert.deepEqual(FM.storedNoticeItems(NOTICE_ROWS(), 'studio'), []);
+
+    // Las listas: negociación y sesiones, por rol. Nada que ya se derive de otra tabla.
+    const { artist, client } = FM.STORED_NOTICE_EVENTS;
+    for (const id of ['negotiation_counter_proposed', 'negotiation_amendment_proposed', 'negotiation_amendment_accepted', 'negotiation_amendment_rejected',
+        'negotiation_proposal_withdrawn', 'session_confirmed_by_client', 'session_change_requested', 'session_change_resolved', 'session_dispute_opened', 'session_feedback_received']) {
+        assert.ok(artist.includes(id), `artista: ${id}`);
+    }
+    for (const id of ['artist_updated_quotation_proposal', 'negotiation_counter_accepted', 'negotiation_counter_declined', 'negotiation_amendment_proposed',
+        'negotiation_amendment_accepted', 'negotiation_amendment_rejected', 'negotiation_proposal_withdrawn', 'session_confirmation_requested',
+        'session_change_requested', 'session_change_resolved', 'session_no_show', 'session_feedback_received']) {
+        assert.ok(client.includes(id), `cliente: ${id}`);
+    }
+    for (const id of [...artist, ...client]) {
+        assert.doesNotMatch(id, /^chat_|^inbox_|_message|^client_quotation_submitted$|^artist_responded_quotation$|^quotation_expired$|reminder/, `${id} ya tiene su ítem`);
+    }
+    // Cada evento de las listas existe y el servidor lo guarda como aviso para ese rol.
+    const dispatch = require('../lib/push-dispatch');
+    for (const [role, ids] of Object.entries(FM.STORED_NOTICE_EVENTS)) {
+        for (const id of ids) assert.equal(dispatch.isPushEvent(id, role), true, `${id} → ${role}`);
+    }
+    assert.equal(FM.STORED_NOTICE_DAYS, 14);
+});
+
+test('EP-08: "Tu actividad" del cliente arma sus filas desde los avisos guardados', () => {
+    const events = FM.clientNoticeEvents(NOTICE_ROWS());
+    assert.deepEqual(events, [
+        { at: '2026-11-16T10:04:00Z', icon: 'message-square', text: 'Mateo propone un cambio al acuerdo', key: 'ntf:n4',
+            href: '/client/dashboard?quote=WO-1&ver=acuerdo', quoteId: 'WO-1', ver: 'acuerdo', noticeId: 'n4' },
+        // La sesión se abre en "Mis sesiones": enlace normal, no el detalle en la misma página.
+        { at: '2026-11-16T10:05:00Z', icon: 'calendar', text: 'Confirma tu sesión con Mateo', key: 'ntf:n5',
+            href: '/client/dashboard?session=44444444-4444-4444-8444-444444444444#mis-sesiones', quoteId: '', ver: '', noticeId: 'n5' }
+    ]);
+    assert.deepEqual(FM.clientQuoteTarget('/client/dashboard?quote=WO%201&ver=propuesta'), { quoteId: 'WO 1', ver: 'propuesta' });
+    assert.deepEqual(FM.clientQuoteTarget('/client/dashboard?quote=WO-1&ver=inventada'), { quoteId: 'WO-1', ver: '' });
+    for (const href of ['/client/dashboard?quote=WO-1&session=1', '/client/dashboard?quote=WO-1#mis-sesiones', '/client/chats?quote=WO-1', '/client/dashboard', null]) {
+        assert.deepEqual(FM.clientQuoteTarget(href), { quoteId: '', ver: '' }, String(href));
+    }
+});
+
+test('EP-08: "Tu actividad" muestra los avisos guardados como enlaces, y sigue igual si no se pueden leer', async () => {
+    const { context, feed } = clientDashboard();
+    context.window.WoNotificationFeedModel = FM;
+    const asked = [];
+    context.notices = NOTICE_ROWS().map((row) => ({ ...row, created_at: new Date().toISOString() }));
+    context.asked = asked;
+    vm.runInContext(`
+        feedModelPromise = null;
+        currentClient = { user_id: 'client-1', email: 'lucia@example.com' };
+        currentQuotations = [{ id: 1, quote_id: 'WO-1', artist_name: 'Mateo' }];
+        jbRequests = [];
+        WeotziData.from = function () {
+            var q = { select: function () { return q; }, in: function () { return q; }, eq: function () { return q; }, not: function () { return q; },
+                order: function () { return q; }, limit: function () { return Promise.resolve({ data: [] }); } };
+            return q;
+        };
+        WeotziData.Notifications = {
+            listStored: function (userId, opts) { asked.push([userId, opts]); return Promise.resolve(notices); },
+            markRead: function () { return Promise.resolve(); }
+        };
+    `, context);
+    await vm.runInContext('loadActivityFeed()', context);
+    assert.equal(asked.length, 1);
+    assert.equal(asked[0][0], 'client-1');
+    assert.equal(asked[0][1].role, 'client');
+    assert.deepEqual(Array.from(asked[0][1].eventIds), FM.STORED_NOTICE_EVENTS.client);
+    assert.equal(asked[0][1].days, 14);
+    assert.match(feed.innerHTML, /<a class="client-feed-row" href="\/client\/dashboard\?quote=WO-1&amp;ver=acuerdo" data-feed-quote="WO-1" data-feed-ver="acuerdo" data-feed-notice="n4">/);
+    assert.match(feed.innerHTML, /Mateo propone un cambio al acuerdo/);
+    assert.match(feed.innerHTML, /<a class="client-feed-row" href="\/client\/dashboard\?session=44444444-4444-4444-8444-444444444444#mis-sesiones" data-feed-notice="n5">/);
+    assert.doesNotMatch(feed.innerHTML, /Mateo respondió|Nuevo mensaje|propone cambios a tu propuesta/, 'solo los eventos de la lista del cliente');
+
+    // La lectura falla (o falta la tabla): el resto de la actividad se pinta igual.
+    vm.runInContext(`
+        WeotziData.Notifications.listStored = function () { return Promise.reject(new Error('sin tabla')); };
+        WeotziData.from = function (table) {
+            var rows = table === 'quotation_status_history' ? [{ quote_id: 'WO-1', new_status: 'responded', changed_at: new Date().toISOString() }] : [];
+            var q = { select: function () { return q; }, in: function () { return q; }, eq: function () { return q; }, not: function () { return q; },
+                order: function () { return q; }, limit: function () { return Promise.resolve({ data: rows }); } };
+            return q;
+        };
+    `, context);
+    const warn = console.warn;
+    console.warn = () => {};
+    try { await vm.runInContext('loadActivityFeed()', context); } finally { console.warn = warn; }
+    assert.match(feed.innerHTML, /Mateo te respondió tu cotización/);
+    assert.doesNotMatch(feed.innerHTML, /data-feed-notice/);
+
+    const src = read('public', 'shared', 'js', 'client-dashboard.js');
+    assert.match(src, /closest\('a\[data-feed-notice\]'\)/);
+    assert.match(src, /repo\.markRead\(notice\.dataset\.feedNotice\)/);
+    assert.doesNotMatch(src, /from\('user_notifications'\)/, 'la tabla se lee solo por WeotziData.Notifications');
+});
+
+test('EP-08: la campana del artista suma los avisos guardados y los marca leídos al abrirlos', () => {
+    const menu = read('public', 'shared', 'js', 'wo-artist-menu.js');
+    assert.match(menu, /D\.Notifications\.listStored\(uid, \{\s*role: 'artist', eventIds: NFM\.STORED_NOTICE_EVENTS\.artist, days: NFM\.STORED_NOTICE_DAYS, limit: 20,\s*\}\)\.then\(function \(rows\) \{\s*pushFeed\(NFM\.storedNoticeItems\(rows, 'artist', \{ seen: seen \}\)\);/);
+    assert.match(menu, /console\.warn\('\[wo-menu\] avisos guardados:', e && e\.message\)/, 'un fallo no rompe el resto del menú');
+    // El repositorio se asegura para la primera pintada (normalmente ya lo cargó wo-notify.js).
+    assert.match(menu, /loadCounterRepository\('\/shared\/js\/data\/notifications-repo\.js', function \(\) \{\s*var D = window\.WeotziData;\s*return Boolean\(D && D\.Notifications && typeof D\.Notifications\.listStored === 'function'\);/);
+    // Abrir el ítem, o "Marcar todas como leídas", también sella read_at en la fila.
+    assert.match(menu, /persistSeen\(\[it\.key\]\);\s*markStoredNoticesRead\(\[it\]\);\s*it\.unread = false;/);
+    assert.match(menu, /function markAllRead\(\) \{\s*var seen = loadSeen\(\);\s*markStoredNoticesRead\(state\.feed\);/);
+    assert.match(menu, /if \(!it \|\| it\.type !== 'aviso' \|\| !it\.id \|\| !it\.unread\) return;\s*try \{ Promise\.resolve\(N\.markRead\(it\.id\)\)/);
+    assert.doesNotMatch(menu, /from\('user_notifications'\)/, 'la tabla se lee solo por WeotziData.Notifications');
+    // La página que versiona el script sirve la versión nueva.
+    assert.match(read('public', 'artist', 'dashboard', 'index.html'), /wo-artist-menu\.js\?v=20261116-r2b/);
+});
+
+test('EP-08: el repositorio filtra por rol y por evento en la base y tolera que falte la tabla', async () => {
+    const calls = [];
+    let failure = null;
+    const D = {
+        getClient() { return {}; },
+        async run(label, builder) {
+            const q = {};
+            for (const method of ['select', 'eq', 'gte', 'is', 'in', 'order', 'limit']) {
+                q[method] = (...args) => { calls.push([method, ...args]); return q; };
+            }
+            const client = { from(table) { calls.push(['from', table]); return q; } };
+            await builder(client);
+            if (failure) throw failure;
+            return { data: [{ id: 'n1' }], count: null };
+        }
+    };
+    const context = vm.createContext({ window: { WeotziData: D, location: { pathname: '/' } }, console, Date, Math, Number, String, Array, Promise, Error });
+    vm.runInContext(read('public', 'shared', 'js', 'data', 'notifications-repo.js'), context);
+    const N = D.Notifications;
+    const before = Date.now();
+    assert.deepEqual(await N.listStored('u1', { role: 'artist', eventIds: ['a', 'b'], days: 14, limit: 20 }), [{ id: 'n1' }]);
+    assert.deepEqual(calls.filter((c) => ['from', 'eq', 'in', 'limit'].includes(c[0])), [
+        ['from', 'user_notifications'], ['eq', 'user_id', 'u1'], ['eq', 'role', 'artist'], ['in', 'event_id', ['a', 'b']], ['limit', 20]
+    ]);
+    const since = new Date(calls.find((c) => c[0] === 'gte')[2]).getTime();
+    assert.ok(Math.abs(before - 14 * 86400000 - since) < 5000, 'ventana de 14 días');
+    // Sin usuario o sin lista de eventos no consulta.
+    calls.length = 0;
+    assert.equal((await N.listStored('', { eventIds: ['a'] })).length, 0);
+    assert.equal((await N.listStored('u1', { eventIds: [] })).length, 0);
+    assert.equal(calls.length, 0);
+    // Migración pendiente: [] en silencio. Otro error se propaga a quien llama.
+    failure = Object.assign(new Error('relation does not exist'), { code: '42P01' });
+    assert.equal((await N.listStored('u1', { role: 'client', eventIds: ['a'] })).length, 0);
+    failure = Object.assign(new Error('caída'), { code: '57014' });
+    await assert.rejects(() => N.listStored('u1', { role: 'client', eventIds: ['a'] }), /caída/);
+    // listRecent sin filtros sigue igual (lo usa wo-notify.js).
+    failure = null; calls.length = 0;
+    await N.listRecent('u1', { since: '2026-11-16T00:00:00Z', limit: 5, unreadOnly: true });
+    assert.deepEqual(calls.map((c) => c[0]), ['from', 'select', 'eq', 'gte', 'is', 'order', 'limit']);
+});

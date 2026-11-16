@@ -552,6 +552,19 @@
             }).catch(function (e) { console.warn('[wo-menu] soporte:', e && e.message); }));
         }
 
+        // EP-08: contrapropuestas, cambios al acuerdo y novedades de sesiones que
+        // solo existían como un aviso de 9 segundos. Salen de los avisos que el
+        // servidor ya guarda (user_notifications, RLS de dueño); la lista de
+        // eventos y el mapeo a ítems viven en notification-feed-model.js.
+        var NFM = window.WoNotificationFeedModel;
+        if (NFM && typeof NFM.storedNoticeItems === 'function' && D && D.Notifications && typeof D.Notifications.listStored === 'function') {
+            jobs.push(D.Notifications.listStored(uid, {
+                role: 'artist', eventIds: NFM.STORED_NOTICE_EVENTS.artist, days: NFM.STORED_NOTICE_DAYS, limit: 20,
+            }).then(function (rows) {
+                pushFeed(NFM.storedNoticeItems(rows, 'artist', { seen: seen }));
+            }).catch(function (e) { console.warn('[wo-menu] avisos guardados:', e && e.message); }));
+        }
+
         jobs.push(fetch(appPath('/shared/platform-updates.json'), { cache: 'no-cache' }).then(function (r) {
             return r.ok ? r.json() : [];
         }).then(function (updates) {
@@ -773,6 +786,7 @@
                 if (!it) return;
                 var seen = loadSeen(); seen.add(it.key); saveSeen(seen);
                 persistSeen([it.key]);
+                markStoredNoticesRead([it]);
                 it.unread = false;
                 // El enlace navega solo (también con ctrl/⌘ + click en otra pestaña);
                 // se repinta después para no quitar del DOM el <a> que se está siguiendo.
@@ -805,8 +819,21 @@
         }
     }
 
+    // EP-08: un aviso guardado (type 'aviso') también se marca leído en su fila
+    // (user_notifications.read_at), para que no vuelva como aviso emergente.
+    function markStoredNoticesRead(items) {
+        var D = window.WeotziData;
+        var N = D && D.Notifications;
+        if (!N || typeof N.markRead !== 'function') return;
+        (items || []).forEach(function (it) {
+            if (!it || it.type !== 'aviso' || !it.id || !it.unread) return;
+            try { Promise.resolve(N.markRead(it.id)).catch(function () { /* mejor esfuerzo */ }); } catch (e) { /* idem */ }
+        });
+    }
+
     function markAllRead() {
         var seen = loadSeen();
+        markStoredNoticesRead(state.feed);
         state.feed.forEach(function (it) { seen.add(it.key); it.unread = false; });
         saveSeen(seen);
         persistSeen(state.feed.map(function (it) { return it.key; }));
@@ -917,6 +944,12 @@
             loadCounterRepository('/shared/js/notification-feed-model.js', function () {
                 return Boolean(window.WoNotificationFeedModel);
             }).catch(function (e) { console.warn('[wo-menu] contraofertas:', e && e.message); }),
+            // EP-08: avisos guardados (negociación y sesiones). Normalmente ya lo
+            // cargó wo-notify.js; acá se asegura para la primera pintada.
+            loadCounterRepository('/shared/js/data/notifications-repo.js', function () {
+                var D = window.WeotziData;
+                return Boolean(D && D.Notifications && typeof D.Notifications.listStored === 'function');
+            }).catch(function (e) { console.warn('[wo-menu] avisos guardados:', e && e.message); }),
             // ── integracion ── decisiones de soporte (documento, destino, retiro).
             loadCounterRepository('/shared/js/support-decision-model.js', function () {
                 return Boolean(window.WoSupportDecisionModel);

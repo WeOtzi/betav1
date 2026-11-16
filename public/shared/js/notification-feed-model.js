@@ -226,8 +226,118 @@
         return { key: '', href: null, quoteId: '', ver: '' };
     }
 
+    /* ------------------------------------------------------------------ *
+     *  Avisos guardados (user_notifications) · EP-08                      *
+     * ------------------------------------------------------------------ */
+    // Contrapropuestas, cambios al acuerdo y novedades de sesiones solo
+    // existían como un aviso de 9 segundos (wo-notify.js). Quedan en la campana
+    // del artista y en "Tu actividad" del cliente a partir de la fila que el
+    // servidor ya guarda por cada aviso. Solo los eventos que NO tienen una
+    // fila derivada de otra tabla (mensajes, solicitudes, cambios de estado…):
+    // así nada sale dos veces.
+    var STORED_NOTICE_EVENTS = {
+        artist: [
+            'negotiation_counter_proposed', 'negotiation_amendment_proposed', 'negotiation_amendment_accepted',
+            'negotiation_amendment_rejected', 'negotiation_proposal_withdrawn',
+            'session_confirmed_by_client', 'session_change_requested', 'session_change_resolved',
+            'session_dispute_opened', 'session_feedback_received'
+        ],
+        client: [
+            'artist_updated_quotation_proposal', 'negotiation_counter_accepted', 'negotiation_counter_declined',
+            'negotiation_amendment_proposed', 'negotiation_amendment_accepted', 'negotiation_amendment_rejected',
+            'negotiation_proposal_withdrawn',
+            'session_confirmation_requested', 'session_change_requested', 'session_change_resolved',
+            'session_no_show', 'session_dispute_opened', 'session_feedback_received'
+        ]
+    };
+    var STORED_NOTICE_DAYS = 14;
+
+    function cleanText(value) {
+        return String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+    }
+
+    // Solo rutas de la app (mismo criterio que el servidor y que wo-notify.js).
+    function isInternalPath(path) {
+        return typeof path === 'string' && path.length <= 600 && /^\/([^/\\]|$)/.test(path);
+    }
+
+    /**
+     * Filas de user_notifications → ítems. role: 'artist' | 'client'.
+     * options.seen: Set de claves ya leídas (campana del artista).
+     * Descarta los eventos fuera de la lista del rol, las filas de otro rol
+     * (una persona puede tener los dos) y las que no traen título.
+     * Devuelve [{ key, id, type: 'aviso', eventId, icon, title, desc, ts, unread, href }].
+     */
+    function storedNoticeItems(input, role, options) {
+        var allowed = STORED_NOTICE_EVENTS[role] || [];
+        var seen = options && options.seen && typeof options.seen.has === 'function' ? options.seen : null;
+        var used = {};
+        var items = [];
+        rows(input).forEach(function (row) {
+            if (!row || !row.id || allowed.indexOf(row.event_id) === -1) return;
+            if (row.role && row.role !== role) return;
+            var title = cleanText(row.title);
+            var key = 'ntf:' + row.id;
+            if (!title || used[key]) return;
+            used[key] = true;
+            var session = /^session_/.test(row.event_id);
+            items.push({
+                key: key, id: String(row.id), type: 'aviso', eventId: row.event_id,
+                icon: session ? 'calendar' : (role === 'client' ? 'message-square' : 'inbox'),
+                title: title.slice(0, 140),
+                desc: cleanText(row.body).slice(0, 220),
+                ts: row.created_at || null,
+                unread: !row.read_at && !(seen && seen.has(key)),
+                href: isInternalPath(row.url) ? row.url : null
+            });
+        });
+        return items;
+    }
+
+    // /client/dashboard?quote=<id>[&ver=<zona>] → { quoteId, ver }: el panel del
+    // cliente abre ese detalle sin recargar. Con ?session= o con ancla (la
+    // sesión en "Mis sesiones") el enlace navega normal.
+    function clientQuoteTarget(href) {
+        var none = { quoteId: '', ver: '' };
+        var m = /^\/client\/dashboard\/?\?([^#]*)$/.exec(String(href || ''));
+        if (!m) return none;
+        var quoteId = '';
+        var ver = '';
+        var other = false;
+        m[1].split('&').forEach(function (pair) {
+            var at = pair.indexOf('=');
+            var name = at === -1 ? pair : pair.slice(0, at);
+            var value = at === -1 ? '' : pair.slice(at + 1);
+            try { value = decodeURIComponent(value.replace(/\+/g, ' ')); } catch (e) { value = ''; }
+            if (name === 'quote') quoteId = value;
+            else if (name === 'ver') ver = FOCUS_ZONES.indexOf(value) !== -1 ? value : '';
+            else if (name) other = true;
+        });
+        return quoteId && !other ? { quoteId: quoteId, ver: ver } : none;
+    }
+
+    /**
+     * Filas de "Tu actividad" del cliente a partir de sus avisos guardados:
+     * [{ at, icon, text, key, href, quoteId, ver, noticeId }].
+     */
+    function clientNoticeEvents(input) {
+        return storedNoticeItems(input, 'client').map(function (item) {
+            var target = clientQuoteTarget(item.href);
+            return {
+                at: item.ts, icon: item.icon, text: item.title, key: item.key,
+                href: item.href, quoteId: target.quoteId, ver: target.ver, noticeId: item.id
+            };
+        });
+    }
+
     return {
         MAX_LOOKUPS: MAX_LOOKUPS,
+        // avisos guardados (EP-08)
+        STORED_NOTICE_EVENTS: STORED_NOTICE_EVENTS,
+        STORED_NOTICE_DAYS: STORED_NOTICE_DAYS,
+        storedNoticeItems: storedNoticeItems,
+        clientQuoteTarget: clientQuoteTarget,
+        clientNoticeEvents: clientNoticeEvents,
         openJbApplications: openJbApplications,
         openSpotApplications: openSpotApplications,
         pendingOffer: pendingOffer,
