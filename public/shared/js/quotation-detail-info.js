@@ -14,6 +14,10 @@
  *                            verificado y el cliente no rechazó la cotización
  *                            (las manuales siempre) [P20/P23]. Acá NO se lee de
  *                            la fila: se pide a GET /api/cot-detalle/.../info.
+ *                          · Mismo contacto: otras cotizaciones que el artista
+ *                            recibió del mismo correo o teléfono [P17], vía
+ *                            WeotziData.Quotations.listSameContact (no muestra
+ *                            el correo ni el teléfono, solo cuál coincide).
  *                          · Compartir y exportar: Copiar enlace, Descargar PDF,
  *                            Descargar imagen [P30] y Denunciar (lo activa
  *                            wo-report.js, frente "denuncias").
@@ -78,7 +82,7 @@
         if (!last || !last.quote) return;
         var key = quoteKey(last.quote);
         if (!force && cache.key === key && (cache.info || cache.loading)) return cache.loading || undefined;
-        cache = { key: key, info: null, error: null, loading: null };
+        cache = { key: key, info: null, error: null, loading: null, sameContact: [] };
         if (isPreview() || last.readOnly) {
             // Vista de demostración / estado simulado: sin servidor. Se muestra el
             // contacto de los datos de ejemplo como lo vería un artista verificado.
@@ -99,11 +103,25 @@
         }
         var R = repo();
         if (!R || !last.quote.quote_id) { cache.error = new Error('sin repositorio'); return undefined; }
-        cache.loading = R.info(last.quote.quote_id)
-            .then(function (body) { if (cache.key === key) cache.info = body; })
-            .catch(function (error) { if (cache.key === key) cache.error = error; })
-            .then(function () { if (cache.key === key) cache.loading = null; });
+        cache.loading = Promise.all([
+            R.info(last.quote.quote_id)
+                .then(function (body) { if (cache.key === key) cache.info = body; })
+                .catch(function (error) { if (cache.key === key) cache.error = error; }),
+            loadSameContact(last.quote.quote_id).then(function (rows) { if (cache.key === key) cache.sameContact = rows; })
+        ]).then(function () { if (cache.key === key) cache.loading = null; });
         return cache.loading;
+    }
+
+    // P17: otras cotizaciones del mismo contacto con este artista. Es un dato de
+    // contexto: si la consulta falla (o la base todavía no tiene la función) el
+    // bloque no aparece y el resto del panel sigue igual.
+    function loadSameContact(quoteId) {
+        var Q = window.WeotziData && window.WeotziData.Quotations;
+        if (!Q || typeof Q.listSameContact !== 'function') return Promise.resolve([]);
+        return Promise.resolve()
+            .then(function () { return Q.listSameContact(quoteId); })
+            .then(function (rows) { return Array.isArray(rows) ? rows : []; })
+            .catch(function () { return []; });
     }
 
     // ------------------------------------------------------------ marcado
@@ -171,6 +189,34 @@
                 : 'Lo ves porque tu perfil está verificado. Úsalo solo para esta cotización.') + '</p>';
     }
 
+    // ------------------------------------------------------------ mismo contacto (P17)
+    var SAME_STATUS = {
+        pending: 'Pendiente', responded: 'Respondida', client_approved: 'Aprobada', in_progress: 'En progreso',
+        en_progreso: 'En progreso', artist_completed: 'Lista para el cliente', completed: 'Completada',
+        client_rejected: 'Rechazada por el cliente', artist_rejected: 'Rechazada', cancelled: 'Rechazada', expired: 'Vencida'
+    };
+    function dayMonthYear(value) {
+        var d = value ? new Date(value) : null;
+        return d && !Number.isNaN(d.getTime()) ? d.getDate() + ' de ' + MONTHS[d.getMonth()] + ' de ' + d.getFullYear() : '';
+    }
+    function sameContactHtml() {
+        var rows = (cache.sameContact || []).filter(function (row) { return row && row.quote_id; });
+        if (!rows.length) return '';
+        return '<div class="qdi-same" id="qd-mismo-contacto">'
+            + '<h3 class="qd-label">Mismo contacto · ' + rows.length + (rows.length === 1 ? ' cotización' : ' cotizaciones') + '</h3>'
+            + '<p class="qdi-note">' + (rows.length === 1
+                ? 'Esta persona te pidió otra cotización con el mismo correo o teléfono.'
+                : 'Esta persona te pidió otras cotizaciones con el mismo correo o teléfono.') + '</p>'
+            + '<ul class="qdi-same-list">' + rows.map(function (row) {
+                var match = row.same_email && row.same_phone ? 'Mismo correo y teléfono'
+                    : row.same_email ? 'Mismo correo' : row.same_phone ? 'Mismo teléfono' : '';
+                var meta = [SAME_STATUS[row.quote_status] || '', dayMonthYear(row.created_at), match].filter(Boolean).join(' · ');
+                return '<li><a href="' + esc(appUrl('/my-quotations/detail?id=' + encodeURIComponent(row.quote_id))) + '">'
+                    + esc(row.short_code || row.quote_id) + '</a>'
+                    + (meta ? '<span>' + esc(meta) + '</span>' : '') + '</li>';
+            }).join('') + '</ul></div>';
+    }
+
     function shareStatusText() {
         if (!cache.info) return cache.error ? '' : 'Consultando enlaces…';
         if (cache.info.preview) return 'No disponible en la vista de demostración.';
@@ -218,7 +264,7 @@
         if (!slot) return;
         slot.innerHTML = '<section class="qdi" aria-labelledby="qdi-title">'
             + factsHtml(quote)
-            + '<div class="qdi-panel qdi-contact" id="qd-contacto" aria-live="polite"><h2 class="qd-section-label">Contacto del cliente</h2>' + contactBodyHtml() + '</div>'
+            + '<div class="qdi-panel qdi-contact" id="qd-contacto" aria-live="polite"><h2 class="qd-section-label">Contacto del cliente</h2>' + contactBodyHtml() + sameContactHtml() + '</div>'
             + '</section>'
             + shareHtml(quote);
         // "Contactar" del listado llega con #contacto: se lleva la vista al panel una vez.

@@ -127,6 +127,31 @@
 .qdi .qd-btn:focus-visible,
 .qd-identity-actions .qd-btn:focus-visible { outline: var(--border-strong-width) solid var(--blue-400); outline-offset: 2px; }
 
+/* Mismo contacto (P17): otras cotizaciones del mismo correo o teléfono. */
+.qdi-same {
+    display: grid;
+    gap: var(--space-2);
+    padding-top: var(--space-4);
+    border-top: var(--border-hairline) solid var(--figma-sand-border);
+}
+.qdi-same .qd-label { margin: 0; }
+.qdi-same-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.qdi-same-list li { min-width: 0; display: grid; gap: 2px; }
+.qdi-same-list a {
+    justify-self: start;
+    color: var(--blue-500);
+    font-family: var(--font-mono);
+    font-size: var(--body-s-size);
+    font-weight: var(--weight-bold);
+    letter-spacing: 0.06em;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    overflow-wrap: anywhere;
+}
+.qdi-same-list a:hover { color: var(--ink); }
+.qdi-same-list a:focus-visible { outline: var(--border-strong-width) solid var(--blue-400); outline-offset: 2px; }
+.qdi-same-list span { color: var(--neutral-500); font-size: var(--body-s-size); line-height: 1.4; }
+
 .qdi-locked { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: var(--space-4); align-items: start; }
 .qdi-lock { width: 40px; height: 40px; display: grid; place-items: center; background: var(--neutral-500); color: var(--yellow-300); }
 .qdi-lock svg { width: 18px; height: 18px; }

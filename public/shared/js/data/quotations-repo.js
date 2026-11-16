@@ -214,6 +214,26 @@
             return data || null;
         },
 
+        // P17: otras cotizaciones que este artista recibió del mismo contacto
+        // (mismo correo o teléfono). La RPC quotation_same_contact (migración
+        // 20261116110200) limita al artista a las suyas y no expone el correo ni
+        // el teléfono: solo dice cuál coincide. Devuelve filas { quote_id,
+        // short_code, quote_status, created_at, tattoo_idea_description,
+        // same_email, same_phone }. Sin la migración (PGRST202 / 42883) → [].
+        async listSameContact(quoteId) {
+            if (!quoteId) return [];
+            try {
+                const { data } = await run('quotations.listSameContact', (c) =>
+                    c.rpc('quotation_same_contact', { p_quote_id: String(quoteId) })
+                );
+                return Array.isArray(data) ? data : [];
+            } catch (error) {
+                const code = String((error && error.code) || (error && error.cause && error.cause.code) || '');
+                if (code === 'PGRST202' || code === '42883') return [];
+                throw error;
+            }
+        },
+
         // Inbox (deep link ?quote= sin mensajes previos + tarjeta de cotización).
         // Columnas para el chat: sin datos de salud ni contacto del cliente.
         // La RLS del artista ("Artists can view own quotations") acota.

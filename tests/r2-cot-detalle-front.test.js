@@ -382,10 +382,10 @@ function fakeElement() {
     return { innerHTML: '', hidden: true, textContent: '', classList: { toggle() {} } };
 }
 
-function loadInfoModule({ info, infoError, preview = false, shareModule = true } = {}) {
+function loadInfoModule({ info, infoError, preview = false, shareModule = true, sameContact, sameContactError } = {}) {
     const listeners = {};
     const elements = { 'qd-identity-actions': fakeElement(), 'qd-client-info-slot': fakeElement(), 'qd-toast': fakeElement() };
-    const calls = { info: 0 };
+    const calls = { info: 0, sameContact: [] };
     const window = {
         QuotationDetailModel: DM,
         WoQuoteShareModel: SM,
@@ -393,6 +393,9 @@ function loadInfoModule({ info, infoError, preview = false, shareModule = true }
         setTimeout: () => 0, clearTimeout() {},
         WeotziData: { QuotationInfo: { info: async () => { calls.info += 1; if (infoError) throw infoError; return info; } } }
     };
+    if (sameContact !== undefined || sameContactError) {
+        window.WeotziData.Quotations = { listSameContact: async (quoteId) => { calls.sameContact.push(quoteId); if (sameContactError) throw sameContactError; return sameContact; } };
+    }
     if (preview) window.WEOTZI_PREVIEW = true;
     if (shareModule) window.WoQuoteShare = { linksStatus: (links) => (links && links.length ? `${links.length} enlace(s)` : 'Todavía no hay un enlace activo.') };
     const document = {
@@ -821,6 +824,80 @@ test('expediente: huecos, referencias con comentario e IA, y carga de extras por
     const rowReads = info.split('\n').filter((line) => /last\.quote\.client_(email|whatsapp|instagram|contact_preference)/.test(line));
     assert.ok(rowReads.length > 0 && rowReads.length <= 2, 'la fila solo se usa en la vista de demostración');
     assert.ok(info.indexOf('if (isPreview() || last.readOnly) {') < info.indexOf('last.quote.client_email'), 'y solo dentro de la rama de demostración');
+});
+
+// DB-06 (P17): la RPC quotation_same_contact existía y nadie la llamaba.
+test('detalle: "Mismo contacto" lista las otras cotizaciones del mismo correo o teléfono', async () => {
+    const info = { contact: { visible: false, reason: 'not_verified', verification_state: 'No', email: null, whatsapp: null, instagram: null, preference: null }, client: { registered: false }, share: { available: true, shareable: true, links: [] } };
+    const rows = [
+        { quote_id: 'QN0aa"><script>x</script>', short_code: 'K7M2QP', quote_status: 'responded', created_at: '2026-11-03T15:00:00Z', tattoo_idea_description: 'Un colibrí', same_email: true, same_phone: true },
+        { quote_id: 'QN0bb', short_code: null, quote_status: 'client_rejected', created_at: '2026-10-20T15:00:00Z', same_email: false, same_phone: true },
+        { quote_id: 'QN0cc', short_code: 'ZZ9XX1', quote_status: 'otro_estado', created_at: null, same_email: false, same_phone: false },
+        { quote_id: '', short_code: 'SINID' }
+    ];
+    const mod = loadInfoModule({ info, sameContact: rows });
+    const html = (await mod.fire({ quote: ROW, stage: 'pending', readOnly: false, user: { id: 'a' } }))['qd-client-info-slot'].innerHTML;
+    assert.deepEqual(mod.calls.sameContact, ['COT-AB12CD'], 'una consulta, con el quote_id del expediente');
+    const block = html.slice(html.indexOf('id="qd-mismo-contacto"'), html.indexOf('</ul>', html.indexOf('id="qd-mismo-contacto"')));
+    assert.match(block, /<h3 class="qd-label">Mismo contacto · 3 cotizaciones<\/h3>/);
+    assert.match(block, /Esta persona te pidió otras cotizaciones con el mismo correo o teléfono\./);
+    // Código corto (o el quote_id si no hay), estado, fecha y qué dato coincide; enlace al expediente.
+    assert.match(block, /<a href="\/my-quotations\/detail\?id=QN0aa%22%3E%3Cscript%3Ex%3C%2Fscript%3E">K7M2QP<\/a><span>Respondida · 3 de noviembre de 2026 · Mismo correo y teléfono<\/span>/);
+    assert.match(block, /<a href="\/my-quotations\/detail\?id=QN0bb">QN0bb<\/a><span>Rechazada por el cliente · 20 de octubre de 2026 · Mismo teléfono<\/span>/);
+    assert.match(block, /<a href="\/my-quotations\/detail\?id=QN0cc">ZZ9XX1<\/a><\/li>/, 'sin datos extra no inventa nada');
+    assert.doesNotMatch(block, /SINID|<script>|Un colibrí/);
+    assert.equal((block.match(/<li>/g) || []).length, 3);
+    // Va dentro del panel de contacto, después del candado.
+    assert.ok(html.indexOf('id="qd-contacto"') < html.indexOf('qdi-locked') && html.indexOf('qdi-locked') < html.indexOf('id="qd-mismo-contacto"'));
+
+    const one = loadInfoModule({ info, sameContact: [rows[1]] });
+    const single = (await one.fire({ quote: ROW, stage: 'pending', readOnly: false }))['qd-client-info-slot'].innerHTML;
+    assert.match(single, /Mismo contacto · 1 cotización</);
+    assert.match(single, /Esta persona te pidió otra cotización con el mismo correo o teléfono\./);
+
+    // Lista vacía, RPC caída, respuesta rara o repo sin el método: el bloque no aparece y el resto sigue.
+    for (const options of [{ sameContact: [] }, { sameContactError: new Error('boom') }, { sameContact: null }, {}]) {
+        const quiet = loadInfoModule(Object.assign({ info }, options));
+        const out = (await quiet.fire({ quote: ROW, stage: 'pending', readOnly: false }))['qd-client-info-slot'].innerHTML;
+        assert.doesNotMatch(out, /qd-mismo-contacto|Mismo contacto/);
+        assert.match(out, /Verifica tu perfil para ver el contacto/);
+    }
+    // Vista de demostración: no consulta.
+    const demo = loadInfoModule({ info, preview: true, sameContact: rows });
+    const demoHtml = (await demo.fire({ quote: ROW, stage: 'pending', readOnly: false }))['qd-client-info-slot'].innerHTML;
+    assert.deepEqual(demo.calls.sameContact, []);
+    assert.doesNotMatch(demoHtml, /qd-mismo-contacto/);
+});
+
+test('capa de datos: listSameContact llama a la RPC y tolera que la migración no esté', async () => {
+    const calls = [];
+    let result = { data: [{ quote_id: 'QN1' }], error: null };
+    const client = { rpc: (name, args) => { calls.push([name, args]); return Promise.resolve(result); }, from: () => ({}) };
+    const window = { WeotziData: { run: async (label, builder) => {
+        const res = await builder(client);
+        if (res.error) throw Object.assign(new Error(`[${label}] ${res.error.message}`), { code: res.error.code, cause: res.error });
+        return { data: res.data || null, count: null };
+    } } };
+    vm.runInNewContext(read('public/shared/js/data/quotations-repo.js'), { window, console });
+    const Q = window.WeotziData.Quotations;
+    assert.deepEqual(JSON.parse(JSON.stringify(await Q.listSameContact('QN9'))), [{ quote_id: 'QN1' }]);
+    assert.deepEqual(JSON.parse(JSON.stringify(calls)), [['quotation_same_contact', { p_quote_id: 'QN9' }]]);
+    assert.equal((await Q.listSameContact('')).length, 0, 'sin id no consulta');
+    assert.equal(calls.length, 1);
+    for (const code of ['PGRST202', '42883']) {
+        result = { data: null, error: { code, message: 'Could not find the function public.quotation_same_contact' } };
+        assert.equal((await Q.listSameContact('QN9')).length, 0, code);
+    }
+    result = { data: null, error: { code: '42501', message: 'permission denied' } };
+    await assert.rejects(() => Q.listSameContact('QN9'), /permission denied/);
+    result = { data: null, error: null };
+    assert.equal((await Q.listSameContact('QN9')).length, 0);
+    // La función existe en la migración del frente cot-form y la ejecuta el artista con su sesión.
+    const sql = read('supabase/migrations/20261116110200_cot_form_r2_vinculo_contacto.sql');
+    assert.match(sql, /create or replace function public\.quotation_same_contact\(p_quote_id text\)/);
+    assert.match(sql, /grant execute on function public\.quotation_same_contact\(text\) to authenticated, service_role;/);
+    assert.match(read('public/shared/css/quotation-detail-info.css'), /\.qdi-same-list a \{/);
+    assert.match(read('public/my-quotations/detail/index.html'), /\/shared\/css\/quotation-detail-info\.css\?v=20261116-r2b"/);
 });
 
 test('páginas: el detalle, el listado y la hoja manual cargan los módulos en orden', () => {
