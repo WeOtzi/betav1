@@ -301,3 +301,73 @@ test('los textos nuevos del servidor van en español neutro (sin voseo)', () => 
         assert.doesNotMatch(strings, voseo, file.join('/'));
     }
 });
+
+// ---------------------------------------------------------------- SEG-05 · destinatario por email verificado
+test('SEG-05: el destinatario por email se resuelve con la RPC (email verificado de Auth), nunca con la tabla del rol', async () => {
+    const { pgrest } = require('../lib/postgrest');
+    const { PushRepo } = require('../lib/repos/push');
+    const original = pgrest.raw;
+    const calls = [];
+    let answer = null;
+    pgrest.raw = async (target, opts) => {
+        calls.push([target, opts]);
+        if (answer instanceof Error) throw answer;
+        return answer;
+    };
+    const USER = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    try {
+        answer = USER;
+        assert.equal(await PushRepo.findUserIdByEmail('client', '  Lucia@Example.com '), USER);
+        assert.deepEqual(calls[0], ['rpc/push_recipient_user_id', { method: 'POST', body: { p_role: 'client', p_email: 'lucia@example.com' } }]);
+        // PostgREST puede devolver el escalar suelto o en una lista.
+        answer = [USER];
+        assert.equal(await PushRepo.findUserIdByEmail('artist', 'mateo@example.com'), USER);
+        // Sin cuenta verificada con ese correo: nadie.
+        answer = null;
+        assert.equal(await PushRepo.findUserIdByEmail('client', 'invitado@example.com'), null);
+        answer = 'no-es-un-uuid';
+        assert.equal(await PushRepo.findUserIdByEmail('client', 'x@example.com'), null);
+        // Rol desconocido o email vacío: ni siquiera consulta.
+        const before = calls.length;
+        assert.equal(await PushRepo.findUserIdByEmail('admin', 'x@example.com'), null);
+        assert.equal(await PushRepo.findUserIdByEmail('client', '   '), null);
+        assert.equal(calls.length, before);
+        // Migración pendiente (la función no existe): sin aviso antes que aviso mal dirigido.
+        answer = Object.assign(new Error('PostgREST POST rpc/push_recipient_user_id failed (404): {"code":"PGRST202"}'), { status: 404 });
+        assert.equal(await PushRepo.findUserIdByEmail('client', 'lucia@example.com'), null);
+        // Otro error se propaga: el despacho lo registra y no avisa (ver "un fallo del aviso nunca rompe…").
+        answer = Object.assign(new Error('PostgREST POST rpc/push_recipient_user_id failed (500): boom'), { status: 500 });
+        await assert.rejects(() => PushRepo.findUserIdByEmail('client', 'lucia@example.com'), /500/);
+    } finally {
+        pgrest.raw = original;
+    }
+
+    const repo = read('lib', 'repos', 'push.js');
+    assert.doesNotMatch(repo, /pgrest\('(clients_db|artists_db|studios)'\)|ilike\(/, 'la columna email del perfil la edita el usuario: no decide a quién se avisa');
+});
+
+test('SEG-05: push_recipient_user_id compara contra auth.users, exige email confirmado y solo la ejecuta service_role', () => {
+    const sql = read('supabase', 'migrations', '20261116170000_push_notifications.sql');
+    const down = read('supabase', 'rollbacks', '20261116170000_push_notifications.down.sql');
+    const fn = /create or replace function public\.push_recipient_user_id\(p_role text, p_email text\)[\s\S]*?\$\$;/.exec(sql);
+    assert.ok(fn, 'la función está en la migración del frente');
+    const body = fn[0];
+    assert.match(body, /returns uuid\s+language sql\s+stable\s+security definer\s+set search_path = ''/);
+    assert.match(body, /from auth\.users u/);
+    assert.match(body, /lower\(pg_catalog\.btrim\(u\.email\)\) = pg_catalog\.lower\(pg_catalog\.btrim\(p_email\)\)/);
+    assert.match(body, /u\.email_confirmed_at is not null/);
+    assert.match(body, /u\.deleted_at is null/);
+    assert.match(body, /raw_app_meta_data->>'qa_unverified_email'/);
+    assert.match(body, /raw_user_meta_data->>'qa_unverified_email'/);
+    // La tabla del rol solo confirma que la cuenta tiene ese rol (por user_id), no aporta el email.
+    for (const [role, table] of [['client', 'clients_db'], ['artist', 'artists_db'], ['studio', 'studios']]) {
+        assert.match(body, new RegExp(`when '${role}' then exists \\(select 1 from public\\.${table} \\w where \\w\\.user_id = u\\.id\\)`));
+    }
+    assert.doesNotMatch(body, /\b[cas]\.email\b/);
+    assert.match(body, /else false/);
+    assert.match(body, /order by u\.created_at\s+limit 1/, 'resultado determinista');
+    assert.match(sql, /revoke all on function public\.push_recipient_user_id\(text, text\) from public, anon, authenticated;/);
+    assert.match(sql, /grant execute on function public\.push_recipient_user_id\(text, text\) to service_role;/);
+    assert.doesNotMatch(sql, /grant execute on function public\.push_recipient_user_id[^;]*to (anon|authenticated)/);
+    assert.match(down, /drop function if exists public\.push_recipient_user_id\(text, text\);/);
+});

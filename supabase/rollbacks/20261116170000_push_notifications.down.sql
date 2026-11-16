@@ -18,6 +18,7 @@ begin
 end
 $$;
 
+drop function if exists public.push_recipient_user_id(text, text);
 drop table if exists public.user_notifications;
 drop table if exists public.push_subscriptions;
 

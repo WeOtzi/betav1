@@ -11,6 +11,8 @@
 --    único (user_id, dedupe_key) evita repetir el mismo aviso (y su push).
 --    El dueño solo puede leerlos y marcarlos como leídos (read_at).
 -- 3. user_notifications entra en la publicación supabase_realtime.
+-- 4. push_recipient_user_id(rol, email): a quién avisar cuando el evento solo
+--    trae un email. Resuelve contra el email verificado de Auth (SEG-05).
 --
 -- Idempotente. Reversa: supabase/rollbacks/20261116170000_push_notifications.down.sql
 -- ============================================================================
@@ -139,5 +141,44 @@ begin
   end if;
 end
 $$;
+
+-- ---------------------------------------------------------------------------
+-- 4 · Destinatario de un aviso por email (SEG-05)
+-- ---------------------------------------------------------------------------
+-- Cuando el evento no trae el user_id del destinatario, el servidor lo busca
+-- por email. La búsqueda va contra el email VERIFICADO de auth.users y exige
+-- que la cuenta tenga fila en la tabla de su rol. No se usa la columna email
+-- de clients_db / artists_db / studios: la edita el propio usuario y con poner
+-- el correo de otra persona recibía sus avisos (artista, cotización, fechas y
+-- totales). Mismo criterio que link_quotation_contact (20261116110200).
+-- Solo service_role la ejecuta (lib/repos/push.js → findUserIdByEmail).
+create or replace function public.push_recipient_user_id(p_role text, p_email text)
+returns uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select u.id
+    from auth.users u
+   where pg_catalog.btrim(coalesce(p_email, '')) <> ''
+     and pg_catalog.lower(pg_catalog.btrim(u.email)) = pg_catalog.lower(pg_catalog.btrim(p_email))
+     and u.email_confirmed_at is not null
+     and u.deleted_at is null
+     and coalesce(u.is_anonymous, false) = false
+     and coalesce(u.raw_app_meta_data->>'qa_unverified_email', 'false') <> 'true'
+     and coalesce(u.raw_user_meta_data->>'qa_unverified_email', 'false') <> 'true'
+     and case p_role
+           when 'client' then exists (select 1 from public.clients_db c where c.user_id = u.id)
+           when 'artist' then exists (select 1 from public.artists_db a where a.user_id = u.id)
+           when 'studio' then exists (select 1 from public.studios s where s.user_id = u.id)
+           else false
+         end
+   order by u.created_at
+   limit 1;
+$$;
+
+revoke all on function public.push_recipient_user_id(text, text) from public, anon, authenticated;
+grant execute on function public.push_recipient_user_id(text, text) to service_role;
 
 commit;
