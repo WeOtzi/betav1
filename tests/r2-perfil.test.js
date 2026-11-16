@@ -155,7 +155,13 @@ test('contratos entre frentes: favoritos en la cabecera y en cada trabajo, y den
     assert.match(PROFILE_JS, /favBtn\.dataset\.id = userId;/);
     assert.match(PROFILE_JS, /favBtn\.hidden = !userId \|\| isOwnerView\(\);/);
     // Cada trabajo: kind="design" con id estable, etiqueta e imagen escapadas.
-    assert.match(PROFILE_JS, /data-wo-favorite data-kind="design" data-id="\$\{escapeHtml\(favId\)\}" data-label="\$\{escapeHtml\(favLabel\)\}" data-image="\$\{escapeHtml\(/);
+    // CF-08: lleva al autor (data-artist-id) para que el guardado sume en "veces guardado" del artista.
+    assert.match(PROFILE_JS, /data-wo-favorite data-kind="design" data-id="\$\{escapeHtml\(favId\)\}" data-artist-id="\$\{escapeHtml\(artistData\?\.user_id \|\| ''\)\}" data-label="\$\{escapeHtml\(favLabel\)\}" data-image="\$\{escapeHtml\(/);
+    const FavModel = require('../public/shared/js/wo-favorites-model.js');
+    const savedWork = FavModel.normalizeItem({ kind: 'design', id: `${UID}:trabajo-1.jpg`, label: 'Trabajo 1', artistId: UID }, { origin: 'https://beta.weotzi.com', basePath: '', pagePath: '/artist/profile' });
+    assert.equal(savedWork.artistId, UID, 'con el atributo, el modelo de favoritos guarda al autor');
+    assert.equal(FavModel.normalizeItem({ kind: 'design', id: `${UID}:trabajo-1.jpg`, label: 'Trabajo 1' }, { origin: 'https://beta.weotzi.com', basePath: '', pagePath: '/artist/profile' }).artistId, '', 'sin él quedaba vacío');
+    assert.match(read('public/shared/js/wo-favorites.js'), /artistId: btn\.getAttribute\('data-artist-id'\)/);
     assert.equal(Presentation.favoriteWorkId(UID, 'trabajo 1.jpg'), `${UID}:trabajo-1.jpg`);
     assert.equal(Presentation.favoriteWorkId('', 'x'), '');
     assert.equal(Presentation.favoriteWorkId(UID, ''), '');

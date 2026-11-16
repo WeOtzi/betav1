@@ -1677,10 +1677,12 @@ function renderGalleryGrid() {
             const alt = caption || `Trabajo ${number} de ${artistName}`;
             // Favorito del trabajo (contrato data-wo-favorite, kind="design"): el
             // botón va vacío; lo activa wo-favorites.js. El dueño no se guarda a sí mismo.
+            // data-artist-id lleva al autor: sin él favorite_items.artist_user_id queda
+            // vacío y el guardado no suma en "veces guardado" del artista.
             const favId = !owner && favoriteId ? favoriteId(artistData?.user_id, item.key) : '';
             const favLabel = caption || `${item.title} · ${artistName}`;
             const favButton = favId
-                ? `<button type="button" class="profile-fav gallery-fav" data-wo-favorite data-kind="design" data-id="${escapeHtml(favId)}" data-label="${escapeHtml(favLabel)}" data-image="${escapeHtml(item.kind === 'video' ? '' : item.url)}" aria-label="${escapeHtml(`Guardar el trabajo ${number} en favoritos`)}"></button>`
+                ? `<button type="button" class="profile-fav gallery-fav" data-wo-favorite data-kind="design" data-id="${escapeHtml(favId)}" data-artist-id="${escapeHtml(artistData?.user_id || '')}" data-label="${escapeHtml(favLabel)}" data-image="${escapeHtml(item.kind === 'video' ? '' : item.url)}" aria-label="${escapeHtml(`Guardar el trabajo ${number} en favoritos`)}"></button>`
                 : '';
             html += `
                 <figure class="gallery-cell${caption ? ' has-caption' : ''}">

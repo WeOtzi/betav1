@@ -87,6 +87,21 @@ public.wo_favorites_artist_counts(p_since timestamptz)
 
 se suma sola a los favoritos de `client_favorites` (si no existe o falla, se ignora).
 
+**Estado al cierre de la ronda 2 (CF-08).** El frente "favoritos" no definió esa función:
+publicó `public.favorite_artist_save_counts(uuid[])`, con otra firma y otro propósito
+(contadores públicos). Hoy:
+
+- Guardar al **artista** en una lista sí cuenta: el trigger espejo de
+  `20261116190000_favoritos_listas.sql` lo copia a `client_favorites`.
+- Guardar un **trabajo** de la galería del perfil ya informa al autor (`data-artist-id`
+  en el botón → `favorite_items.artist_user_id`), así que entra en `items_saved_count`.
+  En Most Wanted todavía **no** suma.
+- Pendiente (decisión de producto antes de escribir el puente): si los trabajos guardados
+  pesan en Most Wanted, la función tiene que contar **personas distintas** por artista
+  (`kind in ('design', 'merch')`, `owner_user_id <> artist_user_id`, `created_at >= p_since`),
+  no ítems: una sola cuenta que guarda veinte trabajos no puede valer veinte favoritos. Y
+  no debe incluir `kind = 'artist'`, que ya llega por `client_favorites`.
+
 ### Recalcular
 
 - `pg_cron`: job `recalculate-most-wanted`, todos los días 03:40 UTC.
