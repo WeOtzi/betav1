@@ -563,11 +563,48 @@ test('P7: de punta a punta, la referencia sale por OpenAI con el modelo del serv
     assert.doesNotMatch(JSON.stringify(res.body), /sk-test/);
 });
 
+test('SEG-08: cambiar la llave del borrador en cada pedido no saltea el tope por IP de la referencia con IA', async () => {
+    // Limitador real (express-rate-limit), en el mismo orden que la ruta: aiIp y después aiDraft.
+    const limiters = routes.createLimiters(require('express-rate-limit'));
+    const pass = (limiter, ip, key) => new Promise((resolve) => {
+        const req = { ip, method: 'POST', headers: {}, body: { submission_key: key }, app: { get: () => false }, socket: { remoteAddress: ip } };
+        const res = {
+            statusCode: 200, headersSent: false, setHeader() {}, getHeader() {}, append() {},
+            status(code) { this.statusCode = code; return this; },
+            send(body) { resolve({ status: this.statusCode, body }); },
+            json(body) { resolve({ status: this.statusCode, body }); }
+        };
+        limiter(req, res, () => resolve({ status: 200 }));
+    });
+    const ask = async (ip, key) => {
+        const byIp = await pass(limiters.aiIp, ip, key);
+        return byIp.status === 200 ? pass(limiters.aiDraft, ip, key) : byIp;
+    };
+    const newKey = () => require('node:crypto').randomUUID();
+    const statuses = [];
+    for (let i = 0; i < 12; i += 1) statuses.push((await ask('203.0.113.7', newKey())).status);
+    assert.deepEqual(statuses, [200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 429, 429], 'una llave nueva por pedido: corta en 10');
+    const blocked = await ask('203.0.113.7', newKey());
+    assert.equal(blocked.body.code, 'ai_limit');
+    assert.equal(blocked.body.rate_limited, true);
+    assert.doesNotMatch(blocked.body.error, /Esperá|volvé|Podés/);
+    // Otra IP no queda afectada, y con una misma llave el tope por borrador sigue en 6.
+    const sameKey = newKey();
+    const other = [];
+    for (let i = 0; i < 7; i += 1) other.push((await ask('203.0.113.8', sameKey)).status);
+    assert.deepEqual(other, [200, 200, 200, 200, 200, 200, 429]);
+});
+
 test('P7: límites propios de la IA (por borrador y por IP) y rutas nuevas fuera del límite global', () => {
     const made = [];
     const fake = { rateLimit: (opts) => { made.push(opts); return opts; }, ipKeyGenerator: (ip) => `ip(${ip})` };
     const limiters = routes.createLimiters(fake);
     assert.ok(limiters.aiDraft.max <= 10 && limiters.aiIp.max <= 50, 'pocas imágenes por hora');
+    // SEG-08: el tope por IP es el que acota (la llave del borrador la elige el navegador).
+    assert.equal(limiters.aiIp.max, 10);
+    assert.equal(limiters.aiIp.windowMs, 60 * 60 * 1000);
+    assert.equal(limiters.aiIp.keyGenerator({ body: { submission_key: KEY }, ip: '1.1.1.1' }), 'ip(1.1.1.1)', 'la llave del borrador no entra en la clave del límite por IP');
+    assert.equal(limiters.aiIp.message.code, 'ai_limit');
     assert.equal(limiters.aiDraft.windowMs, 60 * 60 * 1000);
     assert.equal(limiters.aiDraft.keyGenerator({ body: { submission_key: KEY }, ip: '1.1.1.1' }), `draft:${KEY}`);
     assert.equal(limiters.aiDraft.message.code, 'ai_limit');
