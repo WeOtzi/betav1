@@ -501,7 +501,7 @@ function buildEmailHtml(templateName, options = {}) {
         footer: {
             baseUrl: DEFAULT_PUBLIC_BASE,
             preferencesUrl: variables.includes('preferences_url') ? P('preferences_url') : '',
-            reason: variables.includes('preferences_url') ? 'Recibís este aviso por tu actividad en We Ötzi.' : ''
+            reason: variables.includes('preferences_url') ? 'Este aviso te llega por tu actividad en We Ötzi.' : ''
         },
         comment: `Plantilla "${templateName}" generada por scripts/redesign-email-templates.js (no editar a mano).\nVariables: ${variables.join(', ')}`
     };

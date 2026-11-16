@@ -466,6 +466,10 @@ test('render: textos por rol, filas antes → después, escape y preheader', () 
     assert.doesNotMatch(out.html, /<script>alert|<img src=x/);
     assert.ok(out.preheader.length >= 40 && out.preheader.length <= 110);
     assert.match(out.headers['List-Unsubscribe'], /\/artist\/account#notificaciones/);
+    // EP-10: el pie compartido no conjuga (el cuerpo va en tuteo; "Recibís" era voseo).
+    assert.equal(mail.eventId, 'negotiation_counter_proposed');
+    assert.match(out.text, /Este aviso te llega por tu actividad en We Ötzi\./);
+    assert.doesNotMatch(`${out.text} ${out.html}`, /Recib[ií]s/);
 
     // Enmienda: el mismo evento cambia de panel según quién recibe.
     const amendment = proposalRow({ kind: 'amendment', proposed_by: 'client', changes: { final_budget_amount: { from: '2000', to: '2500' } } });
