@@ -450,14 +450,14 @@ test('P7: ruta de IA — exige llave de borrador, respeta el tope diario y no fi
     try {
         const quotaBudget = routes.createDailyBudget(1);
         const quota = routes.createAiReferenceHandler({ env, budget: quotaBudget,
-            generateImage: async () => { const e = new Error('x'); e.code = 'rate_limited'; e.status = 429; e.detail = 'HTTP 429 insufficient_quota: You exceeded your current quota.'; throw e; } });
+            generateImage: async () => { const e = new Error('x'); e.code = 'rate_limited'; e.status = 429; e.providerStatus = 429; e.detail = 'HTTP 429 insufficient_quota: You exceeded your current quota.'; throw e; } });
         const q = fakeRes();
         await quota({ body: { submission_key: KEY, idea: 'Una golondrina con rosas' } }, q);
         assert.equal(q.statusCode, 429);
         assert.equal(q.body.code, 'ai_busy');
         assert.doesNotMatch(JSON.stringify(q.body), /insufficient_quota|quota/);
         assert.match(warned.join('\n'), /insufficient_quota/, 'la cuota agotada queda en el log del servidor');
-        assert.equal(quotaBudget.take(), true, 'lo que no generó imagen no consume el tope diario');
+        assert.equal(quotaBudget.take(), true, 'lo que el proveedor rechazó sin generar no consume el tope diario');
     } finally { console.warn = warn; }
     const slow = routes.createAiReferenceHandler({ env, budget: routes.createDailyBudget(5),
         generateImage: async () => { const e = new Error('x'); e.code = 'timeout'; e.status = 504; throw e; } });
@@ -485,6 +485,59 @@ test('P7: ruta de IA — exige llave de borrador, respeta el tope diario y no fi
     const source = read('lib', 'routes', 'cot-form.js');
     assert.match(source, /aiImage\.isConfigured\(env\)/, 'el chequeo de "no configurado" pasa por lib/ai-image.js');
     assert.doesNotMatch(source, /process\.env\.(GEMINI|OPENAI)_API_KEY/, 'la ruta no lee claves de proveedor');
+});
+
+test('P7: el tope diario del cotizador acota las llamadas al proveedor: un vencimiento o un 5xx no se devuelven (SCI-07)', async () => {
+    const aiImage = require('../lib/ai-image');
+    const env = { OPENAI_API_KEY: 'sk-test-abc' };
+    const body = { submission_key: KEY, idea: 'Una golondrina con rosas' };
+    const hang = (url, opts) => new Promise((resolve, reject) => {
+        opts.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    });
+    const reply = (status, payload) => ({ ok: status >= 200 && status < 300, status, json: async () => payload });
+    const run = async (respond, cap, times) => {
+        let sent = 0;
+        const budget = routes.createDailyBudget(cap);
+        const handler = routes.createAiReferenceHandler({ env, budget,
+            generateImage: (options) => aiImage.generateImage({ ...options, timeoutMs: 30, fetchImpl: async (url, opts) => { sent += 1; return respond(url, opts); } }) });
+        const statuses = [];
+        for (let i = 0; i < times; i += 1) {
+            const res = fakeRes();
+            await handler({ body }, res);
+            statuses.push(res.statusCode);
+        }
+        return { statuses, sent, budget };
+    };
+    const original = { error: console.error, warn: console.warn };
+    console.error = () => {};
+    console.warn = () => {};
+    try {
+        // Antes: cinco pedidos que vencían devolvían el cupo y los cinco llegaban al proveedor.
+        const slow = await run(hang, 2, 5);
+        assert.deepEqual(slow.statuses, [504, 504, 429, 429, 429]);
+        assert.equal(slow.sent, 2, 'con tope 2, solo dos pedidos llegan al proveedor');
+        const broken = await run(async () => reply(503, { error: { message: 'overloaded' } }), 1, 3);
+        assert.deepEqual(broken.statuses, [502, 429, 429]);
+        assert.equal(broken.sent, 1);
+        // Lo que el proveedor rechaza sin generar (contenido bloqueado, cuota, clave) sí vuelve al tope.
+        for (const [status, payload, expected] of [
+            [400, { error: { code: 'moderation_blocked' } }, 422],
+            [429, { error: { code: 'insufficient_quota' } }, 429],
+            [401, { error: { code: 'invalid_api_key' } }, 502]
+        ]) {
+            const rejected = await run(async () => reply(status, payload), 1, 3);
+            assert.deepEqual(rejected.statuses, [expected, expected, expected], `HTTP ${status}`);
+            assert.equal(rejected.sent, 3);
+            assert.equal(rejected.budget.take(), true);
+        }
+    } finally { console.error = original.error; console.warn = original.warn; }
+    // Un pedido inválido (idea corta) ni siquiera toma cupo.
+    const untouched = routes.createDailyBudget(1);
+    const invalid = routes.createAiReferenceHandler({ env, budget: untouched, generateImage: async () => { throw new Error('no debería generar'); } });
+    const res = fakeRes();
+    await invalid({ body: { submission_key: KEY, idea: 'corta' } }, res);
+    assert.equal(res.statusCode, 400);
+    assert.equal(untouched.take(), true);
 });
 
 test('P7: de punta a punta, la referencia sale por OpenAI con el modelo del servidor y el borrador hasheado', async () => {
@@ -545,7 +598,7 @@ test('P7: Gemini — lista blanca de modelos, URL sin la key y errores con códi
         (e) => e.status === 429);
 });
 
-test('endpoint genérico de imágenes con IA: el guard deja pasar solo prompt y proporción; el modelo lo decide el servidor', async () => {
+test('endpoint genérico de imágenes con IA: el guard deja pasar solo el prompt; modelo y proporción los decide el servidor', async () => {
     const clean = routes.sanitizeAiImageBody({ prompt: 'x'.repeat(9000), model: 'models/../evil', imageSize: '4K', aspectRatio: '7:1', temperature: 9, maxOutputTokens: 99,
         apiKey: 'sk-del-navegador', quality: 'high', n: 10,
         safetySettings: [{ category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' }, { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_LOW_AND_ABOVE', extra: 1 }] });
@@ -553,10 +606,15 @@ test('endpoint genérico de imágenes con IA: el guard deja pasar solo prompt y 
     assert.equal(clean.prompt.length, 4000);
     assert.equal(routes.sanitizeGeminiBody, routes.sanitizeAiImageBody, 'el nombre histórico es el mismo saneador');
     assert.deepEqual(routes.sanitizeAiImageBody(null), {});
-    assert.deepEqual(routes.sanitizeAiImageBody({ prompt: 42, aspectRatio: '16:9' }), { aspectRatio: '16:9' });
+    // SCI-08: la proporción decide el tamaño (y el costo). Solo la elige un superadmin;
+    // para el resto no pasa y el servidor genera el cuadrado de 1024.
+    assert.deepEqual(routes.sanitizeAiImageBody({ prompt: 42, aspectRatio: '16:9' }), {});
+    assert.deepEqual(routes.sanitizeAiImageBody({ prompt: 42, aspectRatio: '16:9' }, { admin: true }), { aspectRatio: '16:9' });
     for (const aspect of ['1:1', '4:3', '3:2', '16:9', '3:4', '2:3', '9:16']) {
-        assert.equal(routes.sanitizeAiImageBody({ aspectRatio: aspect }).aspectRatio, aspect);
+        assert.equal(routes.sanitizeAiImageBody({ aspectRatio: aspect }).aspectRatio, undefined, aspect);
+        assert.equal(routes.sanitizeAiImageBody({ aspectRatio: aspect }, { admin: true }).aspectRatio, aspect);
     }
+    assert.equal(routes.sanitizeAiImageBody({ aspectRatio: '7:1' }, { admin: true }).aspectRatio, undefined);
     // Ya no se aceptan IDs de modelo de Gemini del cliente, ni siquiera de un superadmin.
     for (const model of ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image', 'gpt-image-1', 'evil']) {
         assert.equal(routes.sanitizeAiImageBody({ model }).model, undefined);
@@ -568,34 +626,39 @@ test('endpoint genérico de imágenes con IA: el guard deja pasar solo prompt y 
     assert.equal(routes.sanitizeAiImageBody({ model: 'gpt-image-2.6-flare', imageSize: '4K' }, { admin: true }).imageSize, undefined);
 
     const made = [];
+    const guardBudget = routes.createDailyBudget(1);
     const [limiter, sanitize] = routes.createAiImageGuard({
         rateLimit: { rateLimit: (opts) => { made.push(opts); return opts; }, ipKeyGenerator: (ip) => `ip(${ip})` },
-        resolveUser: async () => null, budget: routes.createDailyBudget(1)
+        resolveUser: async () => null, budget: guardBudget
     });
     assert.equal(routes.createGeminiGuard, routes.createAiImageGuard);
     assert.equal(routes.geminiGuard, routes.aiImageGuard);
     assert.ok(limiter.max <= 30);
-    const req = { headers: {}, body: { prompt: 'p', model: 'gpt-image-2.6-sunburst', imageSize: '4K' } };
+    const req = { headers: {}, body: { prompt: 'p', model: 'gpt-image-2.6-sunburst', aspectRatio: '16:9', imageSize: '4K' } };
     let passed = 0;
     await sanitize(req, fakeRes(), () => { passed += 1; });
     assert.equal(passed, 1);
-    assert.deepEqual(req.body, { prompt: 'p' }, 'sin sesión de superadmin no se elige modelo');
+    assert.deepEqual(req.body, { prompt: 'p' }, 'sin sesión de superadmin no se elige modelo ni proporción');
     assert.equal(req.aiImageUserKey, '', 'sin sesión no se manda identificador (ni la IP)');
+    // SCI-03: el guard no descuenta el tope diario (lo hace el handler, con el pedido ya
+    // validado; ver tests/r2-ai-image.test.js). Solo deja el presupuesto en el pedido.
+    assert.equal(req.aiImageBudget, guardBudget);
     const res = fakeRes();
-    await sanitize({ headers: {}, body: { prompt: 'p' } }, res, () => { passed += 1; });
-    assert.equal(res.statusCode, 429, 'tope diario');
-    assert.equal(passed, 1);
+    await sanitize({ headers: {}, body: {} }, res, () => { passed += 1; });
+    assert.equal(res.statusCode, 200, 'un cuerpo vacío no gasta el cupo del día ni se corta acá');
+    assert.equal(passed, 2);
+    assert.equal(guardBudget.take(), true, 'el cupo sigue entero');
 
     // Con sesión: el superadmin elige modelo y el id de la cuenta es el identificador (se hashea después).
     const guardFor = (user, isAdmin) => routes.createAiImageGuard({
         rateLimit: { rateLimit: (opts) => opts, ipKeyGenerator: (ip) => ip },
         resolveUser: async () => user, isAdmin: () => isAdmin, budget: routes.createDailyBudget(5)
     })[1];
-    const adminReq = { headers: { authorization: 'Bearer t' }, body: { prompt: 'p', model: 'gpt-image-2.6-sunburst' } };
+    const adminReq = { headers: { authorization: 'Bearer t' }, body: { prompt: 'p', model: 'gpt-image-2.6-sunburst', aspectRatio: '3:4' } };
     await guardFor({ id: 'u-1', email: 'admin@example.test' }, true)(adminReq, fakeRes(), () => {});
-    assert.deepEqual(adminReq.body, { prompt: 'p', model: 'gpt-image-2.6-sunburst' });
+    assert.deepEqual(adminReq.body, { prompt: 'p', aspectRatio: '3:4', model: 'gpt-image-2.6-sunburst' });
     assert.equal(adminReq.aiImageUserKey, 'user:u-1');
-    const artistReq = { headers: { authorization: 'Bearer t' }, body: { prompt: 'p', model: 'gpt-image-2.6-sunburst' } };
+    const artistReq = { headers: { authorization: 'Bearer t' }, body: { prompt: 'p', model: 'gpt-image-2.6-sunburst', aspectRatio: '3:4' } };
     await guardFor({ id: 'u-2', email: 'artista@example.test' }, false)(artistReq, fakeRes(), () => {});
     assert.deepEqual(artistReq.body, { prompt: 'p' });
     assert.equal(artistReq.aiImageUserKey, 'user:u-2');

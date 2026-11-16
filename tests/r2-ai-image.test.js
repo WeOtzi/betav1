@@ -626,6 +626,133 @@ test('endpoint genérico: de punta a punta con el guard, el body del navegador n
     assert.doesNotMatch(calls[0].opts.body, /203\.0\.113\.9|sk-del-navegador/);
 });
 
+// Guard real (sin límite por IP) + handler real + proveedor simulado.
+function pipeline({ cap = 5, user = null, admin = false, env = ENV, respond = () => okReply() } = {}) {
+    const calls = [];
+    const logged = [];
+    const budget = cotFormRoutes.createDailyBudget(cap);
+    const [, sanitize] = cotFormRoutes.createAiImageGuard({
+        rateLimit: { rateLimit: (opts) => opts, ipKeyGenerator: (ip) => ip },
+        resolveUser: async () => user, isAdmin: () => admin, budget
+    });
+    const fetchImpl = async (url, opts) => { calls.push(JSON.parse(opts.body)); return respond(url, opts); };
+    const handler = endpoint.createGenerateHandler({
+        env, log: (...args) => logged.push(args.join(' ')),
+        generateImage: (options) => aiImage.generateImage({ ...options, fetchImpl, timeoutMs: 30 })
+    });
+    const post = async (body) => {
+        const req = { headers: user ? { authorization: 'Bearer t' } : {}, ip: '203.0.113.9', body };
+        const res = fakeRes();
+        let passed = false;
+        await sanitize(req, res, () => { passed = true; });
+        if (passed) await handler(req, res);
+        return res;
+    };
+    return { post, calls, logged, budget };
+}
+
+test('endpoint genérico: el tope diario solo lo gastan los pedidos que llegan al proveedor (SCI-03)', async () => {
+    // Antes el guard descontaba antes de validar: una IP mandando cuerpos vacíos dejaba sin imágenes a todos.
+    const { post, calls } = pipeline({ cap: 2 });
+    for (const body of [{}, { prompt: '' }, { prompt: '   ' }, { prompt: 42 }, null, 'texto', []]) {
+        const res = await post(body);
+        assert.equal(res.statusCode, 400, JSON.stringify(body));
+        assert.equal(res.body.code, 'ai_invalid');
+    }
+    assert.equal(calls.length, 0, 'nada de eso llegó al proveedor');
+    // Los dos cupos del día siguen intactos para los pedidos de verdad…
+    assert.equal((await post({ prompt: 'un colibrí' })).statusCode, 200);
+    assert.equal((await post({ prompt: 'una rosa' })).statusCode, 200);
+    assert.equal(calls.length, 2);
+    // …y el tercero se corta acá, sin llamar al proveedor.
+    const capped = await post({ prompt: 'un ancla' });
+    assert.equal(capped.statusCode, 429);
+    assert.deepEqual(capped.body, { success: false, code: 'ai_busy', rate_limited: true, error: 'Hay mucha demanda en este momento. Inténtalo de nuevo más tarde.' });
+    assert.equal(capped.headers['Cache-Control'], 'no-store');
+    assert.equal(calls.length, 2);
+
+    // Sin clave en el servidor tampoco se gasta el cupo.
+    const off = pipeline({ cap: 1, env: {} });
+    for (let i = 0; i < 3; i += 1) assert.equal((await off.post({ prompt: 'p' })).statusCode, 503);
+    assert.equal(off.budget.take(), true, 'el cupo sigue disponible');
+
+    // El guard ya no descuenta: solo deja el presupuesto a mano del handler.
+    const budget = cotFormRoutes.createDailyBudget(1);
+    const [, sanitize] = cotFormRoutes.createAiImageGuard({ rateLimit: { rateLimit: (opts) => opts, ipKeyGenerator: (ip) => ip }, resolveUser: async () => null, budget });
+    for (let i = 0; i < 3; i += 1) {
+        const req = { headers: {}, body: { prompt: 'p' } };
+        let passed = false;
+        await sanitize(req, fakeRes(), () => { passed = true; });
+        assert.equal(passed, true);
+        assert.equal(req.aiImageBudget, budget);
+    }
+    assert.equal(budget.take(), true);
+    assert.equal(budget.take(), false);
+    const guardSource = read('lib', 'routes', 'cot-form.js');
+    assert.doesNotMatch(guardSource.slice(guardSource.indexOf('function createGeminiGuard('), guardSource.indexOf('let defaultGeminiGuard')), /budget\.take\(/, 'el guard no toca el tope');
+
+    // Sin presupuesto en el pedido (handler usado suelto) acepta uno por deps.
+    const own = cotFormRoutes.createDailyBudget(1);
+    const direct = endpoint.createGenerateHandler({ env: ENV, budget: own, generateImage: async () => ({ mimeType: 'image/jpeg', base64: JPEG, model: 'm', provider: 'openai' }) });
+    const first = fakeRes();
+    await direct({ body: { prompt: 'p' } }, first);
+    const second = fakeRes();
+    await direct({ body: { prompt: 'p' } }, second);
+    assert.deepEqual([first.statusCode, second.statusCode], [200, 429]);
+});
+
+test('endpoint genérico: el cupo vuelve si el proveedor rechazó sin generar; un vencimiento o un 5xx lo consumen (SCI-03, SCI-07)', async () => {
+    const hang = (url, opts) => new Promise((resolve, reject) => {
+        opts.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    });
+    const outcomes = [
+        // [respuesta del proveedor, status esperado, ¿se devuelve el cupo?]
+        [() => reply(400, { error: { code: 'moderation_blocked' } }), 422, true],
+        [() => reply(401, { error: { code: 'invalid_api_key' } }), 502, true],
+        [() => reply(403, { error: { message: 'Your organization must be verified.' } }), 502, true],
+        [() => reply(429, { error: { code: 'insufficient_quota' } }), 429, true],
+        [() => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } }); }, 502, true],
+        [hang, 504, false],
+        [() => reply(500, { error: { message: 'boom' } }), 502, false],
+        [() => reply(200, { data: [] }), 502, false],
+        [() => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } }); }, 502, false],
+        [() => reply(400, { error: { code: 'moderation_blocked', moderation_details: { moderation_stage: 'output' } } }), 422, false]
+    ];
+    for (const [respond, status, refunded] of outcomes) {
+        const { post, budget, calls } = pipeline({ cap: 1, respond });
+        const res = await post({ prompt: 'p' });
+        assert.equal(res.statusCode, status, String(respond));
+        assert.equal(calls.length, 1, 'el pedido llegó al proveedor');
+        assert.equal(budget.take(), refunded, `${status}: ${refunded ? 'el cupo vuelve' : 'el cupo se consume'} · ${String(respond).slice(0, 60)}`);
+    }
+    // Cinco vencimientos seguidos con tope 2: solo dos llegan al proveedor.
+    const slow = pipeline({ cap: 2, respond: hang });
+    const statuses = [];
+    for (let i = 0; i < 5; i += 1) statuses.push((await slow.post({ prompt: 'p' })).statusCode);
+    assert.deepEqual(statuses, [504, 504, 429, 429, 429]);
+    assert.equal(slow.calls.length, 2, 'el tope acota las llamadas al proveedor');
+});
+
+test('endpoint genérico: solo un superadmin elige la proporción; para el resto la imagen es cuadrada (SCI-08)', async () => {
+    const anon = pipeline();
+    for (const aspectRatio of ['16:9', '9:16', '3:2', '1:1', 'auto']) {
+        assert.equal((await anon.post({ prompt: 'p', aspectRatio, size: '1536x1024' })).statusCode, 200);
+    }
+    assert.deepEqual(anon.calls.map((c) => c.size), ['1024x1024', '1024x1024', '1024x1024', '1024x1024', '1024x1024']);
+
+    const artist = pipeline({ user: { id: 'u-2', email: 'artista@example.test' }, admin: false });
+    await artist.post({ prompt: 'p', aspectRatio: '16:9', model: 'gpt-image-2.6-sunburst' });
+    assert.equal(artist.calls[0].size, '1024x1024', 'una cuenta común tampoco elige tamaño');
+    assert.equal(artist.calls[0].model, 'gpt-image-2.6-flare');
+
+    const admin = pipeline({ user: { id: 'u-1', email: 'admin@example.test' }, admin: true });
+    await admin.post({ prompt: 'p', aspectRatio: '16:9', model: 'gpt-image-2.6-sunburst' });
+    await admin.post({ prompt: 'p', aspectRatio: '3:4' });
+    await admin.post({ prompt: 'p', aspectRatio: '7:1' });
+    assert.deepEqual(admin.calls.map((c) => c.size), ['1536x1024', '1024x1536', '1024x1024']);
+    assert.equal(admin.calls[0].model, 'gpt-image-2.6-sunburst');
+});
+
 test('endpoint genérico: cada error responde con su status, un código y un mensaje propio, sin el detalle del proveedor', async () => {
     const logged = [];
     const run = async (deps, body = { prompt: 'p' }) => {
