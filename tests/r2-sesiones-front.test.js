@@ -422,6 +422,31 @@ test('expediente: diálogos de sesión con lugar, propuesta al cliente y avisos'
     assert.match(read('public/shared/js/quotation-client-notices.js'), /'session_completed', 'session_no_show'\]/);
 });
 
+test('REQ-05 (P27): "Confirmar acuerdo y agendar" pide el lugar y la primera sesión nace con él', () => {
+    const js = read('public/shared/js/quotation-detail-figma.js');
+    const dialog = js.slice(js.indexOf('function showAgreementDialog(edit)'), js.indexOf('function syncAgreementExtras()'));
+    assert.ok(dialog.length > 500, 'el diálogo del acuerdo');
+    // El selector se pide solo al registrar el acuerdo (no al editarlo) y si el turno reservado no creó ya la sesión.
+    assert.match(dialog, /const flow = sessionFlow\(\);\s*\n\s*const askPlace = !!flow && !edit && !holdSession;/);
+    assert.match(dialog, /\$\{askPlace \? '<div class="is-wide" data-ws-location-slot><\/div>' : ''\}/);
+    // Va entre "Primera sesión" y el comentario del acuerdo.
+    const slot = dialog.indexOf('data-ws-location-slot></div>');
+    assert.ok(dialog.indexOf("field('Primera sesión'") < slot && slot < dialog.indexOf("field('Comentario del acuerdo (opcional)'"));
+    // Mismo selector que "Agendar": la opción por defecto es la sede que eligió el cliente.
+    assert.match(dialog, /if \(askPlace\) place = flow\.mountLocation\(overlay\.querySelector\('\[data-ws-location-slot\]'\), \{ quoteId: q\.quote_id \}\);/);
+    assert.match(dialog, /const chosen = askPlace && place \? place\.read\(\) : null;/);
+    // La sesión se crea con location / location_kind (flow.createSession, probado arriba); sin el módulo, como antes.
+    assert.match(dialog, /created = flow\s*\n\s*\? await flow\.createSession\(row, chosen\)\s*\n\s*: await D\(\)\.QuotationDetail\.createSession\(row\);/);
+    assert.doesNotMatch(dialog, /createSession\(\{\s*\n\s*quotation_id: q\.id/, 'ya no hay un alta directa sin lugar');
+    // Turno apartado: la sesión ya existe; el lugar se le suma ANTES del aviso y un rechazo no rompe el acuerdo.
+    const update = dialog.indexOf('await flow.updateSession(slotBooking.session_id, {}, chosen);');
+    assert.ok(update > 0);
+    assert.ok(update > dialog.indexOf('await updateQuote(patch);'), 'después de guardar el acuerdo');
+    assert.ok(update < dialog.indexOf('noticeAgreement();'), 'antes del aviso al cliente');
+    assert.match(dialog, /try \{ await flow\.updateSession\(slotBooking\.session_id, \{\}, chosen\); \} catch \(error\) \{[\s\S]*?placePending = true;/);
+    assert.match(dialog, /No pudimos guardar el lugar: elígelo desde la sesión\./);
+});
+
 test('calendario: la ubicación sale de las sedes reales y viaja con su origen', () => {
     const cal = read('public/shared/js/calendar.js');
     assert.match(cal, /if \(flow && typeof flow\.calendarLocationHtml === 'function'\) return flow\.calendarLocationHtml\(\);/);

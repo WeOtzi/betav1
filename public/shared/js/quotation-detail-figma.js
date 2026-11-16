@@ -1223,7 +1223,12 @@
         const heldStart = !edit && !holdSession && window.WoSlotHold && window.WoSlotHold.pendingStart ? window.WoSlotHold.pendingStart(q) : null;
         const sessions = M.agreedSessions(q) || 1;
         const amount = M.numberFrom(q.final_budget_amount != null ? q.final_budget_amount : q.artist_budget_amount);
-        openDialog({
+        // REQ-05 (P27): la primera sesión también sale con su lugar (por defecto, la sede que
+        // eligió el cliente). Si el turno reservado ya creó la sesión, el lugar se edita en su fila.
+        const flow = sessionFlow();
+        const askPlace = !!flow && !edit && !holdSession;
+        let place = null;
+        const overlay = openDialog({
             title: edit ? 'Editar acuerdo' : 'Confirmar acuerdo y agendar',
             intro: edit
                 ? 'Ajustá lo que acordaste con el cliente. No podés acordar menos sesiones de las que ya agendaste.'
@@ -1237,6 +1242,7 @@
                 ${depositField(q)}
                 ${durationFields(M.minutesFrom(q.artist_session_minutes) || 120)}
                 ${edit ? '' : holdSession ? `<p class="wo-help is-wide">Primera sesión: el turno reservado (${esc(window.WoSlotHold.labelFor(q))}).</p>` : field('Primera sesión', `<input class="wo-input" name="first" type="datetime-local" value="${esc(localInputValue(heldStart))}" required>${heldStart ? '<span class="wo-help">Precargada con el turno que pidió el cliente: al confirmar, queda reservado y bloqueado.</span>' : ''}`, true)}
+                ${askPlace ? '<div class="is-wide" data-ws-location-slot></div>' : ''}
                 ${field('Comentario del acuerdo (opcional)', `<textarea class="wo-textarea" name="comment" maxlength="600" placeholder="Va a llevar un amigo. Solicita anestesia.">${esc(q.final_comment || '')}</textarea>`, true)}
             </div>`,
             onSubmit: async (form, data) => {
@@ -1269,8 +1275,18 @@
                 await updateQuote(patch);
                 syncAgreementExtras();
                 let created = null;
+                let placePending = false;
+                const chosen = askPlace && place ? place.read() : null;
                 if (!edit && slotBooking && slotBooking.session_id) {
                     created = { id: slotBooking.session_id, session_number: slotBooking.session_number };
+                    // REQ-05: el turno apartado ya creó la sesión; el lugar se le suma antes del
+                    // aviso. Si la base no lo acepta, el acuerdo ya quedó guardado: se avisa y sigue.
+                    if (flow && chosen && chosen.location) {
+                        try { await flow.updateSession(slotBooking.session_id, {}, chosen); } catch (error) {
+                            console.warn('[quotation-detail] lugar de la primera sesión', error);
+                            placePending = true;
+                        }
+                    }
                     // COT-A-11: el acuerdo (con la primera sesión) es el único aviso al
                     // cliente; el turno se confirmó con from_agreement (EMAIL-DUP-03).
                     noticeAgreement();
@@ -1278,10 +1294,14 @@
                     created = holdSession;
                     noticeAgreement();
                 } else if (!edit) {
-                    created = await D().QuotationDetail.createSession({
+                    const row = {
                         quotation_id: q.id, session_number: null, session_date: first,
                         duration_hours: Math.round((minutes / 60) * 100) / 100, status: 'scheduled', notes: null,
-                    });
+                    };
+                    // REQ-05: con el módulo de sesiones, la primera sesión nace con su lugar.
+                    created = flow
+                        ? await flow.createSession(row, chosen)
+                        : await D().QuotationDetail.createSession(row);
                     // COT-A-11: el acuerdo lo confirma el artista → el aviso va al
                     // CLIENTE (antes salía client_approved_quotation al propio artista).
                     // El acuerdo ya informa la primera sesión: no se manda además
@@ -1289,9 +1309,13 @@
                     noticeAgreement();
                 }
                 await reloadAll();
-                showToast(edit ? 'Acuerdo actualizado.' : 'Acuerdo confirmado y primera sesión agendada.', edit ? {} : { link: { href: calendarUrl(first, { session: created && created.id, quote: true }), label: 'Ver en el calendario →' } });
+                const done = placePending
+                    ? 'Acuerdo confirmado y primera sesión agendada. No pudimos guardar el lugar: elígelo desde la sesión.'
+                    : 'Acuerdo confirmado y primera sesión agendada.';
+                showToast(edit ? 'Acuerdo actualizado.' : done, edit ? {} : { link: { href: calendarUrl(first, { session: created && created.id, quote: true }), label: 'Ver en el calendario →' } });
             },
         });
+        if (askPlace) place = flow.mountLocation(overlay.querySelector('[data-ws-location-slot]'), { quoteId: q.quote_id });
     }
 
     // Ronda 2 · cot-respuesta: tras el acuerdo, la seña de la fila de la cotización manual
