@@ -210,5 +210,8 @@ Eventos de `document`:
 - `wo:negotiation-changed` · `detail = { quoteId, role, action, proposal,
   quote_status }` después de cada propuesta o resolución.
 
-Si existe `window.WoNotify.ping` (frente "push"), el panel avisa cuando
-aparece una propuesta nueva de la otra parte mientras la página está abierta.
+El panel no llama a `window.WoNotify.ping`: cuando aparece una propuesta
+nueva de la otra parte, el toast, el sonido y el push salen del aviso que
+inserta el servidor (`negotiation_counter_proposed` /
+`negotiation_amendment_proposed`), que respeta "Cotizaciones → Push". Un ping
+local los duplicaba.

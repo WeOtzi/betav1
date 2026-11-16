@@ -408,7 +408,7 @@ test('se monta con una línea en el expediente del artista y en el panel del cli
     assert.match(figma, /wo:quotation-detail-rendered/);
 });
 
-test('contratos entre frentes: wo:quote-respond, wo:negotiation-changed y el aviso push', () => {
+test('contratos entre frentes: wo:quote-respond, wo:negotiation-changed; el aviso lo manda el servidor', () => {
     const js = read('public/shared/js/quotation-negotiation.js');
     assert.match(js, /new env\.root\.CustomEvent\('wo:quote-respond', \{ detail: detail, cancelable: true \}\)/);
     assert.match(js, /var detail = \{ quoteId: ctx\.quoteId, prefill: respondPrefill\(ctx\.state, pending\), handled: false \}/);
@@ -416,7 +416,12 @@ test('contratos entre frentes: wo:quote-respond, wo:negotiation-changed y el avi
     assert.match(js, /'&modal=responder'/);
     assert.match(js, /'wo:negotiation-changed'/);
     assert.match(js, /addEventListener\('wo:quotation-detail-rendered', onArtistDetailRendered\)/);
-    assert.match(js, /WoNotify/);
+    // EP-09: el panel no llama a WoNotify.ping. El aviso de una propuesta nueva lo inserta el
+    // servidor (toast, sonido y push según la matriz); el ping local lo duplicaba.
+    assert.doesNotMatch(js, /WoNotify|notifyNewPending/);
+    const serverEvents = read('services/email-events/negociacion.js');
+    assert.match(serverEvents, /negotiation_counter_proposed: event\(/);
+    assert.match(serverEvents, /negotiation_amendment_proposed: event\(/);
     assert.match(js, /\[data-action="edit-agreement"\]/);
     const prefill = M.respondPrefill(state(), proposal());
     assert.deepEqual(prefill, {

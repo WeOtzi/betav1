@@ -916,25 +916,11 @@
         if (!env.doc.contains(ctx.el)) return;
         // No se pisa un formulario o una confirmación a medio completar.
         if (ctx.ui.form || ctx.ui.confirm) { syncExternal(ctx); return; }
+        // Sin aviso local: cuando aparece una propuesta de la otra parte el panel
+        // ya quedó repintado, y el toast, el sonido y el push los manda el servidor
+        // (negotiation_counter_proposed / negotiation_amendment_proposed) según la
+        // matriz de avisos. Un ping propio acá los duplicaba.
         render(ctx);
-        notifyNewPending(previous, ctx);
-    }
-
-    // Aviso en pantalla (frente "push") cuando aparece una propuesta de la otra parte.
-    function notifyNewPending(previous, ctx) {
-        var now = ctx.state && ctx.state.pending;
-        if (!previous || previous.available === false || !now || now.proposed_by === ctx.role) return;
-        var before = previous.pending;
-        if (before && before.id === now.id) return;
-        var notifier = env.root.WoNotify;
-        if (!notifier || typeof notifier.ping !== 'function') return;
-        try {
-            notifier.ping({
-                title: now.kind === 'counter' ? 'El cliente propone cambios' : 'Te proponen un cambio al acuerdo',
-                body: summaryLine(now, 140),
-                url: env.root.location ? env.root.location.href : ''
-            });
-        } catch (e) { /* el aviso nunca rompe el panel */ }
     }
 
     function mountEl(el) {
