@@ -120,6 +120,8 @@ test('estado vacío del portafolio: tarjeta con salida para el visitante, sin hu
     assert.match(PROFILE_JS, /const emptyForVisitor = !owner && !galleryItems\.length;/);
     assert.match(PROFILE_JS, /if \(emptyCard\) emptyCard\.hidden = !emptyForVisitor;/);
     assert.match(PROFILE_JS, /if \(head\) head\.hidden = emptyForVisitor;/);
+    // N7: el visitante de un perfil sin trabajos no ve ninguna franja "Portafolio" bajo las cifras.
+    assert.match(PROFILE_JS, /if \(band\) band\.hidden = emptyForVisitor;/);
     // Sin trabajos el visitante no ve celdas punteadas.
     const fnSrc = PROFILE_JS.slice(PROFILE_JS.indexOf('function gallerySlotCount'), PROFILE_JS.indexOf('function renderGalleryGrid'));
     const gallerySlotCount = new Function('MIN_GALLERY_SLOTS', `${fnSrc}; return gallerySlotCount;`)(9);

@@ -1616,11 +1616,14 @@ function renderGallery() {
     const ownerCta = document.getElementById('gallery-owner-cta');
     if (ownerCta) ownerCta.hidden = !owner || galleryItems.length >= MIN_GALLERY_SLOTS;
 
-    // Visitante + perfil sin trabajos: la banda se achica a un estado vacío con
-    // salida (pedir cotización), sin título ni grilla de huecos.
+    // Visitante + perfil sin trabajos: la banda no se muestra (nota N7: entre las
+    // cifras y "Sobre el artista" no queda un "Portafolio" sin contenido). La
+    // salida para cotizar ya está en el hero y en la banda de disponibilidad que
+    // sigue. El dueño sí la ve, con la invitación a subir trabajos.
     const emptyForVisitor = !owner && !galleryItems.length;
     const band = document.getElementById('block-gallery');
     if (band) band.classList.toggle('is-empty', emptyForVisitor);
+    if (band) band.hidden = emptyForVisitor;
     const head = document.getElementById('gallery-head');
     if (head) head.hidden = emptyForVisitor;
     const emptyCard = document.getElementById('gallery-empty-card');
