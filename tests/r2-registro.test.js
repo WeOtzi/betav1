@@ -497,7 +497,7 @@ test('P31: el registro de cliente ofrece los 30 estilos principales del catálog
     assert.match(js, /holder\.classList\.add\('is-fallback'\);/, 'respaldo visual si la foto todavía no existe');
 });
 
-test('P31: el manifiesto de assets lista una foto por estilo, sin generar nada', () => {
+test('P31: el manifiesto de assets lista una foto por estilo, en la carpeta del frente', () => {
     const manifest = JSON.parse(read('docs/plans/ronda2-assets/registro.json'));
     assert.equal(manifest.length, 30);
     const expected = new Set(clientStyles.STYLES.map((name) => 'public' + clientStyles.photoPath(name)));
@@ -506,7 +506,12 @@ test('P31: el manifiesto de assets lista una foto por estilo, sin generar nada',
         assert.match(entry.aspect, /^(1:1|4:3|3:4|16:9)$/);
         assert.ok(entry.prompt.length > 80 && /no text/i.test(entry.prompt) && /no nudity/i.test(entry.prompt));
         assert.ok(entry.uso);
-        assert.equal(fs.existsSync(path.join(root, entry.path)), false, 'las imágenes las genera el orquestador');
+        // Las fotos las genera el orquestador (ya entraron al repo con los assets de la
+        // ronda 2): el frente solo fija dónde van. Si el archivo está, no viene vacío; si
+        // falta, la página muestra el respaldo (is-fallback).
+        assert.match(entry.path, /^public\/shared\/assets\/ronda2\/registro\/estilos\/[a-z0-9-]+\.webp$/);
+        const file = path.join(root, entry.path);
+        if (fs.existsSync(file)) assert.ok(fs.statSync(file).size > 1024, `${entry.path} vacío`);
     });
 });
 
