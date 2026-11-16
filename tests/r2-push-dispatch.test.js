@@ -448,13 +448,50 @@ test('sendToUser borra las suscripciones vencidas y cuenta los fallos de las dem
         { id: 'flaky', endpoint: 'https://fcm.googleapis.com/c', failure_count: 2 },
         { id: 'dead', endpoint: 'https://fcm.googleapis.com/d', failure_count: 7 }
     ];
-    const outcomes = { ok: { ok: true, status: 201, gone: false }, gone: { ok: false, status: 410, gone: true }, flaky: { ok: false, status: 500, gone: false }, dead: { ok: false, status: 500, gone: false } };
+    // El servicio de push rechaza la suscripción (403): eso sí cuenta para el borrado.
+    const outcomes = { ok: { ok: true, status: 201, gone: false }, gone: { ok: false, status: 410, gone: true }, flaky: { ok: false, status: 403, gone: false }, dead: { ok: false, status: 403, gone: false } };
     const { repo, deps } = harness({ subs: { [CLIENT_ID]: subs } }, { sendNotification: async (sub) => outcomes[sub.id] });
     const summary = await dispatch.sendToUser(CLIENT_ID, { title: 'x' }, {}, deps);
     assert.deepEqual(summary, { attempted: 4, sent: 1, removed: 2 });
     assert.deepEqual(repo.state.success, ['ok']);
     assert.deepEqual(repo.state.deleted.sort(), ['dead', 'gone']);
     assert.deepEqual(repo.state.failure, [['flaky', 2]]);
+});
+
+// EP-04: una caída de la red del servidor, un 429 o un 5xx del servicio de push
+// no dicen nada de la suscripción. Antes, ocho seguidos la borraban.
+test('sendToUser no cuenta ni borra por fallos transitorios (red caída, timeout, 429, 5xx)', async () => {
+    const transient = {
+        red: { ok: false, status: 0, gone: false, error: 'network_error' },
+        timeout: { ok: false, status: 0, gone: false, error: 'timeout' },
+        limite: { ok: false, status: 429, gone: false },
+        caido: { ok: false, status: 503, gone: false },
+        interno: { ok: false, status: 500, gone: false }
+    };
+    // Todas al borde: con la regla anterior, este envío las borraba.
+    const subs = Object.keys(transient).map((id) => ({ id, endpoint: `https://fcm.googleapis.com/${id}`, failure_count: dispatch.MAX_FAILURES - 1 }));
+    const logged = [];
+    const { repo, deps } = harness({ subs: { [CLIENT_ID]: subs } }, { sendNotification: async (sub) => transient[sub.id], log: (...args) => logged.push(args.join(' ')) });
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+        assert.deepEqual(await dispatch.sendToUser(CLIENT_ID, { title: 'x' }, {}, deps), { attempted: 5, sent: 0, removed: 0 });
+    }
+    assert.deepEqual(repo.state.deleted, [], 'ninguna suscripción se borra');
+    assert.deepEqual(repo.state.failure, [], 'ni suma fallos');
+    assert.deepEqual(repo.state.success, []);
+    assert.ok(logged.some((line) => /sin respuesta del servicio.*network_error/.test(line)), 'queda registrado para diagnosticar');
+
+    for (const result of Object.values(transient)) assert.equal(dispatch.isTransientFailure(result), true, JSON.stringify(result));
+    // Lo que sí habla de la suscripción o de la configuración sigue contando (o borra en el acto).
+    for (const result of [{ ok: false, status: 400 }, { ok: false, status: 401 }, { ok: false, status: 403 }, { ok: false, status: 413 },
+        { ok: false, status: 404, gone: true }, { ok: false, status: 410, gone: true }, { ok: false, status: 0, gone: true, error: 'endpoint_not_allowed' },
+        { ok: true, status: 201 }, null]) {
+        assert.equal(dispatch.isTransientFailure(result), false, JSON.stringify(result));
+    }
+
+    // Un rechazo real al borde sí la borra.
+    const rejected = harness({ subs: { [CLIENT_ID]: [{ id: 'vapid', endpoint: 'https://fcm.googleapis.com/v', failure_count: dispatch.MAX_FAILURES - 1 }] } }, { sendNotification: async () => ({ ok: false, status: 401, gone: false }) });
+    assert.deepEqual(await dispatch.sendToUser(CLIENT_ID, { title: 'x' }, {}, rejected.deps), { attempted: 1, sent: 0, removed: 1 });
+    assert.deepEqual(rejected.repo.state.deleted, ['vapid']);
 });
 
 test('si la tabla de avisos falla, un aviso con clave de dedupe no se envía a ciegas', async () => {

@@ -73,8 +73,12 @@ class El {
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
 }
 
-function browser({ pathname = '/client/dashboard', search = '', push = false, permission = 'default' } = {}) {
-    const store = new Map();
+// `session` = id del usuario con sesión iniciada (sin él la página corre como vista previa, sin red).
+// `local` / `tab` = localStorage / sessionStorage: pasar el mismo Map simula otra carga de página
+// en la misma pestaña; un `tab` nuevo, otra pestaña. `server` registra lo que recibe el servidor.
+function browser({ pathname = '/client/dashboard', search = '', push = false, permission = 'default', session = null, local = new Map(), tab = new Map(), server = null } = {}) {
+    const store = local;
+    const api = server || { subscribed: [], tests: 0, testResults: [], failSubscribe: false };
     const head = new El('head');
     const body = new El('body');
     const docListeners = {};
@@ -82,7 +86,11 @@ function browser({ pathname = '/client/dashboard', search = '', push = false, pe
     const permissionRequests = [];
     const audio = { oscillators: 0 };
     const window = {
-        WEOTZI_PREVIEW: true, // sin red: no se resuelve la sesión
+        WEOTZI_PREVIEW: !session, // sin sesión de prueba no hay red: no se resuelve la sesión
+        // tab: null → sessionStorage bloqueado por el navegador (leerlo lanza).
+        sessionStorage: tab
+            ? { getItem: k => (tab.has(k) ? tab.get(k) : null), setItem: (k, v) => tab.set(k, String(v)), removeItem: k => tab.delete(k) }
+            : { getItem() { throw new Error('SecurityError'); }, setItem() { throw new Error('SecurityError'); }, removeItem() {} },
         location: { pathname, search, origin: 'https://beta.weotzi.com', href: `https://beta.weotzi.com${pathname}${search}` },
         localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) },
         history: { state: null, replaced: [], replaceState(state, title, url) { this.replaced.push(url); } },
@@ -97,6 +105,12 @@ function browser({ pathname = '/client/dashboard', search = '', push = false, pe
         }
     };
     if (push) window.PushManager = function PushManager() {};
+    if (session) {
+        window._supabase = { auth: {
+            getSession: async () => ({ data: { session: { user: { id: session }, access_token: 'token-de-prueba' } } }),
+            onAuthStateChange() {}
+        } };
+    }
     window.AudioContext = function AudioContext() {
         this.state = 'running';
         this.currentTime = 0;
@@ -126,7 +140,16 @@ function browser({ pathname = '/client/dashboard', search = '', push = false, pe
             if (/postgrest-client\.js$/.test(el.src)) window.WeotziData = { getClient: () => null };
             if (/notifications-repo\.js$/.test(el.src)) {
                 window.WeotziData.Notifications = {
-                    Push: { config: async () => ({ enabled: true, publicKey: 'BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8' }) },
+                    Push: {
+                        config: async () => ({ enabled: true, publicKey: 'BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8' }),
+                        subscribe: async (token, subscription) => {
+                            if (api.failSubscribe) throw new Error('sin red');
+                            api.subscribed.push({ token, endpoint: subscription.endpoint });
+                            return { success: true };
+                        },
+                        test: async () => { api.tests += 1; return api.testResults.shift() || { success: true, stored: true, push_enabled: true, devices: 1, delivered: 1 }; },
+                        unsubscribe: async () => ({ success: true })
+                    },
                     markRead: async () => {}, listRecent: async () => [], subscribe: () => ({}), unsubscribe() {}
                 };
             }
@@ -136,11 +159,17 @@ function browser({ pathname = '/client/dashboard', search = '', push = false, pe
     };
     const navigator = { userAgent: 'Mozilla/5.0 (X11; Linux x86_64)', maxTouchPoints: 0 };
     if (push) navigator.serviceWorker = { addEventListener() {}, getRegistration: async () => null, register: async () => ({}), ready: new Promise(() => {}) };
+    if (push && session) {
+        // Navegador ya suscrito: el service worker responde y devuelve la suscripción vigente.
+        const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/dispositivo-1', options: {}, toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'x', auth: 'y' } }; }, unsubscribe: async () => true };
+        const registration = { pushManager: { getSubscription: async () => subscription, subscribe: async () => subscription } };
+        navigator.serviceWorker = { addEventListener() {}, getRegistration: async () => registration, register: async () => registration, ready: Promise.resolve(registration) };
+    }
     class CustomEvent { constructor(type, init) { this.type = type; this.detail = init && init.detail; } }
     const context = vm.createContext({ window, document, navigator, console, URL, URLSearchParams, CustomEvent, Promise, JSON, Date, Math, Uint8Array, Buffer, setImmediate });
     vm.runInContext(read('public', 'shared', 'js', 'wo-notify.js'), context, { filename: 'wo-notify.js' });
     const unlock = () => (docListeners.pointerdown || []).forEach(fn => fn({}));
-    return { window, document, body, head, events, permissionRequests, audio, unlock, emit: (type, ev) => (docListeners[type] || []).forEach(fn => fn(ev || {})) };
+    return { window, document, body, head, events, permissionRequests, audio, unlock, local, tab, server: api, emit: (type, ev) => (docListeners[type] || []).forEach(fn => fn(ev || {})) };
 }
 
 const toasts = (b) => b.body.querySelectorAll('.wo-ntf-toast');
@@ -291,6 +320,87 @@ test('el permiso de notificaciones se pide SOLO desde "Activar avisos", nunca al
     const enableFn = src.slice(src.indexOf('function enablePush()'), src.indexOf('function disablePush()'));
     assert.equal(src.split('requestPermission(').length - 1, enableFn.split('requestPermission(').length - 1);
     assert.doesNotMatch(src.slice(src.indexOf('function syncPush('), src.indexOf('function enablePush()')), /requestPermission/);
+});
+
+// EP-04: si el servidor perdió la suscripción, el navegador la repone al próximo ingreso
+// (antes esperaba 3 días, con la tarjeta diciendo que los avisos seguían activos).
+test('la suscripción se reenvía una vez por pestaña aunque el marcador de 3 días esté vigente', async () => {
+    const USER = '11111111-1111-4111-8111-111111111111';
+    const open = (extra) => browser(Object.assign({ push: true, permission: 'granted', session: USER }, extra));
+
+    const first = open();
+    await tick(40);
+    assert.equal(first.server.subscribed.length, 1, 'primer ingreso: la suscripción llega al servidor');
+    assert.equal(first.server.subscribed[0].endpoint, 'https://fcm.googleapis.com/fcm/send/dispositivo-1');
+    assert.equal((await first.window.WoNotify.status()).subscribed, true);
+    const marker = JSON.parse(first.local.get('wo_notify_sync_v1'));
+    assert.ok(marker.m && Date.now() - marker.t < 5000, 'queda el marcador de 3 días');
+
+    // Otra página en la MISMA pestaña: no se repite el envío.
+    const samePage = open({ local: first.local, tab: first.tab, server: first.server });
+    await tick(40);
+    assert.equal(first.server.subscribed.length, 1, 'navegar dentro de la pestaña no reenvía');
+    assert.equal((await samePage.window.WoNotify.status()).subscribed, true);
+
+    // Pestaña NUEVA con el marcador vigente: se reenvía (repara un borrado del lado del servidor).
+    const newTab = open({ local: first.local, server: first.server });
+    await tick(40);
+    assert.equal(first.server.subscribed.length, 2, 'una pestaña nueva vuelve a registrar el dispositivo');
+    assert.equal((await newTab.window.WoNotify.status()).subscribed, true);
+    const again = open({ local: first.local, tab: newTab.tab, server: first.server });
+    await tick(40);
+    assert.equal(first.server.subscribed.length, 2, 'y después no insiste en esa pestaña');
+    assert.equal((await again.window.WoNotify.status()).subscribed, true);
+
+    // Sin red en ese reenvío de rutina: el push sigue activo (el servidor ya conocía el dispositivo)
+    // y se reintenta en la próxima carga.
+    const offline = open({ local: first.local, server: Object.assign(first.server, { failSubscribe: true }) });
+    await tick(40);
+    assert.equal((await offline.window.WoNotify.status()).subscribed, true);
+    assert.equal(first.server.subscribed.length, 2);
+    first.server.failSubscribe = false;
+    open({ local: first.local, tab: offline.tab, server: first.server });
+    await tick(40);
+    assert.equal(first.server.subscribed.length, 3, 'la carga siguiente lo consigue');
+
+    // Sin sessionStorage (bloqueado) queda la regla de los 3 días: no se reenvía en cada carga.
+    const blocked = open({ local: first.local, tab: null, server: first.server });
+    await tick(40);
+    assert.equal(first.server.subscribed.length, 3, 'sin sessionStorage no reenvía en cada carga');
+    assert.equal((await blocked.window.WoNotify.status()).subscribed, true);
+});
+
+test('"Probar": si el servidor no tiene ningún dispositivo de la cuenta, se registra otra vez y se repite la prueba', async () => {
+    const USER = '11111111-1111-4111-8111-111111111111';
+    const b = browser({ push: true, permission: 'granted', session: USER, pathname: '/client/profile' });
+    const host = new El('div');
+    b.body.appendChild(host);
+    b.window.WoNotify.mountSettings(host);
+    await tick(40);
+    assert.equal(b.server.subscribed.length, 1);
+    const testButton = host.querySelectorAll('button').find(btn => /prob/i.test(btn.textContent));
+    assert.ok(testButton, 'la tarjeta tiene el botón de prueba');
+
+    // El servidor perdió la suscripción: push encendido, cero dispositivos.
+    b.server.testResults.push({ success: true, stored: true, push_enabled: true, devices: 0, delivered: 0 });
+    testButton.emit('click');
+    await tick(60);
+    assert.equal(b.server.subscribed.length, 2, 'vuelve a registrar el dispositivo');
+    assert.equal(b.server.tests, 2, 'y repite la prueba una sola vez');
+    assert.match(host.querySelector('.wo-ntf-card').textContent, /enviamos un aviso de prueba a este dispositivo/);
+
+    // Caso normal: una sola llamada, sin reenvío.
+    testButton.emit('click');
+    await tick(60);
+    assert.equal(b.server.tests, 3);
+    assert.equal(b.server.subscribed.length, 2);
+
+    // Con el push apagado en el servidor (sin claves) no hay nada que reponer.
+    b.server.testResults.push({ success: true, stored: true, push_enabled: false, devices: 0, delivered: 0 });
+    testButton.emit('click');
+    await tick(60);
+    assert.equal(b.server.tests, 4);
+    assert.equal(b.server.subscribed.length, 2);
 });
 
 test('sin soporte de push la tarjeta lo explica y no ofrece el botón', async () => {

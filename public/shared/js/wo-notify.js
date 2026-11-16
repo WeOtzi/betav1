@@ -41,6 +41,7 @@
     var LS_CLAIM = 'wo_notify_claim';        // qué pestaña hizo sonar un aviso
     var LS_SHOWN = 'wo_notify_shown_v1';     // avisos ya mostrados (para no repetir al navegar)
     var SS_CONFIG = 'wo_notify_cfg_v1';      // { enabled, publicKey } del servidor (por pestaña)
+    var SS_SYNC = 'wo_notify_synced_v1';     // suscripción ya reenviada al servidor en esta pestaña
     var CONFIG_TTL_MS = 30 * 60 * 1000;
     var TOAST_MS = 9000;
     var MAX_TOASTS = 3;
@@ -103,6 +104,9 @@
     }
     function lsGet(key) { try { return window.localStorage.getItem(key); } catch (e) { return null; } }
     function lsSet(key, value) { try { window.localStorage.setItem(key, value); } catch (e) { /* almacenamiento bloqueado */ } }
+    // sessionStorage vive lo que la pestaña. undefined = no se puede usar (null = clave ausente).
+    function ssGet(key) { try { return window.sessionStorage.getItem(key); } catch (e) { return undefined; } }
+    function ssSet(key, value) { try { window.sessionStorage.setItem(key, value); } catch (e) { /* almacenamiento bloqueado */ } }
     function lsRemove(key) { try { window.localStorage.removeItem(key); } catch (e) { /* idem */ } }
     function isPreview() {
         return window.WEOTZI_PREVIEW === true || !!(window.WoDemo && window.WoDemo.enabled);
@@ -627,11 +631,24 @@
                     var marker = shortHash(state.user.id + '|' + subscription.endpoint);
                     var saved = {};
                     try { saved = JSON.parse(lsGet(LS_SYNC) || '{}') || {}; } catch (e) { saved = {}; }
-                    if (!force && saved.m === marker && Date.now() - Number(saved.t || 0) < RESYNC_MS) return true;
+                    var fresh = !force && saved.m === marker && Date.now() - Number(saved.t || 0) < RESYNC_MS;
+                    // Además del reenvío cada 3 días, uno por pestaña: si el servidor perdió
+                    // la fila (envíos rechazados, limpieza), se repone al próximo ingreso en vez
+                    // de quedar días sin push. POST /api/push/subscribe es un upsert por endpoint.
+                    // Sin sessionStorage no hay cómo recordarlo: queda la regla de los 3 días.
+                    var tab = ssGet(SS_SYNC);
+                    if (fresh && (tab === undefined || tab === marker)) return true;
                     return accessToken().then(function (token) {
-                        if (!token) return false;
+                        if (!token) return fresh;
                         return window.WeotziData.Notifications.Push.subscribe(token, subscription.toJSON()).then(function () {
                             lsSet(LS_SYNC, JSON.stringify({ m: marker, t: Date.now() }));
+                            ssSet(SS_SYNC, marker);
+                            return true;
+                        }, function (error) {
+                            // El reenvío de rutina falló (sin red): el servidor ya conocía esta
+                            // suscripción, así que el push sigue activo y se reintenta al navegar.
+                            if (!fresh) throw error;
+                            warn('reenvío de la suscripción', error);
                             return true;
                         });
                     });
@@ -789,7 +806,15 @@
         };
         accessToken().then(function (token) {
             if (!token || !repoReady()) { local('Este es un aviso de prueba dentro de la app.'); return undefined; }
-            return window.WeotziData.Notifications.Push.test(token, roleFromPath()).then(function (res) {
+            var send = function () { return window.WeotziData.Notifications.Push.test(token, roleFromPath()); };
+            return send().then(function (res) {
+                // Acá el push figura activo, pero el servidor no tiene ningún dispositivo de la
+                // cuenta: perdió la suscripción. Se registra otra vez y se repite la prueba (una vez).
+                if (res && res.push_enabled && res.devices === 0 && state.pushActive) {
+                    return syncPush(true).then(function (active) { return active ? send() : res; });
+                }
+                return res;
+            }).then(function (res) {
                 if (res.delivered > 0) feedback(card, 'Listo: enviamos un aviso de prueba a ' + (res.delivered === 1 ? 'este dispositivo.' : 'tus ' + res.delivered + ' dispositivos.'));
                 else if (res.stored) feedback(card, 'Enviamos un aviso de prueba. Lo verás en unos segundos dentro de la app.');
                 else local('Este es un aviso de prueba dentro de la app.');
