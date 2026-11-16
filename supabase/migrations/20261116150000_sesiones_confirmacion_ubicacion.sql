@@ -25,8 +25,10 @@
 --   6) RPC solo service-role (el servidor valida al actor y manda los emails):
 --      sesiones_confirm / _request_change / _respond_change / _withdraw_change
 --      / _save_feedback / _open_dispute.
---   7) Turnos reservados online: nacen confirmados (trigger sobre
---      artist_booking_holds; no se toca confirm_artist_slot_hold).
+--   7) Turnos reservados online: nacen confirmados si el horario no cambió
+--      (trigger sobre artist_booking_holds; no se toca
+--      confirm_artist_slot_hold). Si el artista movió la hora al confirmar,
+--      la sesión queda por confirmar.
 --   8) Google Calendar: el cambio de confirmación marca la agenda como sucia
 --      (trigger propio; no se tocan los de 20261115150000/160000).
 --   9) Panel del cliente: list_client_quotation_sessions (20261115170100)
@@ -313,6 +315,11 @@ create trigger trg_sesiones_close_requests
   for each row execute function public.sesiones_close_requests();
 
 -- 7) Turnos reservados online: el cliente ya pidió ese horario → confirmada.
+--    Solo si el inicio es el que pidió: confirm_artist_slot_hold acepta otro
+--    horario (p_starts) y cambia status, session_id y starts_at en el mismo
+--    UPDATE, así que old.starts_at es el turno pedido. Si el artista lo movió,
+--    la sesión queda 'pending' y el cliente la confirma desde su panel. Un
+--    apartado ya confirmado no vuelve a confirmar la sesión por otro UPDATE.
 create or replace function public.sesiones_hold_confirms_session()
 returns trigger
 language plpgsql
@@ -322,7 +329,14 @@ as $$
 declare
   v_prev text := coalesce(pg_catalog.current_setting('weotzi.sesiones_bypass', true), '');
 begin
-  if new.status = 'confirmed' and new.session_id is not null then
+  if new.status = 'confirmed' and new.session_id is not null
+     and (
+       tg_op = 'INSERT'
+       or (
+         (old.status is distinct from 'confirmed' or old.session_id is distinct from new.session_id)
+         and pg_catalog.date_trunc('minute', new.starts_at) = pg_catalog.date_trunc('minute', old.starts_at)
+       )
+     ) then
     perform pg_catalog.set_config('weotzi.sesiones_bypass', '1', true);
     update public.quotation_sessions s
        set client_confirmation = 'confirmed',

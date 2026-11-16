@@ -1102,6 +1102,11 @@ test('migración: en rango, idempotente, con reversa y sin tocar lo de turnos / 
 
     // Turnos online nacen confirmados sin redefinir confirm_artist_slot_hold; triggers previos intactos.
     assert.match(sql, /create trigger trg_sesiones_hold_confirms_session\s*\n\s*after insert or update of status, session_id on public\.artist_booking_holds/);
+    // DB-04: solo confirma si el inicio es el que pidió el cliente y el apartado recién pasa a confirmado.
+    const holdFn = sql.slice(sql.indexOf('create or replace function public.sesiones_hold_confirms_session()'), sql.indexOf('drop trigger if exists trg_sesiones_hold_confirms_session'));
+    assert.match(holdFn, /if new\.status = 'confirmed' and new\.session_id is not null\s*\n\s*and \(\s*\n\s*tg_op = 'INSERT'/);
+    assert.match(holdFn, /old\.status is distinct from 'confirmed' or old\.session_id is distinct from new\.session_id/);
+    assert.match(holdFn, /pg_catalog\.date_trunc\('minute', new\.starts_at\) = pg_catalog\.date_trunc\('minute', old\.starts_at\)/);
     assert.doesNotMatch(sql, /create (or replace )?function (public\.confirm_artist_slot_hold|public\.prevent_quotation_session_overlap|private\.gcal_mark_dirty)/);
     assert.doesNotMatch(sql, /drop trigger if exists (trg_gcal_dirty|trg_prevent_quotation_session_overlap|trg_release_hold_on_session_cancel|trg_set_quotation_session_number|quotation_sessions_updated_at) on/);
     assert.match(sql, /create trigger trg_gcal_dirty_confirmacion\s*\n\s*after update of client_confirmation on public\.quotation_sessions/);
