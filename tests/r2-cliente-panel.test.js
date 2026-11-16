@@ -606,7 +606,8 @@ test('CP2: /client/dashboard, /client/chats y /client/requests cargan el mismo m
     assert.deepEqual([...reqOrder].sort((a, b) => a - b), reqOrder);
     const nav = reqs.match(/<nav class="wo-topbar-nav"[\s\S]*?<\/nav>/)[0];
     assert.match(nav, /href="\/client\/chats\/">Mensajes<\/a>/);
-    assert.match(nav, /href="\/client\/favorites">Favoritos<\/a>/);
+    assert.match(nav, /href="\/client\/favorites\/">Favoritos<\/a>/);
+    assert.equal((nav.match(/>Favoritos<\/a>/g) || []).length, 1, 'una sola entrada a Favoritos en la barra (FE-02)');
     assert.match(reqs, /<a class="wo-o-tile" href="\/client\/profile"/);
     assert.match(nav, /href="\/client\/dashboard#mis-cotizaciones">Cotizaciones<\/a>/);
     assert.match(read('public/shared/js/client-panel-ui.js'), /hash === '#mis-cotizaciones'\) call\('revealQuotationsPanel'\)/, 'ese enlace abre el listado al llegar');
@@ -779,7 +780,8 @@ test('CP4: /client/profile — toggles de email y push, alias repetido y guardad
     const nav = html.match(/<nav class="wo-topbar-nav" aria-label="Navegación principal de cliente">[\s\S]*?<\/nav>/)[0];
     assert.match(nav, /href="\/client\/requests">Solicitudes<\/a>/);
     assert.match(nav, /href="\/client\/chats\/">Mensajes<\/a>/);
-    assert.match(nav, /href="\/client\/favorites">Favoritos<\/a>/);
+    assert.match(nav, /href="\/client\/favorites\/">Favoritos<\/a>/);
+    assert.equal((nav.match(/>Favoritos<\/a>/g) || []).length, 1, 'una sola entrada a Favoritos en la barra (FE-02)');
     assert.match(html, /id="cpa-username"[^>]*aria-describedby="cpa-username-error"/);
     assert.match(html, /<p class="cpa-field-error" id="cpa-username-error" role="alert"><\/p>/);
 

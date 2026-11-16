@@ -1076,7 +1076,14 @@ test('/client/favorites: página, scripts en orden y entradas desde el área del
     for (const page of ['public/client/dashboard/index.html', 'public/client/requests/index.html', 'public/client/chats/index.html', 'public/client/profile/index.html']) {
         assert.ok(read(page).includes('<a class="wo-topbar-item" href="/client/favorites/">Favoritos</a>'), page);
     }
-    assert.ok(read('public/client/dashboard/index.html').includes('href="/client/favorites/">Mis favoritos'), 'entrada visible también en el teléfono');
+    // FE-02: una sola entrada por lugar. En la barra, la de cliente-panel; en el cuerpo del
+    // panel, el acceso rápido (se ve también en el teléfono), sin el botón de los contadores.
+    for (const page of ['public/client/dashboard/index.html', 'public/client/requests/index.html', 'public/client/chats/index.html', 'public/client/profile/index.html', 'public/client/favorites/index.html']) {
+        assert.equal((read(page).match(/>Favoritos<\/a>/g) || []).length, 1, `${page}: un solo "Favoritos" en la barra`);
+    }
+    const dashboard = read('public/client/dashboard/index.html');
+    assert.ok(dashboard.includes('href="/client/favorites"><i data-wo-icon="heart" aria-hidden="true"></i>Mis favoritos'), 'entrada visible también en el teléfono');
+    assert.equal((dashboard.match(/Mis favoritos/g) || []).length, 1, 'el panel no repite "Mis favoritos"');
 });
 
 test('/client/favorites: la página escapa lo guardado y no arma URL por su cuenta', () => {
