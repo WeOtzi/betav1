@@ -664,6 +664,35 @@ test('endpoint genérico de imágenes con IA: el guard deja pasar solo el prompt
     assert.equal(artistReq.aiImageUserKey, 'user:u-2');
     assert.doesNotMatch(artistReq.aiImageUserKey, /@/, 'nunca el email');
 
+    // RS-06: el límite de 20 por hora por IP no corre para el superadmin con sesión ("generar
+    // todos" los íconos del backoffice hace un pedido por zona); para el resto sí.
+    assert.equal(await limiter.skip({ headers: {} }), false, 'sin Authorization no se saltea');
+    const lookups = [];
+    const adminGuard = (user, isAdmin, fail) => routes.createAiImageGuard({
+        rateLimit: { rateLimit: (opts) => opts, ipKeyGenerator: (ip) => ip },
+        resolveUser: async (r) => { lookups.push(r); if (fail) throw new Error('auth caída'); return user; },
+        isAdmin: (email) => isAdmin && email === 'admin@example.test', budget: routes.createDailyBudget(5)
+    });
+    const [adminLimiter, adminSanitize] = adminGuard({ id: 'u-1', email: 'admin@example.test' }, true);
+    const bulkReq = { headers: { authorization: 'Bearer t' }, body: { prompt: 'ícono', aspectRatio: '3:4' } };
+    assert.equal(await adminLimiter.skip(bulkReq), true, 'superadmin: sin límite por IP');
+    await adminSanitize(bulkReq, fakeRes(), () => {});
+    assert.deepEqual(bulkReq.body, { prompt: 'ícono', aspectRatio: '3:4' });
+    assert.equal(lookups.length, 1, 'la sesión se resuelve una sola vez por pedido');
+    assert.ok(bulkReq.aiImageBudget, 'el tope diario sigue valiendo para el superadmin');
+    assert.equal(await adminLimiter.skip({ headers: {} }), false, 'el superadmin sin Bearer es un pedido más');
+    const [artistLimiter] = adminGuard({ id: 'u-2', email: 'artista@example.test' }, true);
+    assert.equal(await artistLimiter.skip({ headers: { authorization: 'Bearer t' } }), false, 'un artista con sesión no se saltea el límite');
+    const [downLimiter, downSanitize] = adminGuard(null, true, true);
+    const downReq = { headers: { authorization: 'Bearer t' }, body: { prompt: 'p', aspectRatio: '3:4' } };
+    assert.equal(await downLimiter.skip(downReq), false, 'si no se puede validar la sesión, el límite corre');
+    await downSanitize(downReq, fakeRes(), () => {});
+    assert.deepEqual(downReq.body, { prompt: 'p' });
+    // El backoffice manda la sesión en las dos llamadas (ícono de zona y prueba de conexión).
+    const adminJs = read('public/shared/js/admin.js');
+    assert.match(adminJs, /const auth = await _getApifyAuthHeaders\(\);\s+const headers = \{ 'Content-Type': 'application\/json' \};\s+if \(auth && auth\.Authorization\) headers\.Authorization = auth\.Authorization;/);
+    assert.equal((adminJs.match(/fetch\('\/api\/(ai|gemini)\/generate-image'/g) || []).length, 1, 'un solo punto de llamada, con la sesión');
+
     const server = read('server.js');
     assert.match(server, /require\('\.\/lib\/routes\/ai-image'\)\.register\(app\);/);
     assert.doesNotMatch(server, /generativelanguage\.googleapis\.com|GEMINI_API_KEY/, 'server.js ya no habla con Gemini ni lee su clave');
