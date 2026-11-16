@@ -308,6 +308,7 @@ test('backoffice: "Probar" y "Generar" quedan deshabilitados y con el estado a l
 
     // Los botones existen con esos ids y el estado ocupado se ve.
     assert.match(backoffice, /<button type="button" class="btn btn-primary btn-sm" id="api-gemini-test" onclick="testGeminiAPI\(\)">/);
+    assert.match(backoffice, /<span class="api-status" id="api-gemini-status" role="status" aria-live="polite">/, 'el estado de la prueba se anuncia');
     assert.match(admin, /id="ai-generate-btn" onclick="generateBodyPartIcon\(\)"/);
     assert.match(admin, /<p id="ai-generate-status" role="status" aria-live="polite"/);
     assert.match(read('public', 'shared', 'css', 'admin-styles.css'), /\.btn\[aria-busy="true"\] \{\n\s+opacity: 0\.6;\n\s+cursor: progress;\n\}/);
