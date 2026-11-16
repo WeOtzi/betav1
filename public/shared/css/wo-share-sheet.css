@@ -195,10 +195,19 @@ html.wss-open {
 .wss-nets > li {
     grid-column: span 2;
     min-width: 0;
+    display: flex;
 }
 
 .wss-nets > li:nth-child(n + 4) {
     grid-column: span 3;
+}
+
+/* Enlaces y botones miden lo mismo: sin esto los <a> heredaban el color de
+   enlace y, con box-sizing de contenido, desbordaban su celda. */
+.wss-nets .wss-net,
+.wo-app .wss-nets a.wss-net {
+    box-sizing: border-box;
+    color: var(--neutral-500);
 }
 
 .wss-net {
