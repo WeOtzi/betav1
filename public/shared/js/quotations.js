@@ -565,7 +565,9 @@ function renderQuoteCard(quote, index) {
     const isDraft = quote.quote_status === 'draft';
 
     const chips = [];
-    if (styleName) chips.push(styleName);
+    // Flash Tattoos: la solicitud de un flash lleva su insignia y el título del flash.
+    const flash = window.WoFlash ? window.WoFlash.snapshotView(quote) : null;
+    if (styleName && !flash) chips.push(styleName);
     if (bodyPart) chips.push(bodyPart);
 
     const cta = isDraft
@@ -586,7 +588,7 @@ function renderQuoteCard(quote, index) {
                     <span class="q-card-name">${escapeHtml(quote.client_full_name || 'Sin nombre')}</span>
                     ${quote.client_city_residence ? `<span class="q-card-city">${escapeHtml(quote.client_city_residence)}</span>` : ''}
                 </p>
-                <p class="q-card-desc">${escapeHtml(quote.tattoo_idea_description || quote.project_description || 'Sin descripción')}</p>
+                <p class="q-card-desc">${flash ? `<span class="wo-flash-badge">Flash</span> ${escapeHtml(flash.title)}${flash.priceLabel ? ` · ${escapeHtml(flash.priceLabel)}` : ''}` : escapeHtml(quote.tattoo_idea_description || quote.project_description || 'Sin descripción')}</p>
                 ${chips.length ? `<div class="q-card-chips">${chips.map((c) => `<span class="q-chip-tag">${escapeHtml(c)}</span>`).join('')}</div>` : ''}
             </div>
             <div class="q-card-side">

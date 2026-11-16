@@ -1015,6 +1015,37 @@
         return out;
     }
 
+    // Flash Tattoos: insignia del flash (precio / reservado / sin precio) y
+    // diálogo de datos del flash (flash-editor.js). normalizeWorks conserva
+    // todas las claves del ítem, así que item.flash no se pierde al guardar.
+    function flashBadge(item) {
+        const view = window.WoFlash ? window.WoFlash.flashOf(item) : null;
+        if (!view) return '';
+        const text = !view.available ? 'Flash · Reservado' : (view.hasPrice ? `Flash · ${view.priceLabel}` : 'Flash · Sin precio');
+        return `<span class="aac-work-badge wo-flash-workbadge${view.available ? '' : ' is-reserved'}">${esc(text)}</span>`;
+    }
+
+    function openFlashEditor(index) {
+        const item = works[index];
+        if (!item || !window.WoFlashEditor) return;
+        window.WoFlashEditor.open(item, {
+            onSave: async (next) => {
+                const before = works[index];
+                works[index] = next;
+                try {
+                    await persistWorks();
+                    renderWorks();
+                    toast(next.category === 'flash' ? 'Flash guardado' : 'Ya no es un flash');
+                } catch (err) {
+                    works[index] = before;
+                    console.error('[account] flash:', err);
+                    toast('No pudimos guardar el flash', false);
+                    throw err;
+                }
+            }
+        });
+    }
+
     function renderWorks() {
         const grid = $('aac-works');
         const total = Math.max(MIN_WORK_SLOTS, Math.ceil((works.length + 1) / 4) * 4);
@@ -1031,8 +1062,10 @@
                     ? `<video src="${esc(item.url)}" preload="metadata" muted playsinline aria-label="${label} (video)"></video>`
                     : `<img src="${esc(item.url)}" alt="${label}" loading="lazy">`}
                 ${pending ? '<span class="aac-work-badge">Pendiente de validación</span>' : ''}
+                ${flashBadge(item)}
                 <div class="aac-work-tools">
                     <select class="aac-work-cat" data-work-cat="${i}" aria-label="Categoría del trabajo ${i + 1}">${catOptions(item.category)}</select>
+                    ${item.category === 'flash' && item.kind !== 'video' ? `<button type="button" class="aac-work-btn wo-flash-workbtn" data-work-flash="${i}" aria-label="Datos del flash ${i + 1}: precio, tamaño y disponibilidad" title="Datos del flash"><i data-wo-icon="tag" aria-hidden="true"></i></button>` : ''}
                     <button type="button" class="aac-work-btn" data-work-up="${i}" aria-label="Mover antes" ${i === 0 ? 'disabled' : ''}><i data-wo-icon="arrow-left" aria-hidden="true"></i></button>
                     <button type="button" class="aac-work-btn" data-work-down="${i}" aria-label="Mover después" ${i === works.length - 1 ? 'disabled' : ''}><i data-wo-icon="arrow-right" aria-hidden="true"></i></button>
                     <button type="button" class="aac-work-btn" data-work-del="${i}" aria-label="Quitar trabajo"><i data-wo-icon="trash-2" aria-hidden="true"></i></button>
@@ -1066,6 +1099,7 @@
             const btn = event.target.closest('button');
             if (!btn) return;
             if (btn.hasAttribute('data-work-add')) { $('aac-works-input').click(); return; }
+            if (btn.dataset.workFlash !== undefined) { openFlashEditor(Number(btn.dataset.workFlash)); return; }
             if (btn.dataset.workUp !== undefined) moveWork(Number(btn.dataset.workUp), -1);
             else if (btn.dataset.workDown !== undefined) moveWork(Number(btn.dataset.workDown), 1);
             else if (btn.dataset.workDel !== undefined) removeWork(Number(btn.dataset.workDel));
@@ -1076,7 +1110,15 @@
             const item = works[Number(select.dataset.workCat)];
             if (!item) return;
             item.category = select.value;
-            try { await persistWorks(); toast('Categoría actualizada'); }
+            // Flash Tattoos: un flash necesita un id estable (la reserva lo usa).
+            const index = Number(select.dataset.workCat);
+            if (item.category === 'flash' && window.WoFlash) works[index] = window.WoFlash.ensureId(item);
+            try {
+                await persistWorks();
+                toast('Categoría actualizada');
+                renderWorks();
+                if (works[index].category === 'flash') openFlashEditor(index);
+            }
             catch (err) { console.error('[account] categoría:', err); toast('No pudimos guardar la categoría', false); }
         });
         // Arrastrar archivos sobre cualquier casillero vacío.

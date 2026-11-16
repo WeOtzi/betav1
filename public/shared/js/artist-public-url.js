@@ -37,7 +37,7 @@
     var RESERVED = [
         // carpetas de public/
         'artist', 'backoffice', 'bienvenida', 'calendar', 'client', 'componentes', 'explore',
-        'inicio', 'legal', 'marketplace', 'quotation', 'quotations', 'recover',
+        'inicio', 'legal', 'marketplace', 'quotation', 'quotations', 'recover', 'flash',
         'registerclosedbeta', 'shared', 'store', 'studio', 'support', 'travel',
         // servidor, rutas retiradas y base path
         'api', 'beta', 'archive', 'tutorial', 'health', 'status', 'webhook', 'webhooks', 'cron',
