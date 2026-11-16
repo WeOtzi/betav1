@@ -56,6 +56,33 @@ const LoggingService = (function() {
     };
 
     // ============================================
+    // PRIVACIDAD DE LAS URL
+    // ============================================
+
+    // De una URL solo se guarda origen + ruta. La query y el hash pueden traer
+    // la sesión completa (#access_token=…&refresh_token=… al volver del correo
+    // o de Google), el token del enlace público de una cotización
+    // (?returnTo=/cotizacion/<token>) o datos personales (?email=…). Lo que
+    // se guarda acá lo lee soporte: nada de eso tiene que llegar.
+    // Enlaces que no son http(s) (mailto:, tel:, blob:…) quedan en su esquema.
+    function scrubUrl(value) {
+        if (value == null || value === '') return null;
+        let parsed;
+        try {
+            parsed = new URL(String(value), window.location.origin);
+        } catch (_) {
+            return null;
+        }
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return parsed.protocol;
+        const path = parsed.pathname
+            // El token del enlace público también viaja en la ruta.
+            .replace(/\/cotizacion\/[^/]+/gi, '/cotizacion/[enlace]')
+            // Cualquier otro tramo largo y opaco (un uuid mide 36 y se conserva).
+            .replace(/\/[A-Za-z0-9_-]{40,}(?=\/|$)/g, '/[token]');
+        return parsed.origin + path;
+    }
+
+    // ============================================
     // INITIALIZATION
     // ============================================
 
@@ -73,9 +100,9 @@ const LoggingService = (function() {
         // Capture session metadata
         sessionMeta = {
             startedAt: new Date().toISOString(),
-            pageUrl: window.location.href,
+            pageUrl: scrubUrl(window.location.href),
             userAgent: navigator.userAgent,
-            referrer: document.referrer || null,
+            referrer: scrubUrl(document.referrer),
             screenResolution: `${window.screen.width}x${window.screen.height}`,
             viewport: `${window.innerWidth}x${window.innerHeight}`,
             language: navigator.language
@@ -329,7 +356,7 @@ const LoggingService = (function() {
                     id: target.id || null,
                     className: target.className || null,
                     text: target.textContent?.substring(0, 50) || null,
-                    href: target.href || null
+                    href: typeof target.href === 'string' ? scrubUrl(target.href) : null
                 });
             }
         }, { passive: true });
@@ -337,9 +364,11 @@ const LoggingService = (function() {
         // Form submissions
         document.addEventListener('submit', (e) => {
             const form = e.target;
-            action('form', `Form submitted: ${form.id || form.action || 'unknown'}`, {
+            // form.action puede ser un campo llamado "action": solo vale si es texto.
+            const formAction = typeof form.action === 'string' ? scrubUrl(form.action) : null;
+            action('form', `Form submitted: ${form.id || formAction || 'unknown'}`, {
                 formId: form.id || null,
-                action: form.action || null,
+                action: formAction,
                 method: form.method || 'GET'
             });
         }, { passive: true });
@@ -347,15 +376,15 @@ const LoggingService = (function() {
         // Page navigation
         window.addEventListener('popstate', () => {
             info('navigation', 'Browser navigation', {
-                url: window.location.href
+                url: scrubUrl(window.location.href)
             });
         });
 
-        // Hash changes
+        // Hash changes (solo la ruta: el hash es justo lo que no se guarda)
         window.addEventListener('hashchange', (e) => {
             info('navigation', 'Hash change', {
-                oldURL: e.oldURL,
-                newURL: e.newURL
+                oldURL: scrubUrl(e.oldURL),
+                newURL: scrubUrl(e.newURL)
             });
         });
 
@@ -461,14 +490,17 @@ const LoggingService = (function() {
         const originalFetch = window.fetch;
         
         window.fetch = async function(input, init = {}) {
-            const url = typeof input === 'string' ? input : input.url;
-            const method = init.method || 'GET';
+            const rawUrl = typeof input === 'string' ? input : String((input && (input.url || input.href)) || input || '');
+            const method = (init && init.method) || (input && typeof input === 'object' && input.method) || 'GET';
             const startTime = Date.now();
 
             // Skip logging for our own logging endpoint
-            if (url.includes('/api/client-info') || url.includes('session_logs')) {
+            if (rawUrl.includes('/api/client-info') || rawUrl.includes('session_logs')) {
                 return originalFetch.apply(this, arguments);
             }
+
+            // Se registra sin query ni hash: los filtros de la API llevan correos e ids.
+            const url = scrubUrl(rawUrl) || '[url]';
 
             network('fetch', `${method} ${url}`, { method, url });
 
@@ -814,8 +846,9 @@ const LoggingService = (function() {
         sendErrorReport,
         persist,
         decompress,
+        scrubUrl,
         destroy,
-        
+
         // Getters
         get sessionId() { return sessionId; },
         get sessionLogId() { return sessionLogId; },

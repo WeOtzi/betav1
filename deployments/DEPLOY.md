@@ -398,6 +398,39 @@ no se rompe.
 - Una cotización rechazada por el cliente no deja escribir en el chat a ninguna
   de las dos partes.
 
+### Limpieza de `session_logs` (SEG-03)
+
+El registro de sesión del navegador guardaba la dirección completa. En la base
+quedaron `#access_token=…&refresh_token=…` de 6 usuarios (12 filas; también
+`provider_token` de Google en algunas) y 962 direcciones con query o hash, a la
+vista de soporte. El código nuevo ya guarda solo origen + ruta.
+
+1. `20261116230000_session_logs_sin_tokens_en_url.sql` va **después del código**,
+   como el resto. Vacía el detalle de las filas con tokens y recorta todas las
+   direcciones. No tiene reversa (no hay nada que restaurar) y se puede volver a
+   correr: conviene repetirla unos días después, por las pestañas que hayan
+   quedado abiertas con la versión anterior.
+2. **Paso manual del dueño, antes de la limpieza** (después ya no se ve quiénes
+   eran): listar los usuarios afectados con
+
+   ```sql
+   select distinct user_id, user_email from public.session_logs
+    where page_url ~* '(access_token|refresh_token|provider_token|provider_refresh_token)=';
+   ```
+
+   y cerrarles todas las sesiones desde el panel de Auth de Supabase (Users →
+   el usuario → Sign out / cierre global). Así los `refresh_token` guardados
+   dejan de servir. Los `access_token` vencen solos en una hora.
+3. Comprobar: `select count(*) from public.session_logs where page_url ~ '[#?]'`
+   da 0.
+
+Queda sin tocar el detalle (`log_data`) de las otras filas: va comprimido y su
+primera entrada repite la dirección con la que se abrió la página (por ejemplo
+`?email=…&draft=…` del registro) y las direcciones completas de las llamadas a
+la API. Los tokens de sesión que llegan por la dirección quedan en la misma
+fila, que sí se vacía; el resto no se revisó entrada por entrada. Si se quiere
+borrar también, es vaciar `log_data` de las filas anteriores al deploy.
+
 ---
 
 ## Reglas para el agente
