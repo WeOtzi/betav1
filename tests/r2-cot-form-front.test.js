@@ -270,7 +270,8 @@ test('N11: dos tandas a la vez no superan el máximo de 4 ni rompen el envío', 
 
 test('P7: tile "Generar referencia con IA", ruta propia y marca "solo referencial" hasta el envío', async () => {
     assert.match(script, /postQuotationApi\('\/api\/quotations\/ai-reference', body\)/);
-    assert.doesNotMatch(script, /\/api\/gemini\/generate-image/, 'el cotizador no usa el endpoint genérico');
+    assert.doesNotMatch(script, /\/api\/(gemini|ai)\/generate-image/, 'el cotizador no usa el endpoint genérico (ni su alias histórico)');
+    assert.doesNotMatch(r2, /\/api\/(gemini|ai)\/generate-image/);
     assert.match(script, /onUse: \(file\) => handleFiles\(\[file\], \{ ai: true \}\)/);
     assert.match(script, /if \(R2 && R2\.aiEnabled\(\)\) \{/, 'solo si la IA está habilitada');
     assert.match(script, /Generada con IA · solo referencial/);
