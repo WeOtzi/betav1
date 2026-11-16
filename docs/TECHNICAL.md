@@ -259,3 +259,18 @@ Ver [ARTIST_SIGNUP_FLOW.md](./ARTIST_SIGNUP_FLOW.md) para el detalle. Resumen:
 *   **Credenciales**: Las claves de API (Google, Supabase) se manejan via variables de entorno o se pasan de forma segura desde el cliente autenticado (dependiendo del endpoint).
 *   **CORS**: Configurado implícitamente al servir frontend desde el mismo origen.
 *   **Body Parser limit**: 50MB para permitir subida de imágenes en base64 si es necesario (aunque se prefiere URL).
+
+### 7.1 Contacto del cliente en las cotizaciones (ronda 2 · P20 / P23)
+
+Regla (`lib/cot-detalle.js` → `contactAccess`): el artista ve el email, WhatsApp, Instagram y la preferencia de contacto del cliente solo si su perfil está verificado (`artists_db.verification_state = 'Yes'`) y el cliente no rechazó la cotización. En las cotizaciones manuales (el contacto lo cargó el propio artista) se ve siempre.
+
+Dónde se aplica:
+
+*   `GET /api/cot-detalle/quotations/:quoteId/info`: contacto del expediente.
+*   `GET /api/cot-detalle/client-contacts`: buscador de clientes de la cotización manual (`/my-quotations/new`). Devuelve nombre, ciudad y fecha de cada cotización del artista; el contacto solo donde la regla lo permite. El navegador ya no lee esas columnas (`WeotziData.Quotations.listClientNamesForArtist` es el respaldo, solo nombres).
+*   Base (migración `20261116220000`): `fn_quotations_client_column_guard` impide que un usuario final, artista dueño incluido, cambie `source`, `quotation_medium` (no puede marcar una recibida como manual) o `client_user_id` (solo el cliente vincula su cotización de invitado a su propia cuenta).
+*   Vista `chat_threads` (migración `20261116220100`): ya no incluye `client_email`.
+
+**Riesgo residual (abierto).** La regla vive en el servidor y en la interfaz, no en la base: la policy `Artists can view own quotations` entrega todas las columnas de las cotizaciones del artista, así que un artista sin verificar todavía puede leer `client_email`, `client_whatsapp`, `client_instagram` y `client_contact_preference` llamando a la API REST de Supabase con su propia sesión (`select=*` o esas columnas). También viajan en los lectores del navegador que usan `select('*')` sobre `quotations_db` (por ejemplo `quotation-detail-repo.js` y `quotations-repo.js`), aunque la interfaz no los pinte.
+
+**Pendiente de fondo (tamaño grande).** (1) Pasar todos los `select('*')` del navegador sobre `quotations_db` a listas explícitas de columnas sin las de contacto (hay 11 lectores entre artista, cliente y admin); (2) `revoke select` de la tabla a `authenticated` y `grant select` por columnas sin `client_email`, `client_whatsapp`, `client_instagram` ni `client_contact_preference` (el cliente lee su propio contacto por un endpoint o una vista propia); (3) dejar el contacto solo en los endpoints de `/api/cot-detalle`. El frente cot-detalle probó en vivo (dentro de `begin … rollback`) que el `revoke` rompe los `select('*')` actuales: por eso el orden es primero (1) y después (2).

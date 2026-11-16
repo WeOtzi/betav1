@@ -21,9 +21,12 @@
 --      las escrituras pasan por las funciones de abajo (service_role).
 --   3. Triggers en quotations_db:
 --        trg_quotation_zy_negociacion_guard  sello del acuerdo, rechazo
---            definitivo y bloqueo de edición directa del acuerdo aprobado
---            (solo si el cliente tiene cuenta: sin contraparte en la
---            plataforma, el artista sigue editando el acuerdo como antes).
+--            definitivo (tampoco lo reabre el servidor con service_role) y
+--            bloqueo de edición directa del acuerdo aprobado, incluida la
+--            vuelta a pending / responded para reescribirlo (solo si el
+--            cliente tiene cuenta: sin contraparte en la plataforma, el
+--            artista sigue editando el acuerdo como antes). El vínculo con el
+--            cliente lo protege 20261116220000 (fn_quotations_client_column_guard).
 --        trg_quotation_zz_negociacion_sync   cierra las propuestas pendientes
 --            cuando la cotización cambia de estado y, si el artista manda una
 --            propuesta nueva sobre una contrapropuesta, la reemplaza y deja el
@@ -193,6 +196,20 @@ begin
        and current_user in ('anon', 'authenticated', 'service_role')
        and not coalesce(public.is_support_user(), false) then
       raise exception 'El cliente rechazó esta cotización y quedó finalizada. Para retomarla, el cliente tiene que iniciar una nueva.'
+        using errcode = '42501';
+    end if;
+
+    -- Acuerdo aprobado con contraparte: el usuario final no lo devuelve a
+    -- negociación. Si no, el artista podía pasar in_progress → pending (ahí se
+    -- borra el sello), reescribir el precio, y volver a responded →
+    -- client_approved para sellarlo de nuevo sin el cliente. El envío del
+    -- borrador del cotizador (in_progress → pending) lo hace el servidor con
+    -- service_role y un borrador nunca tiene el acuerdo sellado.
+    if v_restricted
+       and old.agreement_approved_at is not null
+       and old.client_user_id is not null
+       and new.quote_status in ('pending', 'responded') then
+      raise exception 'El acuerdo ya está aprobado por ambas partes: propón el cambio y regirá cuando la otra parte lo apruebe.'
         using errcode = '42501';
     end if;
 

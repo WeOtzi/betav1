@@ -615,7 +615,7 @@
                     var last = mine.reduce(function (a, b) { return a.created_at > b.created_at ? a : b; });
                     return {
                         quote_id: q.quote_id, quotation_id_int: q.id, artist_id: q.artist_id, artist_name: q.artist_name, artist_username: q.artist_username,
-                        client_user_id: q.client_user_id, client_full_name: q.client_full_name, client_email: q.client_email, quote_status: q.quote_status,
+                        client_user_id: q.client_user_id, client_full_name: q.client_full_name, quote_status: q.quote_status,
                         tattoo_body_part: q.tattoo_body_part, tattoo_style: q.tattoo_style, tattoo_size: q.tattoo_size,
                         final_budget_amount: q.final_budget_amount, final_budget_currency: q.final_budget_currency, source: q.source,
                         last_message: last.message, last_message_sender: last.sender_type, last_message_at: last.created_at,

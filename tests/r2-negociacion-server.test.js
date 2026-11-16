@@ -527,6 +527,12 @@ test('migración: tabla, RLS, funciones solo para service_role, triggers propios
     // El servidor (service_role) tampoco la reabre en nombre del artista; soporte y postgres sí.
     assert.match(sql, /if old\.quote_status = 'client_rejected'\s+and current_user in \('anon', 'authenticated', 'service_role'\)\s+and not coalesce\(public\.is_support_user\(\), false\) then/);
     assert.match(sql, /El acuerdo ya está aprobado por ambas partes/);
+    // SEG-04: con el acuerdo sellado y cliente con cuenta, el usuario final no vuelve a
+    // pending / responded (ahí se borraba el sello y se podía reescribir el precio).
+    assert.match(sql, /if v_restricted\s+and old\.agreement_approved_at is not null\s+and old\.client_user_id is not null\s+and new\.quote_status in \('pending', 'responded'\) then\s+raise exception 'El acuerdo ya está aprobado por ambas partes/);
+    const guard = sql.slice(sql.indexOf('create or replace function public.negociacion_quotation_guard()'), sql.indexOf('revoke all on function public.negociacion_quotation_guard()'));
+    assert.ok(guard.indexOf("new.quote_status in ('pending', 'responded') then\n      raise exception") < guard.indexOf('new.agreement_approved_at := null;'),
+        'el bloqueo corre antes de borrar el sello');
     assert.match(sql, /and old\.agreement_approved_at is not null\s+and old\.client_user_id is not null/, 'sin cuenta del cliente no se bloquea la edición del artista');
     assert.match(sql, /if v_q\.client_user_id is null or v_q\.artist_id is null then\s+raise exception 'NEG_NO_COUNTERPARTY'/);
     // Triggers propios, después de los existentes; no pisa funciones de otros frentes.
