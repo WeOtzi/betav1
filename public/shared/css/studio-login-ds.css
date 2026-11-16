@@ -34,3 +34,9 @@
   .studio-login-page .wo-input{font-size:16px}
   .studio-login-page .wo-auth-forgot{font-size:13px}
 }
+
+/* Una pantalla en PC y tablet (ronda 2 · P2): en ventanas bajas el panel pierde
+   aire arriba y abajo para que el ingreso del estudio entre sin desplazarse. */
+@media (min-width: 801px) and (max-height: 860px) {
+  .studio-login-page .wo-auth-panel { padding-top: 28px; padding-bottom: 28px; }
+}
