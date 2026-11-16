@@ -152,7 +152,7 @@
             const mine = m.sender_type === 'artist';
             return `
                 <div class="qs-msg${mine ? ' qs-msg--mine' : ''}">
-                    <span class="qs-msg-meta">${mine ? 'Vos' : 'Cliente'} · ${esc(VM.timeLabel(m.created_at))}</span>
+                    <span class="qs-msg-meta">${mine ? (m.auto_kind ? 'Mensaje automático' : 'Tú') : 'Cliente'} · ${esc(VM.timeLabel(m.created_at))}</span>
                     <p class="qs-msg-bubble">${esc(messageText(m))}</p>
                 </div>`;
         }).join('')}</div>`;
@@ -172,7 +172,7 @@
         const canContact = !!(quote.client_user_id || quote.client_email || quote.client_whatsapp);
         return `
             <div class="qs-actions">
-                <button type="button" class="qs-btn qs-btn--ink" data-qs-action="accept"${actions.accept ? '' : ' disabled'}${actions.accept && actions.accept.needsDialog ? ' title="Completá presupuesto, sesiones y duración antes de enviar"' : ''}><i data-wo-icon="check" aria-hidden="true"></i>${esc(actions.accept && actions.accept.label !== 'Aceptar' ? actions.accept.label : 'Aceptar')}</button>
+                <button type="button" class="qs-btn qs-btn--ink" data-qs-action="accept"${actions.accept ? '' : ' disabled'}${actions.accept && actions.accept.needsDialog ? ' title="Completa presupuesto, sesiones y duración antes de enviar"' : ''}><i data-wo-icon="check" aria-hidden="true"></i>${esc(actions.accept && actions.accept.label !== 'Aceptar' ? actions.accept.label : 'Aceptar')}</button>
                 <button type="button" class="qs-btn qs-btn--accent" data-qs-action="schedule"><i data-wo-icon="calendar" aria-hidden="true"></i>Agendar</button>
                 <button type="button" class="qs-btn qs-btn--direct" data-qs-action="contact"${canContact ? '' : ' disabled'}><i data-wo-icon="message-circle" aria-hidden="true"></i>Contactar</button>
                 <button type="button" class="qs-btn qs-btn--danger" data-qs-action="reject"${actions.reject ? '' : ' disabled'}${actions.reject && actions.reject.withdraw ? ` aria-label="${esc(actions.reject.label)}" title="${esc(actions.reject.label)}"` : ''}><i data-wo-icon="x" aria-hidden="true"></i>${actions.reject && actions.reject.withdraw ? 'Retirar' : 'Rechazar'}</button>
@@ -394,8 +394,8 @@
             if (!r) return;
             const notice = r.patch.quote_status === 'cancelled' ? ' Le avisamos al cliente.' : '';
             const question = r.withdraw
-                ? '¿Querés retirar tu propuesta? La cotización se cancela, queda en el historial'
-                : '¿Querés rechazar esta solicitud? Esta acción quedará en el historial';
+                ? '¿Quieres retirar tu propuesta? La cotización se cancela, queda en el historial'
+                : '¿Quieres rechazar esta solicitud? Esta acción quedará en el historial';
             if (!window.confirm(question + (notice ? ' y el cliente recibe un aviso.' : '.'))) return;
             const previous = quote.quote_status;
             const ok = await patchQuote(r.patch, (r.withdraw ? 'Propuesta retirada.' : 'Solicitud rechazada.') + notice);
@@ -409,10 +409,10 @@
         if (action === 'contact') {
             if (quote.client_user_id) {
                 window.location.href = pg.appUrl(`/artist/inbox?quote=${encodeURIComponent(quote.quote_id || quote.id)}`);
-            } else if (quote.client_email) {
-                window.location.href = `mailto:${encodeURIComponent(quote.client_email)}?subject=${encodeURIComponent('Tu cotización ' + (quote.quote_id || ''))}`;
-            } else if (quote.client_whatsapp) {
-                window.open(`https://wa.me/${String(quote.client_whatsapp).replace(/\D/g, '')}`, '_blank', 'noopener');
+            } else if (quote.client_email || quote.client_whatsapp) {
+                // cot-detalle (P20/P23): el contacto de un cliente sin cuenta se ve en el
+                // detalle, donde el servidor lo entrega solo a tatuadores verificados.
+                window.location.href = pg.appUrl(`/my-quotations/detail?id=${encodeURIComponent(quote.quote_id || quote.id)}#contacto`);
             }
             return;
         }
@@ -420,7 +420,7 @@
             return patchQuote({ is_archived: false }, 'La cotización volvió al listado.');
         }
         if (action === 'delete') {
-            if (!window.confirm('¿Querés eliminar esta cotización para siempre? No se puede deshacer.')) return;
+            if (!window.confirm('¿Quieres eliminar esta cotización para siempre? No se puede deshacer.')) return;
             try {
                 await window.WeotziData.Quotations.hardDeleteById(quote.id);
                 close();
@@ -452,7 +452,7 @@
         const previous = quote.quote_status;
         const willNotice = !!(window.QuotationClientNotices && window.QuotationClientNotices.eventForStatus(value, previous));
         if (willNotice && value === 'cancelled'
-            && !window.confirm('¿Querés cancelar esta cotización? El cliente recibe un aviso y el cambio queda en el historial.')) {
+            && !window.confirm('¿Quieres cancelar esta cotización? El cliente recibe un aviso y el cambio queda en el historial.')) {
             return render(false);
         }
         const ok = await patchQuote(patch, `Estado actualizado: ${VM.statusView(value).label}.` + (willNotice ? ' Le avisamos al cliente.' : ''));

@@ -112,7 +112,7 @@
         } catch (error) {
             console.error('[studio-inbox] listar', error);
             if (!state.loadedOnce) {
-                list.innerHTML = '<div class="wo-empty si-list-empty" role="alert"><span class="wo-empty-title">No pudimos cargar los mensajes</span><p>Volvé a abrir esta sección para intentar nuevamente.</p></div>';
+                list.innerHTML = '<div class="wo-empty si-list-empty" role="alert"><span class="wo-empty-title">No pudimos cargar los mensajes</span><p>Vuelve a abrir esta sección para intentar nuevamente.</p></div>';
             } else {
                 notify(M.friendlyError(error), 'error');
             }
@@ -185,8 +185,8 @@
             host.innerHTML = '<div class="wo-empty si-list-empty"><i data-wo-icon="message-circle" aria-hidden="true"></i>' +
                 '<span class="wo-empty-title">' + (empty ? 'Todavía no hay conversaciones' : 'No hay conversaciones') + '</span>' +
                 '<p>' + (empty
-                    ? 'Cuando un artista te escriba, se postule a un spot, responda una invitación o pida vincular un viaje, lo vas a ver acá.'
-                    : 'Probá con otra categoría o búsqueda.') + '</p></div>';
+                    ? 'Cuando un artista te escriba, se postule a un spot, responda una invitación o pida vincular un viaje, lo vas a ver aquí.'
+                    : 'Prueba con otra categoría o búsqueda.') + '</p></div>';
             refreshIcons();
             return;
         }
@@ -329,7 +329,7 @@
             if (state.activeId === id) {
                 renderThreadHead(thread);
                 if (archived === true) {
-                    notify('Conversación archivada. La encontrás en Archivados.', 'success');
+                    notify('Conversación archivada. La encuentras en Archivados.', 'success');
                 }
             }
             renderNavBadge();
@@ -342,7 +342,7 @@
     function renderMessages() {
         const host = el('si-messages');
         if (!state.messages.length) {
-            host.innerHTML = '<div class="wo-empty si-msg-empty"><span class="wo-empty-title">Sin mensajes todavía</span><p>Escribile al artista para empezar la conversación.</p></div>';
+            host.innerHTML = '<div class="wo-empty si-msg-empty"><span class="wo-empty-title">Sin mensajes todavía</span><p>Escríbele al artista para empezar la conversación.</p></div>';
             return;
         }
         let lastDay = '';
@@ -429,7 +429,7 @@
     function setComposer(enabled) {
         el('si-input').disabled = !enabled;
         el('si-attach').disabled = !enabled;
-        el('si-input').placeholder = enabled ? 'Escribí un mensaje…' : 'Esta conversación está cerrada.';
+        el('si-input').placeholder = enabled ? 'Escribe un mensaje…' : 'Esta conversación está cerrada.';
         el('si-input').value = '';
         syncSend();
     }

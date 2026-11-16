@@ -7,7 +7,7 @@
     <meta name="description" content="Perfil público de estudio de tatuajes en We Ötzi: equipo, sedes, galería y reseñas.">
     <meta property="og:type" content="profile">
     <meta property="og:title" id="og-title" content="Estudio en We Ötzi">
-    <meta property="og:description" id="og-description" content="Conocé el equipo, las sedes y el trabajo de este estudio.">
+    <meta property="og:description" id="og-description" content="Conoce el equipo, las sedes y el trabajo de este estudio.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,6 +19,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/wo-icons.js" defer></script>
+    <script src="/shared/js/wo-report.js?v=20261116-denuncias" defer></script><!-- denuncias (ronda 2): activa [data-wo-report] -->
     <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
     <script src="/shared/js/wo-consent.js" defer></script>
 </head>
@@ -69,7 +70,7 @@
                     <a class="wo-btn wo-btn--secondary" href="/inicio">Ir al inicio</a>
                 </div>
             </div>
-            <aside class="sp-aside"><h2>Información</h2><p>Comprobá el enlace o buscá el estudio en el mapa.</p></aside>
+            <aside class="sp-aside"><h2>Información</h2><p>Comprueba el enlace o busca el estudio en el mapa.</p></aside>
         </section>
 
         <!-- Perfil (E-PROFILE-02) y E-CODE-PUBLIC-06 cuando todavía no hay datos -->
@@ -110,13 +111,13 @@
                     <!-- Accesos (secciones y canales) -->
                     <nav class="sp-actions sp-actions--wrap" id="sp-links" aria-label="Secciones y contacto del estudio"></nav>
 
-                    <!-- Conocé el estudio (E-CODE-PUBLIC-01) -->
+                    <!-- Conoce el estudio (E-CODE-PUBLIC-01) -->
                     <section class="sp-section" id="acerca" aria-labelledby="sp-about-title">
-                        <h2 class="sp-h2" id="sp-about-title">Conocé el estudio</h2>
+                        <h2 class="sp-h2" id="sp-about-title">Conoce el estudio</h2>
                         <ul class="sp-rows" id="sp-about"></ul>
                     </section>
 
-                    <!-- Encontranos (E-CODE-PUBLIC-02 · Mapa de sedes) -->
+                    <!-- Encuéntranos (E-CODE-PUBLIC-02 · Mapa de sedes) -->
                     <section class="sp-section" id="sedes" aria-labelledby="sp-locations-title">
                         <h2 class="sp-h2" id="sp-locations-title">Nuestras sedes</h2>
                         <div class="sp-map-card">
@@ -142,12 +143,17 @@
                     <section class="sp-section" id="resenas" aria-label="Reseñas del estudio">
                         <div id="studio-reviews"></div>
                     </section>
+
+                    <!-- Denuncias (ronda 2): wo-report.js completa el botón y lo muestra solo a dueños o managers de OTRO estudio -->
+                    <div class="wor-row">
+                        <button type="button" id="sp-report" data-wo-report data-kind="studio" data-id="" data-label="" hidden></button>
+                    </div>
                 </div>
 
                 <aside class="sp-aside" id="sp-aside">
                     <h2 id="sp-aside-title">Tu próximo tatuaje</h2>
-                    <p id="sp-aside-text">Conocé al equipo residente y a los artistas que nos visitan. Elegí el estilo que buscás y revisá su disponibilidad.</p>
-                    <a class="wo-btn wo-btn--primary sp-aside-cta" id="sp-aside-cta" href="/quotation">Cotizá tu tatuaje</a>
+                    <p id="sp-aside-text">Conoce al equipo residente y a los artistas que nos visitan. Elige el estilo que buscas y revisa su disponibilidad.</p>
+                    <a class="wo-btn wo-btn--primary sp-aside-cta" id="sp-aside-cta" href="/quotation">Cotiza tu tatuaje</a>
                 </aside>
             </div>
         </div>

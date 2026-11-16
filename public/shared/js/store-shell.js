@@ -404,7 +404,7 @@
     function errorMessage(err, fallback) {
         var M = model();
         if (M && typeof M.errorMessage === 'function') return M.errorMessage(err, fallback);
-        return fallback || 'No pudimos completar la acción. Probá de nuevo en unos minutos.';
+        return fallback || 'No pudimos completar la acción. Prueba de nuevo en unos minutos.';
     }
     function notifyError(err, fallback) { return notify(errorMessage(err, fallback), 'error'); }
 
@@ -560,7 +560,7 @@
         overlay.hidden = true;
         overlay.innerHTML = '<div class="sts-dialog" role="dialog" aria-modal="true" aria-labelledby="' + id + '-title"' +
             (opts.message ? ' aria-describedby="' + id + '-msg"' : '') + ' tabindex="-1">' +
-            '<div class="sts-dialog-head"><h2 class="sts-dialog-title" id="' + id + '-title">' + esc(opts.title || 'Confirmá la acción') + '</h2>' +
+            '<div class="sts-dialog-head"><h2 class="sts-dialog-title" id="' + id + '-title">' + esc(opts.title || 'Confirma la acción') + '</h2>' +
             '<button class="sts-dialog-close" type="button" data-sts-close aria-label="Cerrar"><i data-wo-icon="x" class="wo-icon-18" aria-hidden="true"></i></button></div>' +
             '<div class="sts-dialog-body">' + (opts.message ? '<p class="sts-dialog-text" id="' + id + '-msg">' + esc(opts.message) + '</p>' : '') + field + '</div>' +
             '<div class="sts-dialog-actions">' +
@@ -583,7 +583,7 @@
                     value = String(el.value || '').trim();
                     var err = overlay.querySelector('#' + id + '-error');
                     if (input.required && !value) {
-                        err.textContent = input.requiredMessage || 'Completá este campo.';
+                        err.textContent = input.requiredMessage || 'Completa este campo.';
                         err.hidden = false;
                         el.classList.add('wo-input--error');
                         el.setAttribute('aria-invalid', 'true');

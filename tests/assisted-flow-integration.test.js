@@ -34,14 +34,14 @@ const IG_STATUSES = ['pending', 'verified', 'expired', 'cancelled', 'rejected'];
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CODE_RE = /^WO-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
 const STEP_TITLES = [
-    ['perfil', 'Completá tu perfil'],
-    ['portafolio', 'Validá tu Instagram y tu portafolio'],
-    ['compartir', 'Compartí tu perfil en Instagram'],
-    ['retiro', 'Configurá un medio de retiro'],
-    ['disponibilidad', 'Configurá tu disponibilidad'],
-    ['notificaciones', 'Configurá tus notificaciones'],
-    ['verificacion', 'Completá la verificación'],
-    ['configuracion', 'Completá la configuración']
+    ['perfil', 'Completa tu perfil'],
+    ['portafolio', 'Valida tu Instagram y tu portafolio'],
+    ['compartir', 'Comparte tu perfil en Instagram'],
+    ['retiro', 'Configura un medio de retiro'],
+    ['disponibilidad', 'Configura tu disponibilidad'],
+    ['notificaciones', 'Configura tus notificaciones'],
+    ['verificacion', 'Completa la verificación'],
+    ['configuracion', 'Completa la configuración']
 ];
 
 const clone = (value) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));

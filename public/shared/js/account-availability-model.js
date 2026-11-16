@@ -75,7 +75,7 @@
         (weekly || []).forEach(function (row) {
             if (!row.enabled) return;
             var label = (DAYS.find(function (d) { return d[0] === row.day; }) || [row.day, row.day])[1];
-            if (!isTime(row.start) || !isTime(row.end)) errors.push(label + ': completá el horario.');
+            if (!isTime(row.start) || !isTime(row.end)) errors.push(label + ': completa el horario.');
             else if (minutes(row.end) <= minutes(row.start)) errors.push(label + ': la hora de fin tiene que ser posterior al inicio.');
         });
         return errors;
@@ -208,10 +208,10 @@
 
     function validateUpcoming(input, todayIso) {
         var errors = {};
-        if (!String(input && input.city || '').trim()) errors.city = 'Ingresá la ciudad.';
-        if (!String(input && input.studioName || '').trim()) errors.studioName = 'Ingresá el estudio o lugar.';
+        if (!String(input && input.city || '').trim()) errors.city = 'Ingresa la ciudad.';
+        if (!String(input && input.studioName || '').trim()) errors.studioName = 'Ingresa el estudio o lugar.';
         var start = String(input && input.startDate || ''), end = String(input && input.endDate || '');
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) errors.dates = 'Elegí las fechas de inicio y fin.';
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) errors.dates = 'Elige las fechas de inicio y fin.';
         else if (end < start) errors.dates = 'La fecha de fin tiene que ser posterior al inicio.';
         else if (todayIso && end < String(todayIso).slice(0, 10)) errors.dates = 'El destino ya terminó.';
         return { ok: Object.keys(errors).length === 0, errors: errors };

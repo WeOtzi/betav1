@@ -22,7 +22,7 @@
  *                     una (CAL-14). Corre sola una vez por sesión.
  *   Solo de ida (20261114100000): no se lee el calendario de Google.
  *   La base además marca cada cambio (20261115150000): aunque una escritura
- *   no pase por acá, llega a Google en menos de un minuto.
+ *   no pase por aquí, llega a Google en menos de un minuto.
  *
  * Nunca recibe ni guarda tokens: todo eso vive en el servidor.
  * Carga: postgrest-client.js primero (y account-repo.js para ensureTimezone).

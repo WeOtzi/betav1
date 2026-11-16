@@ -69,7 +69,7 @@ body.wo-app *,body.wo-app *::before,body.wo-app *::after { box-sizing:border-box
 /* Revisión 12/11 (p. 1): la tarjeta elegida pasa al centro y las otras se
    achican a los costados. El orden lo pone inicio.js (data-pos) y el
    desplazamiento se anima con FLIP (propiedad `translate`); la escala se
-   transiciona acá con la propiedad `scale`. */
+   transiciona aquí con la propiedad `scale`. */
 .inicio-card { transition:scale .42s var(--ease-standard), opacity .42s var(--ease-standard), background-color var(--duration-fade) var(--ease-standard), border-color var(--duration-fade) var(--ease-standard), box-shadow var(--duration-fade) var(--ease-standard); }
 .inicio-card[data-pos="0"] { order:0; transform-origin:right center; }
 .inicio-card[data-pos="1"] { order:1; }

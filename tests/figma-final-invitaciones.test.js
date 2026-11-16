@@ -99,11 +99,11 @@ test('validación de "Escribir al estudio" (2007:5795)', () => {
     const ok = M.validateContact({ reason: 'guest_spot', message: 'Hola, me interesa un guest spot en noviembre.', startDate: '2026-11-01', endDate: '2026-11-14' }, NOW);
     assert.equal(ok.ok, true);
     const short = M.validateContact({ reason: 'guest_spot', message: 'Hola' }, NOW);
-    assert.equal(short.errors.message, 'Escribí al menos 20 caracteres.');
+    assert.equal(short.errors.message, 'Escribe al menos 20 caracteres.');
     assert.match(M.validateContact({ reason: 'resident', message: 'x'.repeat(30), startDate: '2026-11-01' }, NOW).errors.dates, /dos fechas/);
     assert.match(M.validateContact({ reason: 'resident', message: 'x'.repeat(30), startDate: '2026-11-10', endDate: '2026-11-01' }, NOW).errors.dates, /posterior/);
     assert.match(M.validateContact({ reason: 'resident', message: 'x'.repeat(30), startDate: '2026-10-01', endDate: '2026-10-10' }, NOW).errors.dates, /a partir de hoy/);
-    assert.equal(M.validateContact({ reason: 'spam', message: 'x'.repeat(30) }, NOW).errors.reason, 'Elegí un motivo.');
+    assert.equal(M.validateContact({ reason: 'spam', message: 'x'.repeat(30) }, NOW).errors.reason, 'Elige un motivo.');
     assert.equal(M.characterCount(''), '0 caracteres · mínimo 20');
 });
 

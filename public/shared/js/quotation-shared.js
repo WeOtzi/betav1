@@ -5,11 +5,15 @@
 (function () {
     'use strict';
 
+    // "Micro" y los rangos en cm son los del cotizador (FIGMA_SIZE_OPTIONS de
+    // script.js), para que el pre-cotizador no ofrezca tamaños distintos.
+    // lib/prequote-estimator.js entiende todos estos valores.
     var TATTOO_SIZE_OPTIONS = [
-        { label: 'Pequeño', value: 'pequeño', icon: '📏', subtitle: '< 5cm' },
-        { label: 'Mediano', value: 'mediano', icon: '📐', subtitle: '5-15cm' },
-        { label: 'Grande', value: 'grande', icon: '🖼️', subtitle: '15-30cm' },
-        { label: 'Muy Grande', value: 'muy_grande', icon: '🎨', subtitle: '> 30cm' },
+        { label: 'Micro', value: 'micro', icon: '🔹', subtitle: 'Hasta 5 cm' },
+        { label: 'Pequeño', value: 'pequeño', icon: '📏', subtitle: '5–8 cm' },
+        { label: 'Mediano', value: 'mediano', icon: '📐', subtitle: '8–15 cm' },
+        { label: 'Grande', value: 'grande', icon: '🖼️', subtitle: '15–25 cm' },
+        { label: 'Muy Grande', value: 'muy_grande', icon: '🎨', subtitle: '25+ cm' },
         { label: 'Media Manga', value: 'media_manga', icon: '💪', subtitle: '' },
         { label: 'Manga Completa', value: 'manga_completa', icon: '🦾', subtitle: '' },
         { label: 'Espalda Completa', value: 'espalda_completa', icon: '🔙', subtitle: '' },

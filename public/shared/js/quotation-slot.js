@@ -17,7 +17,7 @@
  *   payload(formData, mode)         · body.requested_slot solo en 'submit'
  *   handleSubmitError(err, retry)   · 409 slot_taken → alternativas
  *
- * El servidor valida el turno y crea el apartado de forma atómica; acá solo
+ * El servidor valida el turno y crea el apartado de forma atómica; aquí solo
  * se precarga, se muestra y se envía.
  */
 (function () {
@@ -149,7 +149,7 @@
             if (!want) { rerenderDate(); return; }
             if (!r.info.enabled) {
                 applyDate(fd, slotDate(want, r.info));
-                if (want.slot) toast('Este artista no está tomando reservas online. Elegí una fecha y te propone horario.');
+                if (want.slot) toast('Este artista no está tomando reservas online. Elige una fecha y te propone horario.');
                 rerenderDate();
                 return;
             }
@@ -161,7 +161,7 @@
             } else {
                 clearSlot(fd);
                 applyDate(fd, slotDate(want, r.info));
-                if (want.slot || want.time) toast('Ese turno ya no está disponible. Elegí otro horario del artista.');
+                if (want.slot || want.time) toast('Ese turno ya no está disponible. Elige otro horario del artista.');
             }
             persist();
             rerenderDate();
@@ -260,13 +260,13 @@
         if (!info || !info.enabled || !iso) return '';
         var slots = slotsForDay(u, iso);
         if (slots === null) return '<div class="q-cal-slots"><p class="bk-note">Buscando horarios…</p></div>';
-        if (!slots.length) return '<div class="q-cal-slots"><p class="bk-note">Ese día no tiene turnos libres. Podés enviar la solicitud igual y el artista te propone horario.</p></div>';
+        if (!slots.length) return '<div class="q-cal-slots"><p class="bk-note">Ese día no tiene turnos libres. Puedes enviar la solicitud de todos modos y el artista te propone horario.</p></div>';
         var chosen = fd.requested_slot && fd.requested_slot.start;
         return '<div class="q-cal-slots"><p class="bk-eyebrow" id="q-cal-slots-title">Turnos de ese día</p>' +
             '<ul class="bk-chips" aria-labelledby="q-cal-slots-title">' + slots.map(function (s) {
                 return '<li><button type="button" class="bk-chip" aria-pressed="' + (chosen === s.start) + '" onclick="window.WoQuotationSlot.pickSlot(\'' + esc(s.start) + '\')">' + esc(s.label) + '</button></li>';
             }).join('') + '</ul>' +
-            '<p class="bk-note">Opcional: elegí un horario y queda apartado al enviar. Hora del artista (' + esc(info.timezone || '') + ').</p></div>';
+            '<p class="bk-note">Opcional: elige un horario y queda apartado al enviar. Hora del artista (' + esc(info.timezone || '') + ').</p></div>';
     }
 
     function pickSlot(start) {
@@ -326,7 +326,7 @@
         backdrop.className = 'bk-modal-backdrop';
         backdrop.innerHTML = '<div class="bk-modal" role="dialog" aria-modal="true" aria-labelledby="bk-taken-title">' +
             '<h2 id="bk-taken-title">' + (code === 'slot_taken' ? 'Ese turno ya no está disponible' : 'Reservas online no disponibles') + '</h2>' +
-            '<p>' + esc(error.message || '') + (code === 'slot_taken' && alts.length ? ' Elegí otro horario o enviá la solicitud sin turno.' : ' Podés enviar la solicitud sin turno y el artista te propone fecha.') + '</p>' +
+            '<p>' + esc(error.message || '') + (code === 'slot_taken' && alts.length ? ' Elige otro horario o envía la solicitud sin turno.' : ' Puedes enviar la solicitud sin turno y el artista te propone fecha.') + '</p>' +
             (code === 'slot_taken' && alts.length ? '<ul class="bk-chips" aria-label="Turnos alternativos">' + alts.map(function (s, i) {
                 return '<li><button type="button" class="bk-chip" data-alt="' + i + '">' + esc(s.label) + '</button></li>';
             }).join('') + '</ul>' : '') +

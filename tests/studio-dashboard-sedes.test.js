@@ -56,7 +56,7 @@ test('payload: la principal siempre activa, coordenadas en par y textos recortad
 });
 
 test('validación del editor: dirección elegida y principal activa', () => {
-    assert.match(sedes.validateDraft({ address: {} }, '').message, /Buscá la dirección/);
+    assert.match(sedes.validateDraft({ address: {} }, '').message, /Busca la dirección/);
     assert.equal(sedes.validateDraft({ address: { formatted_address: 'Gran Vía 1' } }, 'Gran Via').field, 'address');
     assert.equal(sedes.validateDraft({ address: { formatted_address: 'Gran Vía 1' }, isPrimary: true, isActive: false }, 'Gran Vía 1').field, 'active');
     assert.equal(sedes.validateDraft({ address: { formatted_address: 'Gran Vía 1' }, isPrimary: false }, 'Gran Vía 1'), null);
@@ -108,7 +108,7 @@ test('backoffice: reclamos con su sección, menú y script', () => {
 
 test('backoffice: filas escapadas, aprobar bloqueado si la ficha ya tiene dueño y términos visibles', () => {
     const row = claims.claimRowHtml(claims.claimView({
-        id: '22222222-2222-4222-8222-222222222222', studio_id: 's', evidence: 'Mirá <script>alert(1)</script> https://instagram.com/x',
+        id: '22222222-2222-4222-8222-222222222222', studio_id: 's', evidence: 'Mira <script>alert(1)</script> https://instagram.com/x',
         contact_name: '<b>Ana</b>', terms_accepted_at: '2026-11-15T00:00:00Z', terms_version: '2026-11-13',
         studios: { name: 'Black <Ink>', user_id: 'owner' }, user: { email: 'ana@example.test', email_confirmed_at: null }
     }));

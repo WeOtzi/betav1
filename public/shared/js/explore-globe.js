@@ -2380,7 +2380,7 @@ import createGlobe from '/shared/vendor/cobe/index.esm.js';
         } catch (_) {
             // Artist discovery remains usable without WebGL.
             const loading = $('globe-loading');
-            if (loading) loading.textContent = 'Globo 3D no disponible. Podés explorar la lista de tatuadores.';
+            if (loading) loading.textContent = 'Globo 3D no disponible. Puedes explorar la lista de tatuadores.';
         }
         applyFilters();
         document.addEventListener('tattoo-globe:city', event => {

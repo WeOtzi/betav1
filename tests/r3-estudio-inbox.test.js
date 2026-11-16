@@ -102,7 +102,7 @@ test('messageRole: propio del estudio a la derecha, sistema centrado, artista a 
     assert.equal(M.messageRole({ sender_role: 'artist', sender_user_id: 'owner' }, 'owner'), 'out');
     assert.equal(M.messageRole({ sender_role: 'artist', sender_user_id: 'a1' }, 'owner'), 'in');
     assert.equal(M.messageRole({ sender_role: 'system', message_kind: 'system' }, 'owner'), 'system');
-    assert.equal(M.validateMessage('  '), 'Escribí un mensaje.');
+    assert.equal(M.validateMessage('  '), 'Escribe un mensaje.');
     assert.match(M.validateMessage('x'.repeat(2001)), /2000/);
     assert.equal(M.validateMessage('Hola'), null);
 });
@@ -126,15 +126,15 @@ test('buildChanges devuelve solo lo que cambió y validateResponse replica las r
     assert.match(M.validateResponse('accepted', '', { proposed_end_date: '2026-11-30' }, request, today), /anterior al inicio/);
     assert.match(M.validateResponse('accepted', '', { proposed_start_date: '2026-11-01' }, request, today), /pasado/);
     assert.match(M.validateResponse('accepted', '', { role: 'resident' }, { membership: { has_contract: true } }, today), /nueva versión del contrato/);
-    assert.match(M.validateResponse('maybe', '', {}, request, today), /Elegí/);
+    assert.match(M.validateResponse('maybe', '', {}, request, today), /Elige/);
     assert.equal(M.changeRequestSummary(request), 'Guest · Split 60% · 2 dic 2026 – 16 dic 2026 · 2 semanas');
 });
 
 test('friendlyError limpia el prefijo del repo y traduce errores en inglés', () => {
     assert.equal(M.friendlyError({ message: '[studioInbox.respondChangeRequest] Esta solicitud ya fue respondida.' }), 'Esta solicitud ya fue respondida.');
     assert.equal(M.friendlyError({ message: '[x] thread not found' }), 'No encontramos esa conversación en tu estudio.');
-    assert.equal(M.friendlyError({ message: '[x] boom', cause: { message: 'authentication required' } }), 'Tu sesión venció. Volvé a ingresar.');
-    assert.equal(M.friendlyError({ message: 'random failure' }), 'No pudimos completar la acción. Intentá nuevamente.');
+    assert.equal(M.friendlyError({ message: '[x] boom', cause: { message: 'authentication required' } }), 'Tu sesión venció. Vuelve a ingresar.');
+    assert.equal(M.friendlyError({ message: 'random failure' }), 'No pudimos completar la acción. Intenta nuevamente.');
 });
 
 /* ------------------------------ migración ------------------------------ */

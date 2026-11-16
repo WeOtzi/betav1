@@ -60,7 +60,7 @@
     ];
 
     const ORDER_FILTERS = [
-        { key: 'por_confirmar', label: 'Por confirmar pago', empty: 'No tenés pagos por confirmar.', match: (o) => o.status === 'pending_payment' },
+        { key: 'por_confirmar', label: 'Por confirmar pago', empty: 'No tienes pagos por confirmar.', match: (o) => o.status === 'pending_payment' },
         { key: 'por_preparar', label: 'Por preparar', empty: 'No hay pedidos por preparar.', match: (o) => o.status === 'paid' && ['unfulfilled', 'preparing'].includes(o.fulfillment_status || 'unfulfilled') },
         { key: 'enviados', label: 'Enviados', empty: 'No hay pedidos en camino ni listos para retirar.', match: (o) => o.status === 'paid' && ['shipped', 'ready_for_pickup'].includes(o.fulfillment_status) },
         { key: 'completados', label: 'Completados', empty: 'Todavía no completaste pedidos.', match: (o) => o.status === 'fulfilled' },
@@ -69,7 +69,7 @@
 
     const PAYMENT_STATUS = { pending: 'Pendiente', succeeded: 'Confirmado', failed: 'Fallido', refunded: 'Reembolsado', duplicate: 'Duplicado' };
     const COLLECTOR_COPY = {
-        seller: 'Te paga directo a vos con tus instrucciones. Vos confirmás el pago.',
+        seller: 'Te paga directo a ti con tus instrucciones. Tú confirmas el pago.',
         platform: 'Cobra We Ötzi. Soporte confirma el pago cuando lo recibe.',
         provider: 'Cobro con un proveedor de pagos. Se confirma de forma automática.'
     };
@@ -224,6 +224,7 @@
     // duran más en pantalla.
     function notify(message, tone = 'info') {
         if (!message) return;
+        if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message); // la base todavía puede responder en voseo
         const kind = tone === 'error' || tone === 'success' ? tone : 'info';
         announce(message, kind);
         const toast = $('ast-toast');
@@ -436,7 +437,7 @@
             const input = $('ast-confirm-input');
             const ok = $('ast-confirm-ok');
             const cancel = $('ast-confirm-cancel');
-            setText('ast-confirm-title', o.title || '¿Confirmás?');
+            setText('ast-confirm-title', o.title || '¿Confirmas?');
             setText('ast-confirm-message', o.message || '');
             const error = $('ast-confirm-error');
             error.hidden = true;
@@ -478,7 +479,7 @@
             const value = $('ast-confirm-field').hidden ? '' : input.value.trim();
             if (!$('ast-confirm-field').hidden && input.required && !value) {
                 const error = $('ast-confirm-error');
-                error.textContent = 'Completá este campo para continuar.';
+                error.textContent = 'Completa este campo para continuar.';
                 error.hidden = false;
                 input.focus();
                 return;
@@ -597,20 +598,20 @@
     function showGate(kind) {
         const copy = {
             incomplete: {
-                title: 'Completá tu registro para abrir tu Store',
-                text: 'Tu perfil de artista todavía está incompleto. Terminá el registro y volvé para vender merch y diseños con licencia.',
+                title: 'Completa tu registro para abrir tu Store',
+                text: 'Tu perfil de artista todavía está incompleto. Termina el registro y vuelve para vender merch y diseños con licencia.',
                 action: 'Completar registro →',
                 href: appPath(REGISTER_URL)
             },
             disabled: {
                 title: 'La Store todavía no está habilitada',
-                text: 'Estamos terminando de prepararla. Cuando esté lista, vas a poder vender merch y diseños con licencia desde acá.',
+                text: 'Estamos terminando de prepararla. Cuando esté lista, vas a poder vender merch y diseños con licencia desde aquí.',
                 action: 'Volver al dashboard →',
                 href: appPath(DASHBOARD_URL)
             },
             error: {
                 title: 'No pudimos abrir tu Store',
-                text: 'Revisá tu conexión y recargá la página en unos segundos.',
+                text: 'Revisa tu conexión y recarga la página en unos segundos.',
                 action: 'Recargar la página →',
                 href: window.location.pathname + window.location.search
             }
@@ -718,14 +719,14 @@
         const missing = state.errors.settings ? [] : settingsMissing();
         const alert = $('ast-setup-alert');
         if (missing.length) {
-            setText('ast-setup-alert-text', 'Te ' + (missing.length > 1 ? 'faltan ' : 'falta ') + missing.join(' y ') + '. Sin eso no podés publicar productos.');
+            setText('ast-setup-alert-text', 'Te ' + (missing.length > 1 ? 'faltan ' : 'falta ') + missing.join(' y ') + '. Sin eso no puedes publicar productos.');
             alert.hidden = false;
         } else {
             alert.hidden = true;
         }
         const settingsAlert = $('ast-settings-alert');
         if (missing.length) {
-            setText('ast-settings-alert-text', 'Para publicar necesitás completar ' + missing.join(' y ') + '.');
+            setText('ast-settings-alert-text', 'Para publicar necesitas completar ' + missing.join(' y ') + '.');
             settingsAlert.hidden = false;
         } else {
             settingsAlert.hidden = true;
@@ -763,7 +764,7 @@
             setText('ast-stat-payments-sub', pending.length ? reported + ' con pago informado' : 'Nada pendiente.');
             const prepare = state.orders.filter(ORDER_FILTERS[1].match).length;
             setText('ast-stat-prepare', String(prepare));
-            setText('ast-stat-prepare-sub', prepare ? 'Despachalos o dejalos listos para retirar.' : 'Todo al día.');
+            setText('ast-stat-prepare-sub', prepare ? 'Despáchalos o déjalos listos para retirar.' : 'Todo al día.');
         }
 
         if (state.errors.products) {
@@ -915,8 +916,8 @@
                 '<i data-wo-icon="' + (isDesign ? 'pen-tool' : 'package') + '" aria-hidden="true"></i>' +
                 '<p class="wo-empty-title">' + (isDesign ? 'Todavía no subiste diseños' : 'Todavía no cargaste merch') + '</p>' +
                 '<p>' + (isDesign
-                    ? 'Subí tu flash, elegí qué licencias ofrecés y publicalo en tu Store.'
-                    : 'Cargá remeras, prints o stickers con sus variantes y stock.') + '</p>' +
+                    ? 'Sube tu flash, elige qué licencias ofreces y publícalo en tu Store.'
+                    : 'Carga camisetas, prints o stickers con sus variantes y stock.') + '</p>' +
                 '<button type="button" class="wo-btn wo-btn--ghost" data-act="new" data-kind="' + kind + '"><i data-wo-icon="plus" class="wo-icon-18" aria-hidden="true"></i>' +
                 (isDesign ? 'Nuevo diseño' : 'Nuevo producto') + '</button></div>';
             return;
@@ -980,7 +981,7 @@
             focusCard(product.id, status === 'active' ? 'pause' : 'edit');
         } catch (err) {
             const code = M.errorCode(err);
-            notify(errorText(err, 'No pudimos cambiar el estado. Probá de nuevo.'), 'error');
+            notify(errorText(err, 'No pudimos cambiar el estado. Prueba de nuevo.'), 'error');
             if (code === 'checklist_incomplete') openEditor({ id: product.id });
         }
     }
@@ -1015,7 +1016,7 @@
                 if (panel && !panel.hidden) panel.focus({ preventScroll: true });
             });
         } catch (err) {
-            notify(errorText(err, 'No pudimos borrar el borrador. Probá de nuevo.'), 'error');
+            notify(errorText(err, 'No pudimos borrar el borrador. Prueba de nuevo.'), 'error');
         }
     }
 
@@ -1057,7 +1058,7 @@
             try {
                 product = await Store.getMyProduct(id);
             } catch (err) {
-                notify(errorText(err, 'No pudimos abrir el producto. Probá de nuevo.'), 'error');
+                notify(errorText(err, 'No pudimos abrir el producto. Prueba de nuevo.'), 'error');
                 setParams({ editar: null });
                 return;
             }
@@ -1212,7 +1213,7 @@
         const chosen = ed ? ed.countries : [];
         setText('ast-ed-countries-summary', chosen.length
             ? 'Marcaste ' + chosen.length + ' ' + plural(chosen.length, 'país', 'países') + ': ' + chosen.map(countryName).join(', ') + '.'
-            : 'Sin países marcados: enviás a cualquier país.');
+            : 'Sin países marcados: envías a cualquier país.');
         const clear = $('ast-ed-countries-clear');
         if (clear) clear.hidden = !chosen.length;
     }
@@ -1353,7 +1354,7 @@
         const box = $('ast-ed-variants');
         if (ed.kind !== 'merch') { box.innerHTML = ''; return; }
         if (!ed.variants.length) {
-            box.innerHTML = '<p class="ast-variants-empty">Sin variantes. Agregá al menos una para poder publicar.</p>';
+            box.innerHTML = '<p class="ast-variants-empty">Sin variantes. Agrega al menos una para poder publicar.</p>';
             return;
         }
         box.innerHTML = ed.variants.map((v, i) => {
@@ -1366,8 +1367,8 @@
             return '<fieldset class="ast-variant" data-key="' + esc(v.key) + '">' +
                 '<legend class="ast-variant-legend">Variante ' + (i + 1) + (v.id ? '' : ' · nueva') + (v.active ? '' : ' · inactiva') + '</legend>' +
                 '<div class="ast-variant-grid">' +
-                field('label', 'Nombre <span class="req" aria-hidden="true">*</span>', v.label, ' maxlength="60" placeholder="Ej: Talle M"') +
-                field('size', 'Talle', v.size, ' maxlength="20"') +
+                field('label', 'Nombre <span class="req" aria-hidden="true">*</span>', v.label, ' maxlength="60" placeholder="Ej: Talla M"') +
+                field('size', 'Talla', v.size, ' maxlength="20"') +
                 field('color', 'Color', v.color, ' maxlength="30"') +
                 field('sku', 'SKU', v.sku, ' maxlength="40"') +
                 field('price', 'Precio propio', v.price, ' inputmode="decimal" placeholder="Usa el precio base"') +
@@ -1413,7 +1414,7 @@
                 !String(v.sku || '').trim() && !String(v.price || '').trim() && !String(v.stockInput || '').trim();
             if (isEmpty) return;
             const problems = [];
-            if (!label) problems.push('Poné un nombre, por ejemplo «Talle M».');
+            if (!label) problems.push('Pon un nombre, por ejemplo «Talla M».');
             let price = null;
             if (String(v.price || '').trim()) {
                 price = M.parseAmount(v.price);
@@ -1491,7 +1492,7 @@
         if (isDesign) {
             M.LICENSE_TIERS.forEach((tier) => {
                 if (toggles[tier.id] && value[tier.priceField] == null && !errors[tier.priceField]) {
-                    errors[tier.priceField] = 'Poné el precio de la licencia ' + tier.label + ' o desactivala.';
+                    errors[tier.priceField] = 'Pon el precio de la licencia ' + tier.label + ' o desactívala.';
                 }
             });
         } else {
@@ -1501,7 +1502,7 @@
                 value.ships_to_countries = [];
                 value.ships_to_note = null;
             }
-            if (!shipOn && !pickupOn) errors.delivery = 'Ofrecé envío, retiro en el estudio o las dos opciones.';
+            if (!shipOn && !pickupOn) errors.delivery = 'Ofrece envío, retiro en el estudio o las dos opciones.';
         }
         let variants = { list: [], stockChanges: [], errors: {} };
         if (!isDesign) variants = collectVariants();
@@ -1599,7 +1600,7 @@
         publish.hidden = status === 'active' || status === 'retired';
         if (!save.hasAttribute('aria-busy')) save.disabled = working;
         if (!publish.hasAttribute('aria-busy')) publish.disabled = !complete || working;
-        let hint = complete ? 'Todo listo para publicar.' : 'Completá el checklist para publicar.';
+        let hint = complete ? 'Todo listo para publicar.' : 'Completa el checklist para publicar.';
         if (status === 'active') hint = 'Publicado: los cambios se ven en tu Store al guardar.';
         if (status === 'retired') hint = 'Este producto está retirado.';
         if (ed.uploading > 0) hint = 'Subiendo archivos…';
@@ -1615,12 +1616,12 @@
     async function requestCloseEditor() {
         const ed = state.editor;
         if (!ed) { closeLayer($('ast-editor')); return; }
-        if (ed.uploading > 0) { notify('Esperá a que termine de subir el archivo.', 'info'); return; }
+        if (ed.uploading > 0) { notify('Espera a que termine de subir el archivo.', 'info'); return; }
         if (ed.busy) return;
         if (ed.dirty) {
             const { confirmed } = await confirmDialog({
-                title: 'Tenés cambios sin guardar',
-                message: 'Si cerrás ahora, se pierden los cambios que no guardaste.',
+                title: 'Tienes cambios sin guardar',
+                message: 'Si cierras ahora, se pierden los cambios que no guardaste.',
                 confirmLabel: 'Cerrar sin guardar',
                 cancelLabel: 'Seguir editando',
                 tone: 'danger'
@@ -1640,15 +1641,15 @@
         const ed = state.editor;
         if (!ed || ed.busy || ed.status === 'retired') return false;
         if (ed.uploading > 0 && reason !== 'upload') {
-            notify('Esperá a que termine de subir el archivo para guardar.', 'info');
+            notify('Espera a que termine de subir el archivo para guardar.', 'info');
             return false;
         }
         const result = collectEditor();
         const first = showEditorErrors(result);
         if (!result.ok) {
             const message = reason === 'upload'
-                ? 'Completá los datos marcados para guardar el borrador antes de subir archivos.'
-                : 'Revisá los campos marcados.';
+                ? 'Completa los datos marcados para guardar el borrador antes de subir archivos.'
+                : 'Revisa los campos marcados.';
             showEditorError(message);
             if (first) first.focus();
             return false;
@@ -1698,7 +1699,7 @@
             if (reason !== 'upload') notify(ed.status === 'draft' ? 'Guardaste el borrador.' : 'Guardaste los cambios.', 'success');
             return true;
         } catch (err) {
-            const message = errorText(err, 'No pudimos guardar. Probá de nuevo.');
+            const message = errorText(err, 'No pudimos guardar. Prueba de nuevo.');
             showEditorError(message);
             notify(message, 'error');
             if (M.errorCode(err) === 'stock_changed') renderVariants();
@@ -1795,7 +1796,7 @@
                 ? await Watermark.renderPreview(file, Object.assign({ handle: state.username }, extra))
                 : await Watermark.renderPlain(file, extra);
         } catch (err) {
-            const error = new Error((err && err.message) || 'No pudimos leer la imagen. Probá con otra.');
+            const error = new Error((err && err.message) || 'No pudimos leer la imagen. Prueba con otra.');
             error.validation = true;
             throw error;
         }
@@ -1808,7 +1809,7 @@
         input.value = '';
         if (!ed || !files.length) return;
         const room = MAX_IMAGES - ed.images.length;
-        if (room <= 0) { notify('Ya tenés ' + MAX_IMAGES + ' imágenes. Quitá alguna para agregar otra.', 'error'); return; }
+        if (room <= 0) { notify('Ya tienes ' + MAX_IMAGES + ' imágenes. Quita alguna para agregar otra.', 'error'); return; }
         // Con un HEIC/HEIF, la conversión empieza a cargar mientras se guarda el borrador.
         if (files.slice(0, room).some(isHeicFile)) loadHeicSupport();
         const id = await ensureSaved();
@@ -1845,7 +1846,7 @@
                 refresh({ products: true }).then(() => renderAll());
             }
         } catch (err) {
-            const message = errorText(err, 'No pudimos subir la imagen. Probá de nuevo.');
+            const message = errorText(err, 'No pudimos subir la imagen. Prueba de nuevo.');
             setText('ast-ed-images-status', message);
             notify(message, 'error');
         } finally {
@@ -1876,7 +1877,7 @@
             const focusTarget = btn && !btn.disabled ? btn : fallback;
             if (focusTarget) focusTarget.focus();
         } catch (err) {
-            notify(errorText(err, 'No pudimos reordenar las imágenes. Probá de nuevo.'), 'error');
+            notify(errorText(err, 'No pudimos reordenar las imágenes. Prueba de nuevo.'), 'error');
         }
     }
 
@@ -1932,7 +1933,7 @@
             refresh({ products: true }).then(() => renderAll());
             requestAnimationFrame(() => $('ast-ed-images-input').focus());
         } catch (err) {
-            notify(errorText(err, 'No pudimos quitar la imagen. Probá de nuevo.'), 'error');
+            notify(errorText(err, 'No pudimos quitar la imagen. Prueba de nuevo.'), 'error');
         }
     }
 
@@ -1968,7 +1969,7 @@
         } catch (err) {
             const live = liveInput();
             if (live) { live.disabled = false; live.value = ''; }
-            setFileStatus(kind, errorText(err, 'No pudimos subir el archivo. Probá de nuevo.'), true);
+            setFileStatus(kind, errorText(err, 'No pudimos subir el archivo. Prueba de nuevo.'), true);
         } finally {
             if (state.editor === ed) {
                 ed.uploading -= 1;
@@ -2002,7 +2003,7 @@
             if (input) input.focus();
             refresh({ products: true }).then(() => renderAll());
         } catch (err) {
-            notify(errorText(err, 'No pudimos quitar el archivo. Probá de nuevo.'), 'error');
+            notify(errorText(err, 'No pudimos quitar el archivo. Prueba de nuevo.'), 'error');
         }
     }
 
@@ -2063,7 +2064,7 @@
             ed.countries = [];
             renderCountries();
             markDirty();
-            announce('Desmarcaste todos los países: enviás a cualquier país.');
+            announce('Desmarcaste todos los países: envías a cualquier país.');
             $('ast-ed-countries-search').focus();
         });
         $('ast-ed-variant-add').addEventListener('click', () => {
@@ -2086,8 +2087,8 @@
         const ed = state.editor;
         if (ed && ed.dirty) {
             const { confirmed } = await confirmDialog({
-                title: 'Tenés cambios sin guardar',
-                message: 'Guardá el producto antes de ir a Ajustes o se pierden los cambios.',
+                title: 'Tienes cambios sin guardar',
+                message: 'Guarda el producto antes de ir a Ajustes o se pierden los cambios.',
                 confirmLabel: 'Ir sin guardar',
                 cancelLabel: 'Seguir editando',
                 tone: 'danger'
@@ -2146,7 +2147,7 @@
             list.innerHTML = '<div class="wo-empty ast-empty">' +
                 '<i data-wo-icon="shopping-bag" aria-hidden="true"></i>' +
                 '<p class="wo-empty-title">Todavía no recibiste pedidos</p>' +
-                '<p>Cuando alguien compre en tu Store, lo vas a ver acá para confirmar el pago y prepararlo.</p>' +
+                '<p>Cuando alguien compre en tu Store, lo vas a ver aquí para confirmar el pago y prepararlo.</p>' +
                 (state.username ? '<a class="wo-btn wo-btn--ghost" href="' + esc(M.storeUrl(state.username)) + '">Ver tu Store pública →</a>' : '') +
                 '</div>';
             return;
@@ -2283,11 +2284,11 @@
                 '</div>' +
                 '<div class="wo-field"><label class="wo-label" for="ast-ful-url">Link de seguimiento</label>' +
                 '<input type="url" class="wo-input" id="ast-ful-url" maxlength="500" value="' + esc(order.tracking_url || '') + '" placeholder="https://" aria-describedby="ast-ful-url-help ast-ful-url-err">' +
-                '<p class="wo-help" id="ast-ful-url-help">' + (form.requiresTracking ? 'Necesitás el código o el link para marcarlo como enviado. ' : '') + 'El link tiene que empezar con https://.</p>' +
+                '<p class="wo-help" id="ast-ful-url-help">' + (form.requiresTracking ? 'Necesitas el código o el link para marcarlo como enviado. ' : '') + 'El link tiene que empezar con https://.</p>' +
                 '<p class="wo-error-msg" id="ast-ful-url-err" hidden></p></div>';
         }
         fields += '<div class="wo-field"><label class="wo-label" for="ast-ful-message">Mensaje para quien compra (opcional)</label>' +
-            '<textarea class="wo-textarea" id="ast-ful-message" maxlength="1000" rows="3" placeholder="' + (isShip ? 'Ej: Salió hoy por correo, llega en 5 días hábiles.' : form.status === 'ready_for_pickup' ? 'Ej: Ya está listo. Pasá de martes a sábado de 12 a 19 h.' : 'Ej: Lo estoy preparando, sale esta semana.') + '" aria-describedby="ast-ful-message-help"></textarea>' +
+            '<textarea class="wo-textarea" id="ast-ful-message" maxlength="1000" rows="3" placeholder="' + (isShip ? 'Ej: Salió hoy por correo, llega en 5 días hábiles.' : form.status === 'ready_for_pickup' ? 'Ej: Ya está listo. Pasa de martes a sábado de 12 a 19 h.' : 'Ej: Lo estoy preparando, sale esta semana.') + '" aria-describedby="ast-ful-message-help"></textarea>' +
             '<p class="wo-help" id="ast-ful-message-help">Lo ve quien compra en el detalle de su pedido.</p></div>';
         return '<form class="ast-ful-form" id="ast-ful-form" novalidate aria-labelledby="ast-ful-title">' +
             '<h4 class="ast-ful-title" id="ast-ful-title">' + esc(label) + '</h4>' + fields +
@@ -2319,8 +2320,8 @@
         if (v.nextAction && v.nextAction.kind === 'info' && !contextual.includes(v.nextAction.key)) alerts.push('<div class="wo-alert wo-alert--info"><i data-wo-icon="info" class="wo-icon-18" aria-hidden="true"></i><span>' + esc(v.nextAction.label) + '</span></div>');
         // Vencido: no se promete un cierre automático (depende del mantenimiento).
         if (v.overdue) alerts.push('<div class="wo-alert wo-alert--warning"><i data-wo-icon="clock" class="wo-icon-18" aria-hidden="true"></i><span>' + esc(v.paymentReported
-            ? 'Venció el plazo de pago, pero quien compra informó un pago. Si lo recibiste, confirmalo. Si no llegó, usá «No recibí el pago».'
-            : 'Venció el plazo de pago y no hay pago informado. Si no vas a recibirlo, cancelá el pedido.') + '</span></div>');
+            ? 'Venció el plazo de pago, pero quien compra informó un pago. Si lo recibiste, confírmalo. Si no llegó, usa «No recibí el pago».'
+            : 'Venció el plazo de pago y no hay pago informado. Si no vas a recibirlo, cancela el pedido.') + '</span></div>');
         if (v.needsSupport) alerts.push('<div class="wo-alert wo-alert--warning"><i data-wo-icon="alert-triangle" class="wo-icon-18" aria-hidden="true"></i><span>Soporte está revisando este pedido.</span></div>');
         if (alerts.length) sections.push('<div class="ast-or-alerts">' + alerts.join('') + '</div>');
 
@@ -2366,8 +2367,8 @@
         if (v.method === 'shipping') delivery = order.shipping_address ? '<p class="ast-address">' + addressHtml(order.shipping_address) + '</p>' : '<p>Sin dirección cargada.</p>';
         else if (v.method === 'pickup') {
             const pickup = order.pickup_details || ((state.settings || {}).pickup_address) || '';
-            delivery = '<p>' + esc(order.pickup_details ? 'Retira en: ' + pickup : (pickup ? 'Retira en tu dirección de retiro: ' + pickup + '. Se la mostramos a quien compra cuando confirmás el pago.' : 'Retira en el estudio. Cargá la dirección de retiro en Ajustes.')) + '</p>';
-        } else delivery = '<p>Descarga digital: quien compra baja el original, el stencil y el certificado desde su cuenta cuando confirmás el pago.</p>';
+            delivery = '<p>' + esc(order.pickup_details ? 'Se retira en: ' + pickup : (pickup ? 'Se retira en tu dirección de retiro: ' + pickup + '. Se la mostramos a quien compra cuando confirmas el pago.' : 'Se retira en el estudio. Carga la dirección de retiro en Ajustes.')) + '</p>';
+        } else delivery = '<p>Descarga digital: quien compra baja el original, el stencil y el certificado desde su cuenta cuando confirmas el pago.</p>';
         sections.push('<section class="ast-or-section" aria-labelledby="ast-or-delivery-h"><h3 class="ast-or-h" id="ast-or-delivery-h" tabindex="-1">Entrega · ' + esc(v.methodLabel) + '</h3>' + delivery + '</section>');
 
         // Pago
@@ -2433,8 +2434,8 @@
         if (other.length) {
             const notReceived = byKey('cancel').some((a) => a.reason === 'payment_not_received');
             sections.push('<section class="ast-or-section" aria-labelledby="ast-or-more-h"><h3 class="ast-or-h" id="ast-or-more-h" tabindex="-1">Otras acciones</h3>' +
-                (notReceived ? '<p class="wo-help">Si revisaste tu cuenta y el pago no llegó, cancelá el pedido con «No recibí el pago»: el stock o la reserva vuelven a quedar disponibles.</p>' : '') +
-                (byKey('refund').length ? '<p class="wo-help">Reembolsá solo si ya le devolviste el dinero a quien compra' + (v.kind === 'design' ? ': la licencia se revoca.' : '.') + '</p>' : '') +
+                (notReceived ? '<p class="wo-help">Si revisaste tu cuenta y el pago no llegó, cancela el pedido con «No recibí el pago»: el stock o la reserva vuelven a quedar disponibles.</p>' : '') +
+                (byKey('refund').length ? '<p class="wo-help">Reembolsa solo si ya le devolviste el dinero a quien compra' + (v.kind === 'design' ? ': la licencia se revoca.' : '.') + '</p>' : '') +
                 '<div class="ast-or-actions">' + other.map((a) => actionButton(a)).join('') + '</div></section>');
         }
 
@@ -2537,7 +2538,7 @@
             await afterOrderChange(label + ' · ' + (order.order_number ? 'Pedido #' + order.order_number : 'pedido') + '.', '#ast-or-ship-h');
         } catch (err) {
             if (submit.isConnected) setBusy(submit, false);
-            const message = errorText(err, 'No pudimos actualizar el envío. Probá de nuevo.');
+            const message = errorText(err, 'No pudimos actualizar el envío. Prueba de nuevo.');
             if (errorBox.isConnected) { errorBox.textContent = message; errorBox.hidden = false; }
             notify(message, 'error');
         }
@@ -2551,14 +2552,14 @@
         const notReceived = action.reason === 'payment_not_received';
         const { confirmed, value } = await confirmDialog(notReceived ? {
             title: 'No recibí el pago',
-            message: 'Quien compra informó un pago, pero venció el plazo. Cancelá solo si revisaste tu cuenta y el dinero no llegó: el pedido se cancela y el stock o la reserva vuelven a quedar disponibles.',
+            message: 'Quien compra informó un pago, pero venció el plazo. Cancela solo si revisaste tu cuenta y el dinero no llegó: el pedido se cancela y el stock o la reserva vuelven a quedar disponibles.',
             confirmLabel: 'Cancelar pedido',
             cancelLabel: 'Volver',
             tone: 'danger',
             input: { label: 'Motivo (lo ve quien compra)', maxLength: 300, value: 'No recibí el pago.' }
         } : {
             title: 'Cancelar el pedido',
-            message: 'El pedido se cancela y el stock o la reserva vuelven a quedar disponibles. Contale a quien compra el motivo.',
+            message: 'El pedido se cancela y el stock o la reserva vuelven a quedar disponibles. Cuéntale a quien compra el motivo.',
             confirmLabel: 'Cancelar pedido',
             cancelLabel: 'Volver',
             tone: 'danger',
@@ -2569,7 +2570,7 @@
             await Store.cancelOrder(order.id, value || null);
             await afterOrderChange('Cancelaste el pedido #' + order.order_number + '.');
         } catch (err) {
-            notify(errorText(err, 'No pudimos cancelar el pedido. Probá de nuevo.'), 'error');
+            notify(errorText(err, 'No pudimos cancelar el pedido. Prueba de nuevo.'), 'error');
         }
     }
 
@@ -2578,18 +2579,18 @@
         const action = (view.actions || []).find((a) => a.key === 'refund');
         const { confirmed, value } = await confirmDialog({
             title: 'Reembolsar el pedido',
-            message: (action && action.confirm) || 'Confirmá que ya le devolviste el dinero.',
+            message: (action && action.confirm) || 'Confirma que ya le devolviste el dinero.',
             confirmLabel: 'Ya lo devolví · reembolsar',
             cancelLabel: 'Volver',
             tone: 'danger',
-            input: { label: 'Motivo (opcional)', maxLength: 300, placeholder: view.kind === 'design' ? 'Ej: Quien compra se arrepintió antes de usar la licencia.' : 'Ej: Me quedé sin stock del talle.' }
+            input: { label: 'Motivo (opcional)', maxLength: 300, placeholder: view.kind === 'design' ? 'Ej: Quien compra se arrepintió antes de usar la licencia.' : 'Ej: Me quedé sin stock de la talla.' }
         });
         if (!confirmed) return;
         try {
             await Store.refundOrder(order.id, value || null);
             await afterOrderChange('Registraste el reembolso del pedido #' + order.order_number + '.');
         } catch (err) {
-            notify(errorText(err, 'No pudimos registrar el reembolso. Probá de nuevo.'), 'error');
+            notify(errorText(err, 'No pudimos registrar el reembolso. Prueba de nuevo.'), 'error');
         }
     }
 
@@ -2609,7 +2610,7 @@
         const view = M.orderView(order, { role: 'seller' });
         // Vencido sin pago informado: la RPC ya no acepta confirmarlo.
         if (!(view.actions || []).some((a) => a.key === 'confirm_payment')) {
-            notify('Venció el plazo de pago y no hay pago informado: ya no se puede confirmar. Si no vas a recibirlo, cancelá el pedido.', 'info');
+            notify('Venció el plazo de pago y no hay pago informado: ya no se puede confirmar. Si no vas a recibirlo, cancela el pedido.', 'info');
             setParams({ modal: null });
             return;
         }
@@ -2662,10 +2663,10 @@
                 setParams({ modal: null });
                 const isDesign = (order.items || order.store_order_items || []).some((i) => i.kind === 'design');
                 await afterOrderChange('Confirmaste el pago del pedido #' + order.order_number + '.' +
-                    (isDesign ? ' La licencia ya está emitida.' : ' Ahora preparalo para el envío.'), '#ast-or-pay-h');
+                    (isDesign ? ' La licencia ya está emitida.' : ' Ahora prepáralo para el envío.'), '#ast-or-pay-h');
             } catch (err) {
                 setBusy(submit, false);
-                const message = errorText(err, 'No pudimos confirmar el pago. Probá de nuevo.');
+                const message = errorText(err, 'No pudimos confirmar el pago. Prueba de nuevo.');
                 error.textContent = message;
                 error.hidden = false;
                 notify(message, 'error');
@@ -2692,7 +2693,7 @@
             : 'Es obligatoria para publicar diseños con licencia.');
         const error = $('ast-settings-error');
         if (state.errors.settings) {
-            error.textContent = 'No pudimos cargar tus ajustes. Recargá la página antes de guardar.';
+            error.textContent = 'No pudimos cargar tus ajustes. Recarga la página antes de guardar.';
             error.dataset.kind = 'load';
             error.hidden = false;
         } else if (error.dataset.kind === 'load') {
@@ -2739,7 +2740,7 @@
                     if (missing.includes('el canal de contacto')) showFieldError('ast-set-contact', 'Requerido para publicar.');
                 }
             } catch (err) {
-                const message = errorText(err, 'No pudimos guardar tus ajustes. Probá de nuevo.');
+                const message = errorText(err, 'No pudimos guardar tus ajustes. Prueba de nuevo.');
                 error.textContent = message;
                 error.hidden = false;
                 notify(message, 'error');

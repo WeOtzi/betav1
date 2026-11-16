@@ -28,7 +28,7 @@ function startLocalPreview(options = {}) {
     if (!options.quiet) {
       console.log('We Ötzi · desarrollo seguro con datos ficticios');
       console.log(`http://localhost:${server.address().port}/preview/${target}/inicio/`);
-      console.log('Editá public/ y refrescá el navegador. Emails y servicios reales permanecen desactivados.');
+      console.log('Edita public/ y refresca el navegador. Emails y servicios reales permanecen desactivados.');
     }
   });
   return { server, stateRoot, target, close };

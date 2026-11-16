@@ -95,7 +95,7 @@ test('cards: enlace real a perfil/estudio, sin navegación por JS y con iniciale
 });
 
 test('modo Estudios (Figma 2113:9145): textos, filtros propios, cargar más', () => {
-    assert.ok(js.includes("title: 'Descubrí estudios'"));
+    assert.ok(js.includes("title: 'Descubre estudios'"));
     assert.ok(js.includes("placeholder: 'Buscar estudios, estilos, ciudades…'"));
     assert.ok(js.includes("{ key: 'services', title: 'Servicios'"));
     assert.ok(js.includes("more: 'Cargar más estudios'"));

@@ -42,14 +42,14 @@ const ACK_IDS = Object.freeze(['compartir.enlace', 'compartir.bio', 'compartir',
 
 // `section` es la seccion de /artist/account donde se completa (null: dentro del panel).
 const STEP_DEFS = Object.freeze({
-    perfil: { title: 'Completá tu perfil', section: 'perfil' },
-    portafolio: { title: 'Validá tu Instagram y tu portafolio', section: 'portafolio' },
-    compartir: { title: 'Compartí tu perfil en Instagram', section: null },
-    retiro: { title: 'Configurá un medio de retiro', section: 'cobros' },
-    disponibilidad: { title: 'Configurá tu disponibilidad', section: 'disponibilidad' },
-    notificaciones: { title: 'Configurá tus notificaciones', section: 'notificaciones' },
-    verificacion: { title: 'Completá la verificación', section: 'verificacion' },
-    configuracion: { title: 'Completá la configuración', section: 'configuracion' }
+    perfil: { title: 'Completa tu perfil', section: 'perfil' },
+    portafolio: { title: 'Valida tu Instagram y tu portafolio', section: 'portafolio' },
+    compartir: { title: 'Comparte tu perfil en Instagram', section: null },
+    retiro: { title: 'Configura un medio de retiro', section: 'cobros' },
+    disponibilidad: { title: 'Configura tu disponibilidad', section: 'disponibilidad' },
+    notificaciones: { title: 'Configura tus notificaciones', section: 'notificaciones' },
+    verificacion: { title: 'Completa la verificación', section: 'verificacion' },
+    configuracion: { title: 'Completa la configuración', section: 'configuracion' }
 });
 
 function deepFreeze(value) {
@@ -269,7 +269,7 @@ function computeSteps(input) {
     built.disponibilidad = {
         checks: [
             check('modalidad', 'Modalidad de trabajo', WORK_TYPES.includes(workType)),
-            check('estudio', 'Estudio donde trabajás', workType === 'independent'
+            check('estudio', 'Estudio donde trabajas', workType === 'independent'
                 || ((workType === 'studio' || workType === 'both') && hasStudio)),
             check('horarios', 'Días y horarios de atención', hasEnabledDay(availability.weekly) || locationWeekly)
         ]
@@ -642,7 +642,7 @@ function createHandlers(overrides) {
                 return res.status(503).json({
                     success: false,
                     code: 'ONBOARDING_PREFS_UNAVAILABLE',
-                    error: 'No pudimos cargar tu progreso. Probá de nuevo en unos minutos.'
+                    error: 'No pudimos cargar tu progreso. Prueba de nuevo en unos minutos.'
                 });
             }
             let prefs = loadedPrefs;
@@ -674,7 +674,7 @@ function createHandlers(overrides) {
             return res.json(payload({ req, user, artist, prefs, sources, appSettings, now }));
         } catch (err) {
             console.error('[Artist Onboarding] GET failed:', errorText(err));
-            return res.status(500).json({ success: false, error: 'No pudimos cargar tu progreso. Probá de nuevo en unos minutos.' });
+            return res.status(500).json({ success: false, error: 'No pudimos cargar tu progreso. Prueba de nuevo en unos minutos.' });
         }
     }
 
@@ -722,7 +722,7 @@ function createHandlers(overrides) {
             return res.json(payload({ req, user, now, ...result }));
         } catch (err) {
             console.error('[Artist Onboarding] POST failed:', errorText(err));
-            return res.status(500).json({ success: false, error: 'No pudimos guardar tu progreso. Probá de nuevo en unos minutos.' });
+            return res.status(500).json({ success: false, error: 'No pudimos guardar tu progreso. Prueba de nuevo en unos minutos.' });
         }
     }
 

@@ -221,7 +221,7 @@
       '<h2>Ingresos</h2><div>' +
       '<p><strong>' + escapeHtml(d.month) + '</strong><span>FACTURACIÓN MENSUAL</span></p>' +
       '<p><strong>' + escapeHtml(d.week) + '</strong><span>FACTURACIÓN SEMANAL</span></p>' +
-      '<p class="is-success"><strong>' + escapeHtml(d.sessions) + '</strong><span>SEÑAS RECIBIDAS</span></p>' +
+      '<p class="is-success"><strong>' + escapeHtml(d.sessions) + '</strong><span>ANTICIPOS RECIBIDOS</span></p>' +
       '<p class="is-error"><strong>' + escapeHtml(d.pending) + '</strong><span>SALDO PENDIENTE</span></p>' +
       '</div></section>';
   }
@@ -255,7 +255,7 @@
 
   function renderAgendaOne() {
     return '<section class="wo-mol wo-mol-agenda-one" aria-label="Agenda del lunes 30 de junio">' +
-      '<header><div><p>LUNES 30 JUN</p><h2>Hola, Laura — hoy tenés 4 sesiones</h2></div><strong>6H 45M</strong></header>' +
+      '<header><div><p>LUNES 30 JUN</p><h2>Hola, Laura — hoy tienes 4 sesiones</h2></div><strong>6H 45M</strong></header>' +
       '<ol>' + agendaRows('cards') + '</ol></section>';
   }
 
@@ -279,7 +279,7 @@
   }
 
   function renderTitles() {
-    return '<header class="wo-mol wo-mol-titles"><p>JOB BOARD</p><div><h1>Explorá solicitudes abiertas</h1>' +
+    return '<header class="wo-mol wo-mol-titles"><p>JOB BOARD</p><div><h1>Explora solicitudes abiertas</h1>' +
       '<span>Curado según tu perfil y tus estilos favoritos.</span></div></header>';
   }
 
@@ -297,7 +297,7 @@
 
   function renderCarousel() {
     return '<section class="wo-mol wo-mol-carousel" aria-label="Solicitudes recomendadas">' +
-      '<header><h2>Recomendado para vos</h2><a href="/job-board">VER TODO</a></header>' +
+      '<header><h2>Recomendado para ti</h2><a href="/job-board">VER TODO</a></header>' +
       '<div class="wo-mol-carousel__track" tabindex="0" aria-label="Solicitudes recomendadas">' +
       data().jobs.map(jobCard).join('') + '</div></section>';
   }
@@ -308,7 +308,7 @@
       '<button type="button" class="wo-mol-results-head__filter">' + icon('sliders') + '<span>FILTROS</span></button></header>' +
       '<div class="wo-mol-results-head__tools"><strong>6 solicitudes encontradas</strong>' +
       '<label><span>ORDENAR</span><select aria-label="Ordenar solicitudes"><option>Más recientes</option></select></label>' +
-      '<div class="wo-mol-results-head__views" role="group" aria-label="Vista"><button type="button" data-results-view="grid" aria-pressed="true" aria-label="Ver en grilla">' + icon('grid') + '</button><button type="button" data-results-view="list" aria-pressed="false" aria-label="Ver en lista">' + icon('list') + '</button></div></div>' +
+      '<div class="wo-mol-results-head__views" role="group" aria-label="Vista"><button type="button" data-results-view="grid" aria-pressed="true" aria-label="Ver en cuadrícula">' + icon('grid') + '</button><button type="button" data-results-view="list" aria-pressed="false" aria-label="Ver en lista">' + icon('list') + '</button></div></div>' +
       '<div class="wo-mol-results-head__tags" aria-label="Filtros activos"><button type="button" data-filter-chip="FINE LINE" aria-label="Quitar filtro Fine Line">FINE LINE ' + icon('x') + '</button><button type="button" data-filter-chip="BLACKWORK" aria-label="Quitar filtro Blackwork">BLACKWORK ' + icon('x') + '</button></div></section>';
   }
 
@@ -320,8 +320,8 @@
   function renderFilters() {
     return '<aside class="wo-mol wo-mol-filters" aria-label="Filtros">' +
       '<header><h2>FILTROS</h2><button type="button" data-molecule-filter-toggle aria-expanded="true" aria-label="Comprimir filtros">' + icon('chevrons-left') + '</button></header>' +
-      '<label class="wo-mol-filters__search">' + icon('search') + '<span class="wo-mol-sr-only">Buscar</span><input type="search" placeholder="Buscá estilo, ciudad..."></label>' +
-      '<section><h3>PARA VOS</h3>' + filterCheck('Recomendado', '', true) + filterCheck('Cerca tuyo') + filterCheck('Recién publicados') + filterCheck('Guardados') + '</section>' +
+      '<label class="wo-mol-filters__search">' + icon('search') + '<span class="wo-mol-sr-only">Buscar</span><input type="search" placeholder="Busca estilo, ciudad..."></label>' +
+      '<section><h3>PARA TI</h3>' + filterCheck('Recomendado', '', true) + filterCheck('Cerca de ti') + filterCheck('Recién publicados') + filterCheck('Guardados') + '</section>' +
       '<section><h3>ESTILOS <b data-filter-count>3</b></h3><h4>TÉCNICA</h4>' + filterCheck('Fine Line', '12', true) + filterCheck('Blackwork', '11', true) + filterCheck('Dotwork', '8', true) + filterCheck('Microrealismo') +
       '<button type="button" class="wo-mol-filters__more" data-filter-disclosure aria-expanded="false">+ 3 MÁS</button><h4>REGIONAL</h4><button type="button" class="wo-mol-filters__disclosure" data-filter-disclosure aria-expanded="false">TEMÁTICO ' + icon('chevron-down') + '</button><button type="button" class="wo-mol-filters__disclosure" data-filter-disclosure aria-expanded="false">OTROS ' + icon('chevron-down') + '</button></section>' +
       '<section><h3>REFINAR</h3><label class="wo-mol-filters__select"><span>CIUDAD</span><select><option>Todas las ciudades</option></select></label>' +
@@ -335,7 +335,7 @@
       ['chevrons-right', 'Expandir filtros', 'toggle'],
       ['search', 'Buscar'],
       ['star', 'Recomendado'],
-      ['map-pin', 'Cerca tuyo'],
+      ['map-pin', 'Cerca de ti'],
       ['clock', 'Recién publicados'],
       ['bookmark', 'Guardados']
     ];
@@ -396,27 +396,27 @@
 
   function galleryHeader(title, count) {
     return '<header><div><p>GALERÍA DE TRABAJOS</p><h2>' + title + '</h2></div><span>' + count + '</span></header>' +
-      '<div class="wo-mol-gallery__rules"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>ARRASTRÁ PARA REORDENAR</b></div>';
+      '<div class="wo-mol-gallery__rules"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>ARRASTRA PARA REORDENAR</b></div>';
   }
 
   function renderGalleryFull() {
     return '<section class="wo-mol wo-mol-gallery is-full" aria-label="Galería de trabajos extendida">' +
-      '<div class="wo-mol-gallery__onboarding"><div>' + icon('grid') + '<h2>Empezá tu portfolio</h2><p>Subí trabajos uno por uno o importá tu feed completo.</p></div>' +
+      '<div class="wo-mol-gallery__onboarding"><div>' + icon('grid') + '<h2>Empieza tu portfolio</h2><p>Sube trabajos uno por uno o importa tu feed completo.</p></div>' +
       '<div><button type="button">＋ SUBIR FOTOS/VIDEOS</button><button type="button">' + icon('instagram') + ' IMPORTAR INSTAGRAM</button></div></div>' +
       '<p class="wo-mol-preview">VISTA PREVIA</p><div class="wo-mol-gallery__canvas">' + galleryHeader('Tu portfolio', '12 TRABAJOS') +
       '<div class="wo-mol-gallery__grid">' + data().portfolio.map(portfolioTile).join('') +
-      '<button class="wo-mol-gallery__add" type="button">＋<span>AGREGÁ MÁS TRABAJOS</span></button></div></div></section>';
+      '<button class="wo-mol-gallery__add" type="button">＋<span>AGREGA MÁS TRABAJOS</span></button></div></div></section>';
   }
 
   function renderGalleryCompact() {
     return '<section class="wo-mol wo-mol-gallery is-compact" aria-label="Galería de trabajos">' +
       '<p class="wo-mol-preview">VISTA PREVIA</p><div class="wo-mol-gallery__compact-head"><h2>Galería de trabajos <span>— 12</span></h2>' +
       '<button type="button">' + icon('instagram') + ' IMPORTAR INSTAGRAM</button></div><div class="wo-mol-gallery__canvas">' +
-      '<div class="wo-mol-gallery__rules"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>ARRASTRÁ PARA REORDENAR</b></div>' +
+      '<div class="wo-mol-gallery__rules"><span>MÁX 50 ARCHIVOS · HASTA 2 VIDEOS · MP4 / MOV · 30S</span><b>ARRASTRA PARA REORDENAR</b></div>' +
       '<div class="wo-mol-gallery__editor-grid"><article class="is-main"><i>★</i>' + icon('image') + '<p>Manga floral — destacado</p><span>' + icon('star') + icon('edit') + icon('trash-2') + '</span></article>' +
       '<article class="is-hover">' + icon('image') + '<small>HOVER</small></article><article class="is-progress"><progress value="38" max="100" aria-label="Carga de trabajo"></progress><span>38%</span></article>' +
       '<button type="button">' + icon('image') + '<span>SUBIR MÁS</span></button></div>' +
-      '<div class="wo-mol-gallery__promotion">' + icon('edit-3') + '<h3>Mostrá tu mejor trabajo</h3><p>Un portfolio con fotos de calidad genera más cotizaciones.</p><button type="button">＋ SUBIR FOTOS/VIDEOS</button></div></div></section>';
+      '<div class="wo-mol-gallery__promotion">' + icon('edit-3') + '<h3>Muestra tu mejor trabajo</h3><p>Un portfolio con fotos de calidad genera más cotizaciones.</p><button type="button">＋ SUBIR FOTOS/VIDEOS</button></div></div></section>';
   }
 
   function renderStatisticsContent() {
@@ -483,7 +483,7 @@
   }
 
   function separator() {
-    return '<div class="wo-mol-separator"><i></i><span>O CONTINUÁ CON</span><i></i></div>';
+    return '<div class="wo-mol-separator"><i></i><span>O CONTINÚA CON</span><i></i></div>';
   }
 
   function renderQuoteForm() {
@@ -491,8 +491,8 @@
       field('NOMBRE COMPLETO *', '<input name="name" autocomplete="name" placeholder="Tu nombre" required aria-required="true">') +
       '<div class="wo-mol-form-row">' + field('EMAIL *', '<input name="email" type="email" autocomplete="email" placeholder="tu@email.com" required aria-required="true">') +
       field('CIUDAD', '<input name="city" autocomplete="address-level2" placeholder="Buenos Aires">') + '</div>' +
-      field('ESTILO *', '<select name="style" required aria-required="true"><option value="" selected disabled>Seleccioná un estilo</option><option>Fine Line</option><option>Blackwork</option></select>') +
-      field('DESCRIPCIÓN *', '<textarea name="description" placeholder="Describí tu idea..." required aria-required="true"></textarea>') +
+      field('ESTILO *', '<select name="style" required aria-required="true"><option value="" selected disabled>Selecciona un estilo</option><option>Fine Line</option><option>Blackwork</option></select>') +
+      field('DESCRIPCIÓN *', '<textarea name="description" placeholder="Describe tu idea..." required aria-required="true"></textarea>') +
       '<label class="wo-mol-budget"><span>PRESUPUESTO: <b>USD 1750</b></span><input type="range" min="100" max="3000" value="1750" aria-label="Presupuesto, 1750 dólares"></label>' +
       terms() + '<button class="wo-mol-form-submit" type="submit">ENVIAR COTIZACIÓN →</button>' + formFeedback() + '</form>';
   }
@@ -500,13 +500,13 @@
   function renderLogin() {
     var passwordId = nextId('login-password');
     return '<form class="wo-mol wo-mol-auth" data-demo-success="Inicio de sesión de demostración. No se guardaron datos.">' + brand() +
-      '<header><h1>Bienvenida de nuevo</h1><p>Ingresá para gestionar tus spots y cotizaciones.</p></header>' +
-      field('EMAIL', '<span class="wo-mol-auth__control">' + icon('mail') + '<input name="email" type="email" autocomplete="email" placeholder="vos@email.com" required aria-required="true"></span>') +
+      '<header><h1>Bienvenida de nuevo</h1><p>Ingresa para gestionar tus spots y cotizaciones.</p></header>' +
+      field('EMAIL', '<span class="wo-mol-auth__control">' + icon('mail') + '<input name="email" type="email" autocomplete="email" placeholder="tu@email.com" required aria-required="true"></span>') +
       '<div class="wo-mol-field"><label class="wo-mol-field__label" for="' + passwordId + '">CONTRASEÑA</label>' +
       '<span class="wo-mol-auth__control">' + icon('lock') + '<input id="' + passwordId + '" name="password" type="password" autocomplete="current-password" value="password" required aria-required="true"><button type="button" data-password-toggle aria-label="Mostrar contraseña">' + icon('eye') + '</button></span></div>' +
       '<a class="wo-mol-auth__recover" href="/recover">¿Olvidaste tu contraseña?</a>' +
       '<button class="wo-mol-auth__primary" type="submit">ENTRAR ' + icon('arrow-right') + '</button>' + formFeedback() + separator() + socialButtons() +
-      '<p class="wo-mol-auth__switch">¿SIN CUENTA? <a href="/registerclosedbeta">REGISTRATE</a></p></form>';
+      '<p class="wo-mol-auth__switch">¿SIN CUENTA? <a href="/registerclosedbeta">REGÍSTRATE</a></p></form>';
   }
 
   function renderSignup() {
@@ -516,7 +516,7 @@
       field('NOMBRE COMPLETO *', '<input name="name" autocomplete="name" placeholder="Tu nombre" required aria-required="true">') +
       '<div class="wo-mol-form-row">' + field('EMAIL *', '<input name="email" type="email" autocomplete="email" placeholder="tu@email.com" required aria-required="true">') +
       field('CIUDAD', '<input name="city" autocomplete="address-level2" placeholder="Buenos Aires">') + '</div>' +
-      field('ESTILO *', '<select name="style" required aria-required="true"><option value="" selected disabled>Seleccioná tú estilo principal</option><option>Fine Line</option><option>Blackwork</option></select>') + terms() + '</div>' +
+      field('ESTILO *', '<select name="style" required aria-required="true"><option value="" selected disabled>Selecciona tu estilo principal</option><option>Fine Line</option><option>Blackwork</option></select>') + terms() + '</div>' +
       '<button class="wo-mol-auth__primary" type="submit">REGISTRARME ' + icon('arrow-right') + '</button>' + formFeedback() + separator() + socialButtons() +
       '<p class="wo-mol-auth__switch">¿YA TIENES CUENTA? <a href="/artist/login">INGRESAR</a></p></form>';
   }
@@ -607,12 +607,12 @@
 
       this.querySelectorAll('form').forEach(function (form) {
         form.addEventListener('invalid', function () {
-          showFormFeedback(form, 'Revisá los campos obligatorios antes de continuar.', 'error');
+          showFormFeedback(form, 'Revisa los campos obligatorios antes de continuar.', 'error');
         }, true);
         form.addEventListener('submit', function (event) {
           event.preventDefault();
           if (typeof form.checkValidity === 'function' && !form.checkValidity()) {
-            showFormFeedback(form, 'Revisá los campos obligatorios antes de continuar.', 'error');
+            showFormFeedback(form, 'Revisa los campos obligatorios antes de continuar.', 'error');
             if (typeof form.reportValidity === 'function') form.reportValidity();
             return;
           }

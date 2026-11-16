@@ -371,7 +371,7 @@
      * si el valor guardado no está en la lista (p. ej. una cotización vieja en
      * BOB), un grupo "Otras" con ese valor para no perder el dato.
      *
-     * opts: { value, extra: [codes], placeholder: 'Elegí una moneda',
+     * opts: { value, extra: [codes], placeholder: 'Elige una moneda',
      *         leading: [{ value, label }], label }
      */
     function countryCurrencyOptionsHtml(opts) {

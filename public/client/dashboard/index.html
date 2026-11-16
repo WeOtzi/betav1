@@ -13,6 +13,7 @@
     <script src="/shared/js/data/artists-repo.js"></script>
     <script src="/shared/js/data/studios-repo.js"></script>
     <script src="/shared/js/data/clients-repo.js"></script>
+    <script src="/shared/js/data/jobboard-repo.js"></script>
     <script src="/shared/js/email-client.js"></script>
     <script src="/shared/js/wo-welcome.js" defer></script>
     <script src="/shared/js/currency-utils.js"></script>
@@ -26,6 +27,8 @@
     <link rel="stylesheet" href="/shared/css/reviews.css">
     <link rel="stylesheet" href="/shared/css/client-dashboard-figma.css">
     <link rel="stylesheet" href="/shared/css/client-quote-proposal.css">
+    <link rel="stylesheet" href="/shared/css/wo-sessions.css?v=20261116-sesiones">
+    <link rel="stylesheet" href="/shared/css/client-panel.css">
     <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
     <script src="/shared/js/wo-consent.js" defer></script>
 </head>
@@ -42,6 +45,7 @@
                 <a class="wo-topbar-item" href="/my-quotations/statistics/">Estadísticas</a>
                 <a class="wo-topbar-item" href="/artist/travel/">Travel</a>
                 <a class="wo-topbar-item" href="/client/chats/">Inbox</a>
+                <a class="wo-topbar-item" href="/client/favorites/">Favoritos</a>
                 <a class="wo-topbar-item" href="/store/purchases/" data-store-entry hidden>Compras</a>
             </nav>
         </div>
@@ -57,8 +61,28 @@
             <!-- Hero -->
             <section class="client-hero">
                 <h1 class="client-hero-title" id="hero-greeting">Buen día</h1>
-                <p class="client-hero-sub">¿Qué querés tatuarte hoy?</p>
+                <p class="client-hero-sub">¿Qué quieres tatuarte hoy?</p>
             </section>
+
+            <!-- Accesos rápidos (ronda 2 · cliente-panel): las acciones principales
+                 del cliente a la vista, sin scroll. Mismos destinos que
+                 WoClientPanel.shortcuts() (client-panel-model.js). -->
+            <div class="cpn-quick">
+                <nav class="cpn-quick-nav" aria-label="Accesos rápidos">
+                <ul class="cpn-quick-links">
+                    <li><a class="wo-btn wo-btn--s wo-btn--hard cpn-quick-link" href="/quotation"><i data-wo-icon="edit-3" aria-hidden="true"></i>Solicitar cotización</a></li>
+                    <li><a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard cpn-quick-link" href="/job-board/request"><i data-wo-icon="radio" aria-hidden="true"></i>Publicar una idea</a></li>
+                    <li><a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard cpn-quick-link" href="/marketplace"><i data-wo-icon="compass" aria-hidden="true"></i>Explorar artistas</a></li>
+                    <li><a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard cpn-quick-link" href="/client/favorites"><i data-wo-icon="heart" aria-hidden="true"></i>Mis favoritos</a></li>
+                    <li><a class="wo-btn wo-btn--ghost wo-btn--s wo-btn--hard cpn-quick-link" href="/client/chats/"><i data-wo-icon="message-circle" aria-hidden="true"></i>Mensajes</a></li>
+                </ul>
+                </nav>
+                <form class="cpn-quick-search" id="cpn-quick-search" role="search" autocomplete="off">
+                    <label class="wo-sr-only" for="cpn-quick-search-input">Busca una cotización por su código</label>
+                    <input class="wo-input" type="search" id="cpn-quick-search-input" placeholder="Código de cotización" maxlength="80" enterkeyhint="search">
+                    <button class="wo-btn wo-btn--s" type="submit">Buscar</button>
+                </form>
+            </div>
 
             <!-- Tu actividad -->
             <section class="client-activity">
@@ -100,12 +124,27 @@
                 </div>
             </section>
 
+            <!-- Mis sesiones (ronda 2): confirmar, pedir cambios, calificar y disputar.
+                 Lo pinta client-sessions.js; queda oculto si no hay sesiones. -->
+            <section class="client-sessions" id="mis-sesiones" aria-labelledby="ws-panel-title" hidden></section>
+
             <!-- Mis cotizaciones · panel al que llega el ítem COTIZACIONES del nav
                  (el Figma del dashboard no lo muestra embebido: se abre desde el nav) -->
             <section class="client-quotations is-collapsed" id="mis-cotizaciones">
                 <header class="client-section-head">
                     <h2 class="wo-h2">Mis cotizaciones</h2>
                 </header>
+                <!-- Buscador del panel (ronda 2 · cliente-panel): por código corto,
+                     artista, estilo o zona. -->
+                <div class="cpn-toolbar">
+                    <div class="cpn-search">
+                        <label class="wo-sr-only" for="cpn-quote-search">Busca en tus cotizaciones</label>
+                        <i data-wo-icon="search" aria-hidden="true"></i>
+                        <input class="wo-input" type="search" id="cpn-quote-search" placeholder="Busca por código, artista o estilo" maxlength="80" autocomplete="off" enterkeyhint="search">
+                        <button class="cpn-search-clear" type="button" id="cpn-quote-search-clear" aria-label="Limpiar búsqueda" hidden><i data-wo-icon="x" aria-hidden="true"></i></button>
+                    </div>
+                    <p class="cpn-search-count wo-meta-s" id="cpn-search-count" role="status" aria-live="polite"></p>
+                </div>
                 <div class="client-tabs" role="tablist">
                     <button class="tab-btn active" data-filter="all" onclick="filterQuotations('all')">Todas</button>
                     <button class="tab-btn" data-filter="active" onclick="filterQuotations('active')">Activas</button>
@@ -125,24 +164,24 @@
                 </div>
             </section>
 
-            <!-- ¿Tenés una idea? -->
+            <!-- ¿Tienes una idea? -->
             <section class="client-idea">
                 <div class="client-idea-intro">
-                    <p class="wo-eyebrow">¿Tenés una idea?</p>
-                    <h2 class="client-idea-title">Contanos qué tatuaje querés hacerte</h2>
-                    <p class="client-idea-copy">No hace falta tener todo definido. Describí tu idea, subí referencias si tenés, y elegí cómo querés avanzar.</p>
+                    <p class="wo-eyebrow">¿Tienes una idea?</p>
+                    <h2 class="client-idea-title">Cuéntanos qué tatuaje quieres hacerte</h2>
+                    <p class="client-idea-copy">No hace falta tener todo definido. Describe tu idea, sube referencias si tienes, y elige cómo quieres avanzar.</p>
                 </div>
                 <div class="client-idea-cards">
                     <article class="wo-card client-idea-card">
                         <span class="client-idea-icon"><i data-wo-icon="briefcase"></i></span>
                         <h3 class="client-idea-card-title">Publicar en Job Board</h3>
-                        <p class="client-idea-card-copy">Recibí propuestas de tatuadores interesados en tu idea.</p>
+                        <p class="client-idea-card-copy">Recibe propuestas de tatuadores interesados en tu idea.</p>
                         <a class="wo-btn wo-btn--ghost wo-btn--hard wo-btn--block" href="/job-board/request">Publicar idea <i data-wo-icon="arrow-right" class="wo-icon-18"></i></a>
                     </article>
                     <article class="wo-card client-idea-card">
                         <span class="client-idea-icon" aria-hidden="true"></span>
                         <h3 class="client-idea-card-title">Solicitar cotización</h3>
-                        <p class="client-idea-card-copy">Enviá los detalles de tu idea a un artista puntual y recibí un presupuesto.</p>
+                        <p class="client-idea-card-copy">Envía los detalles de tu idea a un artista en particular y recibe un presupuesto.</p>
                         <a class="wo-btn wo-btn--hard wo-btn--block" href="/quotation">Solicitar cotización <i data-wo-icon="arrow-right" class="wo-icon-18"></i></a>
                     </article>
                 </div>
@@ -157,18 +196,18 @@
                 </div>
                 <div class="client-globe-copy">
                     <p class="wo-eyebrow client-globe-eyebrow">Tattoo globe</p>
-                    <h2 class="client-globe-title">Explorá el mundo del tatuaje</h2>
-                    <p class="client-globe-text">Descubrí tatuadores, estudios, guest artists y convenciones alrededor del mundo en un mapa interactivo. Arrastrá para girar el globo.</p>
+                    <h2 class="client-globe-title">Explora el mundo del tatuaje</h2>
+                    <p class="client-globe-text">Descubre tatuadores, estudios, guest artists y convenciones alrededor del mundo en un mapa interactivo. Arrastra para girar el globo.</p>
                     <a class="wo-btn wo-btn--accent wo-btn--hard" href="/explore">Explorar el mundo <i data-wo-icon="arrow-right" class="wo-icon-18"></i></a>
                 </div>
             </div>
         </section>
 
-        <!-- Artistas para vos -->
+        <!-- Artistas para ti -->
         <section class="client-suggested" id="artistas-para-vos" hidden>
             <div class="wo-container">
                 <header class="client-section-head">
-                    <h2 class="wo-h2">Artistas para vos</h2>
+                    <h2 class="wo-h2">Artistas para ti</h2>
                     <a class="wo-meta client-section-link" href="/marketplace">Ver todos</a>
                 </header>
                 <div class="client-suggested-grid" id="suggested-artists"></div>
@@ -225,14 +264,14 @@
                     </div>
                     <div class="chat-messages" id="chat-messages">
                         <div class="chat-empty">
-                            <p>Iniciá la conversación con el artista</p>
+                            <p>Inicia la conversación con el artista</p>
                         </div>
                     </div>
                     <div class="chat-input-container">
                         <textarea
                             class="chat-input"
                             id="chat-input"
-                            placeholder="Escribí un mensaje…"
+                            placeholder="Escribe un mensaje…"
                             rows="2"
                         ></textarea>
                         <button class="wo-btn chat-send" id="chat-send-btn" onclick="sendChatMessage()">
@@ -280,7 +319,7 @@
                     <div class="wo-field">
                         <label class="wo-label" for="edit-public-username">Alias público</label>
                         <input class="wo-input" type="text" id="edit-public-username" name="public_username" placeholder="tu_alias">
-                        <p class="wo-help">Con tu alias, tu país y tu nombre podés dejar reseñas verificadas.</p>
+                        <p class="wo-help">Con tu alias, tu país y tu nombre puedes dejar reseñas verificadas.</p>
                     </div>
                     <div class="wo-field">
                         <label class="wo-label" for="edit-country">País</label>
@@ -321,6 +360,16 @@
     <script src="/shared/js/client-dashboard-reference.js"></script>
     <script src="/shared/js/quotation-payments-model.js"></script>
     <script src="/shared/js/client-quote-proposal.js"></script>
+    <!-- Ronda 2 (cot-form): "Cotizar con otro artista" -->
+    <script src="/shared/js/wo-quote-reuse.js?v=20261116-r2"></script>
+    <script src="/shared/js/quotation-negotiation.js?v=20261116-r2b"></script><!-- Negociación (ronda 2): Modificar la propuesta y cambios al acuerdo; se monta solo en [data-wqn-mount] -->
+    <!-- Sesiones (ronda 2): panel "Mis sesiones" del cliente -->
+    <script src="/shared/js/wo-session-model.js?v=20261116-sesiones"></script>
+    <script src="/shared/js/data/sessions-flow-repo.js?v=20261116-sesiones"></script>
+    <script src="/shared/js/wo-session-ui.js?v=20261116-sesiones"></script>
+    <script src="/shared/js/client-sessions.js?v=20261116-r2b"></script>
+    <script src="/shared/js/client-panel-model.js"></script>
+    <script src="/shared/js/client-panel-ui.js"></script>
     <script src="/shared/js/client-dashboard.js"></script>
 </body>
 </html>

@@ -149,7 +149,7 @@
                     <button class="sc-quick-btn" data-action="status">Estado cotización</button>
                 </div>
                 <div class="sc-footer">
-                    <textarea class="sc-input" id="sc-input" rows="1" placeholder="Escribí tu mensaje…"></textarea>
+                    <textarea class="sc-input" id="sc-input" rows="1" placeholder="Escribe tu mensaje…"></textarea>
                     <button class="sc-send" id="sc-send">Enviar</button>
                 </div>
             `;
@@ -446,7 +446,7 @@
                 send.disabled = true;
             } else {
                 input.disabled = false;
-                input.placeholder = 'Escribí tu mensaje…';
+                input.placeholder = 'Escribe tu mensaje…';
                 send.disabled = false;
             }
         },

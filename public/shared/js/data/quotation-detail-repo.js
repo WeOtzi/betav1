@@ -94,7 +94,7 @@
 
         // Alta de sesión; si photo_urls no existe en el backend, reintenta sin ella.
         // El número lo asigna el trigger trg_set_quotation_session_number; si la
-        // fila vuelve sin número (backend sin trigger, preview), se completa acá.
+        // fila vuelve sin número (backend sin trigger, preview), se completa aquí.
         async createSession(session) {
             let row;
             try {

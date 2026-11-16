@@ -117,7 +117,7 @@ test('HTML: un único <weotzi-product-nav active="store"> y un único <weotzi-pr
 test('HTML: encabezado, botones y tabs del contrato (§8.4)', () => {
     assert.match(html, /<p class="wo-eyebrow">Store<\/p>/);
     assert.match(html, /<h1 class="wo-h1 ast-title"[^>]*>Tu Store<\/h1>/);
-    assert.match(html, /Vendé merch y diseños con licencia de uso\./);
+    assert.match(html, /Vende merch y diseños con licencia de uso\./);
     assert.match(html, /id="ast-new-design"[\s\S]*?Nuevo diseño/);
     assert.match(html, /id="ast-new-merch"[\s\S]*?Nuevo producto/);
     assert.match(html, /id="ast-public-link"[^>]*>Ver tu Store pública →<\/a>/);
@@ -138,7 +138,7 @@ test('HTML: encabezado, botones y tabs del contrato (§8.4)', () => {
         assert.match(panel[0], /role="tabpanel"/);
         assert.match(panel[0], new RegExp('aria-labelledby="ast-tab-' + key + '"'));
     }
-    assert.match(html, /Indicá cómo pagar el monto exacto en la moneda del producto/);
+    assert.match(html, /Indica cómo pagar el monto exacto en la moneda del producto/);
 });
 
 test('HTML: drawers y diálogos con role, aria-modal y título existente; arrancan hidden', () => {
@@ -155,7 +155,7 @@ test('HTML: drawers y diálogos con role, aria-modal y título existente; arranc
     assert.match(js, /function wireLayers\(\)[\s\S]*?event\.key === 'Escape'[\s\S]*?event\.key !== 'Tab'/, 'focus trap con Escape y Tab');
 });
 
-test('HTML y JS: las grillas de productos no son aria-live; el contador de pedidos solo se reescribe si cambia', () => {
+test('HTML y JS: las cuadrículas de productos no son aria-live; el contador de pedidos solo se reescribe si cambia', () => {
     for (const id of ['ast-list-disenos', 'ast-list-merch']) {
         const grid = html.match(new RegExp('<div[^>]*id="' + id + '"[^>]*>'));
         assert.ok(grid, id);
@@ -217,7 +217,7 @@ test('editor de merch: los 249 países de WeotziStoreModel, con buscador y los m
 });
 
 test('pedido vencido: copy sin prometer cierre automático y «No recibí el pago» con pago informado', () => {
-    assert.ok(js.includes('Venció el plazo de pago y no hay pago informado. Si no vas a recibirlo, cancelá el pedido.'));
+    assert.ok(js.includes('Venció el plazo de pago y no hay pago informado. Si no vas a recibirlo, cancela el pedido.'));
     assert.doesNotMatch(js, /se va a cerrar solo/);
     assert.match(js, /action\.reason === 'payment_not_received'/);
     assert.match(js, /title: 'No recibí el pago'/);
@@ -351,7 +351,7 @@ test('JS: guard de sesión, registro y gate de la Store', () => {
     assert.match(js, /\['disenos', 'merch', 'pedidos', 'ajustes'\]/);
     assert.match(js, /modal === 'confirmar-pago'/);
     assert.match(js, /collectedBy: order\.expected_collector/);
-    assert.match(js, /Confirmá que ya le devolviste el dinero\./);
+    assert.match(js, /Confirma que ya le devolviste el dinero\./);
     assert.match(js, /authorship_attested_at: attested \?/);
     assert.match(js, /MAX_IMAGES = 8/);
 });
@@ -618,7 +618,7 @@ test('ejecución: quitar una imagen que un pedido usa de miniatura no borra el o
     const countText = $('ast-order-count').textContent;
     assert.match(countText, /pedido/, 'el contador arranca con texto');
 
-    // Remera Golondrina: la portada es la miniatura del pedido O2. Se le suma una
+    // Camiseta Golondrina: la portada es la miniatura del pedido O2. Se le suma una
     // vista sin pedidos para poder quitar dos y que siga publicada.
     const FRONT = 'demo/store/remera-golondrina.svg';
     const BACK = 'demo/store/remera-golondrina-espalda.svg';
@@ -752,7 +752,7 @@ test('ejecución: países de envío con los 249 códigos, grupos, buscador y lo 
     assert.equal($('ast-editor').hidden, false, 'el editor sigue abierto');
     // Buscar no ensucia el editor: Escape lo cierra sin pedir confirmación.
     await page.key('Escape');
-    assert.equal($('ast-editor').hidden, true, 'cerró sin «Tenés cambios sin guardar»');
+    assert.equal($('ast-editor').hidden, true, 'cerró sin «Tienes cambios sin guardar»');
 
     // Marcar Japón filtrando, limpiar la búsqueda y guardar.
     await page.go('?editar=' + REMERA);
@@ -769,7 +769,7 @@ test('ejecución: países de envío con los 249 códigos, grupos, buscador y lo 
 
     // Desmarcar todos = envía a cualquier país.
     await page.click('ast-ed-countries-clear');
-    assert.equal($('ast-ed-countries-summary').textContent, 'Sin países marcados: enviás a cualquier país.');
+    assert.equal($('ast-ed-countries-summary').textContent, 'Sin países marcados: envías a cualquier país.');
     assert.equal($('ast-ed-countries-clear').hidden, true);
     assert.doesNotMatch(box(), /data-country checked/);
     await page.submit('ast-ed-form');
@@ -785,7 +785,7 @@ test('ejecución: pedido vencido sin pago informado → cancelar, sin confirmar 
     await page.start();
     await page.go('?pedido=' + O1);
     const body = $('ast-or-body').innerHTML;
-    assert.ok(body.includes('Venció el plazo de pago y no hay pago informado. Si no vas a recibirlo, cancelá el pedido.'));
+    assert.ok(body.includes('Venció el plazo de pago y no hay pago informado. Si no vas a recibirlo, cancela el pedido.'));
     assert.doesNotMatch(body, /se va a cerrar solo/);
     assert.doesNotMatch(body, /data-or-act="confirm_payment"/, 'la RPC ya no acepta confirmarlo');
     assert.match(body, /data-or-act="cancel">Cancelar pedido</);
@@ -810,7 +810,7 @@ test('ejecución: pago informado y plazo vencido → «No recibí el pago» canc
     await page.start();
     await page.go('?pedido=' + O1);
     const body = $('ast-or-body').innerHTML;
-    assert.match(body, /Si no llegó, usá «No recibí el pago»\./);
+    assert.match(body, /Si no llegó, usa «No recibí el pago»\./);
     assert.match(body, /data-or-act="confirm_payment"/, 'si llegó, todavía lo puede confirmar');
     assert.match(body, /data-or-act="cancel" data-reason="payment_not_received">No recibí el pago<\/button>/);
 
@@ -828,7 +828,7 @@ test('ejecución: pago informado y plazo vencido → «No recibí el pago» canc
     assert.deepEqual(page.errors, [], 'sin errores en consola');
 });
 
-test('ejecución: heic2any y heic-converter.js se inyectan recién con el primer HEIC/HEIF', async () => {
+test('ejecución: heic2any y heic-converter.js se inyectan solo con el primer HEIC/HEIF', async () => {
     const page = await bootPage();
     await page.start();
     assert.deepEqual(page.injected, [], 'nada de HEIC al abrir la página');
@@ -888,7 +888,7 @@ test('ejecución: si heic2any no carga, la imagen sigue sin convertir y el próx
     await page.go('?editar=' + sid(104));
     const pick = (files) => page.fire('ast-ed-form', 'change', formEvent('#ast-ed-images-input', { files }));
     await pick([{ name: 'a.heic', type: 'image/heic', size: 4096 }]);
-    assert.equal(renders.length, 1, 'la imagen se procesa igual');
+    assert.equal(renders.length, 1, 'la imagen se procesa de todos modos');
     assert.equal(renders[0].convertHeic, undefined, 'sin conversión');
     assert.deepEqual(page.injected.map((s) => s.src), ['https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js'], 'no sigue con heic-converter.js');
     fail = false;
@@ -907,7 +907,7 @@ test('ejecución: merch con retiro sin dirección → el checklist la pide y lle
     await page.go('?editar=' + sid(104)); // pickup_available: true
     const checklist = () => $('ast-ed-checklist').innerHTML;
     assert.match(page.text('ast-ed-checklist'), /Dirección de retiro en Ajustes · pendiente/);
-    assert.match(checklist(), /<p class="ast-check-hint">Ofrecés retiro en el estudio: cargá la dirección en Ajustes o desactivá el retiro\.<\/p>/);
+    assert.match(checklist(), /<p class="ast-check-hint">Ofreces retiro en el estudio: carga la dirección en Ajustes o desactiva el retiro\.<\/p>/);
     assert.match(checklist(), /data-goto="ajustes" data-field="pickup_address" aria-describedby="ast-ed-check-pickup_address">Ir a Ajustes →<\/button>/);
     assert.match(checklist(), /id="ast-ed-check-pickup_address"/);
 
@@ -923,7 +923,7 @@ test('ejecución: merch con retiro sin dirección → el checklist la pide y lle
     let focused = null;
     $('ast-set-pickup').focus = () => { focused = 'ast-set-pickup'; };
     await page.click('ast-ed-form', closestEvent('[data-goto="ajustes"]', { field: 'pickup_address' }));
-    assert.equal($('ast-confirm-title').textContent, 'Tenés cambios sin guardar');
+    assert.equal($('ast-confirm-title').textContent, 'Tienes cambios sin guardar');
     await page.submit('ast-confirm-form');
     assert.equal($('ast-editor').hidden, true);
     assert.equal($('ast-panel-ajustes').hidden, false, 'abre la pestaña Ajustes');

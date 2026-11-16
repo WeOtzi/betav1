@@ -1031,6 +1031,10 @@
                         <div class="card-body">
                             <p class="settings-description">
                                 Configura los parámetros para la generación de fotos de perfil por IA.
+                                Las imágenes se generan con OpenAI (GPT Image 2.6): el modelo, el tamaño y la calidad
+                                los define el servidor (variables <code>AI_IMAGE_MODEL</code> y <code>AI_IMAGE_QUALITY</code>),
+                                así que modelo, temperatura, tokens, resolución y filtros ya no se eligen aquí.
+                                El prompt predeterminado se sigue aplicando.
                             </p>
                             <div class="form-group toggle-group">
                                 <label class="toggle-label">
@@ -1043,25 +1047,24 @@
                             </div>
                             <div class="form-group">
                                 <label for="ai-profile-model">Modelo</label>
-                                <select id="ai-profile-model">
-                                    <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image (Nano Banana 3 Pro)</option>
-                                    <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
+                                <select id="ai-profile-model" disabled>
+                                    <option value="">Lo define el servidor (GPT Image 2.6)</option>
                                 </select>
                             </div>
                             <div class="row-group">
                                 <div class="form-group">
                                     <label for="ai-profile-temp">Temperatura (0.0 - 1.0)</label>
-                                    <input type="number" id="ai-profile-temp" step="0.1" min="0" max="1" value="0.7">
+                                    <input type="number" id="ai-profile-temp" step="0.1" min="0" max="1" value="0.7" disabled>
                                 </div>
                                 <div class="form-group">
                                     <label for="ai-profile-tokens">Tokens Máximos</label>
-                                    <input type="number" id="ai-profile-tokens" min="128" max="2048" value="512">
+                                    <input type="number" id="ai-profile-tokens" min="128" max="2048" value="512" disabled>
                                 </div>
                             </div>
                             <div class="row-group">
                                 <div class="form-group">
                                     <label for="ai-profile-res">Resolución</label>
-                                    <select id="ai-profile-res">
+                                    <select id="ai-profile-res" disabled>
                                         <option value="1K">1K</option>
                                         <option value="2K">2K</option>
                                         <option value="4K">4K</option>
@@ -1069,7 +1072,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="ai-profile-filters">Filtros de Seguridad</label>
-                                    <select id="ai-profile-filters">
+                                    <select id="ai-profile-filters" disabled>
                                         <option value="Standard">Estándar</option>
                                         <option value="None">Ninguno</option>
                                         <option value="High">Altos</option>
@@ -1155,7 +1158,7 @@
                         </div>
                     </div>
 
-                    <!-- Gemini AI Card -->
+                    <!-- IA de imágenes (OpenAI GPT Image 2.6). Los ids api-gemini-* se conservan por compatibilidad. -->
                     <div class="card api-card">
                         <div class="card-header">
                             <div class="api-header-info">
@@ -1163,8 +1166,8 @@
                                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                                 </div>
                                 <div>
-                                    <h3>Gemini AI (Imágenes)</h3>
-                                    <span class="api-status" id="api-gemini-status">
+                                    <h3>IA de imágenes (OpenAI)</h3>
+                                    <span class="api-status" id="api-gemini-status" role="status" aria-live="polite">
                                         <i class="fa-solid fa-circle"></i> Sin verificar
                                     </span>
                                 </div>
@@ -1172,25 +1175,19 @@
                         </div>
                         <div class="card-body">
                             <div class="form-group">
-                                <label>
-                                    <input type="checkbox" id="api-gemini-enabled"> Habilitar IA Generativa
-                                </label>
-                            </div>
-                            <div class="form-group">
                                 <label>API Key</label>
-                                <div class="input-with-toggle">
-                                    <input type="password" id="api-gemini-key" placeholder="AIzaSy...">
-                                    <button type="button" class="btn-icon" onclick="togglePassword('api-gemini-key')">
-                                        <i class="fa-solid fa-eye"></i>
-                                    </button>
-                                </div>
+                                <p class="settings-description" id="api-gemini-provider">
+                                    La clave se carga en el servidor (variable <code>OPENAI_API_KEY</code>) y no se muestra ni se guarda aquí.
+                                </p>
+                                <small class="form-hint">La IA de imágenes se enciende al cargar la clave en el servidor. Para apagarla en toda la plataforma, define <code>AI_IMAGE_PROVIDER=off</code> en su <code>.env</code> y reinicia la aplicación: desde este panel no se puede apagar.</small>
                             </div>
                             <div class="form-group">
-                                <label>Modelo</label>
+                                <label for="api-gemini-model">Modelo para las pruebas e íconos de este panel</label>
                                 <select id="api-gemini-model">
-                                    <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image (Preview)</option>
-                                    <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
+                                    <option value="gpt-image-2.6-flare">GPT Image 2.6 Flare (rápido, uso cotidiano)</option>
+                                    <option value="gpt-image-2.6-sunburst">GPT Image 2.6 Sunburst (trabajo detallado)</option>
                                 </select>
+                                <small class="form-hint">Para el resto de la plataforma el modelo lo define el servidor (<code>AI_IMAGE_MODEL</code>).</small>
                             </div>
                             <div class="row-group">
                                 <div class="form-group">
@@ -1203,7 +1200,7 @@
                                 </div>
                             </div>
                             <div class="btn-group">
-                                <button class="btn btn-primary btn-sm" onclick="testGeminiAPI()">
+                                <button type="button" class="btn btn-primary btn-sm" id="api-gemini-test" onclick="testGeminiAPI()">
                                     <i class="fa-solid fa-plug"></i> Probar
                                 </button>
                                 <button class="btn btn-secondary btn-sm" onclick="saveGeminiAPI()">
@@ -2509,7 +2506,7 @@
                                     <option value="Yes">Verificado</option>
                                     <option value="Denied">Denegado</option>
                                 </select>
-                                <small id="artist-verification-state-help">Para aprobar o denegar con aviso al artista usá Soporte · Verificaciones.</small>
+                                <small id="artist-verification-state-help">Para aprobar o denegar con aviso al artista usa Soporte · Verificaciones.</small>
                             </div>
                         </div>
 
@@ -3230,7 +3227,7 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Configuration Manager -->
-    <script src="/shared/js/config-manager.js?v=20260527-backoffice-supabase"></script>
+    <script src="/shared/js/config-manager.js?v=20261116-r2d"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
@@ -3246,7 +3243,7 @@
     <script src="/shared/js/weotzi-uploader.js"></script>
 
     <!-- Admin Panel Logic -->
-    <script src="/shared/js/admin.js?v=20260603-sede-link"></script>
+    <script src="/shared/js/admin.js?v=20261116-r2d"></script>
     <!-- Reclamos de estudios (frente estudio-registro) -->
     <script src="/shared/js/backoffice-studio-claims.js?v=20261115-reclamos"></script>
     <script src="/shared/js/backoffice-studio-verifications.js"></script>

@@ -60,6 +60,13 @@
 .stc-count{margin:0;font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted)}
 .stc-chip-count{font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track)}
 .stc-card .sts-card-media .sts-img{object-fit:cover}
+/* Favoritos (ronda 2 · P22): la card es un enlace completo, así que el corazón
+   va como hermano dentro de .stc-card-wrap (lo activa wo-favorites.js). */
+.stc-card-wrap{position:relative;display:flex;min-width:0}
+.stc-card-wrap > .stc-card{flex:1 1 auto;min-width:0}
+.stc-card-wrap .sts-card-badges{right:calc(var(--control-h-md) + var(--space-4))}
+.stc-card-wrap:hover > .stc-fav{transform:translate(calc(var(--lift-offset) * -1),calc(var(--lift-offset) * -1))}
+.stc-item-head > .stc-fav{align-self:flex-start}
 
 /* ---------- Ficha: estructura ---------- */
 .stc-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-1);margin:0 0 var(--space-6);min-width:0;

@@ -158,6 +158,14 @@
         const durationHours = Number(session.duration_hours) > 0 ? Number(session.duration_hours) : 1;
         const end = new Date(start.getTime() + (durationHours * 60 * 60 * 1000));
         const clientName = quotation?.client_full_name || 'Cliente';
+        // ── sesiones (ronda 2 · P28) ── mientras el cliente no la confirma (o
+        // pidió otra fecha) la sesión va "por confirmar", con la misma regla
+        // que Google Calendar (lib/gcal-sync.js). Una sesión ya cerrada no
+        // espera a nadie. Sin la migración 20261116150000 la columna no existe
+        // y queda en false. `type` no cambia: el editor depende de él.
+        const closed = ['cancelled', 'no_show', 'completed'].includes(String(session.status || ''));
+        const awaitingClient = !closed
+            && ['pending', 'change_requested'].includes(String(session.client_confirmation || ''));
         return {
             id: `quotation_session:${session.id}`,
             baseId: session.id,
@@ -165,7 +173,8 @@
             sourceId: String(session.id),
             readonly: false,
             type: 'confirmed_session',
-            title: `Sesión — ${clientName}`,
+            awaitingClient,
+            title: awaitingClient ? `Sesión (por confirmar) — ${clientName}` : `Sesión — ${clientName}`,
             clientName,
             start: start.toISOString(),
             end: end.toISOString(),
@@ -290,7 +299,7 @@
             sourceId: String(booking.id),
             readonly: true,
             href: null,
-            readonlyNote: `Cita agendada por ${studioName}. La gestiona el estudio: escribile si necesitás cambiarla.`,
+            readonlyNote: `Cita agendada por ${studioName}. La gestiona el estudio: escríbele si necesitas cambiarla.`,
             type: 'confirmed_session',
             title: `Cita en ${studioName}: ${clientName}`,
             clientName,
@@ -364,7 +373,7 @@
         return remindersToEvents(reminders, rangeStart, rangeEnd);
     }
 
-    // Cotizaciones del artista (una sola consulta por carga del mural): de acá
+    // Cotizaciones del artista (una sola consulta por carga del mural): de aquí
     // salen los turnos (quotation_sessions) y las solicitudes pendientes.
     async function listArtistQuotes(artistUserId) {
         if (!D.Quotations) return [];
@@ -378,7 +387,7 @@
 
     // "Solicitud pendiente" (801:542): proyección de solo lectura de las
     // cotizaciones que esperan respuesta y tienen una fecha preferida concreta.
-    // Abre el detalle de la cotización; no se crea ni se edita desde acá.
+    // Abre el detalle de la cotización; no se crea ni se edita desde aquí.
     function listPendingRequestsProjection(quotations, rangeStart, rangeEnd) {
         if (!Model) return [];
         return Model.pendingRequestEvents(quotations, rangeStart, rangeEnd);
@@ -465,13 +474,36 @@
             notes: payload.notes ? String(payload.notes).trim() : null,
         };
         if (payload.location) patch.location = String(payload.location).trim();
+        // ── sesiones (ronda 2 · P27) ── origen de la dirección (sede de estudio,
+        // ubicación propia, la del cliente o Google Places). Solo si el editor
+        // lo informó: una dirección que ya estaba guardada conserva el suyo.
+        const meta = payload.location_meta;
+        if (payload.location && meta && meta.location_kind) {
+            patch.location_kind = meta.location_kind;
+            patch.location_ref = meta.location_ref || null;
+            patch.location_place_id = meta.location_place_id || null;
+        }
         return patch;
     }
+
+    const SESSION_LOCATION_META = ['location_kind', 'location_ref', 'location_place_id'];
 
     async function writeSession(label, patch, execute) {
         try {
             return await execute(patch);
         } catch (error) {
+            // Sin la migración 20261116150000: se guarda la dirección sin su origen.
+            if (SESSION_LOCATION_META.some((column) => column in patch && isMissingColumn(error, column))) {
+                console.warn(`[calendar] ${label}: faltan las columnas de origen de la ubicación; se guarda solo la dirección.`);
+                const copy = { ...patch };
+                SESSION_LOCATION_META.forEach((column) => { delete copy[column]; });
+                return writeSession(label, copy, execute);
+            }
+            // …y con el límite anterior de 120 caracteres para la dirección.
+            const text = `${error.message || ''} ${error.cause?.message || ''}`;
+            if (patch.location && patch.location.length > 120 && /quotation_sessions_location_length/.test(text)) {
+                return writeSession(label, { ...patch, location: patch.location.slice(0, 120).trim() }, execute);
+            }
             if (!('location' in patch) || !isMissingColumn(error, 'location')) throw error;
             console.warn(`[calendar] ${label}: falta quotation_sessions.location; se guarda sin ubicación.`);
             const copy = { ...patch };
@@ -682,7 +714,7 @@
         // la convención guarda además su nombre en artist_trips.event_name.
         async createTripFromEvent(input) {
             if (!D.Travel || typeof D.Travel.create !== 'function') {
-                throw new Error('No pudimos conectar con Travel. Probá de nuevo en un rato.');
+                throw new Error('No pudimos conectar con Travel. Prueba de nuevo en un rato.');
             }
             if (!Model) throw new Error('Falta calendar-model.js en la página.');
             const trip = Model.tripPayloadFromEvent(input);

@@ -7,9 +7,12 @@
  *   - etiqueta clara de cada estado (sin borradores como "En proceso"),
  *   - monto, moneda, sesiones, duración, disponibilidad y vigencia,
  *   - desglose de la cotización manual (artist_manual_quotes, RLS del cliente),
- *   - seña y pagos registrados por el artista (quotation_payments, RLS del
- *     cliente) — sin pasarela: la seña se coordina con el artista,
- *   - acciones Aceptar / Rechazar cuando la propuesta está vigente.
+ *   - anticipo y pagos registrados por el artista (quotation_payments, RLS del
+ *     cliente) — sin pasarela: el anticipo se coordina con el artista,
+ *   - acciones Aceptar / Rechazar / Modificar cuando la propuesta está vigente.
+ *     Ronda 2 (negociación · P23/P25): "Modificar" y el panel de cambios los
+ *     maneja quotation-negotiation.js, que se monta solo en
+ *     [data-wqn-mount]; Rechazar advierte que la cotización queda finalizada.
  * Sin dependencias del DOM: lo usa client-dashboard.js y lo prueban los tests.
  * Expone window.WoClientQuoteProposal (o module.exports en Node).
  */
@@ -38,13 +41,18 @@
     var ACTIVE_KEYS = ['pending', 'responded', 'client_approved', 'in_progress', 'artist_completed'];
 
     var POLICIES = {
-        'no-reembolsable-48': 'La seña no es reembolsable. Reprogramaciones con 48 h de aviso.',
-        'no-reembolsable-24': 'La seña no es reembolsable. Reprogramaciones con 24 h de aviso.',
-        'reembolsable-72': 'La seña se devuelve si cancelás con 72 h de aviso.',
-        'sin-sena': 'No se pide seña. Podés cancelar sin costo.'
+        'no-reembolsable-48': 'El anticipo no es reembolsable. Reprogramaciones con 48 h de aviso.',
+        'no-reembolsable-24': 'El anticipo no es reembolsable. Reprogramaciones con 24 h de aviso.',
+        'reembolsable-72': 'El anticipo se devuelve si cancelas con 72 h de aviso.',
+        'sin-sena': 'No se pide anticipo. Puedes cancelar sin costo.'
     };
 
-    var KIND_LABELS = { deposit: 'Seña', session: 'Pago de sesión', balance: 'Saldo', other: 'Otro' };
+    // P23 (ronda 2): texto pedido por el dueño para la advertencia del rechazo.
+    var REJECT_WARNING = 'Esto dará por finalizada la cotización y tendrás que iniciar una nueva.';
+    // Estados en los que puede haber negociación o historial que mostrar.
+    var NEGOTIATION_KEYS = ['responded', 'client_approved', 'in_progress', 'artist_completed', 'completed', 'client_rejected', 'expired', 'cancelled'];
+
+    var KIND_LABELS = { deposit: 'Anticipo', session: 'Pago de sesión', balance: 'Saldo', other: 'Otro' };
     var METHOD_LABELS = { cash: 'Efectivo', transfer: 'Transferencia', other: 'Otro' };
 
     function esc(value) {
@@ -181,11 +189,28 @@
             taxPct: taxPct, tax: tax, total: total,
             depositPct: depositPct, deposit: deposit && deposit > 0 ? deposit : null,
             balance: deposit && deposit > 0 ? Math.max(0, Math.round((total - deposit) * 100) / 100) : null,
-            validityDays: toNumber(manual.validity_days),
+            // Ronda 2 · cot-respuesta: sin vencimiento activado no se anuncia una validez.
+            validityDays: manual.project && manual.project.expiry_enabled === false ? null : toNumber(manual.validity_days),
+            complexity: String((manual.project && manual.project.complexity) || '').trim(),
             policy: POLICIES[manual.cancellation_policy] || '',
             clientNotes: String(manual.client_notes || '').trim(),
             extraTerms: String(manual.extra_terms || '').trim()
         };
+    }
+
+    // Ronda 2 · cot-respuesta: fechas ofrecidas por el artista
+    // (quotations_db.offered_slots = [{ kind, start, end, label, tz }]) y la
+    // nota libre que queda en artist_availability al quitarle esas etiquetas.
+    function offeredOf(q) {
+        var labels = (Array.isArray(q && q.offered_slots) ? q.offered_slots : []).map(function (s) {
+            return String((s && s.label) || '').trim();
+        }).filter(Boolean);
+        var text = hasValue(q && q.artist_availability) ? String(q.artist_availability).trim() : '';
+        if (!labels.length) return { labels: [], note: text };
+        var tail = labels.join('; ');
+        var note = '';
+        if (text && text !== tail && text.slice(-(tail.length + 2)) === '; ' + tail) note = text.slice(0, text.length - tail.length - 2);
+        return { labels: labels, note: note };
     }
 
     // ------------------------------- HTML -------------------------------
@@ -197,14 +222,25 @@
         if (!canDecide(q, now)) return '';
         var id = esc(q.quote_id);
         return '<div class="cqp-decision" data-quote-id="' + id + '">'
-            + '<p class="cqp-decision-copy">¿Te sirve esta propuesta? Si la aceptás, el artista recibe el aviso y coordinan el turno y la seña por el chat.</p>'
+            + '<p class="cqp-decision-copy">¿Te sirve esta propuesta? Si la aceptas, el artista recibe el aviso y coordinan el turno y el anticipo por el chat. Si necesitas ajustar algo, modifícala y el artista te responde.</p>'
             + '<div class="cqp-decision-actions">'
-            + '<button type="button" class="wo-btn wo-btn--accent wo-btn--s" data-proposal-action="approve" onclick="handleProposalAction(this)">Aceptar propuesta</button>'
+            + '<button type="button" class="wo-btn wo-btn--accent wo-btn--s" data-proposal-action="approve" onclick="handleProposalAction(this)">Aceptar</button>'
             + '<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-proposal-action="reject" onclick="handleProposalAction(this)">Rechazar</button>'
+            // Modificar (P23): lo habilita quotation-negotiation.js cuando el
+            // servidor confirma que se puede contraproponer.
+            + '<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-wqn-open="counter" data-quote-id="' + id + '" data-role="client" hidden>Modificar</button>'
             + '</div>'
             + '<div class="cqp-confirm" data-proposal-confirm hidden></div>'
             + '<p class="cqp-feedback" role="status" aria-live="polite" data-proposal-feedback></p>'
             + '</div>';
+    }
+
+    // Punto de montaje del panel de negociación (quotation-negotiation.js):
+    // contrapropuesta pendiente, cambios al acuerdo e historial. Vacío y
+    // oculto hasta que el módulo lo llena; si el módulo no cargó, no se ve.
+    function negotiationMountHtml(q, key) {
+        if (!q || !hasValue(q.quote_id) || NEGOTIATION_KEYS.indexOf(key) === -1) return '';
+        return '<div data-wqn-mount data-quote-id="' + esc(q.quote_id) + '" data-role="client" data-status="' + esc(q.quote_status) + '" hidden></div>';
     }
 
     function confirmHtml(decision, quoteId) {
@@ -217,10 +253,12 @@
                 + '</div>';
         }
         var fieldId = 'cqp-reason-' + String(quoteId || '').replace(/[^A-Za-z0-9_-]/g, '');
-        return '<div class="wo-field"><label class="wo-label" for="' + esc(fieldId) + '">Motivo (opcional)</label>'
-            + '<textarea class="wo-textarea cqp-reason" id="' + esc(fieldId) + '" maxlength="500" rows="3" placeholder="Contale al artista por qué no te sirve (precio, fechas, diseño…)"></textarea></div>'
+        // P23: rechazar es definitivo (la base cierra la cotización y el chat del artista).
+        return '<p class="cqp-warning" role="alert">' + esc(REJECT_WARNING) + '</p>'
+            + '<div class="wo-field"><label class="wo-label" for="' + esc(fieldId) + '">Motivo (opcional)</label>'
+            + '<textarea class="wo-textarea cqp-reason" id="' + esc(fieldId) + '" maxlength="500" rows="3" placeholder="Cuéntale al artista por qué no te sirve (precio, fechas, diseño…)"></textarea></div>'
             + '<div class="cqp-decision-actions">'
-            + '<button type="button" class="wo-btn wo-btn--danger wo-btn--s" data-proposal-action="confirm-reject" data-quote-id="' + id + '" onclick="handleProposalAction(this)">Rechazar propuesta</button>'
+            + '<button type="button" class="wo-btn wo-btn--danger wo-btn--s" data-proposal-action="confirm-reject" data-quote-id="' + id + '" onclick="handleProposalAction(this)">Sí, rechazar</button>'
             + '<button type="button" class="wo-btn wo-btn--ghost wo-btn--s" data-proposal-action="cancel" onclick="handleProposalAction(this)">Volver</button>'
             + '</div>';
     }
@@ -228,9 +266,9 @@
     function stateNote(q, now) {
         var key = statusKey(q, now);
         if (key === 'pending') return 'El artista todavía no respondió. Te avisamos por email cuando mande su propuesta.';
-        if (key === 'expired') return 'La propuesta venció sin respuesta. Si te sigue interesando, escribile al artista por el chat.';
-        if (key === 'client_approved') return 'Aceptaste la propuesta. Coordiná el turno y la seña con el artista por el chat.';
-        if (key === 'client_rejected') return 'Rechazaste esta propuesta. Si el artista te manda una nueva, la vas a ver acá.';
+        if (key === 'expired') return 'La propuesta venció sin respuesta. Si te sigue interesando, escríbele al artista por el chat.';
+        if (key === 'client_approved') return 'Aceptaste la propuesta. Coordina el turno y el anticipo con el artista por el chat.';
+        if (key === 'client_rejected') return 'Rechazaste esta propuesta y la cotización quedó finalizada. Si quieres retomar la idea, inicia una cotización nueva.';
         if (key === 'cancelled') return 'El artista no va a tomar esta solicitud.';
         if (key === 'responded' && (q.dispute_status || 'none') === 'open') return 'Hay un reclamo abierto: no se puede responder hasta que soporte lo resuelva.';
         return '';
@@ -263,16 +301,29 @@
         parts.push(row(p.isFinal ? 'Total acordado' : 'Presupuesto', p.amountText || 'A confirmar', 'cqp-row--total'));
         if (p.sessions) parts.push(row('Sesiones', p.sessions));
         if (p.durationText) parts.push(row('Duración por sesión', p.durationText));
-        if (p.availability) parts.push(row('Disponibilidad', p.availability));
+        // Ronda 2 · cot-respuesta: con fechas estructuradas, "Disponibilidad" muestra solo la nota libre.
+        var offered = offeredOf(q);
+        if (offered.labels.length ? offered.note : p.availability) parts.push(row('Disponibilidad', offered.labels.length ? offered.note : p.availability));
+        var b = manualBreakdown(ctx.manual);
+        if (b && b.complexity) parts.push(row('Complejidad', b.complexity));
         if (q.quote_status === 'responded' && p.expiresAt) {
             parts.push(row(isExpired(q, now) ? 'Venció el' : 'Válida hasta', dateLabel(p.expiresAt)));
         }
         parts.push('</dl>');
+        if (offered.labels.length) {
+            parts.push('<div class="cqp-dates"><h4 class="cqp-subtitle">Fechas que te ofrece el artista</h4><ul class="cqp-items">');
+            offered.labels.forEach(function (label) { parts.push('<li><span class="cqp-item-name">' + esc(label) + '</span></li>'); });
+            parts.push('</ul></div>');
+        }
+        if (hasValue(q.proposal_message) && !p.isFinal) parts.push('<p class="cqp-comment">' + esc(String(q.proposal_message).trim()) + '</p>');
         if (p.comment) parts.push('<p class="cqp-comment">' + esc(p.comment) + '</p>');
 
-        var b = manualBreakdown(ctx.manual);
+        // El acuerdo puede haber cambiado después (contrapropuesta o enmienda
+        // aprobada): el desglose queda como referencia de la propuesta original.
+        var agreedTotal = p.isFinal ? toNumber(p.amount) : null;
+        var amended = !!(b && agreedTotal != null && b.total != null && Math.abs(b.total - agreedTotal) > 0.005);
         if (b && b.items.length) {
-            parts.push('<div class="cqp-breakdown"><h4 class="cqp-subtitle">Desglose</h4><ul class="cqp-items">');
+            parts.push('<div class="cqp-breakdown"><h4 class="cqp-subtitle">' + (amended ? 'Desglose de la propuesta original' : 'Desglose') + '</h4><ul class="cqp-items">');
             b.items.forEach(function (it) {
                 var qty = it.qty != null && it.qty !== 1 ? ' × ' + it.qty : '';
                 parts.push('<li><span class="cqp-item-name">' + esc(it.name) + esc(qty)
@@ -283,26 +334,27 @@
             parts.push(row('Subtotal', money(b.subtotal, b.currency)));
             if (b.discountPct) parts.push(row('Descuento (' + b.discountPct + '%)', '− ' + money(b.discount, b.currency)));
             if (b.taxPct) parts.push(row('Impuestos (' + b.taxPct + '%)', money(b.tax, b.currency)));
-            parts.push(row('Total', money(b.total, b.currency), 'cqp-row--total'));
+            parts.push(row(amended ? 'Total original' : 'Total', money(b.total, b.currency), 'cqp-row--total'));
             parts.push('</dl></div>');
         }
 
-        // Seña y pagos (solo lectura). Sin pasarela de pago integrada.
+        // Anticipo y pagos (solo lectura). Sin pasarela de pago integrada.
         var summary = ctx.payments && ctx.payments.summary;
         var depositAmount = b && b.deposit ? b.deposit : (summary && summary.deposit ? summary.deposit.required : null);
         var depositCurrency = b && b.deposit ? b.currency : (summary && summary.deposit ? summary.deposit.currency : p.currency);
         var showMoney = depositAmount || (summary && summary.count) || ['client_approved', 'in_progress', 'artist_completed', 'completed'].indexOf(key) !== -1;
         if (showMoney) {
-            parts.push('<div class="cqp-payments"><h4 class="cqp-subtitle">Seña y pagos</h4><dl class="cqp-summary">');
+            parts.push('<div class="cqp-payments"><h4 class="cqp-subtitle">Anticipo y pagos</h4><dl class="cqp-summary">');
             if (depositAmount) {
                 var depStatus = summary && summary.deposit ? summary.deposit.status : 'pending';
-                var depLabel = depStatus === 'paid' ? 'Pagada' : depStatus === 'partial' ? 'Pago parcial' : 'Pendiente';
-                parts.push(row('Seña' + (b && b.depositPct ? ' (' + b.depositPct + '%)' : ''), money(depositAmount, depositCurrency)));
-                parts.push(row('Estado de la seña', depLabel, 'cqp-row--' + depStatus));
+                var depLabel = depStatus === 'paid' ? 'Pagado' : depStatus === 'partial' ? 'Pago parcial' : 'Pendiente';
+                parts.push(row('Anticipo' + (b && b.depositPct ? ' (' + b.depositPct + '%)' : ''), money(depositAmount, depositCurrency)));
+                parts.push(row('Estado del anticipo', depLabel, 'cqp-row--' + depStatus));
             }
             if (summary && summary.count) {
                 parts.push(row('Pagado', money(summary.paid, summary.currency)));
-                if (summary.balance != null) parts.push(row('Saldo', money(summary.balance, summary.currency)));
+                // El saldo acordado se activa solo con la cotización aprobada por ambas partes.
+                if (summary.balance != null && summary.active !== false) parts.push(row('Saldo', money(summary.balance, summary.currency)));
             }
             parts.push('</dl>');
             if (summary && summary.payments && summary.payments.length) {
@@ -314,7 +366,7 @@
                 });
                 parts.push('</ul>');
             }
-            parts.push('<p class="cqp-note">We Ötzi todavía no cobra pagos online: coordiná la seña y el saldo con el artista por el chat y pagá solo por los medios que te indique. Los pagos que el artista registre aparecen acá.</p>');
+            parts.push('<p class="cqp-note">We Ötzi todavía no cobra pagos online: coordina el anticipo y el saldo con el artista por el chat y paga solo por los medios que te indique. Los pagos que el artista registre aparecen aquí.</p>');
             parts.push('</div>');
         }
 
@@ -329,6 +381,7 @@
 
         var note2 = stateNote(q, now);
         if (note2 && key !== 'pending') parts.push('<p class="cqp-note">' + esc(note2) + '</p>');
+        parts.push(negotiationMountHtml(q, key));
         parts.push(decisionHtml(q, now));
         parts.push('</div>');
         return parts.join('');
@@ -350,7 +403,10 @@
         canDecide: canDecide,
         proposalOf: proposalOf,
         manualBreakdown: manualBreakdown,
+        offeredOf: offeredOf,
         renderProposal: renderProposal,
-        confirmHtml: confirmHtml
+        confirmHtml: confirmHtml,
+        negotiationMountHtml: negotiationMountHtml,
+        REJECT_WARNING: REJECT_WARNING
     };
 }));

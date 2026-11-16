@@ -123,6 +123,40 @@ webhook nunca debe aceptar HTML del navegador: solo lo llama el servidor.
 | `client_quotation_submitted` | Cotizacion de Cliente Enviada | Se dispara cuando un cliente envia una cotizacion |
 | `instagram_verification_code` | Código de validación de Instagram | Solo servidor (`POST /api/artist/instagram-verification`). Variables finales: `artist_email`, `artist_name`, `verification_code`, `instagram_handle`, `expires_label`, `weotzi_instagram`, `dm_url`. Nodo n8n esperado: "Codigo Validacion Instagram" (plantilla `instagram-verification`). Ver `docs/VALIDACION-INSTAGRAM.md`. |
 
+### Eventos de la ronda 2 (nov 2026)
+
+Viven en `services/email-events/<frente>.js` y se cargan solos (ver el `README.md` de esa carpeta). Todos son **solo servidor** (`serverOnly: true`): el navegador no puede pedirlos por `POST /api/email/:eventId`; los dispara el servidor después de guardar la acción. No traen un webhook propio de n8n: con el relé configurado salen por `smtp_relay` con el HTML que arma el servidor (o por el webhook que se les cargue en Backoffice → Eventos/Webhooks).
+
+Además del correo, los de sesiones (menos `session_dispute_support`), los de negociación, `artist_updated_quotation_proposal` y `shared_quotation_linked` dejan el aviso in-app y mandan el push al destinatario (`lib/push-dispatch.js`). Las denuncias y `artist_most_wanted_awarded` salen solo por correo.
+
+Las variables traen `quote_id` (la llave de los enlaces) y `quote_code` (el código corto de 6 caracteres, que es lo que se muestra). Desde esta ronda, los correos de cotización anteriores (`client_quotation_submitted`, `artist_responded_quotation`, `session_*` de la agenda, `chat_message_*`…) también muestran `quote_code` en el asunto y en la fila "Cotización".
+
+| ID del evento | Destinatario | Cuándo se dispara | Archivo |
+|---------------|--------------|-------------------|---------|
+| `session_confirmation_requested` | Cliente y artista (una copia cada uno) | El artista agendó o cambió una sesión: el cliente la confirma o pide otra fecha. | `sesiones.js` |
+| `session_confirmed_by_client` | Cliente y artista | El cliente confirmó la sesión propuesta. | `sesiones.js` |
+| `session_change_requested` | Cliente y artista | Una de las partes pidió cambiar la fecha, la duración o el lugar. | `sesiones.js` |
+| `session_change_resolved` | Cliente y artista | El pedido de cambio se aceptó, se rechazó o se retiró. | `sesiones.js` |
+| `session_feedback_received` | La otra parte | Una de las partes calificó una sesión pasada y dejó su registro. | `sesiones.js` |
+| `session_no_show` | Cliente y artista | El artista registró que el cliente no se presentó. | `sesiones.js` |
+| `session_dispute_opened` | Cliente y artista | Una de las partes pidió una disputa a soporte sobre una sesión. | `sesiones.js` |
+| `session_dispute_support` | Soporte (`SUPPORT_EMAIL`; si falta, los agentes activos de `support_users_db`) | Lo mismo, para el equipo de soporte. Suma la referencia interna (`quote_id`). | `sesiones.js` |
+| `session_dispute_resolved` | Cliente y artista | Soporte resolvió o cerró la disputa desde su panel. | `sesiones.js` |
+| `negotiation_counter_proposed` | Artista | El cliente modificó la propuesta recibida (contrapropuesta). | `negociacion.js` |
+| `negotiation_counter_accepted` | Cliente | El artista aceptó la contrapropuesta: la cotización queda aprobada por las dos partes. | `negociacion.js` |
+| `negotiation_counter_declined` | Cliente | El artista mantiene su propuesta original. | `negociacion.js` |
+| `negotiation_amendment_proposed` | La contraparte (cliente o artista) | Una parte propone cambiar el acuerdo ya aprobado. | `negociacion.js` |
+| `negotiation_amendment_accepted` | Quien propuso el cambio | La otra parte lo aprobó: el acuerdo queda actualizado. | `negociacion.js` |
+| `negotiation_amendment_rejected` | Quien propuso el cambio | La otra parte lo rechazó: el acuerdo sigue como estaba. | `negociacion.js` |
+| `negotiation_proposal_withdrawn` | La contraparte | Quien propuso cambios los retiró. | `negociacion.js` |
+| `artist_updated_quotation_proposal` | Cliente | El artista modificó y reenvió una propuesta que todavía no estaba aprobada. | `cot-respuesta.js` |
+| `shared_quotation_linked` | Artista | El cliente abrió el enlace público `/cotizacion/<token>` y vinculó la cotización a su cuenta. | `cot-detalle.js` |
+| `report_ticket_created_support` | Soporte (`SUPPORT_EMAIL`; si falta, los agentes activos) | Un artista o un estudio envió una denuncia. | `denuncias.js` |
+| `report_ticket_received` | Quien denunció (artista o estudio) | Acuse de la denuncia: número de ticket, motivo y qué pasa después. | `denuncias.js` |
+| `artist_most_wanted_awarded` | Artista | Su perfil entró al top de tendencia de su zona y ganó la insignia Most Wanted. Nace apagado: `MOST_WANTED_EMAILS=off` (ver `deployments/DEPLOY.md`). | `perfil.js` |
+
+Los avisos de negociación, de la propuesta actualizada y del vínculo respetan "Cotizaciones → Email" de las preferencias de cada usuario (`lib/notification-prefs.js`); los de sesiones son transaccionales y salen siempre. Guías por frente: `docs/NEGOCIACION_COTIZACION.md`, `docs/COT_RESPUESTA.md` y `docs/PERFIL_INSIGNIAS.md`.
+
 ## Configuracion en el Backoffice
 
 1. Accede al backoffice: `/backoffice`
@@ -243,6 +277,7 @@ Se dispara cuando un cliente completa y envia una cotizacion.
         "client_whatsapp": "+5491123456789",
         "client_age": 28,
         "quote_id": "QN12345",
+        "quote_code": "A7K3QX",
         "artist_name": "Nombre del Artista",
         "artist_email": "artista@email.com",
         "tattoo_description": "Descripcion de la idea del tatuaje...",
@@ -259,6 +294,8 @@ Se dispara cuando un cliente completa y envia una cotizacion.
     }
 }
 ```
+
+`quote_code` es el código corto que ve el cliente en pantalla: es el que va en el asunto y en el cuerpo. `quote_id` queda para armar enlaces.
 
 ## Configuracion del Servidor
 

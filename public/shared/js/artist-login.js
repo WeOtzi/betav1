@@ -212,7 +212,7 @@ function showArtistLinkError(linkError, isConfirmation) {
     const EC = window.WeotziEmailConfirm;
     const box = document.getElementById('form-message');
     if (!EC || !box) {
-        showFormMessage('El link venció o ya se usó. Pedí uno nuevo o ingresá con tu contraseña.', 'error');
+        showFormMessage('El link venció o ya se usó. Pide uno nuevo o ingresa con tu contraseña.', 'error');
         return;
     }
     const emailInput = document.getElementById('login-email');
@@ -220,7 +220,7 @@ function showArtistLinkError(linkError, isConfirmation) {
         const email = String(emailInput?.value || '').trim().toLowerCase();
         if (!EC.isValidEmail(email)) {
             status.className = 'wo-ec-status is-error';
-            status.textContent = 'Escribí tu email arriba y volvé a tocar el botón.';
+            status.textContent = 'Escribe tu email arriba y vuelve a tocar el botón.';
             emailInput?.focus();
             return '';
         }
@@ -231,8 +231,8 @@ function showArtistLinkError(linkError, isConfirmation) {
         linkError,
         what: isConfirmation ? 'link de confirmación' : 'link de acceso',
         hint: isConfirmation
-            ? 'Si ya confirmaste tu email, ingresá con tu contraseña. Si no, pedí uno nuevo.'
-            : 'Pedí otro link de acceso o ingresá con tu contraseña.',
+            ? 'Si ya confirmaste tu email, ingresa con tu contraseña. Si no, pide uno nuevo.'
+            : 'Pide otro link de acceso o ingresa con tu contraseña.',
         actions: [isConfirmation
             ? {
                 label: 'Reenviar email de confirmación',
@@ -277,15 +277,15 @@ async function checkArtistAuthState() {
                 window.location.href = appPath('/artist/login?returnTo=' + returnTo);
                 return;
             }
-            // Atajo desde /registerclosedbeta: "Continuá con Facebook".
+            // Atajo desde /registerclosedbeta: "Continúa con Facebook".
             if (onLoginPage && params.get('oauth') === 'facebook') {
                 handleArtistSocialLogin('facebook');
             }
             // Vuelta del link de confirmación abierto en otro navegador (sin
-            // sesión acá): el email ya quedó confirmado.
+            // sesión aquí): el email ya quedó confirmado.
             if (onLoginPage && params.get('confirmado') === '1' && params.get('enlace') !== 'vencido'
                 && !window.WeotziEmailConfirm?.readAuthLinkError?.({ clean: false })) {
-                showFormMessage('Tu email está confirmado. Ingresá con tu contraseña.', 'success');
+                showFormMessage('Tu email está confirmado. Ingresa con tu contraseña.', 'success');
             }
             return;
         }
@@ -354,23 +354,23 @@ function renderAuthenticatedView({ email, role, progress }) {
                 : 'siguiente paso';
             subcopyEl.textContent = 'Tu perfil de artista está en progreso.';
             setAuthMessage('auth-view-progress-note',
-                `Continuá tu registro desde el ${stepLabel}.`, 'info');
+                `Continúa tu registro desde el ${stepLabel}.`, 'info');
             actionsEl.appendChild(createActionButton('Continuar registro', 'primary', buildRegisterArtistUrl(progress)));
             actionsEl.appendChild(createActionButton('Dashboard', 'outline', '/artist/dashboard', { loader: 'v2' }));
         } else {
-            subcopyEl.textContent = 'Continuá desde tu panel de artista';
+            subcopyEl.textContent = 'Continúa desde tu panel de artista';
             actionsEl.appendChild(createActionButton('Dashboard', 'primary', '/artist/dashboard', { loader: 'v2' }));
             actionsEl.appendChild(createActionButton('Mis cotizaciones', 'outline', '/my-quotations'));
             actionsEl.appendChild(createActionButton('Job board', 'outline', '/job-board'));
         }
     } else if (role === 'client') {
         titleEl.textContent = 'Esta cuenta es de cliente';
-        subcopyEl.innerHTML = `Tenés sesión iniciada como <strong>${escapeHtml(email || '')}</strong> en una cuenta de cliente.`;
+        subcopyEl.innerHTML = `Tienes sesión iniciada como <strong>${escapeHtml(email || '')}</strong> en una cuenta de cliente.`;
         actionsEl.appendChild(createActionButton('Dashboard de cliente', 'primary', '/client/dashboard', { loader: 'v2', role: 'client' }));
         actionsEl.appendChild(createActionButton('Mis cotizaciones', 'outline', '/my-quotations'));
     } else {
-        titleEl.textContent = 'Completá tu registro';
-        subcopyEl.innerHTML = `Tenés sesión como <strong>${escapeHtml(email || '')}</strong>, pero todavía no creaste tu perfil de artista.`;
+        titleEl.textContent = 'Completa tu registro';
+        subcopyEl.innerHTML = `Tienes sesión como <strong>${escapeHtml(email || '')}</strong>, pero todavía no creaste tu perfil de artista.`;
         actionsEl.appendChild(createActionButton('Crear perfil de artista', 'primary', '/register-artist'));
         actionsEl.appendChild(createActionButton('Mis cotizaciones', 'outline', '/my-quotations'));
     }
@@ -408,7 +408,7 @@ async function handleArtistLogin(e) {
     clearFormMessage();
 
     if (!email || !password) {
-        showFormMessage('Ingresá tu email y tu contraseña.', 'error');
+        showFormMessage('Ingresa tu email y tu contraseña.', 'error');
         return;
     }
 
@@ -471,7 +471,7 @@ async function handleArtistLogin(e) {
                 });
                 return;
             }
-            errorMessage = 'Confirmá tu email antes de iniciar sesión.';
+            errorMessage = 'Confirma tu email antes de iniciar sesión.';
         } else if (error?.code === 'PREVIEW_INPUT') {
             errorMessage = escapeHtml(message);
         }
@@ -569,7 +569,7 @@ async function handleMfaSubmit(event) {
     const btn = document.getElementById('btn-mfa');
     const code = String(input?.value || '').trim();
     if (!/^\d{6}$/.test(code)) {
-        setAuthMessage('mfa-message', 'Ingresá los 6 dígitos que muestra tu app autenticadora.', 'error');
+        setAuthMessage('mfa-message', 'Ingresa los 6 dígitos que muestra tu app autenticadora.', 'error');
         input?.setAttribute('aria-invalid', 'true');
         input?.focus();
         return;
@@ -595,8 +595,8 @@ async function handleMfaSubmit(event) {
         btn.disabled = false;
         input?.setAttribute('aria-invalid', 'true');
         const message = err?.code === 'NO_FACTOR'
-            ? 'No encontramos tu app autenticadora. Escribinos a soporte para recuperar el acceso.'
-            : 'El código no es válido o ya venció. Probá con el código nuevo de tu app.';
+            ? 'No encontramos tu app autenticadora. Escríbenos a soporte para recuperar el acceso.'
+            : 'El código no es válido o ya venció. Prueba con el código nuevo de tu app.';
         setAuthMessage('mfa-message', message, 'error');
         if (input) { input.value = ''; input.focus(); }
     }
@@ -633,9 +633,22 @@ function artistMagicLinkOutcome(error, email) {
     const EC = window.WeotziEmailConfirm;
     if (EC?.magicLinkOutcome) return EC.magicLinkOutcome(error, email);
     if (/signups? not allowed|user not found|otp_disabled/i.test(String(error?.message || ''))) {
-        return { ok: true, kind: 'success', message: `Si ${escapeHtml(email)} tiene una cuenta, te enviamos un link de acceso. Revisá tu correo.` };
+        return { ok: true, kind: 'success', message: `Si ${escapeHtml(email)} tiene una cuenta, te enviamos un link de acceso. Revisa tu correo.` };
     }
-    return { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Probá de nuevo en un momento o ingresá con tu contraseña.' };
+    return { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Prueba de nuevo en un momento o ingresa con tu contraseña.' };
+}
+
+// ── registro (ronda 2 · N6): botón visible "Entrar con un enlace por email".
+// Mismo flujo y mismo mensaje neutro que el ícono "Email" de la fila de redes.
+async function handleArtistMagicLink(button) {
+    const btn = button || document.getElementById('btn-magic-link');
+    if (btn && btn.disabled) return;
+    if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+    try {
+        await handleArtistSocialLogin('email');
+    } finally {
+        if (btn) { btn.disabled = false; btn.setAttribute('aria-busy', 'false'); }
+    }
 }
 
 async function handleArtistSocialLogin(provider) {
@@ -658,7 +671,7 @@ async function handleArtistSocialLogin(provider) {
         const emailInput = document.getElementById('login-email');
         const email = String(emailInput?.value || '').trim().toLowerCase();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-            showFormMessage('Escribí tu email arriba y te mandamos un link de acceso, sin contraseña.', 'info');
+            showFormMessage('Escribe tu email arriba y te mandamos un link de acceso, sin contraseña.', 'info');
             emailInput?.focus();
             return;
         }
@@ -669,7 +682,7 @@ async function handleArtistSocialLogin(provider) {
                 options: { shouldCreateUser: false, emailRedirectTo: oauthRedirectUrl() }
             });
             if (error) throw error;
-            showFormMessage(`Si ${escapeHtml(email)} tiene una cuenta, te enviamos un link de acceso. Revisá tu correo.`, 'success');
+            showFormMessage(`Si ${escapeHtml(email)} tiene una cuenta, te enviamos un link de acceso. Revisa tu correo.`, 'success');
         } catch (error) {
             // ACC-11: "Signups not allowed for otp" (email sin cuenta) responde
             // igual que el éxito para no revelar qué emails existen.
@@ -692,7 +705,7 @@ async function handleArtistSocialLogin(provider) {
             if (error) throw error;
         } catch (error) {
             console.warn('Artist Facebook login error:', error);
-            showFormMessage('No pudimos conectar con Facebook. Probá de nuevo o ingresá con tu email.', 'error');
+            showFormMessage('No pudimos conectar con Facebook. Prueba de nuevo o ingresa con tu email.', 'error');
             setSocialBusy('facebook', false);
         }
     }
@@ -796,7 +809,7 @@ window.ArtistLogin = {
     async resetPassword(email) {
         // Mismo canal OTP que /recover: nunca se envían credenciales.
         const { error } = await _supabase.auth.resetPasswordForEmail(String(email || '').trim().toLowerCase());
-        if (error) throw new Error('No pudimos procesar la solicitud. Probá de nuevo en un momento.');
+        if (error) throw new Error('No pudimos procesar la solicitud. Prueba de nuevo en un momento.');
         return { success: true, message: 'Si existe una cuenta, recibirás un correo para recuperar el acceso.' };
     },
 

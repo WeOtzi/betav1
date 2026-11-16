@@ -52,8 +52,8 @@ test('reminders model sorts open items by date and priority, done items last', (
     assert.deepEqual(Model.sort(list).map((r) => r.id), ['c', 'b', 'a', 'd', 'e']);
 });
 
-test('reminders model validates form input with rioplatense messages', () => {
-    assert.throws(() => Model.toRow({ title: '   ' }), /Escribí un título/);
+test('reminders model validates form input with neutral Spanish messages', () => {
+    assert.throws(() => Model.toRow({ title: '   ' }), /Escribe un título/);
     assert.throws(() => Model.toRow({ title: 'x'.repeat(141) }), /hasta 140/);
     assert.throws(() => Model.toRow({ title: 'ok', due_date: '2026-02-30' }), /fecha válida/);
     const row = Model.toRow({ title: '  Enviar   boceto ', priority: 'urgente', icon: 'edit', due_date: '2026-07-01', is_important: false });
@@ -251,11 +251,12 @@ test('reminder modals and share panels expose QA URL states', () => {
     assert.match(share, /\/artist\/profile\?artist=/);
     assert.match(share, /#block-gallery/);
     assert.doesNotMatch(share, /\/artist\/profile\/gallery/);
-    for (const copy of ['QUÉ QUERÉS COMPARTIR', 'ENLACE PÚBLICO', 'COPIAR ENLACE', 'COMPARTIR EN', 'CÓDIGO QR', '↓ DESCARGAR PNG', '↓ DESCARGAR SVG', 'COPIAR URL']) {
+    for (const copy of ['QUÉ QUIERES COMPARTIR', 'ENLACE PÚBLICO', 'COPIAR ENLACE', 'COMPARTIR EN', 'CÓDIGO QR', '↓ DESCARGAR PNG', '↓ DESCARGAR SVG', 'COPIAR URL']) {
         assert.ok(share.includes(copy), copy);
     }
     assert.match(share, /https:\/\/wa\.me\/\?text=/);
-    assert.match(share, /mailto:\?subject=/);
+    // Ronda 2 (nota N8 del dueño): Mail salió de la hoja de compartir.
+    assert.doesNotMatch(share, /mailto:\?subject=/);
 });
 
 test('artist topbar drops the client-mode switch while clients keep it', () => {
@@ -279,7 +280,7 @@ test('account menu and notifications follow Figma 801:559 / 801:558', () => {
 
 test('Instagram import follows the three Figma steps and keeps signup compatibility', () => {
     const js = read('public/shared/js/instagram-import.js');
-    for (const copy of ['01 · PERFIL', '02 · SELECCIÓN', '03 · IMPORTACIÓN', 'Importá tus trabajos de Instagram', 'Podés escribirlo con o sin @.', 'VAMOS A REVISAR', 'ESPACIOS LIBRES EN TU GALERÍA', 'Confirmo que esta cuenta es mía y autorizo la importación de su contenido.', 'BUSCAR PERFIL →', 'Elegí qué sumar', 'CAMBIAR CUENTA', 'VIDEOS EN GALERÍA', 'Tus trabajos ya están en la galería', 'VER EN LA GALERÍA']) {
+    for (const copy of ['01 · PERFIL', '02 · SELECCIÓN', '03 · IMPORTACIÓN', 'Importa tus trabajos de Instagram', 'Puedes escribirlo con o sin @.', 'VAMOS A REVISAR', 'ESPACIOS LIBRES EN TU GALERÍA', 'Confirmo que esta cuenta es mía y autorizo la importación de su contenido.', 'BUSCAR PERFIL →', 'Elige qué sumar', 'CAMBIAR CUENTA', 'VIDEOS EN GALERÍA', 'Tus trabajos ya están en la galería', 'VER EN LA GALERÍA']) {
         assert.ok(js.includes(copy), copy);
     }
     assert.match(js, /body\.allowed_permalinks = permalinks/);
@@ -357,7 +358,7 @@ test('gallery cells follow Figma 2003:862: caption + trash, video and IG badges,
     const html = read('public/artist/dashboard/index.html');
     assert.doesNotMatch(html, /VISTA PREVIA/);
     assert.match(html, /id="wod-gallery-quota"/);
-    assert.match(html, /▲<\/span> ARRASTRÁ PARA REORDENAR/);
+    assert.match(html, /▲<\/span> ARRASTRA PARA REORDENAR/);
     assert.ok(html.indexOf('dashboard-gallery.js') > -1 && html.indexOf('dashboard-gallery.js') < html.indexOf('src="/shared/js/dashboard.js'));
     const dashboard = read('public/shared/js/dashboard.js');
     assert.match(dashboard, /window\.WodGallery\.render\(grid, feedItems/);
@@ -436,7 +437,7 @@ test('gallery upload goes to artist-gallery in production and reports failures',
     assert.equal(res.url, 'https://cdn.example/artist-gallery/' + ok.calls[0].filePath);
     const failing = loadUploadHelpers({ uploadError: { message: 'denied' } });
     await assert.rejects(failing.api.uploadDashboardGalleryFile({ name: 'a.png', type: 'image/png', size: 1 }, 'image'), (err) => err.message === 'denied');
-    assert.deepEqual({ ...ok.api.galleryUploadOutcomeMessage(0, 2) }, { text: 'No pudimos subir los archivos. Probá de nuevo en unos minutos.', type: 'error' });
+    assert.deepEqual({ ...ok.api.galleryUploadOutcomeMessage(0, 2) }, { text: 'No pudimos subir los archivos. Prueba de nuevo en unos minutos.', type: 'error' });
     assert.equal(ok.api.galleryUploadOutcomeMessage(2, 2).type, 'success');
     assert.match(ok.api.galleryUploadOutcomeMessage(1, 2).text, /Uno no se pudo subir/);
     assert.match(ok.api.galleryUploadOutcomeMessage(1, 1, true).text, /hasta que recargues/);

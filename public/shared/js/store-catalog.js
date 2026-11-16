@@ -172,7 +172,7 @@
     // precios posibles o uno aproximado; si no, el precio solo.
     function priceSummary(product) { return Model.priceLabel(product); }
 
-    // «Diseño · Fine line» / «Merch · Remeras».
+    // «Diseño · Fine line» / «Merch · Camisetas».
     function kindLine(product) {
         var p = product || {};
         var detail = p.kind === 'design' ? text(p.design_style) || text(p.category) : text(p.category);
@@ -214,9 +214,9 @@
 
     function variantLegend(variants) {
         var vs = list(variants).filter(Boolean);
-        if (vs.length && vs.every(function (v) { return text(v.size); })) return { label: 'Talle', prompt: 'Elegí un talle' };
-        if (vs.length && vs.every(function (v) { return text(v.color) && !text(v.size); })) return { label: 'Color', prompt: 'Elegí un color' };
-        return { label: 'Variante', prompt: 'Elegí una variante' };
+        if (vs.length && vs.every(function (v) { return text(v.size); })) return { label: 'Talla', prompt: 'Elige una talla' };
+        if (vs.length && vs.every(function (v) { return text(v.color) && !text(v.size); })) return { label: 'Color', prompt: 'Elige un color' };
+        return { label: 'Variante', prompt: 'Elige una variante' };
     }
 
     function variantPricesVary(product) {
@@ -244,7 +244,7 @@
     }
 
     function qtyHelp(max) {
-        if (max > 0 && max < MAX_QTY) return 'Podés pedir hasta ' + max + (max === 1 ? ' unidad' : ' unidades') + ' de esta variante.';
+        if (max > 0 && max < MAX_QTY) return 'Puedes pedir hasta ' + max + (max === 1 ? ' unidad' : ' unidades') + ' de esta variante.';
         return 'Hasta ' + MAX_QTY + ' unidades por pedido.';
     }
 
@@ -283,10 +283,10 @@
             var out = Object.assign({}, row, { summary: meta.summary || '', bullets: list(meta.bullets).slice(), link: null });
             if (row.code === 'artist_tier_requires_artist') {
                 if (f.role === 'artist') {
-                    out.reason = 'Completá tu registro de artista para comprar esta licencia.';
+                    out.reason = 'Completa tu registro de artista para comprar esta licencia.';
                     out.link = { label: 'Ir a tu dashboard →', href: Model.appPath('/artist/dashboard') };
                 } else {
-                    out.link = { label: 'Ingresá como artista →', href: Shell.loginLinks().artist };
+                    out.link = { label: 'Ingresa como artista →', href: Shell.loginLinks().artist };
                 }
             }
             return out;
@@ -397,7 +397,7 @@
             out.amount = priceSummary(p).label;
             if (!own) {
                 var anyInStock = variants.some(function (v) { return variantState(v).available; });
-                out.hint = anyInStock ? variantLegend(variants).prompt + ' para continuar.' : 'Agotado por ahora. Volvé a mirarlo más tarde.';
+                out.hint = anyInStock ? variantLegend(variants).prompt + ' para continuar.' : 'Agotado por ahora. Vuelve a mirarlo más tarde.';
             }
             return out;
         }
@@ -489,8 +489,8 @@
         return {
             icon: 'shopping-bag',
             title: 'La Store todavía no está disponible.',
-            text: 'Mientras tanto, podés explorar artistas y pedir tu cotización.',
-            actionLabel: 'Explorá artistas →',
+            text: 'Mientras tanto, puedes explorar artistas y pedir tu cotización.',
+            actionLabel: 'Explora artistas →',
             actionHref: MARKETPLACE
         };
     }
@@ -499,21 +499,44 @@
     /* HTML: vitrina                                                       */
     /* ------------------------------------------------------------------ */
 
-    function cardHtml(product) {
+    // ── favoritos (ronda 2 · P22): corazón de un diseño o merch. Aquí solo se
+    // deja el botón vacío y oculto; lo pinta y lo activa wo-favorites.js.
+    // variant: 'float' (sobre la imagen de la card) o 'label' (ficha).
+    function favoriteButtonHtml(product, seller, variant) {
+        var p = product || {};
+        var id = text(p.id);
+        if (!id || (p.kind !== 'design' && p.kind !== 'merch')) return '';
+        var img = list(p.images).filter(function (i) { return i && text(i.path); })[0] || null;
+        var image = img ? Shell.previewUrl(img.path) : '';
+        var s = seller || {};
+        var artistId = s.type === 'artist' ? text(s.id) : '';
+        return '<button type="button" class="stc-fav" hidden data-wo-favorite data-kind="' + esc(p.kind) + '"' +
+            ' data-id="' + esc(id) + '" data-label="' + esc(p.title) + '"' +
+            (image ? ' data-image="' + esc(image) + '"' : '') +
+            ' data-url="' + esc('/store/item/?id=' + encodeURIComponent(id)) + '"' +
+            (artistId ? ' data-artist-id="' + esc(artistId) + '"' : '') +
+            ' data-fav-variant="' + (variant === 'label' ? 'label' : 'float') + '"></button>';
+    }
+
+    function cardHtml(product, seller) {
         var p = product || {};
         var img = list(p.images).filter(function (i) { return i && text(i.path); })[0] || null;
         var badges = Model.productBadges(p).map(badgeHtml).join('');
         var kind = kindLine(p);
         var price = priceSummary(p);
         // La imagen es decorativa: el título de la card ya nombra el producto.
-        return '<a class="sts-card stc-card" href="' + esc(Model.itemUrl(p.id)) + '" data-stc-product="' + esc(p.id) + '">' +
+        // El corazón va como hermano del enlace (nunca un botón dentro de un <a>).
+        return '<div class="stc-card-wrap">' +
+            '<a class="sts-card stc-card" href="' + esc(Model.itemUrl(p.id)) + '" data-stc-product="' + esc(p.id) + '">' +
             '<div class="sts-card-media">' + Shell.previewImg(img && img.path, { alt: '' }) +
             (badges ? '<div class="sts-card-badges">' + badges + '</div>' : '') + '</div>' +
             '<div class="sts-card-body">' +
             (kind ? '<p class="sts-card-kind">' + esc(kind) + '</p>' : '') +
             '<h3 class="sts-card-title">' + esc(p.title) + '</h3>' +
             (price.label ? '<p class="sts-card-price">' + esc(price.label) + '</p>' : '') +
-            '</div></a>';
+            '</div></a>' +
+            favoriteButtonHtml(p, seller && typeof seller === 'object' ? seller : null, 'float') +
+            '</div>';
     }
 
     function filtersHtml(products, filter) {
@@ -537,7 +560,7 @@
                     icon: 'image',
                     title: 'Todavía no hay productos',
                     text: 'Este artista todavía no publicó diseños ni merch.',
-                    actionLabel: text(s.handle) ? 'Mirá su portafolio →' : '',
+                    actionLabel: text(s.handle) ? 'Mira su portafolio →' : '',
                     actionHref: text(s.handle) ? profileUrl(s.handle) : ''
                 }) + '</section>';
         }
@@ -547,7 +570,7 @@
             '<div class="stc-catalog-head"><h2 class="sts-section-title" id="stc-catalog-title">' + esc(title) + '</h2>' +
             '<p class="stc-count" id="stc-count" aria-live="polite">' + esc(countLabel(shown.length)) + '</p></div>' +
             filtersHtml(products, filter) +
-            '<div class="sts-grid stc-grid" id="stc-grid">' + shown.map(cardHtml).join('') + '</div>' +
+            '<div class="sts-grid stc-grid" id="stc-grid">' + shown.map(function (p) { return cardHtml(p, s); }).join('') + '</div>' +
             '</section>';
     }
 
@@ -607,7 +630,7 @@
         var main = '<div class="stc-gallery-main" id="stc-gallery-main">' +
             Shell.previewImg(first && first.path, { alt: imageAlt(product, first), loading: 'eager' }) + '</div>';
         var thumbs = images.length > 1
-            ? '<div class="stc-thumbs" role="group" aria-label="Elegí una imagen">' + images.map(function (img, i) {
+            ? '<div class="stc-thumbs" role="group" aria-label="Elige una imagen">' + images.map(function (img, i) {
                 var label = 'Ver imagen ' + (i + 1) + ' de ' + images.length + (text(img.alt) ? ': ' + text(img.alt) : '');
                 return '<button type="button" class="stc-thumb" data-stc-thumb="' + i + '" aria-pressed="' + (i === 0 ? 'true' : 'false') + '"' +
                     ' aria-controls="stc-gallery-main" aria-label="' + esc(label) + '">' + Shell.previewImg(img.path, { alt: '' }) + '</button>';
@@ -644,7 +667,7 @@
 
     function tiersHtml(product, tiers, state) {
         var currency = currencyOf(product);
-        return '<fieldset class="stc-fieldset stc-tiers"><legend class="stc-legend">Elegí la licencia</legend><div class="stc-tier-list">' +
+        return '<fieldset class="stc-fieldset stc-tiers"><legend class="stc-legend">Elige la licencia</legend><div class="stc-tier-list">' +
             list(tiers).map(function (t) {
                 var id = 'stc-tier-' + esc(t.id);
                 var checked = t.available && state && state.tier === t.id;
@@ -787,7 +810,7 @@
                 ? '<div class="stc-own"><p class="stc-own-title">Este producto es tuyo</p>' +
                     '<a class="wo-btn wo-btn--ink wo-btn--block wo-btn--hard stc-own-link" href="' + esc(editUrl(p.id)) + '">Editarlo en tu Store →</a></div>'
                 : '<a class="wo-btn wo-btn--accent wo-btn--block wo-btn--hard stc-cta" id="stc-buy-cta" role="link" aria-disabled="true" tabindex="0">Comprar →</a>') +
-            '<p class="wo-help stc-buy-note">Pagás en ' + esc(currencyOf(p)) + ', la moneda que eligió el vendedor. No convertimos el precio.</p>' +
+            '<p class="wo-help stc-buy-note">Pagas en ' + esc(currencyOf(p)) + ', la moneda que eligió el vendedor. No convertimos el precio.</p>' +
             '</section>';
     }
 
@@ -829,6 +852,7 @@
             '<h1 class="sts-title stc-item-title">' + esc(p.title) + '</h1>' +
             bylineHtml(seller) +
             (badges ? '<div class="sts-tags">' + badges + '</div>' : '') +
+            favoriteButtonHtml(p, seller, 'label') +
             '</header>' +
             (text(p.description) ? '<p class="stc-desc">' + esc(p.description) + '</p>' : '') +
             (tags.length ? '<ul class="sts-tags stc-tags" aria-label="Etiquetas">' + tags.map(function (t) {
@@ -929,7 +953,7 @@
                 renderMessage(mount, byId('stc-main'), {
                     icon: 'alert-triangle',
                     title: 'No pudimos cargar la Store',
-                    text: 'Probá de nuevo en unos minutos.',
+                    text: 'Prueba de nuevo en unos minutos.',
                     actionLabel: 'Volver a intentar →',
                     actionHref: currentHref()
                 });
@@ -957,9 +981,9 @@
             Shell.setTitle('');
             return renderMessage(mount, main, {
                 icon: 'users',
-                title: 'Elegí un artista para ver su Store',
+                title: 'Elige un artista para ver su Store',
                 text: 'Cada artista tiene su Store con diseños con licencia de uso y merch.',
-                actionLabel: 'Explorá artistas →',
+                actionLabel: 'Explora artistas →',
                 actionHref: MARKETPLACE
             });
         }
@@ -971,8 +995,8 @@
             return renderMessage(mount, main, {
                 icon: 'search',
                 title: 'No encontramos esta Store',
-                text: 'Revisá el link o buscá al artista en el marketplace.',
-                actionLabel: 'Explorá artistas →',
+                text: 'Revisa el link o busca al artista en el marketplace.',
+                actionLabel: 'Explora artistas →',
                 actionHref: MARKETPLACE
             });
         }
@@ -996,10 +1020,10 @@
         var params = { tipo: filter === 'todo' ? null : filter };
         if (text(seller.handle)) params.artist = text(seller.handle);
         Shell.setParams(params);
-        wireFilters(mount, products);
+        wireFilters(mount, products, seller);
     }
 
-    function wireFilters(mount, products) {
+    function wireFilters(mount, products, seller) {
         mount.addEventListener('click', function (e) {
             var chip = e.target && e.target.closest ? e.target.closest('[data-stc-filter]') : null;
             if (!chip) return;
@@ -1009,7 +1033,7 @@
             });
             var shown = filterProducts(products, key);
             var grid = mount.querySelector('#stc-grid');
-            if (grid) { grid.innerHTML = shown.map(cardHtml).join(''); Shell.hydrateIcons(grid); }
+            if (grid) { grid.innerHTML = shown.map(function (p) { return cardHtml(p, seller); }).join(''); Shell.hydrateIcons(grid); }
             var count = mount.querySelector('#stc-count');
             if (count) count.textContent = countLabel(shown.length);
             Shell.setParams({ tipo: key === 'todo' ? null : key });
@@ -1042,7 +1066,7 @@
                 icon: 'package',
                 title: 'Este producto ya no está disponible.',
                 text: 'Puede que se haya vendido con licencia exclusiva o que el artista lo haya pausado.',
-                actionLabel: known ? (known.name ? 'Volver a la Store de ' + known.name + ' →' : 'Volver a la Store →') : 'Explorá artistas →',
+                actionLabel: known ? (known.name ? 'Volver a la Store de ' + known.name + ' →' : 'Volver a la Store →') : 'Explora artistas →',
                 actionHref: known ? Model.storeUrl(known.handle) : MARKETPLACE
             });
         }
@@ -1209,7 +1233,7 @@
         var doc = root.document;
         if (!doc || !doc.body) return;
         if (!Model || !Shell) {
-            if (root.console) root.console.error('[store-catalog] Cargá store-model.js y store-shell.js antes.');
+            if (root.console) root.console.error('[store-catalog] Carga store-model.js y store-shell.js antes.');
             return;
         }
         var page = doc.body.getAttribute('data-stc-page');
@@ -1251,6 +1275,7 @@
         initialItemState: initialItemState,
         buyState: buyState,
         cardHtml: cardHtml,
+        favoriteButtonHtml: favoriteButtonHtml,
         storefrontHtml: storefrontHtml,
         itemHtml: itemHtml,
         buyLiveHtml: buyLiveHtml,

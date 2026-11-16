@@ -43,12 +43,12 @@
         loading: 'Cargando…',
         empty: 'No hay solicitudes de baja en este estado.',
         emptySearch: 'Nada coincide con la búsqueda.',
-        unavailable: 'No pudimos leer la cola. Revisá que tu usuario tenga acceso de soporte y que la migración 20261113103000 esté aplicada.',
-        noteRequired: 'Escribí una nota para el usuario (mínimo ' + NOTE_MIN + ' caracteres). La recibe por email.',
+        unavailable: 'No pudimos leer la cola. Revisa que tu usuario tenga acceso de soporte y que la migración 20261113103000 esté aplicada.',
+        noteRequired: 'Escribe una nota para el usuario (mínimo ' + NOTE_MIN + ' caracteres). La recibe por email.',
         noteLong: 'La nota puede tener hasta ' + NOTE_MAX + ' caracteres.',
         blocked: 'Todavía hay bloqueos: no se puede aprobar.',
-        confirm: 'Escribí ' + CONFIRM_WORD + ' para ejecutar el borrado.',
-        generic: 'No pudimos completar la acción. Probá de nuevo.',
+        confirm: 'Escribe ' + CONFIRM_WORD + ' para ejecutar el borrado.',
+        generic: 'No pudimos completar la acción. Prueba de nuevo.',
         rpcMissing: 'Falta aplicar la migración 20261113103000 (bajas de cuenta).'
     };
 
@@ -67,7 +67,7 @@
         if (['in_review', 'blocked', 'approved', 'rejected', 'note', 'refresh'].indexOf(action) < 0) return { error: MSG.generic };
         if (clean.length > NOTE_MAX) return { error: MSG.noteLong, field: 'note' };
         if ((action === 'rejected' || action === 'blocked') && clean.length < NOTE_MIN) return { error: MSG.noteRequired, field: 'note' };
-        if (action === 'note' && !clean) return { error: 'Escribí la nota antes de guardarla.', field: 'note' };
+        if (action === 'note' && !clean) return { error: 'Escribe la nota antes de guardarla.', field: 'note' };
         if (action === 'approved' && (!Array.isArray(liveBlockers) || blocking(liveBlockers).length)) return { error: MSG.blocked };
         return { action, note: clean || null };
     }
@@ -85,12 +85,21 @@
             .some((v) => String(v || '').toLowerCase().indexOf(t) >= 0);
     }
 
+    // Texto que escribe la base (errores de las RPC y bloqueos de account_deletion_blockers):
+    // las funciones ya aplicadas siguen en voseo y neutral-es.js lo pasa a tuteo antes de
+    // mostrarlo. Sin el módulo cargado el texto queda como vino.
+    function neutral(value) {
+        const N = root && root.WoNeutralEs;
+        return N && typeof N.neutralize === 'function' ? N.neutralize(value) : value;
+    }
+
     function errorText(err) {
         const cause = (err && err.cause) || {};
         const msg = String(cause.message || (err && err.message) || '').replace(/^\[[^\]]+\]\s*/, '');
         if (/could not find the function|PGRST202/i.test(msg) || cause.code === 'PGRST202') return MSG.rpcMissing;
         if (/Solo soporte|42501|permission denied/i.test(msg) || cause.code === '42501') return 'Tu usuario no tiene acceso de soporte para esta acción.';
-        if (msg && /[áéíóúñ]|Escribí|No encontramos|Todavía|Esta solicitud|Acción/i.test(msg)) return msg;
+        // Se reconocen el voseo de la base ya aplicada y el tuteo.
+        if (msg && /[áéíóúñ]|Escribí|Escribe|No encontramos|Todavía|Esta solicitud|Acción/i.test(msg)) return neutral(msg);
         return MSG.generic;
     }
 
@@ -212,7 +221,7 @@ textarea.adq-input{min-height:88px;resize:vertical}
                 </div>
                 <button type="button" class="action-btn adq-btn" id="adq-refresh">ACTUALIZAR</button>
             </div>
-            <p class="adq-intro">Antes de aprobar, el checklist tiene que quedar sin bloqueos: disputas, wallet (saldo y retiros), trabajos y sesiones en curso, pedidos de la Store y membresías o contratos de estudio. Nada se borra hasta que tocás "Ejecutar borrado".</p>
+            <p class="adq-intro">Antes de aprobar, el checklist tiene que quedar sin bloqueos: disputas, wallet (saldo y retiros), trabajos y sesiones en curso, pedidos de la Store y membresías o contratos de estudio. Nada se borra hasta que tocas "Ejecutar borrado".</p>
             <div class="adq-table" role="table" aria-label="Solicitudes de baja">
                 <div class="adq-head" role="row" style="grid-template-columns:${COLS}">
                     <span role="columnheader">Usuario</span><span role="columnheader">Tipo</span><span role="columnheader">Estado</span><span role="columnheader">Bloqueos</span><span role="columnheader">Pedida</span>
@@ -382,7 +391,7 @@ textarea.adq-input{min-height:88px;resize:vertical}
         const marks = { block: 'Bloquea', check: 'Revisar', warn: 'Aviso' };
         return '<ul class="adq-checklist">' + live.map((i) => {
             const sev = marks[i.severity] ? i.severity : 'block';
-            return `<li><span class="adq-mark adq-mark--${sev}">${marks[sev]}</span><strong>${esc(i.label)}</strong><span>${esc(i.detail || '')}${i.href ? ' <span class="adq-muted">' + esc(i.href) + '</span>' : ''}</span></li>`;
+            return `<li><span class="adq-mark adq-mark--${sev}">${marks[sev]}</span><strong>${esc(neutral(i.label))}</strong><span>${esc(neutral(i.detail || ''))}${i.href ? ' <span class="adq-muted">' + esc(i.href) + '</span>' : ''}</span></li>`;
         }).join('') + '</ul>' + (blocking(live).length ? '' : '<p class="adq-ok">Sin bloqueos: se puede aprobar.</p>');
     }
 
@@ -423,7 +432,7 @@ textarea.adq-input{min-height:88px;resize:vertical}
                 <p class="adq-section-title">Ejecutar borrado</p>
                 <p class="adq-text">Borra el perfil (artista, cliente y/o estudio), anonimiza el soporte y elimina el acceso. Es permanente. El servidor vuelve a calcular los bloqueos antes de borrar.</p>
                 <div class="adq-field">
-                    <label for="adq-confirm">Escribí ${CONFIRM_WORD} para confirmar</label>
+                    <label for="adq-confirm">Escribe ${CONFIRM_WORD} para confirmar</label>
                     <input type="text" id="adq-confirm" class="adq-input" autocomplete="off" spellcheck="false" ${execOk ? '' : 'disabled'}>
                 </div>
                 <p id="adq-exec-feedback" class="adq-feedback" role="status" aria-live="polite" hidden></p>

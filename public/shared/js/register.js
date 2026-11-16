@@ -138,6 +138,9 @@ function buildRegistrationDraftPayload() {
     // ── integracion ── consentimiento de IG (P17) para el commit final.
     data.ig_import_consent = igImportConsentForCommit(formState.data.ig_import_consent, formState.data.ig_import_consent && formState.data.ig_import_consent.handle)
         ? { ...formState.data.ig_import_consent } : null;
+    // ── registro (ronda 2 · P3): qué campos se precargaron desde Instagram.
+    data.ig_prefilled = formState.data.ig_prefilled && typeof formState.data.ig_prefilled === 'object'
+        ? { ...formState.data.ig_prefilled } : null;
 
     // Paso guardado: número histórico o 'summary' (revisión). Los grupos ya
     // completos se recuerdan para reanudar sin volver a pasar por ellos.
@@ -246,6 +249,14 @@ function applyRegistrationDraftData(draftData) {
         formState.data.portfolio_media_seeded = true;
     }
     formState.data.portfolio_local_count_saved = Number(draftData.portfolio_local_count) || 0;
+    // ── registro (ronda 2 · P3): marcas "Traído de Instagram" del borrador.
+    if (draftData.ig_prefilled && typeof draftData.ig_prefilled === 'object' && !Array.isArray(draftData.ig_prefilled)) {
+        const marks = {};
+        ['full_name', 'email', 'location'].forEach((field) => {
+            if (typeof draftData.ig_prefilled[field] === 'string') marks[field] = draftData.ig_prefilled[field].slice(0, 160);
+        });
+        formState.data.ig_prefilled = marks;
+    }
     // ── integracion ── consentimiento de IG (P17) guardado en el borrador.
     const savedConsent = draftData.ig_import_consent;
     if (savedConsent && typeof savedConsent === 'object' && savedConsent.accepted === true) {
@@ -671,7 +682,7 @@ function getGeolocation() {
     // IP del navegador. Si el GPS no responde, se pide la ubicación a mano.
     async function tryIPGeolocation() {
         btn.classList.remove('loading');
-        hint.textContent = 'No se pudo obtener la ubicacion. Ingresala manualmente.';
+        hint.textContent = 'No se pudo obtener la ubicacion. Ingrésala manualmente.';
         hint.style.color = 'var(--primary-red)';
     }
 
@@ -1102,6 +1113,10 @@ async function initializeAuth() {
         // session (non-IG flow). In IG signup we explicitly want a clean
         // wizard, even if the prior session belongs to someone with a row.
         if (session && !treatAsPreAuth) await loadExistingArtistData();
+        // ── registro (ronda 2 · T1-2): con sesión y el perfil ya completo no
+        // se vuelve a mostrar el paso 01 (pasaba cuando el panel rebotaba aquí
+        // tras confirmar el email): "Tu perfil ya está creado" + ir al panel.
+        if (session && !treatAsPreAuth && showProfileAlreadyCreated()) return;
         await loadAndRenderStylesFromDB();
         if (startOverRequested) {
             resetFormDataForStartOver(session && currentUser ? currentUser.email : formState.data.email);
@@ -1186,6 +1201,23 @@ async function initializeAuth() {
         };
         window.location.href = authUrls.login;
     }
+}
+
+// Devuelve true si mostró la pantalla "Tu perfil ya está creado" (ronda 2).
+function showProfileAlreadyCreated() {
+    const R2 = window.WoRegistroR2;
+    if (!R2 || typeof R2.shouldSkipWizard !== 'function' || !loadedArtistRecord) return false;
+    const progress = window.ArtistRegistrationProgress?.analyzeArtistProfile
+        ? window.ArtistRegistrationProgress.analyzeArtistProfile(loadedArtistRecord)
+        : null;
+    if (!R2.shouldSkipWizard({
+        hasSession: true, preAuth: false, artist: loadedArtistRecord, progress,
+        search: window.location.search || ''
+    })) return false;
+    const name = String(loadedArtistRecord.username || '').replace(/\.wo$/i, '');
+    if (!R2.renderProfileReady({ name, dashboardUrl: appUrl('/artist/dashboard') })) return false;
+    goToStep('success');
+    return true;
 }
 
 async function loadExistingArtistData() {
@@ -1387,7 +1419,7 @@ function ensurePasswordStepOnResume() {
     if (!pastAccess) return;
     groupDoneState.delete('acceso');
     goToStep(groupEntryStep('acceso'));
-    setGroupError('acceso', 'Por seguridad no guardamos tu contraseña. Escribila de nuevo para seguir donde lo dejaste.');
+    setGroupError('acceso', 'Por seguridad no guardamos tu contraseña. Escríbela de nuevo para seguir donde lo dejaste.');
 }
 
 // "Empezar de cero": borra el borrador local, limpia el remoto (el arranque
@@ -2354,14 +2386,14 @@ function applyAddressPickerVisibility(workType) {
         wrapper.style.display = showPicker ? 'block' : 'none';
         if (showPicker) {
             if (label) label.textContent = 'Tu dirección';
-            if (help)  help.textContent = 'Buscá la dirección del estudio y elegí una sugerencia para ubicarla con precisión.';
+            if (help)  help.textContent = 'Busca la dirección del estudio y elige una sugerencia para ubicarla con precisión.';
             ensureAddressPicker();
         }
         syncAddressDetailsVisibility();
     } else if (workType === 'independent') {
         wrapper.style.display = 'block';
         if (label) label.textContent = 'Tu dirección';
-        if (help)  help.textContent = 'Indicá la dirección de tu espacio de trabajo: estudio propio, casa o donde recibís clientes.';
+        if (help)  help.textContent = 'Indica la dirección de tu espacio de trabajo: estudio propio, casa o donde recibes clientes.';
         ensureAddressPicker();
         syncAddressInputFromState();
         syncAddressDetailsVisibility();
@@ -2600,6 +2632,16 @@ function applyIGPrefillFromResult(result, opts) {
     // what the person chose to display (often "Isai Nazar" or a stylized
     // name). We only fill when empty so we never clobber manual entries —
     // the user always sees the question in Step 2 and can edit.
+    // ── registro (ronda 2 · P3): nombre completo, email y ciudad/país del
+    // perfil. Solo completa campos vacíos y los marca "Traído de Instagram".
+    if (window.WoRegistroR2 && typeof window.WoRegistroR2.applyInstagramProfile === 'function') {
+        try {
+            window.WoRegistroR2.applyInstagramProfile(
+                pf.profile || { full_name: summary.full_name },
+                { data: formState.data, preAuth: formState.preAuthMode === true }
+            );
+        } catch (prefillError) { console.warn('[register] prefill de Instagram:', prefillError); }
+    }
     if (summary.full_name && !String(formState.data.full_name || '').trim()) {
         formState.data.full_name = summary.full_name;
         const fullNameInput = document.getElementById('full_name');
@@ -3000,11 +3042,14 @@ async function persistPortfolioMedia() {
                 .upload(path, it.file, { contentType: it.file.type, upsert: false });
             if (upErr) { console.warn('[portfolio] local upload failed', upErr); continue; }
             const { data: pub } = _supabase.storage.from('artist-gallery').getPublicUrl(path);
+            // ── registro (ronda 2 · N3): el pie de foto escrito en el alta.
+            const localCaption = window.WoGalleryCaption ? window.WoGalleryCaption.sanitizeCaption(it.caption) : '';
             localItemsForFeed.push({
                 url: pub.publicUrl,
                 category: 'realizados',
                 kind: it.kind === 'video' ? 'video' : 'image',
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                ...(localCaption ? { caption: localCaption } : {})
             });
         } catch (e) {
             console.warn('[portfolio] local upload exception', e);
@@ -3028,7 +3073,9 @@ async function persistPortfolioMedia() {
             // Fresh preview to get unexpired CDN URLs.
             const previewRes = await fetch(apiUrl('/api/instagram/preview'), {
                 method: 'POST', headers,
-                body: JSON.stringify({ handle: igHandle, limit, mode: 'dashboard' })
+                // reuse (ronda 2): el servidor reutiliza el perfil que trajo hace
+                // minutos para este mismo usuario de Instagram (sin otra espera).
+                body: JSON.stringify({ handle: igHandle, limit, mode: 'dashboard', reuse: true })
             });
             const preview = await readJsonResponse(previewRes);
             if (!preview.success) {
@@ -3051,6 +3098,10 @@ async function persistPortfolioMedia() {
                 // (paso 01) → el servidor lo registra en el audit y en cada ítem.
                 const consent = igImportConsentForCommit(formState.data.ig_import_consent, igHandle);
                 if (consent) body.consent = consent;
+                // ── registro (ronda 2 · N3): pies de foto editados en el alta.
+                if (window.WoRegistroR2 && typeof window.WoRegistroR2.buildCaptionMap === 'function') {
+                    body.captions = window.WoRegistroR2.buildCaptionMap(igItems);
+                }
                 const commitRes = await fetch(apiUrl('/api/instagram/commit'), {
                     method: 'POST', headers,
                     body: JSON.stringify(body)
@@ -3153,7 +3204,7 @@ function setupIGStep0() {
             setStatus('Handle inválido. Solo letras, números, puntos y guiones bajos.', 'error');
             return;
         }
-        setStatus('Buscando perfil en Instagram… esto puede tomar 5-15 segundos.', 'muted');
+        setStatus('Buscando tu perfil en Instagram… Revisamos hasta 50 publicaciones: puede tardar hasta un minuto.', 'muted');
         importBtn.disabled = true;
         try {
             const headers = await authHeaders();
@@ -3183,7 +3234,7 @@ function setupIGStep0() {
         const s = stagedSummary || {};
         const photosCount = s.photos_count || 0;
         const reelsCount = s.reels_count || 0;
-        setStatus('Perfil encontrado: <strong>' + (s.full_name || ('@' + stagedHandle)) + '</strong>. Marcá qué traer y confirmá.', 'success');
+        setStatus('Perfil encontrado: <strong>' + (s.full_name || ('@' + stagedHandle)) + '</strong>. Marca qué traer y confirma.', 'success');
         summaryEl.innerHTML = `
             <div class="ig-step-preview">
                 <label class="ig-step-option ${s.bio_present ? '' : 'is-disabled'}">
@@ -3360,11 +3411,11 @@ function mountIGImportInRegister() {
 // el borrador local/remoto, el resume y los endpoints la consumen— y cada
 // grupo agrupa uno o más de esos pasos.
 const REGISTRATION_GROUPS = [
-    { id: 'quien',     num: '01', nav: 'Quién sos',     steps: [1, 2, 10] },
+    { id: 'quien',     num: '01', nav: 'Quién eres',     steps: [1, 2, 10] },
     { id: 'acceso',    num: '02', nav: 'Tu acceso',     steps: [3] },
     { id: 'oficio',    num: '03', nav: 'Tu oficio',     steps: [4, 5, 6] },
     { id: 'presencia', num: '04', nav: 'Tu presencia',  steps: [8, 7] },
-    { id: 'trabajo',   num: '05', nav: 'Cómo trabajás', steps: [9] },
+    { id: 'trabajo',   num: '05', nav: 'Cómo trabajas', steps: [9] },
     { id: 'novedades', num: '06', nav: 'Novedades',     steps: [11] },
     { id: 'revision',  num: '07', nav: 'Revisión',      steps: ['summary'] }
 ];
@@ -3730,7 +3781,7 @@ function refreshGroupGate() {
 }
 window.raRefreshGroupGate = refreshGroupGate;
 
-// Helper del gate del grupo 05 (Figma 422-2873): "Elegí tu estudio o creá uno
+// Helper del gate del grupo 05 (Figma 422-2873): "Elige tu estudio o crea uno
 // nuevo" acompaña al CONTINUAR deshabilitado mientras falta resolver el
 // estudio. Se oculta al crear uno nuevo (ahí guía el picker de dirección).
 function syncTrabajoGateHint() {
@@ -3762,9 +3813,9 @@ function isStudioSelectionResolved() {
 
 // ---------- Disponibilidad en vivo (email / nombre artístico / instagram) ----------
 // Chequea /api/register/check-uniqueness al salir de cada campo para avisar
-// EN EL PASO, no recién al final del acordeón. El estado alimenta el gate
+// EN EL PASO, y no solo al final del acordeón. El estado alimenta el gate
 // (isGroupReady/validateGroup); window.__weotziUsernameAvailability —que el
-// gate ya leía— ahora sí se escribe desde acá. Instagram duplicado NO
+// gate ya leía— ahora sí se escribe desde aquí. Instagram duplicado NO
 // bloquea: solo advierte que se validará después.
 const uniquenessState = {
     email: { value: '', state: 'unknown' },
@@ -3836,11 +3887,11 @@ function renderUniqueState(kind) {
     }
     if (kind === 'email') {
         msg.innerHTML = 'Ya existe una cuenta con este email. '
-            + `<a href="${appUrl('/artist/login')}">Iniciá sesión</a> para continuar.`;
+            + `<a href="${appUrl('/artist/login')}">Inicia sesión</a> para continuar.`;
     } else if (kind === 'username') {
-        msg.textContent = 'Ese nombre artístico ya está en uso. Probá una opción libre:';
+        msg.textContent = 'Ese nombre artístico ya está en uso. Prueba una opción libre:';
     } else {
-        msg.textContent = 'Este Instagram ya está asociado a otra cuenta. Podés registrarte igual: lo vamos a validar después.';
+        msg.textContent = 'Este Instagram ya está asociado a otra cuenta. Puedes registrarte de todos modos: lo vamos a validar después.';
     }
     msg.hidden = false;
 }
@@ -4038,7 +4089,7 @@ function setupGroupUI() {
         });
     }
 
-    // Toggles de "¿Dónde mostrás tu trabajo?" (página 7: solo Instagram por
+    // Toggles de "¿Dónde muestras tu trabajo?" (página 7: solo Instagram por
     // defecto; el resto se activa al tocarlo o si ya tiene un valor guardado).
     document.querySelectorAll('.link-toggle').forEach((chip) => {
         chip.addEventListener('click', () => {
@@ -4070,7 +4121,7 @@ function setupGroupUI() {
     if (retryBtn) {
         retryBtn.addEventListener('click', () => {
             if (!document.getElementById('terms-checkbox')?.checked) {
-                setGroupError('revision', 'Para crear tu perfil, aceptá los Términos y Condiciones y la Política de Privacidad.');
+                setGroupError('revision', 'Para crear tu perfil, acepta los Términos y Condiciones y la Política de Privacidad.');
                 return;
             }
             formState.data.terms_accepted = true;
@@ -4412,7 +4463,7 @@ function validateStep(step) {
                 if (liveAvailability?.username === username && liveAvailability.state === 'taken') {
                     isValid = false;
                     errorElement = artisticName;
-                    errorMessage = 'Ese nombre artístico ya está en uso. Probá una de las sugerencias.';
+                    errorMessage = 'Ese nombre artístico ya está en uso. Prueba una de las sugerencias.';
                 }
             }
             break;
@@ -4437,7 +4488,7 @@ function validateStep(step) {
                 && uniquenessState.email.value === email.value.trim().toLowerCase()) {
                 isValid = false;
                 errorElement = email;
-                errorMessage = 'Ya existe una cuenta con este email. Iniciá sesión para continuar.';
+                errorMessage = 'Ya existe una cuenta con este email. Inicia sesión para continuar.';
                 break;
             }
             // Pre-auth registration: validate password fields now; the server
@@ -4455,7 +4506,7 @@ function validateStep(step) {
         case 4:
             if (!stylesRequirementMet(formState.data)) {
                 isValid = false;
-                errorMessage = 'Elegí al menos un estilo.';
+                errorMessage = 'Elige al menos un estilo.';
                 shakeElement(document.getElementById('styles-grid'));
             }
             break;
@@ -4463,7 +4514,7 @@ function validateStep(step) {
         case 5:
             if (!formState.data.experience_years) {
                 isValid = false;
-                errorMessage = 'Elegí hace cuánto tatuás.';
+                errorMessage = 'Elige hace cuánto tatúas.';
                 shakeElement(document.getElementById('experience-options'));
             }
             break;
@@ -4476,7 +4527,7 @@ function validateStep(step) {
             if (sessionPriceValue && !(parseFloat(sessionPriceValue) > 0)) {
                 isValid = false;
                 errorElement = sessionPrice;
-                errorMessage = 'Ingresá un monto mayor a cero o dejá la tarifa vacía.';
+                errorMessage = 'Ingresa un monto mayor a cero o deja la tarifa vacía.';
                 break;
             }
             formState.data.session_price = sessionPriceValue;
@@ -4497,7 +4548,7 @@ function validateStep(step) {
                 if (!ok) {
                     isValid = false;
                     errorElement = siteField;
-                    errorMessage = 'Revisá tu sitio web: escribí la dirección completa, por ejemplo tusitio.com.';
+                    errorMessage = 'Revisa tu sitio web: escribe la dirección completa, por ejemplo tusitio.com.';
                     break;
                 }
             }
@@ -4509,7 +4560,7 @@ function validateStep(step) {
                 } catch {
                     isValid = false;
                     errorElement = otherField;
-                    errorMessage = 'Revisá el enlace: tiene que empezar con https://';
+                    errorMessage = 'Revisa el enlace: tiene que empezar con https://';
                     break;
                 }
             }
@@ -4531,7 +4582,7 @@ function validateStep(step) {
         case 9:
             if (!formState.data.work_type) {
                 isValid = false;
-                errorMessage = 'Elegí si trabajás en un estudio o de forma independiente.';
+                errorMessage = 'Elige si trabajas en un estudio o de forma independiente.';
                 shakeElement(document.getElementById('work-type-options'));
             } else if ((formState.data.work_type === 'studio' || formState.data.work_type === 'both')) {
                 // Require studio name for studio or both options
@@ -4539,13 +4590,13 @@ function validateStep(step) {
                 if (!studioNameInput.value.trim()) {
                     isValid = false;
                     errorElement = studioNameInput;
-                    errorMessage = 'Contanos en qué estudio trabajás.';
+                    errorMessage = 'Cuéntanos en qué estudio trabajas.';
                 } else if (!isStudioSelectionResolved()) {
                     isValid = false;
                     errorElement = studioAddressRequired ? document.getElementById('address_search') : studioNameInput;
                     errorMessage = studioAddressRequired
-                        ? 'Elegí la dirección del estudio de la lista de sugerencias.'
-                        : 'Elegí tu estudio de la lista o creá uno nuevo.';
+                        ? 'Elige la dirección del estudio de la lista de sugerencias.'
+                        : 'Elige tu estudio de la lista o crea uno nuevo.';
                 } else {
                     formState.data.studio_name = studioNameInput.value.trim();
                 }
@@ -4555,7 +4606,7 @@ function validateStep(step) {
                 if (!getRegistrationCity()) {
                     isValid = false;
                     errorElement = document.getElementById('address_search');
-                    errorMessage = 'Elegí tu dirección de la lista de sugerencias.';
+                    errorMessage = 'Elige tu dirección de la lista de sugerencias.';
                 }
             }
             break;
@@ -4565,19 +4616,19 @@ function validateStep(step) {
             if (!iso) {
                 isValid = false;
                 errorElement = document.getElementById('birth_date');
-                errorMessage = 'Cargá tu fecha de nacimiento.';
+                errorMessage = 'Completa tu fecha de nacimiento.';
                 break;
             }
             if (!isAdultBirthDate(iso)) {
                 isValid = false;
                 errorElement = document.getElementById('birth_date');
-                errorMessage = 'Tenés que ser mayor de 18 años para registrarte.';
+                errorMessage = 'Tienes que ser mayor de 18 años para registrarte.';
                 break;
             }
             if (!birthDateWithinBounds(iso)) {
                 isValid = false;
                 errorElement = document.getElementById('birth_date');
-                errorMessage = 'Revisá la fecha de nacimiento.';
+                errorMessage = 'Revisa la fecha de nacimiento.';
                 break;
             }
             syncBirthDateFromInput();
@@ -4680,7 +4731,7 @@ const SUMMARY_ROWS = [
     { label: 'Experiencia',      group: 'oficio',    value: (d) => experienceLabel(d.experience_years) },
     { label: 'Tarifa por sesión',group: 'oficio',    value: (d) => summaryPriceValue(d) },
     { label: 'Presentación',     group: 'presencia', value: (d) => bioPlainText(d.bio, 120) },
-    { label: 'Cómo trabajás',    group: 'trabajo',   value: () => workSummaryValue() },
+    { label: 'Cómo trabajas',    group: 'trabajo',   value: () => workSummaryValue() },
     { label: 'Novedades',        group: 'novedades', value: () => newsletterSummaryValue() }
 ];
 
@@ -4762,7 +4813,7 @@ async function finalizePreAuthRegistration(username) {
             markUniquenessConflicts(conflicts, { email, username });
             const labels = { email: 'el email', username: 'el nombre artístico' };
             const conflicting = conflicts.map(c => labels[c] || c).join(' y ');
-            const error = new Error('Ya existe una cuenta con ' + conflicting + '. Corregilo en el paso marcado o iniciá sesión.');
+            const error = new Error('Ya existe una cuenta con ' + conflicting + '. Corrígelo en el paso marcado o inicia sesión.');
             error.code = 'REGISTRATION_CONFLICT';
             throw error;
         }
@@ -4795,7 +4846,7 @@ async function finalizePreAuthRegistration(username) {
             const labels = { email: 'el email', username: 'el nombre artístico' };
             const error = new Error('Ya existe una cuenta con '
                 + conflicts.map(c => labels[c] || c).join(' y ')
-                + '. Corregilo en el paso marcado o iniciá sesión.');
+                + '. Corrígelo en el paso marcado o inicia sesión.');
             error.code = 'REGISTRATION_CONFLICT';
             throw error;
         }
@@ -4832,8 +4883,10 @@ function artistConfirmRedirectUrl() {
     return window.location.origin + appUrl('/register-artist/?confirmado=1');
 }
 
+let _artistConfirmMembershipPending = false;
 async function stashArtistPendingSetup(finalizeData, email) {
     const EC = window.WeotziEmailConfirm;
+    _artistConfirmMembershipPending = finalizeData.membership_pending === true;
     if (!EC) return;
     const media = getPortfolioMediaDraft();
     const data = {};
@@ -4845,6 +4898,11 @@ async function stashArtistPendingSetup(finalizeData, email) {
         email,
         sentAt: Date.now(),
         studioId: finalizeData.artist?.studio_id || formState.data.studio_id || null,
+        // ── roster: con la solicitud pendiente el servidor ya guardó la sede
+        // sin studio_id; al volver del link tampoco se pisa (ronda 2).
+        membershipPending: finalizeData.membership_pending === true,
+        // Borrador de este registro: al recargar se reconoce la misma espera.
+        draftId: registrationDraftId || finalizeData.draft_id || null,
         registrationCity: getRegistrationCity() || null,
         data,
         // Ítems de Instagram (sin File) y cantidad de archivos locales.
@@ -4852,7 +4910,9 @@ async function stashArtistPendingSetup(finalizeData, email) {
             id: it.id, source: 'ig', permalink: it.permalink || null, cdn_url: it.cdn_url || null,
             kind: it.kind || 'image', caption: it.caption || '', timestamp: it.timestamp || null
         })),
-        localKinds: media.filter((it) => it.source === 'local' && it.file).map((it) => it.kind || 'image')
+        localKinds: media.filter((it) => it.source === 'local' && it.file).map((it) => it.kind || 'image'),
+        // Pies de foto de los archivos locales, en el mismo orden (ronda 2 · N3).
+        localCaptions: media.filter((it) => it.source === 'local' && it.file).map((it) => String(it.caption || ''))
     });
     await EC.stashFiles(ARTIST_CONFIRM_FILES_KEY, media.filter((it) => it.source === 'local' && it.file).map((it) => it.file));
 }
@@ -4864,7 +4924,7 @@ function renderArtistEmailConfirmation(email) {
     const title = section.querySelector('.ra-success-title');
     if (title) title.textContent = 'Tu perfil quedó enviado. Falta confirmar tu email.';
     const sub = section.querySelector('.ra-success-sub');
-    if (sub) sub.textContent = 'Para entrar a tu panel, abrí el link que te enviamos. Tu galería y tu sede se terminan de guardar en ese momento.';
+    if (sub) sub.textContent = 'Para entrar a tu panel, abre el link que te enviamos. Tu galería y tu sede se terminan de guardar en ese momento.';
     const cta = document.getElementById('ra-success-cta');
     if (cta) cta.hidden = true;
     let box = document.getElementById('ra-email-confirm');
@@ -4874,17 +4934,110 @@ function renderArtistEmailConfirmation(email) {
         (cta && cta.parentNode ? cta.parentNode : section).insertBefore(box, cta || null);
     }
     if (!EC) {
-        box.textContent = 'Revisá tu email para confirmar la cuenta.';
+        box.textContent = 'Revisa tu email para confirmar la cuenta.';
         return;
     }
+    const pendingUserId = currentUser && currentUser.id ? currentUser.id : null;
     EC.renderPending(box, {
         email,
         client: _supabase,
         redirectTo: artistConfirmRedirectUrl(),
-        title: 'Revisá tu email para confirmar la cuenta',
-        note: 'Abrí el link desde este navegador: así subimos las fotos que elegiste.',
-        focus: false
+        title: 'Revisa tu email para confirmar la cuenta',
+        note: 'Abre el link desde este navegador: así subimos las fotos que elegiste.',
+        focus: false,
+        // ── registro (ronda 2 · N4): esta pestaña se entera sola de la
+        // confirmación (otra pestaña, otro navegador o el teléfono) y sigue aquí.
+        watch: typeof EC.watchConfirmation === 'function' ? {
+            key: ARTIST_CONFIRM_KEY,
+            userId: pendingUserId,
+            statusUrl: pendingUserId ? apiUrl('/api/register/confirmation-status?uid=' + encodeURIComponent(pendingUserId)) : '',
+            onConfirmed: (info) => { continueArtistAfterConfirmationHere(email, info); }
+        } : null
     });
+}
+
+// ── registro (ronda 2 · N4) ── la pestaña "Falta confirmar email" sigue sola:
+// muestra "Email confirmado", termina la galería y la sede con lo que tiene en
+// memoria (incluidos los archivos del dispositivo) y entra al panel.
+let _artistConfirmContinueStarted = false;
+async function continueArtistAfterConfirmationHere(email, info) {
+    if (_artistConfirmContinueStarted) return;
+    _artistConfirmContinueStarted = true;
+    const EC = window.WeotziEmailConfirm;
+    const box = document.getElementById('ra-email-confirm');
+    const section = document.getElementById('ra-success');
+    const title = section ? section.querySelector('.ra-success-title') : null;
+    if (title) title.textContent = 'Email confirmado. Tu perfil está listo.';
+    const sub = section ? section.querySelector('.ra-success-sub') : null;
+    if (sub) sub.textContent = 'Ya puedes cerrar la pestaña del correo: seguimos aquí.';
+    const setBusy = (text) => {
+        if (!EC || !box) return;
+        EC.renderConfirmed(box, { state: 'confirmed', busyText: text, text: 'Tu cuenta ya está activa. Terminamos de guardar tu portfolio y te llevamos a tu panel.' });
+    };
+    setBusy('Guardando tu portfolio…');
+
+    let session = info && info.session ? info.session : null;
+    try {
+        if (!session) {
+            // Confirmado en otro navegador o en el teléfono: aquí no hay sesión,
+            // pero la contraseña sigue en memoria (nunca se guarda).
+            const password = String(formState.data.signup_password || '');
+            if (password) {
+                const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+                if (!error && data && data.session) session = data.session;
+            }
+        }
+    } catch (signInError) {
+        console.warn('[register] ingreso tras confirmar el email:', signInError);
+    }
+
+    const loginUrl = appUrl('/artist/login?confirmado=1&email=' + encodeURIComponent(email));
+    if (!session || !session.user) {
+        if (EC && box) {
+            EC.renderConfirmed(box, {
+                state: 'confirmed',
+                text: 'Tu email quedó confirmado. Inicia sesión para entrar a tu panel.',
+                action: { label: 'Iniciar sesión', href: loginUrl }
+            });
+        }
+        return;
+    }
+
+    currentUser = session.user;
+    const pending = EC ? EC.readPending(ARTIST_CONFIRM_KEY) : null;
+    // Si la pestaña del link ya está terminando el alta, esta no lo repite.
+    // Sin registro pendiente guardado (storage bloqueado) lo termina con lo
+    // que tiene en memoria.
+    const mine = pending && EC && typeof EC.claimPending === 'function' ? EC.claimPending(ARTIST_CONFIRM_KEY) : true;
+    if (mine) {
+        try {
+            // Pestaña recargada: el portfolio ya no está en memoria, se
+            // reconstruye de lo guardado (igual que la pestaña del link).
+            if (pending && !getPortfolioMediaDraft().length) await restoreArtistPendingDraft(pending);
+            const membershipPending = pending ? pending.membershipPending === true : _artistConfirmMembershipPending;
+            if (!membershipPending) {
+                await persistSelectedStudioLocation(pending ? pending.studioId : null);
+            }
+            await persistPortfolioMedia();
+        } catch (err) {
+            console.warn('[register] completar tras confirmar el email:', err);
+        }
+        if (EC) {
+            EC.clearPending(ARTIST_CONFIRM_KEY);
+            EC.clearFiles(ARTIST_CONFIRM_FILES_KEY);
+        }
+    }
+    // Con link de alta del estudio a la vista no se redirige solo: hay que
+    // poder copiarlo antes de ir al panel (misma regla que sin confirmación).
+    const claimBox = document.getElementById('ra-studio-claim');
+    if (claimBox && !claimBox.hidden) {
+        if (EC && box) EC.renderConfirmed(box, { state: 'confirmed', text: 'Tu cuenta ya está activa. Copia el link de alta del estudio y entra a tu panel cuando quieras.', focus: false });
+        const cta = document.getElementById('ra-success-cta');
+        if (cta) cta.hidden = false;
+        return;
+    }
+    if (EC && box) EC.renderConfirmed(box, { state: 'confirmed', busyText: 'Entrando a tu panel…', focus: false });
+    redirectAfterRegistration(appUrl('/artist/dashboard'));
 }
 
 // Vuelta desde el link: con sesión, termina la galería y la sede guardadas y
@@ -4900,7 +5053,12 @@ async function resumeArtistAfterEmailConfirmation() {
         session = data && data.session;
     } catch (_) { session = null; }
     if (!session) {
-        if (!confirmed) return false;
+        if (!confirmed) {
+            // ── registro (ronda 2 · T1-2): recargar "Falta confirmar email"
+            // mostraba el paso 01 vacío (el borrador ya es una cuenta). Se
+            // vuelve a mostrar la espera de la confirmación.
+            return showArtistPendingConfirmationAgain(pending);
+        }
         // El link no abrió sesión (otro navegador o link vencido): al login.
         // ── acceso (ACC-17): con #error=…otp_expired el login muestra "El link
         // venció o ya se usó" y ofrece reenviar la confirmación.
@@ -4916,17 +5074,29 @@ async function resumeArtistAfterEmailConfirmation() {
         redirectAfterRegistration(appUrl('/artist/dashboard'));
         return true;
     }
+    // ── registro (ronda 2 · N4): si la pestaña "Falta confirmar email" sigue
+    // abierta, ella termina el alta (tiene las fotos en memoria) y esta solo
+    // avisa "Listo, ya puedes cerrar esta pestaña". Lo mismo si otra pestaña
+    // del link ya lo está haciendo (segundo clic en el correo): nunca dos a la vez.
+    if (typeof EC.announceConfirmed === 'function' && typeof EC.linkTabAction === 'function') {
+        const claimedElsewhere = typeof EC.isClaimedElsewhere === 'function' && EC.isClaimedElsewhere(pending);
+        const waitingTab = claimedElsewhere
+            ? false
+            : await EC.announceConfirmed(ARTIST_CONFIRM_KEY, { userId: session.user.id });
+        const action = EC.linkTabAction({
+            confirmed: true, hasPending: true, hasSession: true, sameAccount: true, waitingTab, claimedElsewhere
+        });
+        if (action === 'handoff' || (typeof EC.claimPending === 'function' && !EC.claimPending(ARTIST_CONFIRM_KEY))) {
+            showArtistConfirmHandoff();
+            return true;
+        }
+    }
     currentUser = session.user;
     goToStep('saving');
     try {
-        Object.assign(formState.data, pending.data || {});
-        const files = await EC.takeFiles(ARTIST_CONFIRM_FILES_KEY);
-        const local = files.map((file, i) => ({
-            id: 'confirm-local-' + i, source: 'local', file,
-            kind: (pending.localKinds && pending.localKinds[i]) || 'image'
-        }));
-        formState.data.portfolio_media_draft = (pending.igItems || []).concat(local);
-        await persistSelectedStudioLocation(pending.studioId);
+        await restoreArtistPendingDraft(pending);
+        // ── roster: con la solicitud pendiente no se pisa la sede (ronda 2).
+        if (!pending.membershipPending) await persistSelectedStudioLocation(pending.studioId);
         await persistPortfolioMedia();
     } catch (err) {
         console.warn('[register] completar tras confirmar el email:', err);
@@ -4935,6 +5105,75 @@ async function resumeArtistAfterEmailConfirmation() {
     EC.clearFiles(ARTIST_CONFIRM_FILES_KEY);
     redirectAfterRegistration(appUrl('/artist/dashboard'));
     return true;
+}
+
+// Reconstruye en memoria lo que quedó guardado para después de confirmar:
+// datos del formulario, publicaciones de Instagram y archivos (IndexedDB).
+async function restoreArtistPendingDraft(pending) {
+    const EC = window.WeotziEmailConfirm;
+    Object.assign(formState.data, pending.data || {});
+    const files = EC ? await EC.takeFiles(ARTIST_CONFIRM_FILES_KEY) : [];
+    const local = files.map((file, i) => ({
+        id: 'confirm-local-' + i, source: 'local', file,
+        kind: (pending.localKinds && pending.localKinds[i]) || 'image',
+        caption: (pending.localCaptions && pending.localCaptions[i]) || ''
+    }));
+    formState.data.portfolio_media_draft = (pending.igItems || []).concat(local);
+}
+
+// ── registro (ronda 2 · T1-2) ── la pestaña "Falta confirmar email" se
+// recargó (o se volvió a abrir) antes de confirmar: se muestra otra vez la
+// espera, con "Reenviar email" y la detección automática. No aplica si la
+// persona está empezando otro registro (otro borrador, Instagram o "de cero").
+function showArtistPendingConfirmationAgain(pending) {
+    if (!pending || !pending.userId || !pending.email) return false;
+    const params = new URLSearchParams(window.location.search || '');
+    if (params.get('startOver') === '1' || params.get('source') === 'instagram') return false;
+    const draftParam = params.get('draft') || params.get('draft_id') || '';
+    if (draftParam && pending.draftId && draftParam !== pending.draftId) return false;
+    if (draftParam && !pending.draftId) return false;
+    currentUser = { id: pending.userId, email: pending.email };
+    _artistConfirmMembershipPending = pending.membershipPending === true;
+    renderSuccessScreen('/artist/dashboard');
+    const nameEl = document.getElementById('ra-success-name');
+    const savedName = pending.data && pending.data.artistic_name;
+    if (nameEl && savedName) nameEl.textContent = savedName;
+    renderArtistEmailConfirmation(pending.email);
+    goToStep('success');
+    return true;
+}
+
+// ── registro (ronda 2 · N4) ── pestaña que abrió el link y no tiene que
+// terminar nada: "Listo, ya puedes cerrar esta pestaña" (e intenta cerrarse).
+function showArtistConfirmHandoff() {
+    const EC = window.WeotziEmailConfirm;
+    goToStep('success');
+    const section = document.getElementById('ra-success');
+    if (!section) return;
+    const title = section.querySelector('.ra-success-title');
+    if (title) title.textContent = 'Email confirmado.';
+    const sub = section.querySelector('.ra-success-sub');
+    if (sub) sub.textContent = 'Tu registro sigue en la pestaña donde lo empezaste.';
+    const claim = document.getElementById('ra-studio-claim');
+    if (claim) claim.hidden = true;
+    const cta = document.getElementById('ra-success-cta');
+    if (cta) cta.hidden = true;
+    let box = document.getElementById('ra-email-confirm');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'ra-email-confirm';
+        (cta && cta.parentNode ? cta.parentNode : section).insertBefore(box, cta || null);
+    }
+    if (EC && typeof EC.renderConfirmed === 'function') {
+        EC.renderConfirmed(box, {
+            state: 'close',
+            action: { label: 'Ir a mi panel', href: appUrl('/artist/dashboard') }
+        });
+        // Solo se cierra sola si el navegador lo permite; si no, queda el aviso.
+        setTimeout(() => EC.tryCloseTab(), 1500);
+    } else {
+        box.textContent = 'Listo, ya puedes cerrar esta pestaña.';
+    }
 }
 
 function renderSuccessScreen(destinationUrl) {
@@ -4973,7 +5212,7 @@ function renderStudioClaim(url, expiresAt) {
     const share = document.getElementById('ra-studio-claim-share');
     if (share) share.hidden = !(navigator.share && typeof navigator.share === 'function');
     const sub = document.querySelector('.ra-success-sub');
-    if (sub) sub.innerHTML = 'Ya podés recibir cotizaciones e invitaciones de estudios.';
+    if (sub) sub.innerHTML = 'Ya puedes recibir cotizaciones e invitaciones de estudios.';
     if (!box.dataset.wired) {
         box.dataset.wired = 'true';
         document.getElementById('ra-studio-claim-copy')?.addEventListener('click', async () => {
@@ -4989,13 +5228,13 @@ function renderStudioClaim(url, expiresAt) {
                 input.select();
                 try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
             }
-            if (status) status.textContent = ok ? 'Link copiado.' : 'No pudimos copiarlo: seleccioná el link y copialo a mano.';
+            if (status) status.textContent = ok ? 'Link copiado.' : 'No pudimos copiarlo: selecciona el link y cópialo a mano.';
         });
         share?.addEventListener('click', async () => {
             try {
                 await navigator.share({
                     title: 'Alta del estudio en We Ötzi',
-                    text: `Completá el alta de ${String(formState.data.studio_name || 'tu estudio').trim()} en We Ötzi con este link:`,
+                    text: `Completa el alta de ${String(formState.data.studio_name || 'tu estudio').trim()} en We Ötzi con este link:`,
                     url: input ? input.value : link
                 });
             } catch (_) { /* compartir cancelado */ }
@@ -5009,7 +5248,7 @@ function renderStudioClaim(url, expiresAt) {
 // quedan en el formulario y en el borrador).
 function showSubmitError(error) {
     const core = window.AccesoRegister && window.AccesoRegister.core;
-    const info = core ? core.describeSubmitError(error) : { title: 'No pudimos crear tu perfil', message: (error && error.message) || 'Intentá de nuevo.', retry: true };
+    const info = core ? core.describeSubmitError(error) : { title: 'No pudimos crear tu perfil', message: (error && error.message) || 'Intenta de nuevo.', retry: true };
     if (error && error.code === 'PASSWORD_REQUIRED') {
         groupDoneState.delete('acceso');
         goToStep(groupEntryStep('acceso'));
@@ -5097,7 +5336,7 @@ async function submitForm() {
     if (registrationSubmitInFlight) return;
     // Validate terms acceptance first — applies to all flows.
     if (!formState.data.terms_accepted) {
-        setGroupError('revision', 'Para crear tu perfil, aceptá los Términos y Condiciones y la Política de Privacidad.');
+        setGroupError('revision', 'Para crear tu perfil, acepta los Términos y Condiciones y la Política de Privacidad.');
         const termsCheckbox = document.getElementById('terms-checkbox');
         if (termsCheckbox) termsCheckbox.focus();
         return;
@@ -5277,7 +5516,7 @@ async function submitFormNow() {
         console.error('No authenticated user');
         btnNext.disabled = false;
         goToStep('summary');
-        showSubmitError(Object.assign(new Error('Tu sesión se cerró. Iniciá sesión de nuevo para terminar el registro.'), { status: 401 }));
+        showSubmitError(Object.assign(new Error('Tu sesión se cerró. Inicia sesión de nuevo para terminar el registro.'), { status: 401 }));
         return;
     }
 
@@ -5303,7 +5542,7 @@ async function submitFormNow() {
             // Go back to artistic name step
             groupDoneState.delete('quien');
             goToStep(1);
-            setGroupError('quien', `El nombre artístico «${formState.data.artistic_name}» ya está en uso. Elegí otro.`);
+            setGroupError('quien', `El nombre artístico «${formState.data.artistic_name}» ya está en uso. Elige otro.`);
             return;
         }
 
@@ -5534,7 +5773,7 @@ async function submitFormNow() {
         if (error.message === 'USERNAME_CONFLICT') {
             groupDoneState.delete('quien');
             goToStep(1);
-            setGroupError('quien', `El nombre artístico «${formState.data.artistic_name}» ya está en uso por otro artista. Elegí otro.`);
+            setGroupError('quien', `El nombre artístico «${formState.data.artistic_name}» ya está en uso por otro artista. Elige otro.`);
         } else {
             persistRegistrationDraft();
             goToStep('summary');
@@ -5616,7 +5855,7 @@ function updateBioMobilePreview() {
     const text = getBioMobilePreviewText(formState.data.bio || bioEditor.innerHTML, bioEditor);
     const hasBio = Boolean(text);
     trigger.classList.toggle('has-bio', hasBio);
-    preview.textContent = hasBio ? text : 'Tocá para escribir tu bio.';
+    preview.textContent = hasBio ? text : 'Toca para escribir tu bio.';
 }
 
 function isBioMobileViewport() {

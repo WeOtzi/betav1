@@ -4,7 +4,7 @@
  * Métodos con nombre para el mapa de estudios, el detalle de estudio ampliado
  * y "Escribir al estudio" de /artist/invitations (Figma 2007:5792–5795).
  * Las invitaciones en sí siguen en WeotziData.StudioMemberships
- * (studios-repo.js); acá vive lo que agrega el Figma final.
+ * (studios-repo.js); aquí vive lo que agrega el Figma final.
  *
  * Contrato: como studios-repo.js, cada método resuelve a `{ data, error }`
  * (nunca lanza) para que la página degrade sin romperse.

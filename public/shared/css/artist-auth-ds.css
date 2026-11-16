@@ -83,7 +83,7 @@
 /* ---------- Mensajes de estado ---------- */
 .wo-auth-message{margin:var(--space-2) 0 0}
 
-/* ---------- Divisor "O continuá con" ---------- */
+/* ---------- Divisor "O continúa con" ---------- */
 .wo-auth-or{display:flex;align-items:center;gap:13px;margin-top:15px;font-family:var(--font-mono);font-size:13px;line-height:18px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-faint)}
 .wo-auth-or::before,
 .wo-auth-or::after{content:"";flex:1;border-top:var(--border-hairline) solid var(--border-subtle)}

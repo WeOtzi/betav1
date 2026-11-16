@@ -245,9 +245,10 @@ const GROUP_COLLAPSED_COUNT = 4;
 let openStyleGroup = 'tecnica';
 const expandedStyleGroups = new Set();
 
-// Size mapping for filter matching
+// Size mapping for filter matching. "Micro" (hasta 5 cm, ronda 2) entra en el
+// filtro "Pequeño": sin esto quedaba fuera de todos los filtros de tamaño.
 const SIZE_MAP = {
-    'small': ['pequeño', 'pequeno', 'small'],
+    'small': ['micro', 'pequeño', 'pequeno', 'small'],
     'medium': ['mediano', 'medium'],
     'large': ['grande', 'large', 'media_manga', 'media manga'],
     'xlarge': ['muy_grande', 'muy grande', 'manga_completa', 'manga completa', 'espalda_completa', 'espalda completa', 'pecho_completo', 'pecho completo', 'xlarge']
@@ -478,10 +479,10 @@ function updateHeaderAuth() {
         authLabel.textContent = artistData?.username || 'Mi panel';
         authBtn.href = jobBoardAuthUrls.dashboard;
     } else if (currentUser) {
-        authLabel.textContent = 'Completá tu perfil';
+        authLabel.textContent = 'Completa tu perfil';
         authBtn.href = jobBoardAuthUrls.registerArtist;
     } else {
-        authLabel.textContent = 'Ingresá';
+        authLabel.textContent = 'Ingresa';
         authBtn.href = jobBoardAuthUrls.login;
     }
 
@@ -797,7 +798,7 @@ function toggleStyleFilter(styleName) {
 }
 
 // ============================================
-// QUICK FILTERS ("PARA VOS")
+// QUICK FILTERS ("PARA TI")
 // ============================================
 
 function artistStyles() {
@@ -817,7 +818,7 @@ function initQuickFilters() {
     const container = document.getElementById('quick-filters');
     if (!container) return;
 
-    // "Cerca tuyo" solo tiene sentido si conocemos la ciudad del artista.
+    // "Cerca de ti" solo tiene sentido si conocemos la ciudad del artista.
     const nearBtn = container.querySelector('[data-quick="near"]');
     if (nearBtn && !artistCity()) nearBtn.classList.add('is-unavailable');
 
@@ -937,7 +938,7 @@ function applyFilters() {
             if (!sameCity) return false;
         }
 
-        // "Cerca tuyo": misma ciudad que el artista (dato real de artists_db).
+        // "Cerca de ti": misma ciudad que el artista (dato real de artists_db).
         if (currentFilters.quick === 'near' && city) {
             if ((request.client_city || '').trim().toLowerCase() !== city) return false;
         }
@@ -1051,13 +1052,13 @@ function hasActiveRefinement() {
 }
 
 const QUICK_TITLES = {
-    recommended: 'Recomendado para vos',
-    near: 'Cerca tuyo',
+    recommended: 'Recomendado para ti',
+    near: 'Cerca de ti',
     newest: 'Recién publicados',
     saved: 'Guardados'
 };
 
-// Mismo criterio que el riel "Recomendado para vos": curaduría (feed_rank 1–5)
+// Mismo criterio que el riel "Recomendado para ti": curaduría (feed_rank 1–5)
 // o, sin curaduría, coincidencia con los estilos del artista.
 function isRecommendedRequest(request, pool) {
     const curated = (pool || allRequests).some(r => {
@@ -1095,7 +1096,7 @@ function buildRails() {
     const rails = [];
     if (recommended.length > 0) {
         rails.push({
-            title: 'Recomendado para vos',
+            title: 'Recomendado para ti',
             style: null,
             items: recommended.slice(0, RAIL_CARD_COUNT),
             total: recommended.length
@@ -1464,6 +1465,8 @@ function sizeLabelFor(request) {
     if (/\(.+\)/.test(String(request.tattoo_size || ''))) return String(request.tattoo_size).trim();
     const raw = String(request.tattoo_size || '').toLowerCase().replace(/\s+/g, '_');
     if (!raw) return 'No especificado';
+    // "Micro" se filtra como "Pequeño", pero la ficha lo nombra tal cual.
+    if (raw === 'micro') return 'Micro (hasta 5 cm)';
     const key = Object.keys(SIZE_MAP).find(k =>
         SIZE_MAP[k].some(s => raw.includes(s.replace(/\s+/g, '_')) || raw.includes(s))
     );
@@ -1668,7 +1671,7 @@ function buildProposalAside(request, sample) {
         return `
             <div class="jbf-login-prompt">
                 <i data-wo-icon="lock" aria-hidden="true"></i>
-                <p>${currentUser ? 'Completá tu perfil de artista para postularte a esta solicitud.' : 'Ingresá como artista para postularte a esta solicitud.'}</p>
+                <p>${currentUser ? 'Completa tu perfil de artista para postularte a esta solicitud.' : 'Ingresa como artista para postularte a esta solicitud.'}</p>
                 <div class="wo-modal-actions" style="justify-content:center;margin-top:0;">
                     <a href="${currentUser ? jobBoardAuthUrls.registerArtist : jobBoardAuthUrls.login}" class="wo-btn wo-btn--direct wo-btn--s">${currentUser ? 'Completar perfil' : 'Ingresar'}</a>
                     <a href="${currentUser ? jobBoardAuthUrls.dashboard : jobBoardAuthUrls.registerArtist}" class="wo-btn wo-btn--ghost wo-btn--s">${currentUser ? 'Ir a mi panel' : 'Registrarme'}</a>
@@ -1683,10 +1686,10 @@ function buildProposalAside(request, sample) {
 
     return `
         <h2 class="jbf-aside-title">Tu propuesta</h2>
-        <p class="jbf-aside-sub">Completá los datos para enviarle tu propuesta al cliente.</p>
+        <p class="jbf-aside-sub">Completa los datos para enviarle tu propuesta al cliente.</p>
         <form id="application-form" class="jbf-aside-form">
             <div class="wo-field">
-                <label class="wo-label" for="app-price">Precio que proponés</label>
+                <label class="wo-label" for="app-price">Precio que propones</label>
                 <div class="jbf-money">
                     <span class="jbf-money-sign" aria-hidden="true">$</span>
                     <input type="number" id="app-price" name="estimated_price" class="wo-input" min="1" step="any" required placeholder="Ej: 450">
@@ -1695,7 +1698,7 @@ function buildProposalAside(request, sample) {
             <div class="wo-field">
                 <label class="wo-label" for="app-duration">Tiempo estimado</label>
                 <select id="app-duration" name="estimated_duration" class="wo-select" required>
-                    <option value="">Seleccioná una opción</option>
+                    <option value="">Selecciona una opción</option>
                     <option value="1_day">1 día</option>
                     <option value="2_3_days">2–3 días</option>
                     <option value="1_week">1 semana</option>
@@ -1706,7 +1709,7 @@ function buildProposalAside(request, sample) {
             <div class="wo-field">
                 <label class="wo-label" for="app-sessions">Cantidad de sesiones</label>
                 <select id="app-sessions" name="estimated_sessions" class="wo-select" required>
-                    <option value="">Seleccioná una opción</option>
+                    <option value="">Selecciona una opción</option>
                     ${sessionOptions}
                 </select>
             </div>
@@ -1718,7 +1721,7 @@ function buildProposalAside(request, sample) {
             <div class="wo-field">
                 <label class="wo-label" for="app-message">Mensaje para el cliente</label>
                 <textarea id="app-message" name="message" class="wo-textarea" rows="4" required
-                    placeholder="Contale por qué te gustaría hacer este tatuaje…"></textarea>
+                    placeholder="Cuéntale por qué te gustaría hacer este tatuaje…"></textarea>
             </div>
             ${artistPreviewHtml(sample)}
             <button type="submit" class="wo-btn wo-btn--direct wo-btn--block wo-btn--hard" id="btn-submit-application">
@@ -1866,7 +1869,7 @@ async function handleApply(requestId) {
 
     } catch (err) {
         console.error('Error checking application status:', err);
-        showToast('No pudimos verificar tu propuesta. Probá de nuevo.', 'error');
+        showToast('No pudimos verificar tu propuesta. Prueba de nuevo.', 'error');
     }
 }
 
@@ -1895,7 +1898,7 @@ async function submitApplication(e) {
     e.preventDefault();
 
     if (!selectedRequest || !artistData || !_supabase) {
-        showToast('Error: datos incompletos. Recargá la página.', 'error');
+        showToast('Error: datos incompletos. Recarga la página.', 'error');
         return;
     }
 
@@ -1920,20 +1923,20 @@ async function submitApplication(e) {
 
         const estimatedPrice = rawPrice ? parseFloat(rawPrice) : NaN;
         if (!rawPrice || isNaN(estimatedPrice) || estimatedPrice <= 0) {
-            showToast('Ingresá un precio válido (mayor a 0).', 'error');
+            showToast('Ingresa un precio válido (mayor a 0).', 'error');
             resetSubmitButton();
             return;
         }
 
         const estimatedSessions = rawSessions ? parseInt(rawSessions, 10) : NaN;
         if (!rawSessions || isNaN(estimatedSessions) || estimatedSessions < 1) {
-            showToast('Elegí la cantidad de sesiones estimadas.', 'error');
+            showToast('Elige la cantidad de sesiones estimadas.', 'error');
             resetSubmitButton();
             return;
         }
 
         if (!estimatedDuration) {
-            showToast('Elegí el tiempo estimado.', 'error');
+            showToast('Elige el tiempo estimado.', 'error');
             resetSubmitButton();
             return;
         }
@@ -1994,7 +1997,7 @@ async function submitApplication(e) {
 
     } catch (err) {
         console.error('Error submitting application:', err);
-        showToast('No pudimos enviar la propuesta. Probá de nuevo.', 'error');
+        showToast('No pudimos enviar la propuesta. Prueba de nuevo.', 'error');
         resetSubmitButton();
     }
 }
@@ -2111,6 +2114,8 @@ function closeLoginModal() {
 let toastTimeout = null;
 
 function showToast(message, type) {
+    // Español neutro: los errores de la base todavía llegan en voseo (neutral-es.js).
+    if (window.WoNeutralEs) message = window.WoNeutralEs.neutralize(message);
     const existing = document.getElementById('jb-toast');
     if (existing) existing.remove();
     if (toastTimeout) clearTimeout(toastTimeout);

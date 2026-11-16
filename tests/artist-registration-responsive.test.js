@@ -55,7 +55,7 @@ test('el registro es un acordeón de 7 grupos, en el orden del Figma', () => {
 test('la nav superior lista los 7 grupos y no muestra contador de pasos', () => {
     const navGroups = [...html.matchAll(/data-nav-group="([^"]+)"/g)].map((m) => m[1]);
     assert.deepEqual(navGroups, GROUPS);
-    // El Figma no tiene "PASO 01 · 11" ni botón INGRESÁ en el topbar.
+    // El Figma no tiene "PASO 01 · 11" ni botón INGRESA en el topbar.
     assert.doesNotMatch(html, /PASO\s*0?1\s*·/i);
     assert.doesNotMatch(html, /ra-progress-copy/);
 });
@@ -65,13 +65,13 @@ test('la cabecera usa los textos exactos del Figma', () => {
     assert.match(html, /Armemos tu perfil\./);
     assert.match(
         html,
-        /Todo en una sola página — completá cada grupo y avanzá\. Podés volver a editar cualquiera antes de confirmar\./
+        /Todo en una sola página — completa cada grupo y avanza\. Puedes volver a editar cualquiera antes de confirmar\./
     );
 });
 
 test('cada grupo tiene el título y los campos que muestra el Figma', () => {
-    // 01 · Quién sos — nombre artístico + nombre real + fecha de nacimiento
-    assert.match(html, /01 · Quién sos/);
+    // 01 · Quién eres — nombre artístico + nombre real + fecha de nacimiento
+    assert.match(html, /01 · Quién eres/);
     assert.match(html, /Tu nombre, real y artístico\./);
     assert.match(html, /id="artistic_name"[^>]*placeholder="Como te conocen tus clientes"/);
     assert.match(html, /id="full_name"[^>]*placeholder="Tu nombre completo"/);
@@ -84,30 +84,30 @@ test('cada grupo tiene el título y los campos que muestra el Figma', () => {
     assert.match(html, /id="signup_password_confirm"/);
     // 03 · Tu oficio
     assert.match(html, /03 · Tu oficio/);
-    assert.match(html, /¿Qué estilos trabajás\?/);
-    assert.match(html, /Elegí todos los que representen tu trabajo\./);
-    assert.match(html, /¿Hace cuánto tatuás\?/);
+    assert.match(html, /¿Qué estilos trabajas\?/);
+    assert.match(html, /Elige todos los que representen tu trabajo\./);
+    assert.match(html, /¿Hace cuánto tatúas\?/);
     assert.match(html, /id="session_price"/);
     assert.match(html, /id="session_currency"/);
     // 04 · Tu presencia
     assert.match(html, /04 · Tu presencia/);
-    assert.match(html, /Contanos quién sos\./);
-    assert.match(html, /¿Dónde mostrás tu trabajo\?/);
+    assert.match(html, /Cuéntanos quién eres\./);
+    assert.match(html, /¿Dónde muestras tu trabajo\?/);
     assert.match(html, /id="instagram_handle"/);
     assert.match(html, /id="portfolio_url"/);
-    // 05 · Cómo trabajás
-    assert.match(html, /05 · Cómo trabajás/);
+    // 05 · Cómo trabajas
+    assert.match(html, /05 · Cómo trabajas/);
     assert.match(html, /¿Estudio o independiente\?/);
     assert.match(html, /id="address_search"/);
-    // 06 · Novedades (eyebrow "Mantenete al tanto") — 4 temas del Figma
-    assert.match(html, /06 · Mantenete al tanto/);
-    assert.match(html, /¿Qué querés recibir\?/);
+    // 06 · Novedades (eyebrow "Mantente al tanto") — 4 temas del Figma
+    assert.match(html, /06 · Mantente al tanto/);
+    assert.match(html, /¿Qué quieres recibir\?/);
     for (const topic of ['oportunidades', 'herramientas', 'avisos', 'recursos']) {
         assert.match(html, new RegExp(`data-topic="${topic}"`), `falta el tema ${topic}`);
     }
     // 07 · Revisión
-    assert.match(html, /07 · Revisá y confirmá/);
-    assert.match(html, /Revisá tus datos\./);
+    assert.match(html, /07 · Revisa y confirma/);
+    assert.match(html, /Revisa tus datos\./);
     assert.match(html, /id="terms-checkbox"/);
     assert.match(html, /Confirmar y crear perfil/);
 });
@@ -125,7 +125,8 @@ test('no quedan restos visibles del wizard paso-a-paso anterior', () => {
         /class="form-step/,
         /wo-step\d/,
         /data-step="\d/,
-        /presioná/i,
+        // La pista "Presioná ↵ para continuar" del wizard, en voseo o ya en tuteo.
+        /presioná|presiona(?!\p{L})/iu,
         /Usuario We Ötzi:/,
     ]) {
         assert.doesNotMatch(html, stale, `resto del diseño viejo: ${stale}`);

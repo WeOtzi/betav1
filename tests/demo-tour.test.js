@@ -216,7 +216,7 @@ test('el bootstrap del demo parchea fetch antes de que exista el cliente y bloqu
     assert.match(menu, /W\.startTour\(\)/);
     // Salida del demo, modo asistido y switch de la sugerencia (role=switch).
     assert.match(menu, /Salir del modo demo/);
-    assert.match(menu, /Modo asistido · configurá tu perfil/);
+    assert.match(menu, /Modo asistido · configura tu perfil/);
     assert.match(menu, /role="switch" aria-checked="/);
     assert.match(menu, /Sugerir el modo demo/);
 });

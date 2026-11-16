@@ -383,7 +383,7 @@
         /* ------------------------------ inbox ------------------------------ */
         // "Ver conversación" (?opportunity=&application=<id>) abre el hilo cuyo
         // context_id es la postulación. En producción los crea el trigger de
-        // 20260829153500_unified_artist_inbox.sql; acá hay uno por postulación,
+        // 20260829153500_unified_artist_inbox.sql; aquí hay uno por postulación,
         // con el estado y las fechas de la postulación.
         var threads = list('inbox_threads');
         var messages = list('inbox_messages');
@@ -430,7 +430,7 @@
             ], 1, false],
             [2, 'rodrigo', 'accepted', [
                 ['artist', 'Puedo hacerlo en una sesión, con dotwork suave para la luna.', at(-10, '15:00')],
-                ['client', 'Acepté tu propuesta. Coordinemos el turno por acá.', daysAgo(7)]
+                ['client', 'Acepté tu propuesta. Coordinemos el turno por aquí.', daysAgo(7)]
             ], 0, false],
             [3, 'sofia', 'rejected', [
                 ['artist', 'Lo haría en tres sesiones, con el ornamental en blackwork sólido.', at(-13, '10:45')],
@@ -481,7 +481,7 @@
                 context: { studio: 'Palermo Tattoo Club', spot_id: spotBySlug['palermo-tattoo-club'].id, start_date: dateOnly(20), end_date: dateOnly(47) },
                 messages: [
                     ['artist', 'Me sumo al guest de blackwork con agenda propia para las cuatro semanas.', at(-34, '11:00')],
-                    ['studio', 'Confirmado. Te esperamos el ' + dayMonth(20) + '; te reservamos la estación junto a la vidriera.', at(-27, '17:15')]
+                    ['studio', 'Confirmado. Te esperamos el ' + dayMonth(20) + '; te reservamos la estación junto a la vitrina.', at(-27, '17:15')]
                 ]
             });
         }

@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>We Ötzi · Creá tu cuenta</title>
+    <title>We Ötzi · Crea tu cuenta</title>
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/client-register-ds.css">
     <link rel="stylesheet" href="/client/register/step-one.css">
+    <link rel="stylesheet" href="/shared/css/registro-r2.css?v=20261116-r2">
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/config-manager.js"></script>
@@ -56,29 +57,29 @@
 
         <nav class="cw-tabs" aria-label="Pasos del registro">
             <button type="button" class="cw-tab is-active" data-step="1"><span class="num">01</span> Crear cuenta</button>
-            <button type="button" class="cw-tab" data-step="2" disabled><span class="num">02</span> Sobre vos</button>
+            <button type="button" class="cw-tab" data-step="2" disabled><span class="num">02</span> Sobre ti</button>
             <button type="button" class="cw-tab" data-step="3" disabled><span class="num">03</span> Tus gustos</button>
-            <button type="button" class="cw-tab" data-step="4" disabled><span class="num">04</span> Qué buscás</button>
+            <button type="button" class="cw-tab" data-step="4" disabled><span class="num">04</span> Qué buscas</button>
         </nav>
 
         <main class="cw-main" id="register-content">
 
-            <!-- ===== Paso 01 · Creá tu cuenta (391:539) ===== -->
+            <!-- ===== Paso 01 · Crea tu cuenta (391:539) ===== -->
             <section class="cw-step" data-step="1">
                 <header class="cw-step-head">
                     <span class="cw-step-ghost" aria-hidden="true">01</span>
                     <div>
-                        <h1 class="cw-title">Creá tu cuenta</h1>
+                        <h1 class="cw-title">Crea tu cuenta</h1>
                         <p class="cw-sub">Solo lo necesario para empezar. Tus gustos los vemos en un minuto.</p>
                     </div>
                 </header>
 
                 <div id="cw-prefill-note" class="wo-alert wo-alert--info wo-hidden">
-                    Precargamos tus datos desde tu cotización. Podés cambiarlos si querés.
+                    Precargamos tus datos desde tu cotización. Puedes cambiarlos si quieres.
                 </div>
 
                 <p class="cw-account-note wo-hidden" id="cw-account-note">
-                    Tu cuenta ya está creada. Corregí el nombre de usuario para terminar tu perfil.
+                    Tu cuenta ya está creada. Corrige el nombre de usuario para terminar tu perfil.
                 </p>
 
                 <div class="cw-s1-grid">
@@ -88,7 +89,7 @@
                             <img id="cw-photo-preview" class="wo-hidden" alt="Tu foto de perfil">
                             <span class="cw-photo-empty" id="cw-photo-empty">
                                 <img class="cw-frame-icon" src="/client/register/assets/photo.svg" width="28" height="29.1" alt="">
-                                <strong>Subí una foto</strong>
+                                <strong>Sube una foto</strong>
                                 <span class="browse">or <u>browse files</u></span>
                             </span>
                         </button>
@@ -116,7 +117,7 @@
                             <label class="wo-label" for="cw-email">Email <span class="req">*</span></label>
                             <div class="cw-inputwrap cw-inputwrap--icon">
                                 <img class="cw-frame-icon" src="/client/register/assets/mail.svg" width="18" height="18" alt="">
-                                <input type="email" id="cw-email" class="wo-input" placeholder="vos@email.com" autocomplete="email" required>
+                                <input type="email" id="cw-email" class="wo-input" placeholder="tu@email.com" autocomplete="email" required>
                             </div>
                         </div>
 
@@ -156,18 +157,18 @@
                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path>
                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"></path>
                         </svg>
-                        Registrate con Google
+                        Regístrate con Google
                     </button>
-                    <p class="cw-alt-link">¿Ya tenés cuenta? <a href="/client/login">Ingresá</a></p>
+                    <p class="cw-alt-link">¿Ya tienes cuenta? <a href="/client/login">Ingresa</a></p>
                 </div>
             </section>
 
-            <!-- ===== Paso 02 · Contanos un poco sobre vos (414:1012) ===== -->
+            <!-- ===== Paso 02 · Cuéntanos un poco sobre ti (414:1012) ===== -->
             <section class="cw-step" data-step="2" hidden>
                 <header class="cw-step-head">
                     <span class="cw-step-ghost" aria-hidden="true">02</span>
                     <div>
-                        <h1 class="cw-title">Contanos un poco sobre vos</h1>
+                        <h1 class="cw-title">Cuéntanos un poco sobre ti</h1>
                         <p class="cw-sub">Con esto podemos mostrarte artistas cerca y hablarte en tu idioma. Todo es opcional.</p>
                     </div>
                 </header>
@@ -180,7 +181,7 @@
                     <div class="wo-field">
                         <label class="wo-label" for="cw-country">País</label>
                         <select id="cw-country" class="wo-select" autocomplete="country-name">
-                            <option value="">Elegí tu país</option>
+                            <option value="">Elige tu país</option>
                             <option>Argentina</option>
                             <option>Bolivia</option>
                             <option>Brasil</option>
@@ -215,7 +216,7 @@
                     </div>
                 </div>
 
-                <div class="cw-sechead"><span>Cómo querés que te avisemos</span></div>
+                <div class="cw-sechead"><span>Cómo quieres que te avisemos</span></div>
                 <ul class="cw-notif">
                     <li>
                         <div>
@@ -227,13 +228,13 @@
                             <span class="knob"></span>
                         </label>
                     </li>
-                    <li class="is-disabled">
+                    <li>
                         <div>
-                            <p class="cw-notif-title">Notificaciones push <span class="wo-tag wo-tag--soft">Próximamente</span></p>
-                            <p class="cw-notif-desc">Avisos en tiempo real cuando alguien te responde.</p>
+                            <p class="cw-notif-title">Notificaciones push</p>
+                            <p class="cw-notif-desc">Avisos en tiempo real cuando alguien te responde. Al entrar a tu panel puedes activarlos en tu dispositivo.</p>
                         </div>
-                        <label class="wo-toggle" aria-label="Notificaciones push (próximamente)">
-                            <input type="checkbox" id="cw-notif-push" disabled>
+                        <label class="wo-toggle" aria-label="Notificaciones push">
+                            <input type="checkbox" id="cw-notif-push" checked>
                             <span class="knob"></span>
                         </label>
                     </li>
@@ -266,7 +267,7 @@
                     <span class="cw-step-ghost" aria-hidden="true">03</span>
                     <div>
                         <h1 class="cw-title">¿Qué tipo de tatuajes te gustan?</h1>
-                        <p class="cw-sub">Tus gustos en general — no hace falta pensar en un tatuaje puntual todavía. Elegí todos los que te representen.</p>
+                        <p class="cw-sub">Tus gustos en general — no hace falta pensar en un tatuaje en particular todavía. Elige todos los que te representen.</p>
                     </div>
                 </header>
 
@@ -283,7 +284,7 @@
                     <span class="cw-step-ghost" aria-hidden="true">04</span>
                     <div>
                         <h1 class="cw-title">¿Qué te trae a We Ötzi?</h1>
-                        <p class="cw-sub">Elegí lo que más te represente hoy. Podés cambiarlo cuando quieras.</p>
+                        <p class="cw-sub">Elige lo que más te represente hoy. Puedes cambiarlo cuando quieras.</p>
                     </div>
                 </header>
 
@@ -314,12 +315,12 @@
                     </button>
                 </div>
 
-                <div class="cw-sechead"><span>¿Ya tenés un artista en mente?</span></div>
+                <div class="cw-sechead"><span>¿Ya tienes un artista en mente?</span></div>
                 <div class="cw-artist-choice">
                     <button type="button" class="cw-intent" id="cw-artist-yes" role="radio" aria-checked="false">
                         <span class="cw-style-check" aria-hidden="true"></span>
                         <span class="cw-intent-title">Sí, ya tengo uno</span>
-                        <p class="cw-intent-desc">Buscalo y guardalo en tu perfil.</p>
+                        <p class="cw-intent-desc">Búscalo y guárdalo en tu perfil.</p>
                     </button>
                     <button type="button" class="cw-intent" id="cw-artist-no" role="radio" aria-checked="false">
                         <span class="cw-style-check" aria-hidden="true"></span>
@@ -348,7 +349,7 @@
                 Atrás
             </button>
             <div class="cw-footer-right">
-                <span class="cw-footer-note wo-hidden" id="cw-footer-note">Podés editar todo después</span>
+                <span class="cw-footer-note wo-hidden" id="cw-footer-note">Puedes editar todo después</span>
                 <button type="button" class="wo-btn wo-btn--hard" id="cw-next">
                     <span class="btn-text">Continuar</span>
                     <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
@@ -357,7 +358,7 @@
         </footer>
     </div>
 
-    <!-- ================= Confirmá tu email (diseño propio con el DS) ================= -->
+    <!-- ================= Confirma tu email (diseño propio con el DS) ================= -->
     <div id="cw-confirm" class="wo-hidden">
         <header class="cw-success-topbar">
             <span class="wo-marks" aria-hidden="true">
@@ -387,7 +388,7 @@
                 <span class="wo-mark-triangle"></span>
             </span>
             <h1 class="cw-success-title" id="cw-success-title">Tu perfil está listo.</h1>
-            <p class="cw-success-sub">Ya podés administrar tus próximas citas, recibir cotizaciones y descubrir artistas. Todo en un mismo lugar.</p>
+            <p class="cw-success-sub">Ya puedes administrar tus próximas citas, recibir cotizaciones y descubrir artistas. Todo en un mismo lugar.</p>
             <a class="wo-btn wo-btn--hard" href="/client/dashboard" data-ca-return-link data-ca-return-label="Volver a la Store">
                 Ir a tu panel
                 <i data-wo-icon="arrow-right" class="wo-icon-18" aria-hidden="true"></i>
@@ -396,11 +397,13 @@
     </div>
 
     <script src="/shared/js/email-confirmation.js"></script>
+    <!-- Ronda 2 · registro (P31): estilos del paso 03 con foto -->
+    <script src="/client/register/estilos-r2.js?v=20261116-r2"></script>
     <script src="/shared/js/client-auth.js"></script>
     <script>
     // =========================================================================
     // Controlador del wizard de registro de cliente (módulo de página).
-    // La cuenta se crea RECIÉN en "Crear mi cuenta" (paso 04) vía
+    // La cuenta se crea SOLO en "Crear mi cuenta" (paso 04) vía
     // handleClientRegistration(payload) de client-auth.js. El borrador vive en
     // localStorage (sin contraseña ni foto). Datos SIEMPRE via WeotziData.*.
     // =========================================================================
@@ -418,7 +421,7 @@
             maxStep: 1,
             firstName: '', lastName: '', email: '', username: '',
             country: '', city: '',
-            notifEmail: true, notifWhatsapp: false, notifDiscovery: false,
+            notifEmail: true, notifPush: true, notifWhatsapp: false, notifDiscovery: false,
             termsAccepted: false,
             styles: [], intent: '', artistChoice: '',
             artistUserId: null, artistLabel: ''
@@ -465,7 +468,8 @@
                     firstName: state.firstName, lastName: state.lastName,
                     email: state.email, username: state.username,
                     country: state.country, city: state.city,
-                    notifEmail: state.notifEmail, notifWhatsapp: state.notifWhatsapp,
+                    notifEmail: state.notifEmail, notifPush: state.notifPush,
+                    notifWhatsapp: state.notifWhatsapp,
                     notifDiscovery: state.notifDiscovery,
                     termsAccepted: state.termsAccepted,
                     styles: state.styles, intent: state.intent,
@@ -489,7 +493,7 @@
                  'intent', 'artistChoice', 'artistUserId', 'artistLabel'].forEach(function (k) {
                     if (d[k] !== undefined && d[k] !== null) state[k] = d[k];
                 });
-                ['notifEmail', 'notifWhatsapp', 'notifDiscovery', 'termsAccepted'].forEach(function (k) {
+                ['notifEmail', 'notifPush', 'notifWhatsapp', 'notifDiscovery', 'termsAccepted'].forEach(function (k) {
                     if (typeof d[k] === 'boolean') state[k] = d[k];
                 });
                 if (Array.isArray(d.styles)) state.styles = d.styles;
@@ -585,8 +589,8 @@
             return false;
         }
         function validateStep1() {
-            if (!state.firstName) return invalid('cw-first', 'Contanos tu nombre.');
-            if (!state.lastName) return invalid('cw-last', 'Contanos tu apellido.');
+            if (!state.firstName) return invalid('cw-first', 'Cuéntanos tu nombre.');
+            if (!state.lastName) return invalid('cw-last', 'Cuéntanos tu apellido.');
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email)) {
                 return invalid('cw-email', 'El email ingresado no es válido.');
             }
@@ -599,7 +603,7 @@
             // ACC-08: Términos y Privacidad obligatorios para crear la cuenta.
             if (!accountUserId && !state.termsAccepted) {
                 $('cw-terms').setAttribute('aria-invalid', 'true');
-                showMsg('Aceptá los Términos y Condiciones y la Política de Privacidad para crear tu cuenta.', 'error');
+                showMsg('Acepta los Términos y Condiciones y la Política de Privacidad para crear tu cuenta.', 'error');
                 $('cw-terms').focus();
                 return false;
             }
@@ -645,6 +649,11 @@
         // ---------------- Paso 03 · estilos ----------------
         function loadStylesCatalog() {
             if (stylesCatalog) return Promise.resolve(stylesCatalog);
+            // Ronda 2 (P31): catálogo ampliado con fotos (estilos-r2.js).
+            if (window.WoClientStyles && typeof WoClientStyles.names === 'function') {
+                stylesCatalog = WoClientStyles.names();
+                return Promise.resolve(stylesCatalog);
+            }
             var fromDb = (window.ConfigManager && typeof ConfigManager.loadTattooStylesFromDB === 'function')
                 ? ConfigManager.loadTattooStylesFromDB()
                 : Promise.resolve([]);
@@ -684,6 +693,9 @@
                         '<span class="cw-style-mark' + shape + color + '" aria-hidden="true"></span>' +
                         '<span class="cw-style-name"></span>';
                     btn.querySelector('.cw-style-name').textContent = name;
+                    grid.appendChild(btn);
+                    // Ronda 2 (P31): foto del estilo (con respaldo si aún no existe).
+                    if (window.WoClientStyles && typeof WoClientStyles.decorate === 'function') WoClientStyles.decorate(btn, name, i);
                     if (state.styles.indexOf(name) !== -1) {
                         btn.classList.add('is-selected');
                         btn.setAttribute('aria-pressed', 'true');
@@ -783,7 +795,7 @@
                 if (hits.length === 0) {
                     var li = document.createElement('li');
                     li.className = 'cw-artist-empty';
-                    li.textContent = 'No encontramos artistas con ese nombre. Podés seguir sin elegir uno.';
+                    li.textContent = 'No encontramos artistas con ese nombre. Puedes seguir sin elegir uno.';
                     list.appendChild(li);
                     return;
                 }
@@ -862,11 +874,11 @@
         function mapAuthError(err) {
             var m = String((err && err.message) || '');
             if (m.indexOf('already registered') !== -1) {
-                return 'Este email ya está registrado. <a href="/client/login">Ingresá</a>';
+                return 'Este email ya está registrado. <a href="/client/login">Ingresa</a>';
             }
             if (m.indexOf('Invalid email') !== -1) return 'El email ingresado no es válido.';
             if (m.indexOf('Password should be') !== -1) return 'La contraseña tiene que tener al menos 8 caracteres.';
-            return 'No pudimos crear la cuenta. Probá de nuevo.';
+            return 'No pudimos crear la cuenta. Prueba de nuevo.';
         }
 
         async function uploadPhoto(uid) {
@@ -889,13 +901,19 @@
             var photoUrl = await uploadPhoto(uid);
 
             // Preferencias de aviso (user_preferences.notification_prefs).
+            // Push: prendido no escribe nada (vale el valor por defecto del servidor,
+            // lib/notification-prefs.js). Apagado se guarda por evento, en el mismo
+            // formato de la matriz de /client/profile#notificaciones.
             try {
-                await WeotziData.Prefs.saveSection(uid, 'notification_prefs', {
+                var notifPrefs = {
                     email_updates: state.notifEmail,
-                    push: false, // sin backend de push (Omitidos v1)
                     whatsapp_session_confirmations: state.notifWhatsapp,
                     weekly_discovery: state.notifDiscovery
-                });
+                };
+                if (state.notifPush === false) {
+                    ['postulaciones', 'mensajes', 'cotizaciones'].forEach(function (kind) { notifPrefs[kind] = { push: false }; });
+                }
+                await WeotziData.Prefs.saveSection(uid, 'notification_prefs', notifPrefs);
             } catch (e) { console.warn('No se pudieron guardar las preferencias de aviso:', e); }
 
             // Patch de clients_db (foto y ciudad, best-effort).
@@ -906,7 +924,7 @@
                 if (Object.keys(patch).length) await WeotziData.Clients.updateByUserId(uid, patch);
             } catch (e) { console.warn('No se pudo actualizar clients_db:', e); }
 
-            // client_profiles: acá viaja el username — el UNIQUE decide la unicidad.
+            // client_profiles: aquí viaja el username — el UNIQUE decide la unicidad.
             var res = await WeotziData.ClientProfiles.upsert({
                 client_user_id: uid,
                 username: state.username || null,
@@ -942,7 +960,7 @@
             if (EC) EC.clearFiles(PHOTO_STASH_KEY);
         }
 
-        // ---------------- Confirmá tu email ----------------
+        // ---------------- Confirma tu email ----------------
         // Con "Confirm email" activo, signUp no abre sesión: se guarda el
         // borrador (sin contraseña) y la foto en IndexedDB, y el perfil se
         // completa al volver desde el link de confirmación.
@@ -953,7 +971,7 @@
             $('cw-confirm').classList.remove('wo-hidden');
             var main = $('cw-confirm-main');
             if (!EC) {
-                main.innerHTML = '<p class="cw-success-sub">Revisá tu email para confirmar la cuenta.</p>';
+                main.innerHTML = '<p class="cw-success-sub">Revisa tu email para confirmar la cuenta.</p>';
                 return;
             }
             EC.renderPending(main, {
@@ -961,7 +979,20 @@
                 sentAt: pendingConfirmation.sentAt,
                 client: window._supabase,
                 redirectTo: clientConfirmRedirectUrl(),
-                note: 'Guardamos tu progreso en este navegador. Cuando abras el link, terminamos tu perfil con lo que ya cargaste.',
+                note: 'Guardamos tu progreso en este navegador. Cuando abras el link, terminamos tu perfil con lo que ya completaste.',
+                // Ronda 2 (N4): esta pestaña se entera sola de la confirmación y sigue aquí.
+                watch: typeof EC.watchConfirmation === 'function' ? {
+                    key: CLIENT_REGISTER_WATCH_KEY,
+                    userId: pendingConfirmation.userId || null,
+                    onConfirmed: function (info) {
+                        if (info && info.session) { resumeAfterConfirmation(true); return; }
+                        EC.renderConfirmed(main, {
+                            state: 'confirmed',
+                            text: 'Tu email quedó confirmado. Inicia sesión para terminar tu perfil.',
+                            action: { label: 'Iniciar sesión', href: clientAppPath('/client/login') }
+                        });
+                    }
+                } : null,
                 changeEmailMode: 'callback',
                 onChangeEmail: function () {
                     // La cuenta anterior queda sin confirmar (no se puede usar).
@@ -976,13 +1007,15 @@
                     $('cw-password').disabled = false;
                     $('cw-account-note').classList.add('wo-hidden');
                     go(1);
-                    showMsg('Escribí el email correcto y tu contraseña para crear la cuenta. El resto de tus datos quedó guardado.', 'info');
+                    showMsg('Escribe el email correcto y tu contraseña para crear la cuenta. El resto de tus datos quedó guardado.', 'info');
                     $('cw-email').focus();
                 }
             });
         }
 
-        async function resumeAfterConfirmation() {
+        // Ronda 2 (N4): canal entre la pestaña "Revisa tu email" y la del link.
+        var CLIENT_REGISTER_WATCH_KEY = 'client-register';
+        async function resumeAfterConfirmation(fromWatcher) {
             var session = null;
             try {
                 var res = await window._supabase.auth.getSession();
@@ -1005,11 +1038,28 @@
                     EC.renderLinkErrorNotice(holder, {
                         linkError: linkError,
                         what: 'link de confirmación',
-                        hint: 'Si ya confirmaste tu email, ingresá con tu contraseña. Si no, tocá «Reenviar email».',
+                        hint: 'Si ya confirmaste tu email, ingresa con tu contraseña. Si no, toca «Reenviar email».',
                         actions: [{ label: 'Ingresar', href: clientAppPath('/client/login'), kind: 'ghost' }]
                     });
                 }
                 return;
+            }
+            // Ronda 2 (N4): si la pestaña donde empezó el registro sigue abierta,
+            // ella termina el perfil; esta (la del link) solo avisa y se cierra.
+            if (fromWatcher !== true && EC && typeof EC.announceConfirmed === 'function'
+                && new URLSearchParams(window.location.search).get('confirmado') === '1') {
+                var waitingTab = await EC.announceConfirmed(CLIENT_REGISTER_WATCH_KEY, { userId: session.user.id });
+                if (waitingTab) {
+                    $('cw-shell').classList.add('wo-hidden');
+                    $('cw-shell').style.display = 'none';
+                    $('cw-confirm').classList.remove('wo-hidden');
+                    EC.renderConfirmed($('cw-confirm-main'), {
+                        state: 'close',
+                        action: { label: 'Ir a mi panel', href: clientAppPath('/client/dashboard') }
+                    });
+                    setTimeout(function () { EC.tryCloseTab(); }, 1500);
+                    return;
+                }
             }
             accountUserId = session.user.id;
             if (EC) {
@@ -1032,7 +1082,7 @@
                     saveDraft();
                     lockAccountFields();
                     go(1);
-                    showMsg('Ese nombre de usuario ya está en uso. Elegí otro y volvé a intentar.', 'error');
+                    showMsg('Ese nombre de usuario ya está en uso. Elige otro y vuelve a intentar.', 'error');
                     return;
                 }
                 console.warn('Perfil incompleto (se puede completar después):', err);
@@ -1054,16 +1104,16 @@
             if (session) return;
             var login = clientAppPath('/client/login');
             if (linkError) {
-                showMsg('El link de confirmación venció o ya se usó. Si ya confirmaste tu email, <a href="' + login + '">ingresá con tu contraseña</a>. Si no, ingresá igual: te ofrecemos reenviar el email.', 'error');
+                showMsg('El link de confirmación venció o ya se usó. Si ya confirmaste tu email, <a href="' + login + '">ingresa con tu contraseña</a>. Si no, ingresa de todos modos: te ofrecemos reenviar el email.', 'error');
             } else {
-                showMsg('Tu email está confirmado. <a href="' + login + '">Ingresá con tu contraseña</a> para continuar.', 'success');
+                showMsg('Tu email está confirmado. <a href="' + login + '">Ingresa con tu contraseña</a> para continuar.', 'success');
             }
         }
 
         async function submitFinal() {
             clearMsg();
             if (!accountUserId && password.length < 8) {
-                showMsg('Escribí tu contraseña en el paso 01 para crear la cuenta.', 'error');
+                showMsg('Escribe tu contraseña en el paso 01 para crear la cuenta.', 'error');
                 go(1);
                 return;
             }
@@ -1111,7 +1161,7 @@
                     // La cuenta ya existe: solo se reintenta el perfil tras corregir.
                     lockAccountFields();
                     go(1);
-                    showMsg('Ese nombre de usuario ya está en uso. Elegí otro y volvé a intentar.', 'error');
+                    showMsg('Ese nombre de usuario ya está en uso. Elige otro y vuelve a intentar.', 'error');
                     return;
                 }
                 // Cualquier otro fallo del perfil no bloquea la cuenta ya creada.
@@ -1146,6 +1196,7 @@
                 scheduleSave();
             });
             bindToggle('cw-notif-email', 'notifEmail');
+            bindToggle('cw-notif-push', 'notifPush');
             bindToggle('cw-notif-whatsapp', 'notifWhatsapp');
             bindToggle('cw-notif-discovery', 'notifDiscovery');
             bindToggle('cw-terms', 'termsAccepted');

@@ -204,6 +204,16 @@ app.use(cors({
     credentials: true
 }));
 
+// GET de alta frecuencia que NO cuentan para el apiLimiter global porque tienen
+// limitador propio: las miniaturas del preview de Instagram (hasta 50 por alta,
+// igThumbLimiter) y el sondeo de confirmación de email (cada 12 s,
+// lib/routes/registro.js). Sumados a los autosaves, dos o tres altas desde la
+// misma red agotaban los 300 y todo /api/ de esa IP respondía 429, incluido
+// artist-finalize. Se evalúa sobre baseUrl + path (sin query string), nunca
+// sobre originalUrl, por el mismo motivo que isOwnLimitedPath.
+const OWN_LIMITED_GET_RE = /^\/api\/(instagram\/proxy-thumb|register\/confirmation-status)\/?$/i;
+const hasOwnGetLimiter = (req) => req.method === 'GET' && OWN_LIMITED_GET_RE.test(`${req.baseUrl || ''}${req.path || ''}`);
+
 // Rate limiting: General API endpoints
 // 300/15min covers the pre-auth registration wizard, which fires ~30-60 autosaves
 // to /api/register/artist-draft plus uniqueness checks, IG preview/commit, etc.
@@ -213,8 +223,9 @@ const apiLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     // El webhook de pagos de la Store tiene su limiter propio (storeWebhookLimiter);
-    // el cotizador (intake, sugerencias, Job Board) también (lib/routes/cot-form.js).
-    skip: (req) => storeOrders.isStoreWebhookRequest(req) || require('./lib/routes/cot-form').isOwnLimitedPath(req),
+    // el cotizador (intake, sugerencias, Job Board) también (lib/routes/cot-form.js),
+    // igual que las miniaturas de Instagram y el sondeo de confirmación (hasOwnGetLimiter).
+    skip: (req) => storeOrders.isStoreWebhookRequest(req) || require('./lib/routes/cot-form').isOwnLimitedPath(req) || hasOwnGetLimiter(req),
     message: { success: false, error: 'Too many requests, please try again later.' }
 });
 
@@ -225,7 +236,7 @@ const storeWebhookLimiter = rateLimit({
     max: 120,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, error: 'Demasiados avisos de pago. Probá de nuevo en un minuto.' }
+    message: { success: false, error: 'Demasiados avisos de pago. Prueba de nuevo en un minuto.' }
 });
 
 // Rate limiting: Sensitive endpoints that create or modify auth credentials.
@@ -248,7 +259,7 @@ const storeDownloadLimiter = rateLimit({
     max: 60,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, error: 'Demasiadas descargas seguidas. Probá de nuevo en unos minutos.' }
+    message: { success: false, error: 'Demasiadas descargas seguidas. Prueba de nuevo en unos minutos.' }
 });
 
 // Apply rate limits
@@ -327,107 +338,13 @@ app.post('/api/account/mode', accountModes.activate);
 app.post('/api/register/test-client', authLimiter, accountModes.registerTestClient);
 
 // ============================================
-// GEMINI API INTEGRATION
+// IA DE IMÁGENES (OpenAI GPT Image 2.6; Gemini solo como proveedor heredado)
 // ============================================
-
-/**
- * Generate image using Gemini API
- * POST /api/gemini/generate-image
- * Body: { prompt, model, aspectRatio, imageSize }
- * API key read from process.env (NEVER from frontend)
- */
-app.post('/api/gemini/generate-image', async (req, res) => {
-    const {
-        prompt,
-        model,
-        aspectRatio,
-        imageSize,
-        temperature,
-        maxOutputTokens,
-        safetySettings
-    } = req.body;
-
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!prompt) {
-        return res.status(400).json({ success: false, error: 'Prompt is required' });
-    }
-
-    if (!apiKey) {
-        return res.status(500).json({ success: false, error: 'Server missing GEMINI_API_KEY environment variable' });
-    }
-
-    try {
-        const targetModel = model || 'gemini-3-pro-image-preview';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
-
-        // Note: maxOutputTokens should NOT be set for image generation
-        // Images are returned as base64 which requires many tokens
-        // Setting a low limit causes finishReason: MAX_TOKENS with empty content
-        const requestBody = {
-            contents: [{
-                parts: [{ text: prompt }]
-            }],
-            generationConfig: {
-                responseModalities: ["IMAGE"],
-                temperature: temperature !== undefined ? temperature : 0.7,
-                // Removed maxOutputTokens - not applicable for image generation
-                imageConfig: {
-                    aspectRatio: aspectRatio || "1:1",
-                    imageSize: imageSize || "1K" // "1K", "2K", "4K" allowed for Gemini 3 Pro
-                }
-            }
-        };
-
-        // Add safety settings if provided
-        if (safetySettings) {
-            requestBody.safetySettings = safetySettings;
-        }
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error?.message || 'Failed to generate image');
-        }
-
-        // Extract image data
-        // Response format: candidates[0].content.parts[0].inlineData.data (base64)
-        const candidates = data.candidates;
-        if (!candidates || candidates.length === 0) {
-            throw new Error('No image candidates returned');
-        }
-
-        // Handle case where parts might be undefined (API returned different structure)
-        if (!candidates[0].content?.parts) {
-            throw new Error('API response missing image parts. The model may not support image generation or returned text instead.');
-        }
-
-        const part = candidates[0].content.parts.find(p => p.inlineData);
-        if (!part) {
-            throw new Error('No image data found in response');
-        }
-
-        const base64Image = part.inlineData.data;
-        const mimeType = part.inlineData.mimeType;
-
-        return res.json({
-            success: true,
-            image: `data:${mimeType};base64,${base64Image}`
-        });
-
-    } catch (error) {
-        console.error('Gemini API Error:', error.message);
-        return res.status(500).json({ success: false, error: error.message });
-    }
-});
+// POST /api/ai/generate-image y su alias histórico POST /api/gemini/generate-image:
+// mismo guard (límite por IP, tope diario y saneo del body) y mismo handler, en
+// lib/routes/ai-image.js. Genera con lib/ai-image.js; la clave se lee solo de
+// process.env (OPENAI_API_KEY), nunca del navegador.
+require('./lib/routes/ai-image').register(app);
 
 // ============================================
 // SUPPORT CHAT AGENT (OpenAI GPT + handoff humano)
@@ -710,7 +627,7 @@ function _buildSystemPrompt({ role, profile, pageContext, conversation }) {
         : 'Estás hablando con un visitante no autenticado.';
     return [
         'Eres el asistente de soporte oficial de WeOtzi, una plataforma para conectar tatuadores con clientes.',
-        'Respondes siempre en español neutro rioplatense, con tono cálido, profesional y conciso.',
+        'Respondes siempre en español neutro, tuteando al usuario (tú, nunca vos ni usted), sin voseo ni regionalismos, con tono cálido, profesional y conciso.',
         greeting,
         pageContext ? `Página actual del usuario: ${pageContext}.` : '',
         'Tienes acceso a herramientas (tools) para consultar cotizaciones, verificación y FAQ. Úsalas cuando aplique.',
@@ -1264,7 +1181,7 @@ app.post('/api/google-drive/test', async (req, res) => {
         
         let errorMessage = 'Failed to access folder';
         if (error.code === 404) {
-            errorMessage = 'Carpeta no encontrada. Asegurate que la carpeta existe y esta compartida con el email de la cuenta de servicio.';
+            errorMessage = 'Carpeta no encontrada. Asegúrate que la carpeta existe y esta compartida con el email de la cuenta de servicio.';
         } else if (error.code === 403) {
             errorMessage = 'Acceso denegado. Comparte la carpeta con el email de la cuenta de servicio (permisos de Editor).';
         } else if (error.message.includes('invalid_grant')) {
@@ -2215,6 +2132,8 @@ const ADMIN_DATABASE_TABLES = [
     { name: 'inbox_thread_activity', description: 'Actividad auditable del inbox' },
     { name: 'user_notification_reads', description: 'Lecturas de notificaciones por usuario' },
     { name: 'client_profiles', description: 'Perfiles extendidos de clientes' },
+    { name: 'favorite_lists', description: 'Listas de favoritos de clientes' },
+    { name: 'favorite_items', description: 'Favoritos guardados en listas' },
     { name: 'client_favorites', description: 'Favoritos de clientes' },
     // Platform / ops
     { name: 'app_settings', description: 'Configuracion de la app' },
@@ -2533,7 +2452,7 @@ app.get('/api/admin/artists', async (req, res) => {
 // Columns the studio edit form may write. id / user_id / primary_location_id /
 // timestamps / computed columns are intentionally excluded so the editor can
 // never corrupt ownership or relational pointers.
-// is_verified NO va acá: la verificación se decide en la cola de
+// is_verified NO va aquí: la verificación se decide en la cola de
 // verificaciones (lib/routes/verif-estudio.js), que sincroniza
 // verification_status, verified_at y la solicitud.
 const STUDIO_EDITABLE_COLUMNS = new Set([
@@ -2888,8 +2807,9 @@ app.get('/shared/js/app-config.json', async (req, res) => {
             config.emailjs.publicKey = process.env.EMAILJS_PUBLIC_KEY;
         }
         
-        // Gemini AI: la key vive solo en el servidor (/api/gemini/*); el
-        // navegador recibe gemini.enabled (sanitizePublicConfig).
+        // IA de imágenes (OpenAI; Gemini heredado): la key vive solo en el
+        // servidor (/api/ai/*). El navegador recibe aiImages { enabled, provider }
+        // y gemini.enabled con el mismo valor (sanitizePublicConfig).
         
         // WeOtzi configuration
         if (process.env.WHATSAPP_NUMBER) {
@@ -3256,7 +3176,7 @@ app.post('/api/client/quotations/:quoteId/complete', async (req, res) => {
         const completedAt = new Date().toISOString();
         await QuotationsRepo.markCompletedByClient(quotation.id, caller.id, completedAt);
         const cotNotices = require('./lib/cot-artista-notices'); // COT-A-12: resumen a cliente y artista (una copia por rol)
-        cotNotices.inBackground('completed', () => cotNotices.notifyQuotationCompleted(quotation.quote_id, { baseUrl: applicationBase(req) }));
+        cotNotices.inBackground('completed', () => cotNotices.notifyQuotationCompleted(quotation.quote_id, { baseUrl: applicationBase(req), actorUserId: caller.id }));
         // ── emails ── pedido de reseña (el resumen ya sale arriba por rol; no se duplica).
         void require('./lib/routes/emails').notifyQuotationCompleted(quoteId, { baseUrl: applicationBase(req), events: ['request_rating'] }).catch(() => {});
 
@@ -3296,7 +3216,6 @@ function getHealthConfig() {
         storageBucket: process.env.SUPABASE_STORAGE_BUCKET || config.supabase?.storageBucket || 'quotation-references',
         googleMapsKey: process.env.GOOGLE_MAPS_API_KEY || config.googleMaps?.apiKey || '',
         n8nWebhookUrl: process.env.N8N_WEBHOOK_URL || config.n8n?.webhookUrl || '',
-        geminiApiKey: process.env.GEMINI_API_KEY || config.gemini?.apiKey || '',
         emailjsServiceId: process.env.EMAILJS_SERVICE_ID || config.emailjs?.serviceId || '',
         emailjsPublicKey: process.env.EMAILJS_PUBLIC_KEY || config.emailjs?.publicKey || '',
         gdriveCredentials: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT || config.googleDrive?.serviceAccountJson || '',
@@ -3377,17 +3296,15 @@ async function checkServiceHealth(serviceName, cfg) {
             }
 
             case 'gemini': {
-                if (!cfg.geminiApiKey) break;
-                // List models endpoint — lightweight, no token consumption
-                const geminiRes = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models?key=${cfg.geminiApiKey}&pageSize=1`,
-                    { signal: AbortSignal.timeout(10000) }
-                );
-                if (!geminiRes.ok) {
-                    const errData = await geminiRes.json().catch(() => ({}));
-                    throw new Error(errData.error?.message || `HTTP ${geminiRes.status}`);
-                }
-                status = 'healthy';
+                // 'gemini' es la clave histórica del servicio (historial y paneles):
+                // hoy chequea el proveedor ACTIVO de imágenes con IA (OpenAI por
+                // defecto; lib/ai-image.js). Consulta el modelo sin generar nada ni
+                // gastar cuota; metadata dice qué proveedor y modelo, nunca la clave.
+                const aiImage = require('./lib/ai-image');
+                const aiInfo = aiImage.providerInfo();
+                metadata.provider = aiInfo.provider;
+                if (aiInfo.model) metadata.model = aiInfo.model;
+                status = (await aiImage.checkHealth()).status;
                 break;
             }
 
@@ -4392,8 +4309,8 @@ app.post('/api/studio/notify', require('./lib/routes/emails').dispatchLimiter, a
                     ? `¡Te aceptaron en ${studio.name}!`
                     : `Actualización de tu postulación a ${studio.name}`,
                 body_text: decision === 'accepted'
-                    ? `Hola${artist.name ? ' ' + artist.name : ''},\n\n${studio.name} aceptó tu postulación al spot "${spot.title}" y te envió una invitación para sumarte como ${roleFromKind(spot.kind)}.\n\nAceptala en ${mailBase}/artist/invitations para quedar en el equipo del estudio. Mucha suerte y buena tinta.`
-                    : `Hola${artist.name ? ' ' + artist.name : ''},\n\nGracias por postularte al spot "${spot.title}" en ${studio.name}. En esta oportunidad eligieron a otro artista, pero seguí atento al directorio para nuevas oportunidades: ${mailBase}/studio-spots`,
+                    ? `Hola${artist.name ? ' ' + artist.name : ''},\n\n${studio.name} aceptó tu postulación al spot "${spot.title}" y te envió una invitación para sumarte como ${roleFromKind(spot.kind)}.\n\nAcéptala en ${mailBase}/artist/invitations para quedar en el equipo del estudio. Mucha suerte y buena tinta.`
+                    : `Hola${artist.name ? ' ' + artist.name : ''},\n\nGracias por postularte al spot "${spot.title}" en ${studio.name}. En esta oportunidad eligieron a otro artista, pero sigue atento al directorio para nuevas oportunidades: ${mailBase}/studio-spots`,
                 links: {
                     studio_profile:   `${mailBase}/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`,
                     invitations:      `${mailBase}/artist/invitations`,
@@ -4445,7 +4362,7 @@ app.post('/api/studio/notify', require('./lib/routes/emails').dispatchLimiter, a
                 body_text:
                     `Hola${artist.name ? ' ' + artist.name : ''},\n\n`
                     + `${studio.name} te invitó como ${roleFromKind(m.role)} a su roster en We Ötzi.\n\n`
-                    + `Para aceptar o rechazar la invitación, ingresá a ${mailBase}/artist/invitations.`,
+                    + `Para aceptar o rechazar la invitación, ingresa a ${mailBase}/artist/invitations.`,
                 links: {
                     invitations: `${mailBase}/artist/invitations`,
                     studio_profile: `${mailBase}/studio/profile/?studio=${encodeURIComponent(studio.slug || studio.id)}`
@@ -5704,7 +5621,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
     if (password.length < 6) return res.status(400).json({ success: false, error: 'La contrasena debe tener al menos 6 caracteres' });
     // ── cotizaciones · P3: sin aceptar los Términos no se crea la cuenta.
     if (!termsAcceptance.hasAcceptedTerms(formData)) {
-        return res.status(400).json({ success: false, error: 'Para crear tu perfil, aceptá los Términos y la Política de Privacidad.', code: 'TERMS_REQUIRED' });
+        return res.status(400).json({ success: false, error: 'Para crear tu perfil, acepta los Términos y la Política de Privacidad.', code: 'TERMS_REQUIRED' });
     }
 
     // Estado del intento para la compensacion (ver lib/registration-finalize.js).
@@ -5741,7 +5658,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             email, username, instagram, draftId,
             allowUserId: ownAuthUser ? ownAuthUser.id : undefined
         });
-        // Instagram duplicado NO bloquea (decision 26 ago): se registra igual y
+        // Instagram duplicado NO bloquea (decision 26 ago): se registra de todos modos y
         // el Instagram queda para validar despues. Solo email/username frenan.
         const blocking = conflicts.filter((c) => c !== 'instagram');
         if (blocking.length > 0) {
@@ -5771,7 +5688,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             throw new Error('Auth create returned no user id');
         }
 
-        // Desde aca todo lo que falle se compensa (catch de abajo).
+        // Desde aquí todo lo que falle se compensa (catch de abajo).
         // ── roster (ROSTER-03): un enlace de invitación válido fuerza el
         // estudio y la sede del enlace (lo que mande el cliente no cuenta).
         const studioInviteResolution = await rosterRoutes.service()
@@ -5825,7 +5742,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
             ? await issueStudioClaimUrl(req, { studioId: studio.claimableStudioId, artistUserId: authUser.id })
             : null;
 
-        // ── confirmacion-email: recién con todo guardado se envía el email
+        // ── confirmacion-email: solo con todo guardado se envía el email
         // (si se compensara antes, el link apuntaría a una cuenta borrada).
         const confirmationSend = emailConfirmationRequired
             ? await sendServerSignupConfirmation(req, email, 'artist')
@@ -5884,7 +5801,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
         const already = /already|registered/i.test(error.message) && !/duplicate key|23505|42P10/i.test(error.message);
         return res.status(already ? 409 : 500).json({
             success: false,
-            error: already ? 'Ya existe una cuenta con ese email.' : 'No se pudo finalizar el registro. Probá de nuevo en unos minutos.'
+            error: already ? 'Ya existe una cuenta con ese email.' : 'No se pudo finalizar el registro. Prueba de nuevo en unos minutos.'
         });
     }
 });
@@ -5926,7 +5843,7 @@ app.get('/api/studio-claim/:token', async (req, res) => {
 async function resolveArtistCreatedStudio(req, res) {
     const caller = await resolveBearerUser(req);
     if (!caller) {
-        res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' });
+        res.status(401).json({ success: false, error: 'Inicia sesión para continuar.' });
         return null;
     }
     const studioId = req.body?.studio_id || req.query?.studio_id || null;
@@ -5983,11 +5900,11 @@ app.post('/api/artist/studio-claim-link', async (req, res) => {
 // ============================================
 // HTML enriquecido (WoRichText) con maximo 2000 caracteres de texto visible.
 // lib/bio-sanitizer.js aplica la allowlist; el panel/cuenta del artista deberian
-// guardar por aca en vez de escribir bio_description directo.
+// guardar por aquí en vez de escribir bio_description directo.
 app.post('/api/artist/profile/bio', async (req, res) => {
     try {
         const caller = await resolveBearerUser(req);
-        if (!caller) return res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' });
+        if (!caller) return res.status(401).json({ success: false, error: 'Inicia sesión para continuar.' });
         const raw = req.body && typeof req.body.bio === 'string' ? req.body.bio : '';
         if (raw.length > 100000) return res.status(413).json({ success: false, error: 'La presentación es demasiado larga.' });
         const bio = sanitizeBio(raw, MAX_BIO_TEXT_LENGTH);
@@ -6132,16 +6049,25 @@ app.post('/api/register/check-uniqueness-legacy', async (req, res) => {
 // CORP header so thumbnails can render in /register-artist (Step 8 grid)
 // and in the IGImport modal preview.
 //
-// Hostname allowlist prevents abusing the endpoint as an open proxy. The
-// igSignupLimiter rate-limit (already on /api/instagram/*) provides
-// protection against high-volume abuse.
+// Hostname allowlist prevents abusing the endpoint as an open proxy.
+// igThumbLimiter (propio; el apiLimiter global omite esta ruta) corta el
+// abuso por volumen: 600 cada 15 min por IP alcanza para una docena de altas
+// simultáneas desde la misma red (50 miniaturas cada una, cacheadas 1 h).
 
 const ALLOWED_IG_CDN_HOSTS = [
     /\.cdninstagram\.com$/,
     /\.fbcdn\.net$/
 ];
 
-app.get('/api/instagram/proxy-thumb', async (req, res) => {
+const igThumbLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 600,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Demasiadas imágenes seguidas. Prueba de nuevo en unos minutos.' }
+});
+
+app.get('/api/instagram/proxy-thumb', igThumbLimiter, async (req, res) => {
     const targetUrl = String(req.query.url || '');
     if (!targetUrl) {
         return res.status(400).json({ success: false, error: 'Missing url parameter' });
@@ -6251,7 +6177,9 @@ app.post('/api/instagram/preview', igSignupLimiter, async (req, res) => {
         // el parametro `limit` del cliente se ignora.
         const out = await igImport.preview({
             handle: body.handle,
-            limit: igImport.IG_PREVIEW_LIMIT
+            limit: igImport.IG_PREVIEW_LIMIT,
+            // ── registro (ronda 2): el alta reutiliza el perfil recién traído.
+            reuse: body.reuse === true
         });
         return res.json({ success: true, ...out });
     } catch (err) {
@@ -6290,7 +6218,9 @@ app.post('/api/instagram/commit', igSignupLimiter, async (req, res) => {
             mode: isSignup ? 'signup' : 'dashboard',
             allowed_permalinks: Array.isArray(body.allowed_permalinks) ? body.allowed_permalinks : null,
             // ── dashboard ── P17: consentimiento del paso 01 (hora del servidor).
-            consent: igConsent.normalizeImportConsent(body.consent)
+            consent: igConsent.normalizeImportConsent(body.consent),
+            // ── registro (ronda 2 · N3): pies de foto editados en el alta.
+            captions: body.captions && typeof body.captions === 'object' ? body.captions : null
         });
         return res.json({ success: true, ...out });
     } catch (err) {
@@ -6316,7 +6246,7 @@ const igVerifyLimiter = rateLimit({
     max: 5,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, code: 'IG_VERIFY_RATE_LIMITED', error: 'Pediste varios códigos seguidos. Esperá un rato y probá de nuevo.' }
+    message: { success: false, code: 'IG_VERIFY_RATE_LIMITED', error: 'Pediste varios códigos seguidos. Espera un rato y prueba de nuevo.' }
 });
 
 app.get('/api/artist/onboarding', artistOnboarding.getOnboarding);
@@ -6558,7 +6488,7 @@ async function gcalCaller(req, res) {
     res.set('Cache-Control', 'no-store');
     if (!gcalCfg.configured) { gcalNotConfigured(res); return null; }
     const userId = await resolveCallerUserId(req);
-    if (!userId) { res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' }); return null; }
+    if (!userId) { res.status(401).json({ success: false, error: 'Inicia sesión para continuar.' }); return null; }
     return userId;
 }
 
@@ -6671,7 +6601,7 @@ app.post('/api/account-deletion/notify', async (req, res) => {
         if (!row) return res.status(404).json({ success: false, error: 'No encontramos esa solicitud.' });
         if (row.user_id !== user.id) {
             const agent = await _getActiveSupportAgent(req);
-            if (!agent.ok) return res.status(403).json({ success: false, error: 'No podés avisar sobre esta solicitud.' });
+            if (!agent.ok) return res.status(403).json({ success: false, error: 'No puedes avisar sobre esta solicitud.' });
         }
         // 'completed' lo avisa solo la ejecución.
         if (row.status === 'completed') return res.json({ success: true, sent: false, skipped: 'completed_by_execute' });
@@ -6694,7 +6624,7 @@ app.post('/api/support/account-deletions/:id/execute', authLimiter, async (req, 
     const id = String(req.params.id || '');
     if (!accountDeletion.isUuid(id)) return res.status(400).json({ success: false, error: 'Solicitud no válida.' });
     if (!accountDeletion.isConfirmText(req.body && req.body.confirm)) {
-        return res.status(400).json({ success: false, error: `Escribí ${accountDeletion.CONFIRM_WORD} para confirmar.` });
+        return res.status(400).json({ success: false, error: `Escribe ${accountDeletion.CONFIRM_WORD} para confirmar.` });
     }
     const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
     if (!supabaseUrl || !serviceRoleKey) return res.status(500).json({ success: false, error: 'Server missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' });
@@ -6784,7 +6714,7 @@ if (!dataCrypto.configured) {
 async function payoutCaller(req, res) {
     res.set('Cache-Control', 'no-store');
     const userId = await resolveCallerUserId(req);
-    if (!userId) { res.status(401).json({ success: false, error: 'Iniciá sesión para continuar.' }); return null; }
+    if (!userId) { res.status(401).json({ success: false, error: 'Inicia sesión para continuar.' }); return null; }
     return userId;
 }
 
@@ -6838,7 +6768,7 @@ app.delete('/api/payout-destinations/:id', async (req, res) => {
 app.post('/api/payout-destinations/:id/reveal', async (req, res) => {
     const userId = await payoutCaller(req, res);
     if (!userId) return;
-    if (!payoutRevealAllowed('owner:' + userId)) return res.status(429).json({ success: false, error: 'Demasiados pedidos. Probá en unos minutos.' });
+    if (!payoutRevealAllowed('owner:' + userId)) return res.status(429).json({ success: false, error: 'Demasiados pedidos. Prueba en unos minutos.' });
     try {
         return res.json({ success: true, ...(await payoutService.revealForOwner(userId, req.params.id, { purpose: 'owner_view' })) });
     } catch (err) {
@@ -6851,7 +6781,7 @@ app.post('/api/support/payout-destinations/:id/reveal', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const agent = await _getActiveSupportAgent(req);
     if (!agent.ok) return res.status(agent.status).json({ success: false, error: agent.error });
-    if (!payoutRevealAllowed('support:' + agent.supportUserId)) return res.status(429).json({ success: false, error: 'Demasiados pedidos. Probá en unos minutos.' });
+    if (!payoutRevealAllowed('support:' + agent.supportUserId)) return res.status(429).json({ success: false, error: 'Demasiados pedidos. Prueba en unos minutos.' });
     try {
         const purpose = req.body && typeof req.body.purpose === 'string' ? req.body.purpose : '';
         return res.json({ success: true, ...(await payoutService.revealForSupport(agent.supportUserId, req.params.id, { purpose })) });
@@ -6941,19 +6871,28 @@ app.post('/api/privacy/cookie-consent', async (req, res) => {
 });
 // ── fin privacidad ──
 require('./lib/routes/cot-artista').register(app); // ── cot-artista ── avisos de sesión y acuerdo (límite propio)
+require('./lib/routes/cot-respuesta').register(app); // ── cot-respuesta ── propuesta del artista: agenda real, fechas ofrecidas y campos de la manual
+require('./lib/routes/push').register(app); // ── push ── avisos push / in-app (suscripción, prueba y enganche del correo)
 
 // ── emails ── verificación por email, recordatorio de sesión 24 h y avisos de arranque.
 require('./lib/routes/emails').register(app, { pgrest, getActiveSupportAgent: _getActiveSupportAgent, applicationBase, safeTokenEqual: storeOrders.safeTokenEqual, startJobs: require.main === module });
 
 require('./lib/routes/acceso').register(app); // ── acceso: bienvenida idempotente y Términos del cliente
+require('./lib/routes/registro').register(app); // ── registro (ronda 2): estado de la confirmación de email
 
 // ── cot-form ── cotizador web: intake, sugerencias de artistas y Job Board.
 require('./lib/routes/cot-form').register(app, { driveMirror: mirrorQuoteFilesToDrive });
 require('./lib/routes/cot-cliente').register(app); // ── cot-cliente: claim + decisión del cliente
+require('./lib/routes/cot-pasos').register(app); // ── cot-pasos: estilos sugeridos según la idea (cotizador, sin PII)
+require('./lib/routes/cot-detalle').register(app, { publicDir: path.join(__dirname, 'public') }); // ── cot-detalle: contacto, perfil del cliente, exportación y enlace público /cotizacion/<token>
+require('./lib/routes/negociacion').register(app); // ── negociacion (ronda 2): contrapropuesta del cliente y cambios al acuerdo
+require('./lib/routes/cliente-panel').register(app); // ── cliente-panel (ronda 2): matriz de notificaciones del cliente
 
 require('./lib/routes/verif-artista').register(app, { resolveBearerUser, getActiveSupportAgent: _getActiveSupportAgent, emailService, applicationBase }); // verif-artista
 
 require('./lib/routes/verif-estudio').register(app); // verificación de estudios
+require('./lib/routes/denuncias').register(app); // ── denuncias (ronda 2): denuncias → tickets de soporte
+require('./lib/routes/soporte-disputas').register(app); // ── disputas (ronda 2 · P28): cola de soporte y cierre de las disputas de sesión
 
 // Redirect root al selector de rol del nuevo diseño
 app.get('/', (req, res) => {
@@ -6967,9 +6906,10 @@ app.get('/travel/t/:slug', (req, res) => {
 });
 
 // Perfil público: meta OG del lado servidor y URL corta /<handle> (antes del estático).
-require('./lib/routes/perfil').register(app, { publicDir: path.join(__dirname, 'public') });
+require('./lib/routes/perfil').register(app, { publicDir: path.join(__dirname, 'public'), startJob: require.main === module });
 
 require('./lib/routes/turnos').register(app, { gcalService, startJob: require.main === module }); // ── turnos ── reservas online
+require('./lib/routes/sesiones').register(app, { gcalService }); // ── sesiones ── confirmación del cliente, cambios, ubicación y registro
 
 require('./lib/routes/estudio-registro').register(app, { applicationBase }); // frente estudio-registro: reclamos y bienvenida
 

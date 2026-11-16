@@ -79,7 +79,7 @@
         var done = state.list.filter(function (r) { return r.completed_at; }).slice(0, 2);
         var items = open.slice(0, 6).concat(done);
         if (!items.length) {
-            ul.innerHTML = '<li class="wod-rem-empty">Sin recordatorios pendientes. Sumá uno con + Nuevo recordatorio.</li>';
+            ul.innerHTML = '<li class="wod-rem-empty">Sin recordatorios pendientes. Suma uno con + Nuevo recordatorio.</li>';
             return;
         }
         ul.innerHTML = items.map(rowHtml).join('');
@@ -98,7 +98,7 @@
         } catch (e) {
             console.warn('[recordatorios] lista:', e && e.message);
             state.list = [];
-            toast('No pudimos cargar tus recordatorios. Probá recargar la página.', 'error');
+            toast('No pudimos cargar tus recordatorios. Prueba recargar la página.', 'error');
         }
         state.loaded = true;
         renderList();
@@ -466,7 +466,7 @@
         if (add && !add._wod) {
             add._wod = true;
             add.addEventListener('click', function () {
-                if (!state.user) { toast('Tu sesión todavía se está cargando. Probá en un momento.'); return; }
+                if (!state.user) { toast('Tu sesión todavía se está cargando. Prueba en un momento.'); return; }
                 els.lastTrigger = add;
                 openForm(null);
             });

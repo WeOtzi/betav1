@@ -197,7 +197,7 @@ test('wo-welcome se carga en los dos paneles y en login/registro de cliente', ()
     for (const page of ['public/artist/dashboard/index.html', 'public/client/dashboard/index.html', 'public/client/login/index.html', 'public/client/register/index.html']) {
         assert.match(read(page), /\/shared\/js\/wo-welcome\.js/, page);
     }
-    // El envío sin sesión (401 + toast falso) ya no existe en la rama "confirmá tu email".
+    // El envío sin sesión (401 + toast falso) ya no existe en la rama "confirma tu email".
     const reg = read('public/shared/js/register.js');
     const branch = reg.slice(reg.indexOf('if (finalizeData.email_confirmation_required) {'), reg.indexOf("goToStep('success');", reg.indexOf('if (finalizeData.email_confirmation_required) {')));
     assert.doesNotMatch(branch, /sendArtistRegistrationCompletedEvent\(/);
@@ -246,7 +246,7 @@ test('ACC-11: "Signups not allowed for otp" responde igual que el éxito (anti-e
     assert.equal(EC.magicLinkOutcome({ code: 'otp_disabled' }, 'a@x.com').ok, true);
     const rate = EC.magicLinkOutcome({ status: 429, message: 'rate limit' }, 'a@x.com');
     assert.equal(rate.ok, false);
-    assert.match(rate.message, /Esperá un minuto/);
+    assert.match(rate.message, /Espera un minuto/);
     assert.equal(EC.magicLinkOutcome({ message: 'Failed to fetch' }, 'a@x.com').ok, false);
     assert.match(read('public/shared/js/artist-login.js'), /artistMagicLinkOutcome\(error, email\)/);
 });
@@ -319,7 +319,15 @@ test('migración 20261115100000: handle_new_user sin artistas OAuth, Términos d
     assert.match(sql, /create trigger trg_guard_client_terms_acceptance\s+before insert or update on public\.clients_db/);
     assert.match(sql, /AND \(signup_provider = 'email' OR signup_type = 'artist' OR signup_role = 'artist'\)/);
     assert.match(sql, /CASE WHEN terms_ok THEN now\(\) END/);
-    assert.match(sql, new RegExp(`current_terms_version constant text := '${TERMS_VERSION}'`), 'misma versión que lib/terms-acceptance.js');
+    assert.match(sql, /current_terms_version constant text := '2026-11-13'/, 'versión con la que nació la constante');
+    // La versión vigente la fija la última migración que mueve la constante, tomando la definición viva.
+    const bump = read('supabase/migrations/20261116240000_terminos_version_privacidad_1_1.sql');
+    assert.match(bump, new RegExp(`nuevo constant text := \\$q\\$current_terms_version constant text := '${TERMS_VERSION}'\\$q\\$`), 'misma versión que lib/terms-acceptance.js');
+    assert.match(bump, /select pg_get_functiondef\('public\.handle_new_user\(\)'::regprocedure\) into def;/, 'parte de la definición viva, no de una copia del repo');
+    assert.match(bump, /execute replace\(def, viejo, nuevo\);/);
+    assert.match(bump, /raise exception 'handle_new_user no tiene la constante de versión esperada/, 'si la base no coincide, falla sin tocar nada');
+    const bumpDown = read('supabase/rollbacks/20261116240000_terminos_version_privacidad_1_1.down.sql');
+    assert.match(bumpDown, /execute replace\(def, nuevo, viejo\);/);
     assert.doesNotMatch(sql, /delete\s+from\s+public\.artists_db/i, 'nunca borra artistas (el trigger borraría la cuenta de Auth)');
     const down = read(`supabase/rollbacks/${name}.down.sql`);
     assert.match(down, /drop column if exists terms_accepted_at/);

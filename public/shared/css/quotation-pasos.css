@@ -1,0 +1,818 @@
+/* ============================================================================
+   We Ötzi · Cotizador de clientes — pasos Estilo, Cuerpo y Tamaño (ronda 2)
+   Frente cot-pasos. Se carga DESPUÉS de quotation-ds.css y solo agrega clases
+   propias (prefijo qp-). Regla del DS: cero hex sueltos, todo vía var(--token).
+   Módulos: quotation-style-step.js · quotation-body-map.js · quotation-size-step.js
+   ========================================================================== */
+
+/* En PC y tablet las pantallas de cuerpo y tamaño entran en 720 px de alto. */
+@media (min-width: 768px) {
+  #screen-body.q-screen,
+  #screen-size.q-screen { padding-top: var(--space-6); padding-bottom: var(--space-6); }
+  #screen-body .q-blocks,
+  #screen-size .q-blocks { margin-top: var(--space-6); }
+}
+
+/* ---------- Estilo: insignia "Artista" / etiqueta "Recomendado" ---------- */
+.qp-style-hint {
+  margin: 0 0 var(--space-5);
+  font-size: var(--body-s-size);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.qp-style-hint[hidden] { display: none; }
+
+/* Grilla plegada: botón para desplegar el resto del catálogo. */
+.qp-style-more { margin-top: var(--space-6); }
+.qp-style-more[hidden] { display: none; }
+
+.qp-style-badge {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-min);
+  font-weight: var(--weight-medium);
+  line-height: 1.3;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.qp-style-badge--artist { background: var(--neutral-500); color: var(--accent); }
+.qp-style-badge--recommended { background: var(--yellow-300); color: var(--neutral-500); }
+
+/* El check está siempre en el markup; solo se ve en la tarjeta elegida. */
+.style-card:not(.selected) .style-check { display: none; }
+.style-check svg { width: 14px; height: 14px; display: block; }
+.style-card-placeholder svg { width: 32px; height: 32px; display: block; }
+
+/* ---------- Tamaño: tarjetas con foto de referencia ---------- */
+.qp-size-grid { gap: var(--space-4); }
+
+.q-size-card.qp-size-card {
+  position: relative;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  min-height: 0;
+  padding: 0 0 var(--space-3);
+  overflow: hidden;
+}
+
+.qp-size-media {
+  position: relative;
+  display: block;
+  height: clamp(100px, calc((100vh - 330px) / 2 - 76px), 170px);
+  margin-bottom: var(--space-3);
+  background: var(--surface-stage);
+  border-bottom: var(--border-hairline) solid var(--border-strong);
+  overflow: hidden;
+}
+
+.qp-size-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.qp-size-fallback .q-size-indicator { margin: 0; }
+.q-size-indicator--xs { width: 14px; height: 10px; }
+.q-size-indicator--half { width: 44px; height: 72px; }
+.q-size-indicator--full { width: 44px; height: 96px; }
+
+.qp-scale-svg { width: 100%; height: 100%; display: block; }
+.qp-scale-part { fill: var(--neutral-200); stroke: var(--neutral-300); stroke-width: 0.7; stroke-linejoin: round; }
+.qp-scale-part.is-on { fill: var(--blue-400); stroke: var(--blue-200); }
+.qp-scale-mark { fill: var(--blue-400); stroke: var(--white); stroke-width: 0.8; }
+
+.qp-size-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.qp-size-check {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 24px;
+  height: 24px;
+  display: none;
+  place-content: center;
+  background: var(--blue-300);
+  color: var(--white);
+}
+
+.qp-size-check svg,
+.qp-size-unsure-box svg { width: 14px; height: 14px; display: block; }
+
+.qp-size-card.is-selected .qp-size-check { display: grid; }
+
+.qp-size-card .q-size-name,
+.qp-size-card .q-size-range { padding: 0 var(--space-3); }
+
+.qp-size-card .q-size-range { text-transform: none; letter-spacing: 0.02em; line-height: 1.35; }
+
+/* "No estoy seguro": casilla que se marca al elegirla. */
+.q-size-card.qp-size-card--unsure {
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-3);
+  border-style: dashed;
+  text-align: center;
+}
+
+.qp-size-card--unsure.is-selected { border-style: solid; }
+
+.qp-size-unsure-box {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-content: center;
+  margin-bottom: var(--space-2);
+  background: var(--white);
+  border: var(--border-strong-width) solid var(--border-strong);
+  color: transparent;
+}
+
+.qp-size-card--unsure.is-selected .qp-size-unsure-box { background: var(--neutral-500); color: var(--accent); }
+
+/* ---------- Cuerpo: silueta + grilla de zonas + ficha ---------- */
+.qp-body {
+  /* Alto de cada figura: lo que queda de la ventana (para no hacer scroll en
+     720 px de alto), sin que el aside se coma el ancho en tablets. */
+  --qp-fig-h: clamp(260px, min(calc(100vh - 505px), 38vw), 540px);
+  --qp-tile-h: clamp(108px, calc((100vh - 485px) / 2), 180px);
+}
+
+.qp-body-layout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-8);
+  align-items: start;
+}
+
+/* El ancho del aside es el de las dos figuras (cada una mide 152/454 de su alto). */
+.qp-body-aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  width: calc(var(--qp-fig-h) * 0.67 + var(--space-4) + 2 * var(--space-3));
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--surface-stage);
+  color: var(--text-on-dark);
+}
+
+.qp-body-status {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  height: 2.7em;
+  overflow: hidden;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  color: var(--text-on-dark);
+}
+
+.qp-body-figures {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.qp-fig {
+  position: relative;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qp-fig-svg {
+  display: block;
+  height: var(--qp-fig-h);
+  width: auto;
+  aspect-ratio: 152 / 454;
+  overflow: visible;
+  touch-action: manipulation;
+}
+
+.qp-fig-caption {
+  margin-top: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-min);
+  letter-spacing: var(--meta-s-track);
+  text-transform: uppercase;
+  color: var(--neutral-300);
+}
+
+.qp-fig-part,
+.qp-fig-decor {
+  fill: var(--neutral-200);
+  stroke: var(--neutral-300);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
+}
+
+.qp-fig-decor { pointer-events: none; }
+
+.qp-fig-part {
+  cursor: pointer;
+  outline: none;
+  transition: fill var(--duration-press);
+}
+
+.qp-fig-part.is-inert { cursor: default; pointer-events: none; }
+.qp-fig-part.is-hint { fill: var(--yellow-200); }
+.qp-fig-part.is-selected { fill: var(--blue-400); stroke: var(--blue-200); }
+/* Ficha abierta: lo que se agregaría (claro) o se quitaría (apagado) al confirmar. */
+.qp-fig-part.is-selected.is-preview { fill: var(--blue-200); stroke: var(--blue-400); }
+.qp-fig-part.is-preview:not(.is-selected) { fill: var(--neutral-300); }
+
+@media (hover: hover) {
+  .qp-fig-part:hover { fill: var(--yellow-300); }
+  .qp-fig-part.is-selected:hover { fill: var(--blue-500); }
+}
+
+/* Foco visible para teclado: el DS quita el outline y una <path> no admite box-shadow. */
+.wo-app .qp-fig-part:focus-visible {
+  box-shadow: none;
+  fill: var(--yellow-300);
+  stroke: var(--white);
+  stroke-width: 2.4;
+  paint-order: fill stroke;
+}
+
+.wo-app .qp-fig-part.is-selected:focus-visible { fill: var(--blue-500); }
+
+.qp-fig-tip {
+  position: absolute;
+  z-index: 2;
+  max-width: 150px;
+  padding: 3px 7px;
+  transform: translate(-50%, -100%);
+  background: var(--white);
+  border: var(--border-hairline) solid var(--border-strong);
+  color: var(--neutral-500);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+  pointer-events: none;
+}
+
+.qp-fig-tip[hidden] { display: none; }
+
+/* Resumen de lo elegido, debajo de la silueta. */
+.qp-body-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--border-hairline) solid var(--dark-rule);
+}
+
+.qp-sum-title {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-min);
+  letter-spacing: var(--meta-s-track);
+  text-transform: uppercase;
+  color: var(--neutral-300);
+}
+
+.qp-sum-pain { color: var(--yellow-200); white-space: nowrap; }
+
+.qp-sum-empty {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-on-dark);
+}
+
+.qp-sum-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* PC y tablet: con varias zonas el listado se desplaza por dentro en vez de
+   estirar la página (el paso se arma para 720 px de alto). Quedan a la vista
+   unas dos filas y "Quitar todo" no se mueve. El tope crece solo cuando la
+   silueta ya llegó a su máximo (540 px, o sea 100vh - 505px - 540px de sobra).
+   El relleno deja lugar al anillo de foco, que el overflow recortaría. En móvil
+   la página ya hace scroll y el listado va entero. */
+@media (min-width: 768px) {
+  .qp-body-aside .qp-sum-list {
+    max-height: max(62px, calc(100vh - 505px - 540px + 62px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: -3px;
+    padding: 3px;
+  }
+
+  .qp-body-aside .qp-sum-item { flex: none; }
+}
+
+.qp-sum-item {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.qp-sum-edit {
+  flex: 1;
+  min-width: 0;
+  padding: 5px var(--space-2);
+  background: transparent;
+  border: var(--border-hairline) solid var(--dark-rule);
+  color: var(--text-on-dark);
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.qp-sum-edit strong { color: var(--white); font-weight: var(--weight-bold); }
+.qp-sum-edit:hover { background: var(--dark-hover); }
+
+.qp-sum-remove {
+  flex: none;
+  width: 30px;
+  display: grid;
+  place-content: center;
+  background: transparent;
+  border: var(--border-hairline) solid var(--dark-rule);
+  color: var(--text-on-dark);
+  cursor: pointer;
+}
+
+.qp-sum-remove:hover { background: var(--red-300); border-color: var(--red-300); color: var(--white); }
+.qp-sum-remove svg { width: 14px; height: 14px; display: block; }
+
+.qp-body-aside .qp-sum-clear {
+  align-self: flex-start;
+  margin-top: 0;
+  color: var(--neutral-300);
+  border-bottom-color: var(--neutral-400);
+}
+
+.qp-body-aside .qp-sum-clear:hover { color: var(--white); border-bottom-color: var(--white); }
+
+/* Grilla de zonas completas. */
+.qp-body-main { min-width: 0; }
+
+.qp-grid-hint {
+  margin: 0 0 var(--space-3);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.q-zone-grid.qp-zone-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.q-zone-tile.qp-zone-tile { gap: var(--space-2); min-width: 0; font: inherit; color: inherit; }
+
+.q-zone-media.qp-zone-media {
+  position: relative;
+  height: var(--qp-tile-h);
+}
+
+.qp-zone-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--surface-stage);
+}
+
+.qp-mini-svg { width: 100%; height: 100%; display: block; }
+.qp-mini-part { fill: var(--neutral-200); stroke: var(--neutral-300); stroke-width: 0.7; stroke-linejoin: round; }
+.qp-mini-part.is-on { fill: var(--yellow-300); stroke: var(--yellow-500); }
+
+.qp-zone-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.qp-zone-check {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 24px;
+  height: 24px;
+  display: none;
+  place-content: center;
+  background: var(--blue-300);
+  color: var(--white);
+}
+
+.qp-zone-check svg { width: 14px; height: 14px; display: block; }
+.qp-zone-tile.is-selected .qp-zone-check { display: grid; }
+
+.qp-zone-state {
+  min-height: 1.35em;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.qp-zone-tile.is-selected .qp-zone-state { color: var(--blue-300); }
+
+/* Ficha de una zona (reemplaza la grilla hasta confirmar). */
+.qp-zone-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-card);
+  border: var(--border-hairline) solid var(--border-strong);
+}
+
+/* Lado, subpartes y acciones a la izquierda; los datos de la zona a la derecha. */
+.qp-panel-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--space-4) var(--space-6);
+  align-items: start;
+}
+
+.qp-panel-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.qp-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-6);
+}
+
+.q-inline-link.qp-panel-back { align-self: flex-start; margin-top: 0; }
+
+.qp-panel-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--h3-size);
+  line-height: 1.1;
+  color: var(--ink);
+  outline: none;
+}
+
+.wo-app .qp-panel-title:focus-visible { box-shadow: none; }
+
+.qp-pain {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.qp-pain-label { text-transform: uppercase; letter-spacing: var(--meta-s-track); }
+.qp-pain-meter { display: inline-flex; gap: 2px; }
+.qp-pain-cell { width: 10px; height: 10px; background: var(--neutral-200); }
+.qp-pain--low .qp-pain-cell.is-on { background: var(--system-success); }
+.qp-pain--mid .qp-pain-cell.is-on { background: var(--yellow-300); }
+.qp-pain--high .qp-pain-cell.is-on { background: var(--red-300); }
+.qp-pain--max .qp-pain-cell.is-on { background: var(--red-500); }
+.qp-pain-value { color: var(--neutral-500); }
+
+.qp-panel-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.qp-panel-field > legend.q-block-label { padding: 0; margin: 0 0 var(--space-2); }
+
+.qp-panel-note {
+  margin-left: var(--space-2);
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+.qp-choice { position: relative; display: inline-flex; }
+
+.qp-choice input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* El input (invisible) queda encima del chip: el hover se toma del <label>. */
+.qp-choice:hover .qp-choice-chip { transform: translate(-2px, -2px); box-shadow: var(--q-shadow-sel); }
+.qp-choice input:checked + .qp-choice-chip { background: var(--yellow-300); color: var(--neutral-500); }
+.qp-choice input:focus-visible + .qp-choice-chip { box-shadow: var(--shadow-focus); }
+
+.qp-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.qp-part {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 34px;
+  padding: 4px var(--space-2);
+  background: var(--surface-card);
+  border: var(--border-hairline) solid var(--border-strong);
+  font-size: 13px;
+  color: var(--neutral-500);
+  cursor: pointer;
+}
+
+.qp-part:hover { background: var(--surface-input-hover); }
+
+.qp-part input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.qp-part-box {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-content: center;
+  background: var(--white);
+  border: var(--border-strong-width) solid var(--border-strong);
+  color: transparent;
+}
+
+.qp-part-box svg { width: 11px; height: 11px; display: block; }
+.qp-part input:checked ~ .qp-part-box { background: var(--neutral-500); color: var(--accent); }
+.qp-part input:not(:checked) ~ .qp-part-name { color: var(--text-muted); text-decoration: line-through; }
+.qp-part input:focus-visible ~ .qp-part-box { box-shadow: var(--shadow-focus); }
+
+.qp-part-pain {
+  flex: none;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  display: grid;
+  place-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-min);
+  background: var(--neutral-200);
+  color: var(--neutral-500);
+}
+
+.qp-part-pain--low { background: var(--success-bg); color: var(--success-fg); }
+.qp-part-pain--mid { background: var(--warning-bg); color: var(--warning-fg); }
+.qp-part-pain--high { background: var(--red-200); color: var(--red-500); }
+.qp-part-pain--max { background: var(--red-300); color: var(--white); }
+
+.qp-panel-info {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.qp-info { min-width: 0; }
+
+.qp-info dt {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-min);
+  letter-spacing: var(--meta-s-track);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.qp-info dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--neutral-500);
+}
+
+.qp-info--fact { padding-left: var(--space-3); border-left: var(--border-rule-width) solid var(--yellow-300); }
+
+.qp-panel-error {
+  margin: 0;
+  font-size: 13px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-danger);
+}
+
+.qp-panel-error[hidden] { display: none; }
+
+.qp-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1099px) {
+  /* Ficha en una columna; los datos pasan a dos columnas debajo. */
+  .qp-panel-body { grid-template-columns: minmax(0, 1fr); }
+  .qp-panel-info { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-5); }
+}
+
+@media (max-width: 1024px) {
+  .qp-body-layout { gap: var(--space-6); }
+}
+
+/* Tablet vertical: la grilla pasa a dos columnas (hay alto de sobra). */
+@media (max-width: 900px) {
+  .qp-body { --qp-tile-h: 140px; }
+  .q-zone-grid.qp-zone-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767px) {
+  .qp-body {
+    --qp-fig-h: 300px;
+    --qp-tile-h: 120px;
+  }
+
+  .qp-body-layout { grid-template-columns: minmax(0, 1fr); }
+  .qp-body-aside { width: auto; }
+  .qp-panel-info { grid-template-columns: minmax(0, 1fr); }
+  .qp-panel-actions .wo-btn { flex: 1 1 100%; }
+  .qp-size-media { height: 112px; }
+}
+
+@media (max-width: 480px) {
+  .qp-body { --qp-tile-h: 104px; }
+  .q-zone-grid.qp-zone-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .qp-side-options .qp-choice { flex: 1 1 auto; }
+  .qp-side-options .qp-choice-chip { width: 100%; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qp-fig-part { transition: none; }
+}
+
+/* ============================================================================
+   Una pantalla en PC y tablet (ronda 2 · P2)
+   Los pasos 06 "Cuéntanos los detalles" y 07 "Cuéntanos quién eres" medían
+   1.536 y 1.909 px de alto: en una pantalla de 768 px había que desplazarse
+   dos veces. Desde 768 px de ancho los bloques se reparten en columnas y, si
+   la pantalla es baja, se achican los aires verticales. El teléfono no cambia.
+   El orden del DOM se respeta: la grilla solo recoloca, no reordena la lectura.
+   ========================================================================== */
+@media (min-width: 768px) {
+  /* --- 06 · detalles: a la izquierda color, personalización y presupuesto; a la derecha la fecha --- */
+  #screen-details .q-blocks {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: var(--space-10);
+    align-items: start;
+  }
+  #screen-details #block-color { grid-column: 1; grid-row: 1; }
+  #screen-details #block-personalization { grid-column: 1; grid-row: 2; }
+  #screen-details #block-budget { grid-column: 1; grid-row: 3; }
+  #screen-details #block-date { grid-column: 2; grid-row: 1 / span 3; }
+  #screen-details .q-wide-options { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+  #screen-details .q-wide-option { min-height: 52px; padding: var(--space-3); font-size: 14px; line-height: 1.25; text-align: center; }
+  #screen-details .q-budget-bars { gap: var(--space-2); }
+  #screen-details .q-calendar { margin-top: var(--space-4); }
+
+  /* --- 07 · quién eres: campos cortos en columnas; contacto y textos largos ocupan dos --- */
+  #screen-client .q-blocks {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-6);
+    row-gap: var(--space-6);
+    align-items: start;
+    grid-auto-flow: row dense;
+  }
+  #screen-client #block-contact-pref,
+  #screen-client .q-block:has(textarea) { grid-column: 1 / -1; }
+  #screen-client .q-birth { width: 100%; grid-template-columns: minmax(0, .8fr) minmax(0, 1.5fr) minmax(0, 1fr); }
+  #screen-client .q-wide-options--pair { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  #screen-client .q-wide-option { min-height: 52px; }
+  #screen-client .wo-textarea { min-height: 64px; height: 64px; }
+  #screen-client .q-block-help { margin-top: var(--space-2); }
+}
+
+/* Tablet y portátil angosto: cinco estilos por fila para que las diez tarjetas entren en dos. */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .quotation-page .styles-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-4); }
+}
+
+/* Tablet vertical: el paso 07 en dos columnas con menos aire entre filas. */
+@media (min-width: 768px) and (max-width: 999px) {
+  #screen-client .q-blocks { row-gap: var(--space-4); margin-top: var(--space-6); }
+  #screen-client .q-block-label { margin-bottom: var(--space-3); }
+}
+
+@media (min-width: 1000px) {
+  /* 06 · la fecha en dos columnas: calendario a la izquierda; ayuda, atajos y flexibilidad a la derecha */
+  #screen-details #block-date {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-5);
+    row-gap: var(--space-3);
+    align-items: start;
+    align-content: start;
+  }
+  #screen-details #block-date > * { grid-column: 1 / -1; margin-top: 0; margin-bottom: 0; }
+  #screen-details #block-date > .q-calendar { grid-column: 1; grid-row: 3 / span 4; width: clamp(262px, 21vw, 286px); padding: var(--space-3) var(--space-4) var(--space-4); }
+  #screen-details #block-date > .q-date-help { grid-column: 2; grid-row: 3; }
+  #screen-details #block-date > .q-chips { grid-column: 2; grid-row: 4; flex-direction: column; align-items: stretch; gap: var(--space-2); }
+  #screen-details #block-date > .q-chips .q-chip { padding: var(--space-2) var(--space-3); letter-spacing: 0.04em; }
+  #screen-details #block-date > .q-date-flex { grid-column: 2; grid-row: 5; }
+  #screen-details .q-cal-head { margin-bottom: var(--space-3); }
+  #screen-details .q-cal-day { font-size: 12px; }
+  /* el presupuesto conserva sus seis tramos en una fila (en tablet apaisada pasaba a dos) */
+  #screen-details .q-budget-bars { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+  /* 07 · tres columnas */
+  #screen-client .q-blocks { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #screen-client #block-contact-pref,
+  #screen-client .q-block:has(textarea) { grid-column: span 2; }
+  #screen-client .checkbox-options { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+}
+
+/* Pantallas de hasta 960 px de alto (casi todos los portátiles y las tablets apaisadas): menos aire vertical en todos los pasos. */
+@media (min-width: 768px) and (max-height: 960px) {
+  .quotation-page:not(.q-artist-confirm-page) .q-screen { padding: var(--space-6) 0 var(--space-6); }
+  .quotation-page:not(.q-artist-confirm-page) .q-screen-title { font-size: 36px; }
+  .quotation-page:not(.q-artist-confirm-page) .q-blocks { margin-top: var(--space-5); gap: var(--space-5); }
+  .quotation-page:not(.q-artist-confirm-page) .q-block-label { margin-bottom: var(--space-3); }
+  /* 01 · idea: el texto libre arranca más bajo (se sigue pudiendo agrandar) */
+  #screen-idea .wo-textarea { min-height: 112px; height: 112px; }
+  /* 02 · estilos: dos filas de tarjetas a la vista */
+  .quotation-page .style-card-cover { height: 132px; }
+  /* 03 · cuerpo: con menos aire arriba, la silueta y las zonas recuperan esos 53 px */
+  .qp-body {
+    --qp-fig-h: clamp(260px, min(calc(100vh - 464px), 38vw), 540px);
+    --qp-tile-h: clamp(108px, calc((100vh - 456px) / 2), 180px);
+  }
+  #screen-client .q-blocks { row-gap: var(--space-4); }
+  #screen-client .wo-textarea { min-height: 56px; height: 56px; }
+}
+
+/* Ventanas de 740 px de alto o menos (portátiles con la barra del navegador a la vista). */
+@media (min-width: 768px) and (max-height: 740px) {
+  .quotation-page:not(.q-artist-confirm-page) .q-screen { padding: var(--space-4) 0 var(--space-4); }
+  .quotation-page:not(.q-artist-confirm-page) .q-screen-title { font-size: 32px; }
+  .quotation-page:not(.q-artist-confirm-page) .q-blocks { margin-top: var(--space-4); gap: var(--space-4); }
+  .quotation-page:not(.q-artist-confirm-page) .q-block-label { margin-bottom: var(--space-2); }
+  #screen-idea .wo-textarea { min-height: 80px; height: 80px; }
+  .quotation-page .style-card-cover { height: 112px; }
+  .qp-body {
+    --qp-fig-h: clamp(260px, min(calc(100vh - 452px), 38vw), 540px);
+    --qp-tile-h: clamp(108px, calc((100vh - 460px) / 2), 180px);
+  }
+  #screen-client .q-blocks { row-gap: var(--space-3); }
+  #screen-client .wo-textarea { min-height: 48px; height: 48px; }
+}

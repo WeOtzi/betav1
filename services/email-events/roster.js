@@ -70,10 +70,10 @@ module.exports = {
             audience: 'studio',
             category: 'studios',
             subject: d => `${text(d.artist_name, 'Un artista')} quiere sumarse a ${text(d.studio_name, 'tu estudio')}`,
-            preheader: d => `Revisá la solicitud de ${text(d.artist_name, 'un artista')} y aprobala o rechazala desde Equipo.`,
+            preheader: d => `Revisa la solicitud de ${text(d.artist_name, 'un artista')} y apruébala o recházala desde Equipo.`,
             eyebrow: 'Solicitud de alta',
             headline: d => `${text(d.artist_name, 'Un artista')} pidió sumarse a tu equipo`,
-            intro: d => `Hola${firstName(d.recipient_name)}, ${text(d.artist_name, 'un artista')} quiere trabajar en ${text(d.studio_name, 'tu estudio')}. Revisá su perfil y decidí desde el panel del estudio.`,
+            intro: d => `Hola${firstName(d.recipient_name)}, ${text(d.artist_name, 'un artista')} quiere trabajar en ${text(d.studio_name, 'tu estudio')}. Revisa su perfil y decide desde el panel del estudio.`,
             rows: d => [
                 ['Artista', d.artist_username ? `${d.artist_name} · @${d.artist_username}` : d.artist_name],
                 ...roleRows(d),
@@ -97,15 +97,15 @@ module.exports = {
                 ? `${text(d.studio_name, 'El estudio')} aprobó tu solicitud`
                 : `Novedades de tu solicitud a ${text(d.studio_name, 'el estudio')}`),
             preheader: d => (d.decision === 'accepted'
-                ? `Ya formás parte del equipo de ${text(d.studio_name, 'el estudio')} en We Ötzi.`
+                ? `Ya formas parte del equipo de ${text(d.studio_name, 'el estudio')} en We Ötzi.`
                 : `${text(d.studio_name, 'El estudio')} no aprobó tu solicitud por ahora.`),
             eyebrow: 'Solicitud de alta',
             headline: d => (d.decision === 'accepted'
-                ? `Ya sos parte de ${text(d.studio_name, 'el estudio')}`
+                ? `Ya eres parte de ${text(d.studio_name, 'el estudio')}`
                 : 'Tu solicitud no fue aprobada'),
             intro: d => (d.decision === 'accepted'
                 ? `Hola${firstName(d.recipient_name)}, ${text(d.studio_name, 'el estudio')} aprobó tu solicitud. Tu perfil ya muestra el estudio y su sede.`
-                : `Hola${firstName(d.recipient_name)}, ${text(d.studio_name, 'el estudio')} no aprobó tu solicitud por ahora. Podés seguir explorando estudios y oportunidades.`),
+                : `Hola${firstName(d.recipient_name)}, ${text(d.studio_name, 'el estudio')} no aprobó tu solicitud por ahora. Puedes seguir explorando estudios y oportunidades.`),
             rows: d => (d.decision === 'accepted' ? roleRows(d) : [['Estudio', d.studio_name]]),
             cta: d => cta(d, d.decision === 'accepted' ? 'Ver mis estudios' : 'Explorar estudios')
         }
@@ -122,10 +122,10 @@ module.exports = {
             audience: 'artist',
             category: 'studios',
             subject: d => `${text(d.studio_name, 'Un estudio')} te invita a su equipo en We Ötzi`,
-            preheader: d => `Creá tu perfil de artista con este enlace y quedás en el equipo de ${text(d.studio_name, 'el estudio')}.`,
+            preheader: d => `Crea tu perfil de artista con este enlace y quedas en el equipo de ${text(d.studio_name, 'el estudio')}.`,
             eyebrow: 'Invitación de estudio',
             headline: d => `${text(d.studio_name, 'Un estudio')} te quiere en su equipo`,
-            intro: d => `Hola${firstName(d.recipient_name)}, ${text(d.studio_name, 'un estudio')} te invitó a sumarte a su equipo en We Ötzi. Creá tu perfil de artista con el enlace (o ingresá si ya tenés cuenta) y el vínculo queda hecho.`,
+            intro: d => `Hola${firstName(d.recipient_name)}, ${text(d.studio_name, 'un estudio')} te invitó a sumarte a su equipo en We Ötzi. Crea tu perfil de artista con el enlace (o ingresa si ya tienes cuenta) y el vínculo queda hecho.`,
             rows: d => [...roleRows(d), ['Mensaje', d.message]],
             cta: d => cta(d, 'Aceptar invitación')
         }
@@ -145,7 +145,7 @@ module.exports = {
             preheader: d => `${text(d.artist_name, 'Un artista')} usó tu enlace de invitación y ya forma parte del equipo.`,
             eyebrow: 'Equipo',
             headline: d => `${text(d.artist_name, 'Un artista')} ya está en tu equipo`,
-            intro: d => `Hola${firstName(d.recipient_name)}, ${text(d.artist_name, 'un artista')} se sumó a ${text(d.studio_name, 'tu estudio')} con tu enlace de invitación. Podés editar su rol, sede y reparto desde Equipo.`,
+            intro: d => `Hola${firstName(d.recipient_name)}, ${text(d.artist_name, 'un artista')} se sumó a ${text(d.studio_name, 'tu estudio')} con tu enlace de invitación. Puedes editar su rol, sede y reparto desde Equipo.`,
             rows: d => [
                 ['Artista', d.artist_username ? `${d.artist_name} · @${d.artist_username}` : d.artist_name],
                 ...roleRows(d)
@@ -176,7 +176,7 @@ module.exports = {
                 : `${text(d.artist_name, 'El artista')} no aceptó la invitación`),
             intro: d => (d.decision === 'accepted'
                 ? `Hola${firstName(d.recipient_name)}, ${text(d.artist_name, 'el artista')} aceptó tu invitación como ${text(d.role_label, 'artista').toLowerCase()}.`
-                : `Hola${firstName(d.recipient_name)}, ${text(d.artist_name, 'el artista')} rechazó tu invitación. Podés escribirle desde Mensajes o invitar a otra persona.`),
+                : `Hola${firstName(d.recipient_name)}, ${text(d.artist_name, 'el artista')} rechazó tu invitación. Puedes escribirle desde Mensajes o invitar a otra persona.`),
             rows: d => [
                 ['Artista', d.artist_username ? `${d.artist_name} · @${d.artist_username}` : d.artist_name],
                 ...roleRows(d)

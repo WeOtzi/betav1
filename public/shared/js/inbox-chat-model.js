@@ -48,10 +48,10 @@
     }
 
     function validateAttachment(file) {
-        if (!file) return { ok: false, error: 'Elegí un archivo.' };
+        if (!file) return { ok: false, error: 'Elige un archivo.' };
         const type = String(file.type || '').toLowerCase();
         if (!ATTACHMENT_MIMES.includes(type)) {
-            return { ok: false, error: 'Formato no admitido. Usá JPG, PNG, WEBP, GIF, PDF o TXT.' };
+            return { ok: false, error: 'Formato no admitido. Usa JPG, PNG, WEBP, GIF, PDF o TXT.' };
         }
         if (!(Number(file.size) >= 0) || Number(file.size) > MAX_ATTACHMENT_BYTES) {
             return { ok: false, error: 'El archivo supera el límite de 15 MB.' };

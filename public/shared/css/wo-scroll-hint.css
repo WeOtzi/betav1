@@ -1,0 +1,37 @@
+/* ============================================================================
+   WE ÖTZI — Indicador de "hay más abajo" (wo-scroll-hint.js) · ronda 2, P2
+   Botón fijo, centrado abajo, con una flecha que rebota. Lenguaje del DS
+   Bauhaus: borde duro, radio 0, fondo tinta y flecha amarilla. Los tokens
+   llevan respaldo porque el módulo también corre en páginas sin tokens.css.
+   ========================================================================== */
+.wo-scroll-hint{
+  position:fixed;left:50%;bottom:calc(var(--wo-scroll-hint-bottom,16px) + env(safe-area-inset-bottom,0px));
+  z-index:1200; /* bajo los paneles y diálogos (1250+) y los avisos (1396) */
+  display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;
+  width:var(--tap-target-min,44px);height:var(--tap-target-min,44px);padding:0;margin:0 0 0 calc(var(--tap-target-min,44px) / -2);
+  background:var(--neutral-500,#24211D);color:var(--accent,#F2B519);
+  border:var(--border-strong-width,2px) solid var(--neutral-500,#24211D);border-radius:var(--radius-none,0);
+  box-shadow:0 0 0 2px var(--white,#FCFCFC);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  animation:wo-scroll-hint-in var(--duration-fade,.24s) var(--ease-standard,cubic-bezier(.4,0,.2,1)) both}
+.wo-scroll-hint[hidden]{display:none}
+.wo-scroll-hint:hover{background:var(--accent,#F2B519);color:var(--neutral-500,#24211D)}
+.wo-scroll-hint:focus{outline:none}
+.wo-scroll-hint:focus-visible{box-shadow:0 0 0 2px var(--white,#FCFCFC),var(--shadow-focus,0 0 0 5px rgba(0,85,255,.35))}
+.wo-scroll-hint-arrow{display:block;line-height:0;animation:wo-scroll-hint-bounce 1.4s var(--ease-standard,cubic-bezier(.4,0,.2,1)) infinite}
+.wo-scroll-hint svg{display:block;pointer-events:none}
+
+@keyframes wo-scroll-hint-bounce{
+  0%,100%{transform:translateY(-3px)}
+  50%{transform:translateY(4px)}
+}
+@keyframes wo-scroll-hint-in{
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .wo-scroll-hint,.wo-scroll-hint-arrow{animation:none}
+}
+@media print{
+  .wo-scroll-hint{display:none}
+}

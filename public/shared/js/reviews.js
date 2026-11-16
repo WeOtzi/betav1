@@ -413,12 +413,12 @@
                         <div class="review-modal-header">
                             <div>
                                 <p class="review-modal-kicker">Perfil requerido</p>
-                                <h2 class="review-modal-title">Completá tu perfil público</h2>
+                                <h2 class="review-modal-title">Completa tu perfil público</h2>
                             </div>
                             <button class="review-modal-close" type="button" data-review-close>&times;</button>
                         </div>
                         <div class="review-profile-gate" style="margin-top:1rem;">
-                            Para dejar reseñas necesitás nombre, alias público y país.
+                            Para dejar reseñas necesitas nombre, alias público y país.
                         </div>
                         <div class="review-modal-actions" style="margin-top:1rem;">
                             <button class="review-modal-submit" type="button" data-review-edit-profile>Editar perfil</button>
@@ -465,7 +465,7 @@
                         </div>
                         <div class="review-field">
                             <label for="review-comment">Comentario</label>
-                            <textarea id="review-comment" rows="5" minlength="3" maxlength="2000" required placeholder="Contá cómo fue la experiencia"></textarea>
+                            <textarea id="review-comment" rows="5" minlength="3" maxlength="2000" required placeholder="Cuenta cómo fue la experiencia"></textarea>
                         </div>
                         <div class="review-field">
                             <label>Qué destacarías</label>
@@ -473,7 +473,7 @@
                         </div>
                         <div class="review-field">
                             <label for="review-photos">Fotos opcionales</label>
-                            <textarea id="review-photos" rows="2" placeholder="Pegá URLs de fotos, una por línea"></textarea>
+                            <textarea id="review-photos" rows="2" placeholder="Pega URLs de fotos, una por línea"></textarea>
                         </div>
                         <div class="reviews-error" id="review-form-error" hidden></div>
                         <div class="review-modal-actions">
@@ -496,7 +496,7 @@
 
             if (hasBlockedReviewContent(comment)) {
                 errorEl.hidden = false;
-                errorEl.textContent = 'El comentario contiene palabras bloqueadas. Editalo antes de enviarlo.';
+                errorEl.textContent = 'El comentario contiene palabras bloqueadas. Edítalo antes de enviarlo.';
                 return;
             }
 

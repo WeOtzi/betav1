@@ -27,11 +27,11 @@ module.exports = {
             audience: 'artist',
             category: 'messages',
             subject: d => `${or(d.sender_name, 'Alguien')} te escribió en We Ötzi`,
-            preheader: d => `Tenés un mensaje nuevo de ${or(d.sender_name, 'un contacto')} en tu inbox de We Ötzi. Respondé desde la app.`,
+            preheader: d => `Tienes un mensaje nuevo de ${or(d.sender_name, 'un contacto')} en tu inbox de We Ötzi. Responde desde la app.`,
             eyebrow: 'MENSAJE NUEVO',
             greeting: d => hello(d.recipient_name),
-            headline: () => 'Tenés un mensaje nuevo',
-            intro: d => `${or(d.sender_name, 'Un contacto')} te escribió${d.thread_subject ? ` sobre “${d.thread_subject}”` : ''}. Respondé desde We Ötzi para mantener la conversación en un solo lugar.`,
+            headline: () => 'Tienes un mensaje nuevo',
+            intro: d => `${or(d.sender_name, 'Un contacto')} te escribió${d.thread_subject ? ` sobre “${d.thread_subject}”` : ''}. Responde desde We Ötzi para mantener la conversación en un solo lugar.`,
             quote: (d, ctx) => ({ label: `Mensaje de ${or(firstName(d.sender_name), 'tu contacto')}`, text: ctx.f.text(d.message_preview, 280) }),
             rows: () => [],
             cta: (d, ctx) => ({ label: 'Responder en We Ötzi', url: ctx.f.url(d.chat_url) || ctx.url(d.recipient_role === 'client' ? '/client/chats' : d.recipient_role === 'studio' ? '/studio/dashboard' : '/artist/inbox') })
@@ -61,7 +61,7 @@ module.exports = {
             audience: 'client',
             category: 'calendar',
             subject: (d, ctx) => `Recordatorio: tu sesión es ${ctx.f.date(d.session_date) ? `el ${ctx.f.date(d.session_date).toLowerCase()}` : 'mañana'}`,
-            preheader: (d, ctx) => `Tu sesión es mañana (${ctx.f.dateTime(d.session_date) || 'revisá el horario'}). Llegá con todo listo.`,
+            preheader: (d, ctx) => `Tu sesión es mañana (${ctx.f.dateTime(d.session_date) || 'revisa el horario'}). Llega con todo listo.`,
             eyebrow: 'RECORDATORIO DE SESIÓN',
             headline: () => 'Tu sesión es mañana',
             rows: (d, ctx) => [
@@ -74,12 +74,12 @@ module.exports = {
             roles: {
                 client: {
                     greeting: d => hello(d.client_name),
-                    intro: d => `Mañana tenés sesión con ${or(d.artist_name, 'tu artista')}. Descansá bien, comé antes de ir y evitá el alcohol el día previo. Si necesitás cambiar algo, escribile desde el chat.`,
+                    intro: d => `Mañana tienes sesión con ${or(d.artist_name, 'tu artista')}. Descansa bien, come antes de ir y evita el alcohol el día previo. Si necesitas cambiar algo, escríbele desde el chat.`,
                     cta: (d, ctx) => ({ label: 'Ver mi cotización', url: ctx.url(`/client/dashboard?quote=${enc(d.quote_id)}`) })
                 },
                 artist: {
                     greeting: d => hello(d.artist_name),
-                    intro: d => `Mañana tenés sesión con ${or(d.client_name, 'tu cliente')}. Revisá el diseño y el material en el expediente.`,
+                    intro: d => `Mañana tienes sesión con ${or(d.client_name, 'tu cliente')}. Revisa el diseño y el material en el expediente.`,
                     cta: (d, ctx) => ({ label: 'Abrir el expediente', url: ctx.url(`/my-quotations/detail?quote=${enc(d.quote_id)}`) })
                 }
             }

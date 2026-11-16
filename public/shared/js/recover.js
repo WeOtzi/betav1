@@ -77,14 +77,14 @@
         const EC = window.WeotziEmailConfirm;
         if (!box) return;
         if (!EC || typeof EC.renderLinkErrorNotice !== 'function') {
-            box.textContent = 'El link para restablecer la contraseña venció o ya se usó. Pedí un código nuevo.';
+            box.textContent = 'El link para restablecer la contraseña venció o ya se usó. Pide un código nuevo.';
             box.hidden = false;
             return;
         }
         EC.renderLinkErrorNotice(box, {
             linkError,
             what: 'link para restablecer tu contraseña',
-            hint: 'Escribí tu email y pedí un código nuevo: lo podés ingresar acá sin abrir el link.'
+            hint: 'Escribe tu email y pide un código nuevo: lo puedes ingresar aquí sin abrir el link.'
         });
         box.hidden = false;
     }
@@ -197,7 +197,7 @@
             focusFirstOtp();
         } catch (err) {
             console.error('Recover: error al pedir el código:', err);
-            setError('rc-email-error', 'No pudimos procesar la solicitud. Probá de nuevo en un momento.');
+            setError('rc-email-error', 'No pudimos procesar la solicitud. Prueba de nuevo en un momento.');
         } finally {
             setBusy(btn, false);
             refreshEmailGate();
@@ -341,7 +341,7 @@
         } catch (err) {
             console.error('Recover: error al verificar el código:', err);
             $('rc-otp').classList.add('is-error');
-            setError('rc-code-error', 'Código inválido o vencido. Revisalo o pedí uno nuevo.');
+            setError('rc-code-error', 'Código inválido o vencido. Revísalo o pide uno nuevo.');
         } finally {
             setBusy(btn, false);
             refreshCodeGate();
@@ -402,14 +402,14 @@
                     throw Object.assign(new Error('same-password'), { friendly: 'Tiene que ser distinta a la que ya usabas.' });
                 }
                 if (msg.includes('session') || msg.includes('not logged in') || msg.includes('missing')) {
-                    throw Object.assign(new Error('no-session'), { friendly: 'La sesión de verificación venció. Volvé a pedir el código.' });
+                    throw Object.assign(new Error('no-session'), { friendly: 'La sesión de verificación venció. Vuelve a pedir el código.' });
                 }
                 throw error;
             }
             renderStep(4);
         } catch (err) {
             console.error('Recover: error al actualizar la contraseña:', err);
-            setError('rc-password-error', err.friendly || 'No pudimos actualizar la contraseña. Probá de nuevo.');
+            setError('rc-password-error', err.friendly || 'No pudimos actualizar la contraseña. Prueba de nuevo.');
         } finally {
             setBusy(btn, false);
             refreshPasswordGate();
@@ -513,7 +513,7 @@
 
         const previewStep = Number(params.get('step'));
         if (isPreviewContext() && previewStep >= 1 && previewStep <= 4) {
-            state.email = prefill || 'vos@email.com';
+            state.email = prefill || 'tu@email.com';
             $('rc-code-email').textContent = state.email;
             renderStep(previewStep);
             if (previewStep === 2) startResendCountdown();

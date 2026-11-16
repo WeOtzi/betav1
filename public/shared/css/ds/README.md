@@ -48,7 +48,11 @@ esas excepciones visuales no cambian las reglas de los componentes de producto.
 9. **Íconos: Feather 4.29.2** vía `data-wo-icon="name"` (wo-icons.js). Nunca Font Awesome
    ni emoji. 24px default, 18px en controles compactos. `★ ♡ ♥ → ← ·` son los únicos
    glifos Unicode permitidos.
-10. **Copy: español rioplatense (voseo)** — *Probá, Contá, Ingresá, Subí, Postulate*.
+10. **Copy: español neutro con tuteo** — *Prueba, Cuenta, Ingresa, Sube, Postúlate*;
+    *quieres, puedes, tienes*. Sin voseo (*Probá, querés*), sin «usted» ni «vosotros» y sin
+    regionalismos (*mail* → correo, *plata* → dinero, *tildar* → marcar). El pago para
+    reservar se llama **anticipo** (no «seña»); **turno** se conserva. Vale también para el
+    texto que viene del Figma: si el frame trae voseo, se pasa a tuteo.
     Sentence case (nunca Title Case); UPPERCASE solo vía CSS en botones/meta/nav.
     Separador universal `·`. Números europeos: `4.820`, `$3.150.000`. Rangos `$200 – $400`.
     Acciones que navegan terminan en `→`. Sin signos de exclamación, sin hype.

@@ -106,7 +106,7 @@
         const stage = el['ism-stage'];
         stage.tabIndex = 0;
         stage.setAttribute('role', 'region');
-        stage.setAttribute('aria-label', 'Globo con los estudios. Usá las flechas para girar y + o − para acercar.');
+        stage.setAttribute('aria-label', 'Globo con los estudios. Usa las flechas para girar y + o − para acercar.');
         stage.addEventListener('pointerdown', onPointerDown);
         stage.addEventListener('keydown', onStageKey);
         el['ism-markers'].addEventListener('click', onMarkerClick);
@@ -143,7 +143,7 @@
             }
             const [locations, spots] = await Promise.all([D.Invitations.listMapLocations(), D.Invitations.listOpenSpots()]);
             if (locations.error) {
-                state.error = 'No pudimos cargar los estudios. Probá de nuevo en unos minutos.';
+                state.error = 'No pudimos cargar los estudios. Prueba de nuevo en unos minutos.';
                 state.raw = { locations: [], spots: [] };
             } else {
                 state.raw = { locations: locations.data || [], spots: spots.error ? [] : (spots.data || []) };
@@ -651,7 +651,7 @@
                     </span>
                     ${icon('chevron-right')}
                 </button>
-            </li>`).join('') : '<li class="ism-aside-empty">No hay estudios con estos filtros. Probá con otra búsqueda o país.</li>';
+            </li>`).join('') : '<li class="ism-aside-empty">No hay estudios con estos filtros. Prueba con otra búsqueda o país.</li>';
         return `
             <div class="ism-aside-head" tabindex="-1">
                 <span class="ism-aside-title">${esc(label)}</span>

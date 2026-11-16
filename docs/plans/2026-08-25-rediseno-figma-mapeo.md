@@ -118,7 +118,8 @@ cloud vivo**, que tiene frames nuevos (prefijos de node-id ≥ `344:` aprox.).
 
 ## Criterios de implementación (fijados en la sesión autónoma del 25 ago)
 
-- **Copy**: rioplatense con voseo, sin signos de exclamación, sentence case; traducir el
+- **Copy**: español neutro con tuteo (regla 10 del DS; desde el 16 nov 2026 reemplaza al
+  criterio original, rioplatense con voseo), sin signos de exclamación, sentence case; traducir el
   inglés heredado del kit (FEATURED, LOG OUT, Yesterday…); typos corregidos
   ("restablecer", "mismo lugar", "PRÓXIMAS"). Datos dummy inconsistentes de los mocks
   se unifican. Números europeos (`4.820`).

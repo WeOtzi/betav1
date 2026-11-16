@@ -2,7 +2,7 @@
  * WE OTZI - Modelo puro de pagos de clientes por cotización
  * ---------------------------------------------------------
  * Ronda 3 · grupo "pagos" (Figma w3JA83CcP5ISKjyOu87mx1: 24:1425 REGISTRAR PAGO,
- * actividad «Pago recibido» y «Saldo pend.»; 801:556 seña requerida;
+ * actividad «Pago recibido» y «Saldo pend.»; 801:556 anticipo requerido;
  * 801:580–583 saldo pendiente del expediente).
  *
  * Sin DOM ni red. Lo usan quotation-payment-dialog.js, quotation-payments-panel.js,
@@ -29,8 +29,8 @@
         'EUR', 'GBP', 'CHF', 'DKK', 'NOK', 'SEK', 'PLN', 'KRW', 'THB', 'IDR', 'JPY', 'AUD', 'NZD'];
 
     var KINDS = ['deposit', 'session', 'balance', 'other'];
-    var KIND_LABELS = { deposit: 'Seña', session: 'Pago de sesión', balance: 'Saldo', other: 'Otro' };
-    var KIND_EVENT = { deposit: 'Seña recibida', session: 'Pago recibido', balance: 'Saldo recibido', other: 'Pago recibido' };
+    var KIND_LABELS = { deposit: 'Anticipo', session: 'Pago de sesión', balance: 'Saldo', other: 'Otro' };
+    var KIND_EVENT = { deposit: 'Anticipo recibido', session: 'Pago recibido', balance: 'Saldo recibido', other: 'Pago recibido' };
     var METHODS = ['cash', 'transfer', 'other'];
     var METHOD_LABELS = { cash: 'Efectivo', transfer: 'Transferencia', other: 'Otro' };
 
@@ -118,6 +118,15 @@
         return !!q && PAYABLE_STATUSES.indexOf(q.quote_status) !== -1 && !isDraft(q) && !q.is_archived;
     }
 
+    // Ronda 2 · cot-respuesta (P4): el saldo/importe ACORDADO solo está activo
+    // cuando la cotización está aprobada por ambas partes (el cliente aceptó la
+    // propuesta o el artista registró el acuerdo). Antes es solo el presupuesto
+    // PROPUESTO: se muestra, pero no como deuda ni como saldo pendiente.
+    var AGREED_STATUSES = ['client_approved', 'in_progress', 'en_progreso', 'artist_completed', 'completed'];
+    function agreementActive(q) {
+        return !!q && AGREED_STATUSES.indexOf(q.quote_status) !== -1 && !isDraft(q);
+    }
+
     /* ------------------------------ normalización ------------------------------ */
     function normalize(raw) {
         raw = raw || {};
@@ -160,8 +169,8 @@
         return null;
     }
 
-    // Seña requerida: la de la cotización manual (801:556, artist_manual_quotes)
-    // y, si no hay fila manual, la que pidió el artista al responder o acordar
+    // Anticipo requerido: el de la cotización manual (801:556, artist_manual_quotes)
+    // y, si no hay fila manual, el que pidió el artista al responder o acordar
     // una solicitud de cliente (quotations_db.artist_deposit_*, COT-A-09).
     function depositRequired(manual, quote) {
         if (manual) {
@@ -210,7 +219,7 @@
      * Estado de cobro de una cotización.
      *   { currency, total, paid, balance, others, count, percent, lastPaidOn,
      *     deposit: { required, currency, pct, paid, status } | null }
-     * status de la seña: 'paid' (cubierta con pagos de seña o con lo cobrado en
+     * status del anticipo: 'paid' (cubierto con pagos de anticipo o con lo cobrado en
      * total) · 'partial' · 'pending'.
      */
     function summarize(quote, manual, payments, opts) {
@@ -223,6 +232,8 @@
         var total = agreed ? agreed.amount : null;
         var out = {
             currency: currency,
+            // false = total todavía PROPUESTO (la cotización no está aprobada por ambas partes).
+            active: agreementActive(quote),
             total: total,
             paid: paid.total,
             others: paid.others,
@@ -252,7 +263,7 @@
         var mime = String(file.type || '').toLowerCase();
         var name = String(file.name || '').toLowerCase();
         var ok = RECEIPT_MIME.indexOf(mime) !== -1 || (!mime && /\.(jpe?g|png|webp|heic|heif|pdf)$/.test(name));
-        if (!ok) return 'Subí una imagen (JPG, PNG, WEBP, HEIC) o un PDF.';
+        if (!ok) return 'Sube una imagen (JPG, PNG, WEBP, HEIC) o un PDF.';
         return null;
     }
 
@@ -267,24 +278,24 @@
         var errors = {};
         var today = cleanDate(opts.today instanceof Date ? isoDateLocal(opts.today) : opts.today) || isoDateLocal(new Date());
 
-        if (!input.quotationId && input.quotationId !== 0) errors.quotationId = 'Elegí la cotización.';
+        if (!input.quotationId && input.quotationId !== 0) errors.quotationId = 'Elige la cotización.';
         var kind = KINDS.indexOf(input.kind) !== -1 ? input.kind : null;
-        if (!kind) errors.kind = 'Elegí el tipo de pago.';
+        if (!kind) errors.kind = 'Elige el tipo de pago.';
         var method = METHODS.indexOf(input.method) !== -1 ? input.method : null;
-        if (!method) errors.method = 'Elegí el medio de pago.';
+        if (!method) errors.method = 'Elige el medio de pago.';
 
         var amount = parseAmount(input.amount);
-        if (!isFinite(amount) || amount <= 0) errors.amount = 'Ingresá un monto mayor a cero.';
+        if (!isFinite(amount) || amount <= 0) errors.amount = 'Ingresa un monto mayor a cero.';
         else if (amount > MAX_AMOUNT) errors.amount = 'El monto es demasiado alto.';
-        else if (hasDecimalsOver2(amount)) errors.amount = 'Usá hasta 2 decimales.';
+        else if (hasDecimalsOver2(amount)) errors.amount = 'Usa hasta 2 decimales.';
 
         var currency = upper(input.currency);
-        if (!isCurrency(currency)) errors.currency = 'Elegí una moneda de la lista.';
+        if (!isCurrency(currency)) errors.currency = 'Elige una moneda de la lista.';
 
         var paidOn = cleanDate(input.paidOn || input.paid_on);
-        if (!paidOn) errors.paidOn = 'Elegí la fecha del pago.';
+        if (!paidOn) errors.paidOn = 'Elige la fecha del pago.';
         else if (paidOn > addDays(today, 1)) errors.paidOn = 'La fecha del pago no puede ser futura.';
-        else if (paidOn < MIN_DATE) errors.paidOn = 'Revisá la fecha del pago.';
+        else if (paidOn < MIN_DATE) errors.paidOn = 'Revisa la fecha del pago.';
 
         var note = String(input.note == null ? '' : input.note).trim();
         if (note.length > MAX_NOTE) errors.note = 'La nota puede tener hasta ' + MAX_NOTE + ' caracteres.';
@@ -304,7 +315,7 @@
         };
     }
 
-    // Tipo sugerido según lo que falta: seña si hay seña pendiente, saldo si el
+    // Tipo sugerido según lo que falta: anticipo si hay anticipo pendiente, saldo si el
     // pago cubriría el resto, sesión en el medio.
     function suggestKind(summary) {
         if (!summary) return 'deposit';
@@ -449,7 +460,7 @@
     }
 
     function depositLabel(status) {
-        if (status === 'paid') return 'Pagada';
+        if (status === 'paid') return 'Pagado';
         if (status === 'partial') return 'Parcial';
         return 'Pendiente';
     }
@@ -461,6 +472,7 @@
         MAX_FILE_BYTES: MAX_FILE_BYTES, RECEIPT_MIME: RECEIPT_MIME,
         round2: round2, isoDateLocal: isoDateLocal, cleanDate: cleanDate, parseAmount: parseAmount,
         storedAmount: storedAmount, isCurrency: isCurrency, isDraft: isDraft, isPayable: isPayable,
+        AGREED_STATUSES: AGREED_STATUSES, agreementActive: agreementActive,
         normalize: normalize, sortPayments: sortPayments, agreedTotal: agreedTotal,
         depositRequired: depositRequired, convertWith: convertWith, summarize: summarize,
         validate: validate, validateFile: validateFile, suggestKind: suggestKind, suggestAmount: suggestAmount,

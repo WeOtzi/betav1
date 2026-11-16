@@ -261,7 +261,7 @@
             requirements: ['Portfolio activo en el Job Board', 'Mínimo 2 años de experiencia profesional', 'Residencia legal o permiso de trabajo en Argentina'],
             acceptance_steps: ['Coordinamos tu primera semana de agenda', 'Te sumamos al grupo del estudio', 'Firmamos el acuerdo de roster'],
             contact_name: 'Nico Ferro', contact_email: 'nico@fierronegro.ejemplo.weotzi.demo', contact_title: 'Fundador, Fierro Negro Tattoo',
-            message: 'Vimos tu portfolio en el Job Board y creemos que encajás con la casa. Nos encantaría sumarte al roster.'
+            message: 'Vimos tu portfolio en el Job Board y creemos que encajas con la casa. Nos encantaría sumarte al roster.'
         });
         invite(2, 'casa-aguja', { status: 'pending_acceptance', invited_at: daysAgo(4), revenue_split_pct: 50 }, {
             styles: ['Fine line', 'Ornamental'], response_due_at: inDays(9), benefits: ['Agenda gestionada'],

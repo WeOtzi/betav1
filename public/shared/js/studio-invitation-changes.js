@@ -2,7 +2,7 @@
  * Solicitudes de cambio de invitaciones · pestaña "Equipo" de /studio/dashboard.
  *
  * El artista pide cambios desde 801:1101 (RPC request_studio_invitation_changes).
- * Acá el estudio los ve y responde: "Actualizar invitación" (rol, sede, split,
+ * Aquí el estudio los ve y responde: "Actualizar invitación" (rol, sede, split,
  * fechas, duración, mensaje) o "Mantener condiciones" con una respuesta.
  * Todo pasa por la RPC respond_studio_invitation_change_request, que valida
  * dueño, estado pendiente y campos; la respuesta queda en el hilo del Inbox.
@@ -55,7 +55,7 @@
             render();
         } catch (error) {
             console.error('[studio-changes] cargar', error);
-            host.innerHTML = '<div class="studio-status studio-status-error" role="alert">No pudimos cargar las solicitudes de cambio. Volvé a abrir Equipo para intentar nuevamente.</div>';
+            host.innerHTML = '<div class="studio-status studio-status-error" role="alert">No pudimos cargar las solicitudes de cambio. Vuelve a abrir Equipo para intentar nuevamente.</div>';
         } finally {
             host.setAttribute('aria-busy', 'false');
         }
@@ -82,9 +82,9 @@
         host.innerHTML =
             '<h3 class="studio-h2 si-cr-title">Solicitudes de <span class="accent">cambio</span>' +
                 (pending.length ? ' <span class="wo-badge wo-badge--s si-cr-count">' + pending.length + '</span>' : '') + '</h3>' +
-            '<p class="studio-help">Los artistas invitados pueden pedir cambios antes de aceptar. Actualizá la invitación o contales por qué mantenés las condiciones: la respuesta les llega a su Inbox.</p>' +
+            '<p class="studio-help">Los artistas invitados pueden pedir cambios antes de aceptar. Actualiza la invitación o cuéntales por qué mantienes las condiciones: la respuesta les llega a su Inbox.</p>' +
             (pending.length ? '<div class="si-cr-list">' + pending.map(cardHtml).join('') + '</div>'
-                : '<p class="studio-help">No tenés solicitudes pendientes.</p>') +
+                : '<p class="studio-help">No tienes solicitudes pendientes.</p>') +
             (resolved.length ? '<details class="si-cr-history"><summary>Respondidas recientemente (' + resolved.length + ')</summary><ul>' +
                 resolved.map(r => '<li><strong>' + esc(artistName(r)) + '</strong> · ' + esc(statusLabel(r.status)) +
                     (r.resolved_at ? ' · ' + esc(M.shortDate(r.resolved_at)) : '') + '</li>').join('') + '</ul></details>' : '');
@@ -145,7 +145,7 @@
             '</div>' +
             field('Mensaje de la invitación', '<textarea class="wo-textarea" id="cr-message-' + id + '" name="message" maxlength="2000" rows="3">' + esc(d.message || '') + '</textarea>', 'cr-message-' + id) +
             '</fieldset>' +
-            field('Respuesta para el artista (opcional)', '<textarea class="wo-textarea" id="cr-reply-' + id + '" name="reply" maxlength="2000" rows="3" placeholder="Contale qué cambiaste."></textarea>', 'cr-reply-' + id) +
+            field('Respuesta para el artista (opcional)', '<textarea class="wo-textarea" id="cr-reply-' + id + '" name="reply" maxlength="2000" rows="3" placeholder="Cuéntale qué cambiaste."></textarea>', 'cr-reply-' + id) +
             '<p class="si-cr-error studio-status studio-status-error" role="alert" hidden></p>' +
             '<div class="studio-actions"><button type="submit" class="wo-btn">Guardar y responder</button>' +
             '<button type="button" class="wo-btn wo-btn--secondary" data-cr-action="cancel">Cancelar</button></div>' +

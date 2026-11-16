@@ -1,0 +1,14 @@
+[
+  {
+    "path": "public/shared/assets/ronda2/push/icon-192.webp",
+    "prompt": "Flat graphic app icon, square format, solid warm mustard yellow background filling the whole frame, centered bold solid black ring with two small solid black square dots floating above it, strict Bauhaus geometric style, hard edges, thick shapes, generous margin around the mark, no gradients, no shadows, no text, no letters, no people",
+    "aspect": "1:1",
+    "uso": "Ícono de la notificación push del sistema (service worker public/wo-sw.js). Exportar a 192×192 px. Si el archivo falta, la notificación sale sin ícono (el navegador usa el suyo)."
+  },
+  {
+    "path": "public/shared/assets/ronda2/push/badge-96.webp",
+    "prompt": "Monochrome notification badge glyph, pure white bold ring with two small white square dots above it, centered on a fully transparent background, flat silhouette, hard edges, no shading, no gradients, no text, no letters, no people",
+    "aspect": "1:1",
+    "uso": "Badge monocromo de la barra de estado en Android (service worker public/wo-sw.js). Exportar a 96×96 px con canal alfa (solo blanco sobre transparente). Si falta, Android muestra su badge genérico."
+  }
+]

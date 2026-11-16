@@ -672,7 +672,7 @@ behaviorTest('mountTravelGlobe exposes the accessible fallback when createGlobe 
     assert.equal(fallbackElement.hidden, false);
     assert.equal(
         fallbackElement.textContent,
-        'El globo interactivo no está disponible. Podés consultar las paradas en la agenda.'
+        'El globo interactivo no está disponible. Puedes consultar las paradas en la agenda.'
     );
     assert.equal(animation.requests.length, 0);
     controller.destroy();

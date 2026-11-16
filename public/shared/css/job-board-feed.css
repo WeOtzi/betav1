@@ -123,7 +123,7 @@ body.wo-app.jbf-is-sent #sc-fab { display: none !important; }
     border: var(--border-strong-width) solid var(--border-strong);
 }
 
-/* ---------- "Para vos" ---------- */
+/* ---------- "Para ti" ---------- */
 .jbf-quick {
     display: flex;
     flex-direction: column;

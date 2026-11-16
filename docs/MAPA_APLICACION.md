@@ -38,7 +38,7 @@ Supabase
   |
   | Integraciones externas
   v
-Google Drive, Gemini, Google Maps, n8n, EmailJS, Apify/Instagram, CDNs
+Google Drive, OpenAI (imagenes con IA), Google Maps, n8n, EmailJS, Apify/Instagram, CDNs
 ```
 
 ### Backend local
@@ -71,7 +71,7 @@ Google Drive, Gemini, Google Maps, n8n, EmailJS, Apify/Instagram, CDNs
 | Supabase Postgres | Datos de producto, RLS, vistas y funciones SQL | Migraciones en `supabase/migrations/`; consultas en JS |
 | Supabase Storage | Imagenes de cotizacion, perfil, galeria, media importada, estudios, spots y documentos | Buckets `quotation-references`, `profile-pictures`, `artist-gallery`, `studio-photos`, `studio-documents`, `studio-spot-attachments` |
 | Google Drive | Carpeta por cotizacion y subida de referencias | `/api/google-drive/*` |
-| Gemini | Generacion de imagen/concepto para tatuajes | `/api/gemini/generate-image` |
+| OpenAI (GPT Image 2.6) | Generacion de imagenes con IA: referencia del cotizador, avatar del artista, inspiracion del Job Board e iconos del backoffice. Gemini queda solo como proveedor heredado | `lib/ai-image.js`; `/api/ai/generate-image` (alias `/api/gemini/generate-image`) y `/api/quotations/ai-reference` |
 | Google Maps/Geocoder | Direcciones, mapas, pins, exploracion | `geocoder.js` (caché del visitante, no persiste), `address-picker.js` |
 | n8n | Webhooks de email/eventos de negocio | `app-config.json`, `/api/studio/notify`, flujos de registro/cotizacion/job board |
 | EmailJS | Notificaciones frontend heredadas | Config publica en `app-config.json` |
@@ -93,12 +93,14 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/explore/globe` | Cliente/publico | `public/explore/globe/index.html` | Globo 3D con artistas, itinerarios, filtros y spotlight. |
 | `/client/register` | Cliente | `public/client/register/index.html` | Registro de cuenta cliente. |
 | `/client/login` | Cliente | `public/client/login/index.html` | Login de cliente. |
-| `/client/dashboard` | Cliente | `public/client/dashboard/index.html` | Panel cliente: cotizaciones, perfil, chat y solicitudes de job board. |
-| `/client/requests` | Cliente | `public/client/requests/index.html` | Solicitudes del job board del cliente: estados, postulaciones recibidas, comparación y negociación (rediseño 2026). |
+| `/client/dashboard` | Cliente | `public/client/dashboard/index.html` | Panel cliente: cotizaciones, perfil, chat y solicitudes de job board. Ronda 2: accesos rápidos (cotizar, publicar idea, explorar, favoritos, mensajes), buscador por código corto y estados unificados (`client-panel-model.js`). |
+| `/client/requests` | Cliente | `public/client/requests/index.html` | Solicitudes del job board del cliente: estados, postulaciones recibidas, comparación y negociación (rediseño 2026). Ronda 2: mismas etiquetas que el dashboard (incluye la contraoferta pendiente) y buscador por código. |
 | `/client/chats` | Cliente | `public/client/chats/index.html` | Chats del cliente con sus artistas sobre `chat_threads` (rediseño 2026). |
-| `/client/profile` | Cliente | `public/client/profile/index.html` | Centro de cuenta del cliente: perfil, seguridad, notificaciones, configuración (rediseño 2026; conserva el modo perfil público). |
+| `/client/profile` | Cliente | `public/client/profile/index.html` | Centro de cuenta del cliente: perfil, seguridad, notificaciones, configuración (rediseño 2026; conserva el modo perfil público). Ronda 2: matriz de avisos email/push con los valores por defecto del servidor (`client-notif-model.js`). |
 | `/bienvenida` | Público | `public/bienvenida/index.html` | Selección de rol post-registro: cliente o tatuador (rediseño 2026). |
 | `/recover` | Público | `public/recover/index.html` | Recuperación de contraseña única (cliente/artista/beta) con OTP de Supabase (rediseño 2026). |
+| `/client/favorites` | Cliente | `public/client/favorites/index.html` | Ronda 2 · P22: "Mis favoritos". Listas del cliente con los artistas, diseños, merch y estudios que guardó con el corazón (`[data-wo-favorite]` + `wo-favorites.js`; tablas `favorite_lists` y `favorite_items`). |
+| `/cotizacion/:token` | Público | `public/cotizacion/index.html` | Ronda 2 · P30: hoja pública de una cotización que el artista compartió por enlace (`lib/routes/cot-detalle.js`, `quotation_share_links`). Se abre sin cuenta, no muestra datos de salud ni de contacto e invita a registrarse para vincular la cotización, chatear y responder. |
 | `/job-board/request` | Cliente | `public/job-board/request/index.html` | Publicar solicitud abierta de tatuaje. |
 | `/job-board` | Artista | `public/job-board/index.html` | Feed de solicitudes publicas para que artistas postulen. |
 | `/register-artist` | Artista | `public/register-artist/index.html` | Registro completo de artista, ubicacion, estilos, galeria e importacion de Instagram. |
@@ -132,6 +134,23 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/backoffice/login` | Admin | `public/backoffice/login/index.html` | Login de superadmin/backoffice. |
 | `/backoffice` | Admin | `public/backoffice/index.html` | Backoffice global: cotizaciones, artistas, soporte, analytics, salud, backup, integraciones y configuracion. |
 
+### Ronda 2 (nov 2026): qué suma cada pantalla
+
+Trece frentes sobre la beta 2.4.0. Dependen de las 20 migraciones `20261116*`, que se aplican después de publicar el código (orden en `deployments/DEPLOY.md`): mientras falte una, su módulo queda oculto o responde "pendiente" y el resto de la pantalla sigue igual.
+
+| Pantalla | Qué suma | Módulos y detalle |
+| --- | --- | --- |
+| `/quotation` | Pasos Estilo, Cuerpo y Tamaño nuevos (estilos sugeridos por la idea, silueta por partes con dato curioso, tamaños Micro, Media manga y Manga), rango de fechas tentativo, sede preferida del artista, referencia con IA marcada "solo referencial", edad mínima con aviso de menor, código corto de 6 caracteres y "Cotizar con otro artista". | `quotation-style-step.js`, `quotation-body-map.js`, `quotation-size-step.js`, `quotation-r2.js`, `wo-quote-reuse.js`; `lib/routes/cot-form.js`, `lib/routes/cot-pasos.js` |
+| `/my-quotations/detail` | Diálogo "Aceptar y enviar presupuesto" en cuatro pestañas con la agenda real; panel "El cliente propone cambios" y cambios al acuerdo aprobado; sesiones por confirmar, pedidos de cambio, registro y disputa; contacto del cliente según la regla de verificación, perfil del cliente, "Mismo contacto", hoja en PDF o imagen y enlace público. | `quote-respond-dialog.js` ([COT_RESPUESTA.md](COT_RESPUESTA.md)), `quotation-negotiation.js` ([NEGOCIACION_COTIZACION.md](NEGOCIACION_COTIZACION.md)), `wo-session-flow.js`, `quotation-detail-info.js`, `quote-share-actions.js` |
+| `/client/dashboard` | Aceptar, Rechazar o Modificar la propuesta (el rechazo es definitivo), "Mis sesiones" para confirmar o pedir otra fecha, "Tu actividad" con los avisos guardados y accesos rápidos. | `quotation-negotiation.js`, `client-sessions.js`, `client-panel-model.js` |
+| `/artist/inbox`, `/client/chats` | Mensajes de voz (hasta 3 minutos), mensajes rápidos guardados y, para el artista, respuestas automáticas de saludo y ausencia. El chat de una cotización rechazada queda cerrado para los dos. | `wo-voice.js`, `wo-quick-replies.js`, `artist-inbox-automations.js`, `WeotziData.QuickReplies` / `WeotziData.InboxAutomations` |
+| `/artist/profile`, `/artist/dashboard` | Insignias públicas Embajador y Most Wanted, hoja "Compartir" con historia para Instagram y tarjeta Open Graph propia, corazón de favoritos y botón "Denunciar". | `wo-share-cards.js`, `dashboard-share.js`, `lib/routes/perfil.js` ([PERFIL_INSIGNIAS.md](PERFIL_INSIGNIAS.md)) |
+| `/calendar` | La sesión que el cliente todavía no confirmó se muestra y se cuenta "por confirmar"; la sesión guarda la sede o dirección completa. | `wo-session-model.js`, `lib/routes/sesiones.js` |
+| `/register-artist` | La pestaña "Falta confirmar email" sigue sola cuando la persona confirma en otro dispositivo; cada foto del portfolio admite un pie de foto (`caption`). | `registro-r2.js`, `gallery-caption.js`, `lib/routes/registro.js` |
+| `/support/dashboard` | Pestañas DENUNCIAS y DISPUTAS con expediente, cambio de estado, resolución y notas internas. | `support-dashboard-reports.js`, `support-dashboard-disputes.js` |
+| `/backoffice` | El editor de zonas del cuerpo suma el campo "Dato curioso" (`body_parts.fun_fact`); la IA de imágenes pasa a OpenAI. | `admin.js`, `config-manager.js`, `lib/ai-image.js` |
+| Todas | Avisos in-app (toast con enlace y sonido) y Web Push; corazones de favoritos por atributo (`data-wo-favorite`). El botón de denuncia (`data-wo-report`) está en el perfil del artista, el perfil del estudio y el expediente de la cotización. | `wo-notify.js` y `wo-favorites.js` los carga `config-manager.js`; `public/wo-sw.js` es el service worker; `wo-report.js` lo incluye cada página que lo usa |
+
 ### Rutas retiradas (Figma final del artista, oct 2026)
 
 Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se eliminaron. Su URL responde 301 al reemplazo mientras la carpeta no exista (`lib/legacy-routes.js`); el detalle frame ↔ ruta está en [docs/plans/2026-10-28-figma-final-artista-mapeo.md](plans/2026-10-28-figma-final-artista-mapeo.md).
@@ -149,12 +168,15 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 
 | Metodo | Ruta | Funcion | Dependencias principales |
 | --- | --- | --- | --- |
-| `POST` | `/api/gemini/generate-image` | Genera imagenes/conceptos con Gemini usando `GEMINI_API_KEY`. | Gemini API |
+| `POST` | `/api/ai/generate-image` | Genera una imagen con IA (OpenAI GPT Image 2.6) usando `OPENAI_API_KEY`; modelo, tamano y calidad los decide el servidor. Limite por IP y tope diario. | `lib/routes/ai-image.js`, `lib/ai-image.js`, OpenAI Images API |
+| `POST` | `/api/gemini/generate-image` | Alias historico de `/api/ai/generate-image` (mismo guard y handler). | `lib/routes/ai-image.js` |
+| `POST` | `/api/quotations/ai-reference` | Referencia con IA del cotizador ("solo referencial"): el servidor arma el prompt y limita por borrador, por IP y por dia. | `lib/routes/cot-form.js`, `lib/ai-image.js` |
 | `POST` | `/api/google-drive/test` | Valida acceso a una carpeta de Google Drive. | Google Drive service account |
 | `POST` | `/api/google-drive/create-quote-folder` | Re-copia manual (superadmin) de referencias a Drive; credenciales solo del `.env`. | Google Drive |
 | `POST` | `/api/quotations/intake` | Autosave y envio del cotizador web (service role, llave `submission_key`). | `services/quotation-intake.js` |
 | `POST` | `/api/quotations/suggestions` | Artistas sugeridos para cotizar sin artista (sin PII). | `lib/artist-matching.js` |
 | `POST` | `/api/quotations/intake/job-board` | Publica la idea sin artista en el Job Board (sesion de cliente). | `lib/routes/cot-form.js` |
+| `POST` | `/api/quotations/style-suggestions` | Estilos sugeridos segun la idea del cliente y estilos del artista (palabras clave, sin IA ni PII). | `lib/routes/cot-pasos.js` |
 | `GET` | `/api/client-info` | Devuelve la IP **anonimizada** (IPv4 /24, IPv6 /48) y timestamp. | Request headers |
 | `POST` | `/api/session-log` | Recibe logs finales via `sendBeacon` y estima el país por zona horaria/idioma del navegador (`geo_hint`), sin enviar la IP a terceros. | Supabase |
 | `GET` | `/api/privacy/cookie-config` | Configuración pública del banner de cookies (`app_settings.cookie_consent_config`). | Supabase |
@@ -165,10 +187,10 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `POST` | `/api/tattoo-styles/ensure` | Busca o crea estilo raiz en `tattoo_styles`. | Supabase REST |
 | `POST` | `/api/admin/generate-backup` | Genera ZIP con datos recibidos, config y archivos de app. | `archiver`, filesystem |
 | `GET` | `/api/admin/backup-tables` | Lista tablas conocidas para backup. | `verifyAdminCaller` |
-| `GET` | `/shared/js/app-config.json` | Sirve configuracion publica con overrides de entorno, saneada (`sanitizePublicConfig`: sin service account, Gemini key, PRESET_PASSWORD ni webhook de referencias). | `app-config.json`, env vars |
+| `GET` | `/shared/js/app-config.json` | Sirve configuracion publica con overrides de entorno, saneada (`sanitizePublicConfig`: sin service account, keys de la IA de imagenes, PRESET_PASSWORD ni webhook de referencias; publica `aiImages { enabled, provider }`). | `app-config.json`, env vars |
 | `POST` | `/api/job-board/accept-application` | Cliente acepta postulacion, crea cotizacion, actualiza solicitud y rechaza otras postulaciones. | Supabase REST/Admin |
 | `POST` | `/api/client/quotations/:quoteId/hide` | Oculta cotizacion para el cliente con `client_deleted_at`. | Supabase Auth/REST |
-| `GET` | `/api/health/all` | Healthcheck de todos los servicios configurados. | Supabase, n8n, Gemini, Maps, Drive, EmailJS, Calendar |
+| `GET` | `/api/health/all` | Healthcheck de todos los servicios configurados. | Supabase, n8n, IA de imagenes (OpenAI; clave historica `gemini`), Maps, Drive, EmailJS, Calendar |
 | `GET` | `/api/health/:service` | Healthcheck individual. | Config local/env |
 | `GET` | `/api/health/history/:service` | Historial desde `service_health_logs`. | Supabase |
 | `GET` | `/api/analytics/users` | Sesiones por tipo de usuario y periodo. | `analytics_user_sessions` |
@@ -184,7 +206,7 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `POST` | `/api/admin/integrations/apify` | Guarda token Apify como secreto en `app_settings`. | `lib/app-settings.js` |
 | `POST` | `/api/admin/integrations/apify/test` | Prueba token Apify contra un handle. | Apify API |
 | `GET` | `/api/admin/integrations/apify/stats` | Estadisticas de importaciones Instagram y costo estimado. | `instagram_imports` |
-| `GET` | `/api/instagram/proxy-thumb` | Proxy seguro para thumbnails de Instagram/Facebook CDN. | Allowlist CDN |
+| `GET` | `/api/instagram/proxy-thumb` | Proxy seguro para thumbnails de Instagram/Facebook CDN. | Allowlist CDN + límite propio (600 / 15 min por IP) |
 | `POST` | `/api/instagram/preview` | Preview de perfil Instagram via Apify. En dashboard requiere auth; en signup permite modo limitado. | Apify, cache en memoria |
 | `POST` | `/api/instagram/commit` | Importa media seleccionada a Storage y actualiza artista/estudio. | Apify payload, Supabase Storage/REST |
 | `POST` | `/api/store/licenses/:licenseId/assets/:assetId/url` | URL firmada (300 s) para bajar el original o el stencil de una licencia; Bearer, titular o comprador, tope de 50 por licencia en 24 h. Limiter propio `storeDownloadLimiter` (60 cada 15 min por IP). El nombre de descarga es la base sanitizada más la extensión del MIME real del archivo. | `services/store-orders.js`, `lib/storage-sign.js`, bucket `store-design-files` |
@@ -197,7 +219,23 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `GET`/`POST` | `/api/artist/onboarding` | Estado del onboarding del artista (sugerencia del demo, demo automático, modo asistido y sus 8 pasos). | Bearer de artista, `user_preferences`, `artists_db` |
 | `GET`/`POST` | `/api/artist/instagram-verification` | Estado de la validación de Instagram y generación del código por email (POST máx. 5/hora). | Bearer de artista, `artist_instagram_verifications`, email `instagram_verification_code` |
 | `POST` | `/api/instagram-verification/inbound` | Webhook de la automatización de DMs de @weotzi que valida el código. | Header `X-Weotzi-Webhook-Token` (`IG_VERIFY_WEBHOOK_SECRET`) |
+| `GET`/`POST` | `/api/reports/eligibility`, `/api/reports` | Ronda 2 · denuncias: un artista denuncia una cotización que recibió o a otro artista; el dueño o manager de un estudio, a otro estudio. Crea un ticket `kind='denuncia'` con el expediente completo (RPC `create_support_report`), avisa a soporte y manda el acuse. Botones `[data-wo-report]` + `public/shared/js/wo-report.js`. | Bearer; `lib/routes/denuncias.js`, `support_ticket_reports`, bucket `support-attachments`, migración `20261116210000` |
+| `GET`/`POST` | `/api/support/reports` (+ `/:ticketId`, `/:ticketId/status`, `/:ticketId/notes`) | Cola de denuncias para soporte: expediente, evidencia firmada, cambio de estado, resolución y notas internas (pestaña DENUNCIAS de `/support/dashboard`). | Agente activo en `support_users_db` o superadmin |
+| `GET`/`POST` | `/api/support/disputes` (+ `/:ticketId`, `/:ticketId/status`, `/:ticketId/notes`) | Ronda 2 · P28: cola de disputas para soporte (tickets `kind='disputa'`; las de sesión las abre `POST /api/sesiones/:id/dispute`). Reclamo, sesión, partes, cambio de estado, resolución y notas internas (pestaña DISPUTAS de `/support/dashboard`). Al resolver o cerrar, la cotización deja de figurar "En disputa" y las dos partes reciben `session_dispute_resolved`. | Agente activo en `support_users_db` o superadmin; `lib/routes/soporte-disputas.js` |
 | `GET`/`POST` | `/api/support/instagram-verifications` (+ `/:id/confirm`, `/:id/reject`) | Cola de validaciones de Instagram para soporte. | Agente activo en `support_users_db` |
+| `GET` | `/api/push/config` | Clave pública VAPID y si el push está activo en el servidor. | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` |
+| `POST` | `/api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/refresh`, `/api/push/test` | Suscripción Web Push del navegador, baja, rotación (service worker) y aviso de prueba. | Bearer (subscribe/test), `push_subscriptions`, `user_notifications`, `lib/web-push.js` |
+| `GET` | `/api/quotations/artist-locations?artist_id=<uuid>` | Ronda 2 · P27: sedes y ciudades donde tatúa el artista, para que el cliente elija dónde quiere la sesión. Datos públicos, caché de 60 s. | `lib/routes/cot-form.js`; `artist_tattoo_locations`, `studio_public_roster`, `artist_trips` |
+| `POST` | `/api/quotations/:quoteId/reuse` | Ronda 2 · P32: "Cotizar con otro artista". Clona la idea, los datos y las referencias de una cotización propia a un borrador nuevo sin artista. | Bearer del cliente dueño; `lib/routes/cot-form.js` |
+| `GET`/`POST` | `/api/cot-respuesta/quotations/:quoteId/proposal`, `…/availability`, `…/agreement-sync` | Ronda 2 · propuesta del artista: contexto del diálogo, agenda real para ofrecer fechas, guardado de la propuesta (409 `slot_conflict` si una fecha choca con algo confirmado) y ajuste del anticipo de la cotización manual después del acuerdo. Detalle en [COT_RESPUESTA.md](COT_RESPUESTA.md). | Bearer del artista dueño; `lib/routes/cot-respuesta.js`, `quotations_db.offered_slots` / `proposal_message`, `artist_message_templates` |
+| `GET`/`POST` | `/api/negociacion/quotations/:quoteId` (+ `/proposals`, `/proposals/:proposalId/:action`) | Ronda 2 · negociación: estado para quien mira, contrapropuesta del cliente (`counter`) y cambios al acuerdo aprobado (`amendment`); `:action` es `accept`, `reject` o `withdraw`. Detalle en [NEGOCIACION_COTIZACION.md](NEGOCIACION_COTIZACION.md). | Bearer de una de las partes; `lib/routes/negociacion.js`, `quotation_proposals`, RPC `negociacion_propose` / `negociacion_resolve` |
+| `GET`/`POST` | `/api/sesiones/mine`, `/api/sesiones/quotations/:quoteId`, `/api/sesiones/locations`, `/api/sesiones/:sessionId/confirm`, `/api/sesiones/:sessionId/change-requests` (+ `/api/sesiones/change-requests/:requestId/respond`, `…/withdraw`), `/api/sesiones/:sessionId/feedback`, `/api/sesiones/:sessionId/dispute` | Ronda 2 · P28 y P27: el cliente confirma la sesión que agendó el artista o pide otra fecha; confirmada, se cambia solo con acuerdo de las dos partes y hasta 3 días antes; las sesiones pasadas se califican y admiten disputa (ticket `kind='disputa'`). | Bearer de una de las partes; `lib/routes/sesiones.js`, RPC `sesiones_*` (service-role), `quotation_session_change_requests`, `quotation_session_feedback`, `quotation_session_disputes` |
+| `GET`/`POST`/`DELETE` | `/api/cot-detalle/quotations/:quoteId/info`, `…/client-profile`, `…/sheet`, `…/share`, `/api/cot-detalle/client-contacts` | Ronda 2 · expediente del artista: contacto del cliente según la regla P20/P23, perfil del cliente, hoja para PDF o imagen y alta o revocación del enlace público. | Bearer del artista dueño; `lib/routes/cot-detalle.js`, `quotation_share_links` |
+| `GET`/`POST` | `/api/cot-detalle/public/:token`, `/api/cot-detalle/public/:token/claim` | Hoja pública de la cotización compartida (página `/cotizacion/:token`) y vínculo de la cotización a la cuenta del cliente (Bearer; la cuenta tiene que ser la del correo de la cotización y tenerlo verificado, ver `docs/TECHNICAL.md` §7.1). Avisa al artista con `shared_quotation_linked`. | Token en la ruta, límite propio; `lib/cot-detalle.js` |
+| `POST` | `/api/artist/profile-share` | Ronda 2 · registra que alguien compartió un perfil (canal, día y huella de IP con sal). Anónimo, con límite de frecuencia. Alimenta Most Wanted. | `lib/routes/perfil.js`, `artist_profile_shares` |
+| `POST` | `/api/perfil/most-wanted/recalculate` | Recalcula los perfiles en tendencia por zona (también corre solo cada `MOST_WANTED_INTERVAL_HOURS`). Detalle en [PERFIL_INSIGNIAS.md](PERFIL_INSIGNIAS.md). | `X-Cron-Token`; RPC `recalculate_most_wanted`, `artist_trend_scores`, `artist_most_wanted` |
+| `GET` | `/api/client/panel/notification-matrix` | Eventos, canales y valores por defecto de las notificaciones del cliente (la misma fuente que decide cada envío). No lee datos de ninguna cuenta. | `lib/routes/cliente-panel.js`, `lib/notification-prefs.js` |
+| `GET` | `/api/register/confirmation-status?uid=<uuid>` | ¿La cuenta recién creada ya confirmó su email? Responde solo `{ confirmed }`. | `lib/routes/registro.js`, Supabase Auth (service-role) |
 
 ### APIs referenciadas por frontend pero no implementadas en `server.js`
 
@@ -220,6 +258,11 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - Buscar artistas en `/marketplace`, `/explore` y `/explore/globe`.
 - Crear cuenta, iniciar sesion y gestionar perfil desde `/client/*`.
 - Ver cotizaciones propias, ocultarlas del dashboard, chatear y responder estados desde `/client/dashboard`.
+- Ronda 2 · negociación: Aceptar, Rechazar o Modificar la propuesta del artista (otro presupuesto, zona, tamaño, estilo, color o idea). Rechazar es definitivo y cierra el chat. Con el acuerdo aprobado, proponer cambios de precio, sesiones, anticipo o condiciones.
+- Ronda 2 · sesiones: confirmar la sesión que agendó el artista o pedir otra fecha; pedir un cambio hasta 3 días antes; calificar una sesión pasada o pedir una disputa a soporte.
+- Ronda 2 · favoritos: guardar artistas, diseños, merch y estudios en listas propias y verlas en `/client/favorites`.
+- Ronda 2 · avisos: elegir Email y Push por tipo de aviso en `/client/profile`; recibir toasts con enlace y notificaciones push.
+- Ronda 2 · cotizaciones: abrir la hoja que le compartió un artista (`/cotizacion/:token`) y vincularla a su cuenta; reutilizar una solicitud con otro artista; mandar mensajes de voz y mensajes rápidos en `/client/chats`.
 - Publicar solicitudes abiertas en `/job-board/request`.
 - Revisar postulaciones de artistas y aceptar una; la aceptacion crea una fila en `quotations_db`.
 - Comprar en la Store de un artista (`/store/*`, detrás de `features.store`): licencias de diseños y merch, informar el pago, bajar archivos, verificar licencias y seguir envíos desde `/store/purchases/` (link «Compras» en la topbar de cliente y, como esa nav no se ve en el celular, «Mis compras» en «Tu actividad» del dashboard).
@@ -232,6 +275,13 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - Publicar perfil y galeria en `/artist/profile` (la galeria publica vive dentro del perfil).
 - Recibir y gestionar cotizaciones en `/my-quotations`, con notas, sesiones, chat, rating y estados.
 - Consultar calendario y cotizaciones archivadas (`/my-quotations?alcance=archivadas`).
+- Ronda 2 · propuesta: responder con el diálogo de cuatro pestañas (Propuesta, Disponibilidad, Condiciones, Mensaje), ofrecer fechas contra su agenda real y modificar una propuesta ya enviada.
+- Ronda 2 · negociación: ver la contrapropuesta del cliente (antes → después) y aceptarla, hacer otra propuesta o mantener la suya; proponer cambios al acuerdo aprobado.
+- Ronda 2 · sesiones: agendar con sede o dirección completa (la sesión nace "por confirmar"), responder pedidos de cambio, registrar una ausencia, calificar y pedir una disputa.
+- Ronda 2 · expediente: ver el contacto del cliente solo con el perfil verificado, abrir el perfil del cliente, ver las otras cotizaciones del mismo contacto y compartir la cotización como PDF, imagen o enlace público.
+- Ronda 2 · inbox: mensajes de voz, mensajes rápidos y respuestas automáticas de saludo y ausencia.
+- Ronda 2 · perfil: insignias Embajador y Most Wanted, tarjeta para compartir y panel "Compartir mi perfil".
+- Ronda 2 · denuncias: denunciar una cotización recibida o el perfil de otro artista (abre un ticket de soporte).
 - Ver solicitudes publicas de job board y postular.
 - Ver/aceptar/rechazar invitaciones de estudios en `/artist/invitations`.
 - Aplicar a spots abiertos de estudios desde `/studio-spots`.
@@ -250,6 +300,7 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - Registrar trabajos realizados, facturas internas, documentos y adjuntos.
 - Gestionar inventario, movimientos, salud de stock, proveedores, sponsors y artistas patrocinados.
 - Consultar metricas internas mediante vistas de dashboard, performance e inventario.
+- Ronda 2 · denuncias: el dueño o un manager activo denuncia a otro estudio desde el perfil público de ese estudio (abre un ticket de soporte).
 
 ### Soporte
 
@@ -259,6 +310,7 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 - Actualizar campos operativos de artistas, cotizaciones y tickets.
 - Asignar, liberar, cerrar y responder conversaciones de soporte.
 - Acceder a vistas de actividad/errores/sesiones para diagnostico.
+- Ronda 2 · pestañas DENUNCIAS y DISPUTAS: expediente completo, evidencia, cambio de estado, resolución y notas internas. Al resolver una disputa de sesión, las dos partes reciben la resolución.
 - Pestaña STORE (`support-dashboard-store.js`, detrás de `features.store`): pedidos que cobra We Ötzi por confirmar, marcados `needs_support` (incluidos los vencidos con pago informado) o con fondos retenidos, y los vencidos de los últimos 7 días con el filtro «Vencidos» (`listRecentExpiredOrders`; no suman al contador). En el drawer: confirmar pago (o reabrir y confirmar un vencido), cancelar un pendiente aunque tenga pago informado, reembolsar, retener o liberar fondos (solo en pedidos que pasan por el wallet), «Marcar como revisado» (`resolveOrderFlag`; un duplicado o un informado vencido, nunca un pendiente) y las notas internas del pedido (`listSupportNotes`: retención, reembolso, reapertura, marca revisada y errores del mantenimiento).
 
 ### Admin / Backoffice
@@ -292,7 +344,34 @@ Estas llamadas existen en scripts locales, pero no aparecen como rutas Express e
 | `service_health_logs` | Historial de healthchecks. | Admin/soporte |
 | `app_settings` | Configuracion publica y secretos privados, incluido `apify_token`. | Admin/backend |
 | `support_conversations` | Bandeja de conversaciones de soporte referenciada por el dashboard. | Soporte |
+| `support_ticket_reports` | Expediente de cada denuncia (ticket `support_tickets.kind='denuncia'`): denunciante, denunciado, motivo, evidencia y, si es una cotización, sus referencias y mensajes. Solo lo lee soporte; lo escribe la RPC `create_support_report` (service-role). | Soporte |
 | `support_messages` | Mensajes de conversaciones de soporte. | Soporte |
+| `user_notifications` | Avisos del usuario (push / in-app): título, texto y destino. Inserta el servidor; la app los recibe por Realtime (`wo-notify.js`). | Artista, cliente, estudio |
+| `push_subscriptions` | Suscripciones Web Push por navegador (endpoint + claves). Escribe el servidor. | Artista, cliente, estudio |
+
+### Ronda 2 (migraciones `20261116*`)
+
+Cada migración tiene su reversa en `supabase/rollbacks/`. `support_ticket_reports`, `user_notifications` y `push_subscriptions` (tabla de arriba) también son de esta ronda.
+
+| Entidad | Propósito | Migración |
+| --- | --- | --- |
+| `quotations_db` (columnas nuevas) | `short_code` (el código de 6 caracteres que ve la persona; `quote_id` sigue siendo la llave de los enlaces), `client_is_minor`, `preferred_date_from` / `preferred_date_to`, `preferred_location_*` (sede que eligió el cliente), `reused_from_quote_id`, `offered_slots` y `proposal_message` (propuesta del artista), `agreement_approved_at` y `agreement_version` (acuerdo aprobado por las dos partes). | `110000`, `120000`, `140000` |
+| `quotations_attachments` (columnas nuevas) | `note` (comentario de cada referencia) y `ai_generated` (referencia hecha con IA). | `110000` |
+| `quotation_contact_links` | Agrupa cotizaciones del mismo contacto (correo o teléfono). Privada: el artista solo ve, entre sus propias cotizaciones, cuáles coinciden, por la RPC `quotation_same_contact`. El teléfono nunca vincula a una cuenta. | `110200` |
+| `artist_message_templates`, `client_message_templates` | Mensajes guardados por usuario: respuestas de cotización (`kind = 'quote'`) y mensajes rápidos del inbox (`kind = 'chat'`); los del cliente, para `/client/chats`. RLS de dueño. | `120000`, `160100` |
+| `quotation_share_links` | Enlaces públicos `/cotizacion/<token>`: hash del token, vencimiento obligatorio, revocación, vistas y quién vinculó la cotización. Sin policies: todo pasa por el servidor. | `130000` |
+| `quotation_proposals` | Contrapropuestas del cliente (`counter`) y cambios al acuerdo (`amendment`) con el antes → después y su estado. Una sola pendiente por cotización; las partes solo leen, escriben `negociacion_propose` / `negociacion_resolve`. | `140000` |
+| `quotation_sessions` (columnas nuevas) | `client_confirmation` / `client_confirmed_at` y `location_kind` / `location_ref` / `location_place_id`; `location` admite la dirección completa. | `150000` |
+| `quotation_session_change_requests`, `quotation_session_feedback`, `quotation_session_disputes` | Pedidos de cambio de una sesión, calificación y registro por sesión, y vínculo sesión ↔ ticket de disputa. Escribe el servidor por las RPC `sesiones_*`. | `150000` |
+| `chat_messages`, `inbox_messages` (columnas nuevas) | `attachment_duration_ms` (mensajes de voz) y `auto_kind` (marca las respuestas automáticas). | `160000`, `160200` |
+| `artist_inbox_automations` | Saludo y ausencia configurables por el artista. Los envía la base con triggers al llegar un mensaje del cliente. | `160200` |
+| `artist_profile_shares` | Veces que se compartió un perfil (canal, día, huella de IP). Solo `service_role`. | `180000` |
+| `artist_trend_scores`, `artist_most_wanted` | Conteos y puntaje de tendencia (el artista lee su fila, soporte todas) y ganadores por zona; el público solo lee `artist_user_id`, `rank`, `zone_level`, `awarded_at` y `computed_at`. Los escribe `recalculate_most_wanted`. | `180000` |
+| `artist_share_cards` | Ruta de la tarjeta Open Graph 1200×630 que compone el artista; la usa `lib/routes/perfil.js` como `og:image`. | `180000` |
+| `favorite_lists`, `favorite_items` | Listas de favoritos del cliente y lo guardado en cada una (`artist`, `design`, `merch`, `studio`). RLS de dueño más lectura de soporte; `client_favorites` queda como espejo. RPC `favorites_save` y `favorites_default_list_id`. | `190000` |
+| `body_parts.fun_fact` | Dato curioso de cada zona para el cotizador; se edita en el backoffice. | `100000` |
+| `artists_db.gallery_feed_items`, `studios.photo_feed_items` | Cada ítem admite `caption` (pie de foto); un trigger lo limpia y lo acota a 2200 caracteres. | `200000` |
+| Guardas | `fn_quotations_client_column_guard` (el artista no reescribe el vínculo con el cliente ni el origen), `chat_threads` sin `client_email`, `session_logs` sin tokens en las direcciones, `guard_artist_embajador` (la insignia la marca soporte). | `220000`, `220100`, `230000`, `180000` |
 
 ### Job board
 
@@ -402,6 +481,15 @@ RPC principales: `create_store_order`, `report_store_payment`, `confirm_store_or
 5. Artista gestiona la solicitud desde `/my-quotations`.
 6. Cliente revisa estado/chat desde `/client/dashboard`.
 
+### Propuesta, negociación y sesiones (ronda 2)
+
+1. El artista responde desde el expediente con "Aceptar y enviar presupuesto" (`/api/cot-respuesta/*`): monto, anticipo, fechas ofrecidas contra su agenda y mensaje. Detalle en [COT_RESPUESTA.md](COT_RESPUESTA.md).
+2. El cliente acepta, rechaza (definitivo) o modifica. Modificar crea una contrapropuesta en `quotation_proposals` (`/api/negociacion/*`); el artista la acepta, hace otra propuesta o mantiene la suya. Detalle en [NEGOCIACION_COTIZACION.md](NEGOCIACION_COTIZACION.md).
+3. Con el acuerdo aprobado por las dos partes (`quotations_db.agreement_approved_at`), cualquier cambio de precio, sesiones, anticipo o condiciones es otra propuesta que la contraparte aprueba.
+4. El artista agenda la sesión con su lugar. Nace "por confirmar": el cliente la confirma o pide otra fecha (`/api/sesiones/*`). Confirmada, se cambia solo con acuerdo y hasta 3 días antes.
+5. Pasada la sesión, cada parte la califica y deja su registro. Si no hay acuerdo, cualquiera pide una disputa: se abre un ticket que soporte resuelve desde la pestaña DISPUTAS.
+6. Cada paso avisa a la otra parte por correo, in-app y push (`lib/push-dispatch.js`), según sus preferencias.
+
 ### Pre-cotizador
 
 1. Cliente ingresa idea, estilo, tamano, zona y ciudad.
@@ -450,7 +538,8 @@ RPC principales: `create_store_order`, `report_store_payment`, `confirm_store_or
 
 | Archivo/modulo | Rol |
 | --- | --- |
-| `server.js` | Servidor Express, APIs, health, analytics, Google, Gemini, Instagram, backup y clean URLs. |
+| `server.js` | Servidor Express, APIs, health, analytics, Google, Instagram, backup y clean URLs. |
+| `lib/ai-image.js` | Generacion de imagenes con IA neutral de proveedor: OpenAI GPT Image 2.6 por defecto; Gemini heredado en `lib/gemini-image.js`. Rutas en `lib/routes/ai-image.js`. |
 | `lib/prequote-estimator.js` | Logica pura del pre-cotizador. |
 | `lib/app-settings.js` | Lectura/escritura de settings privados/publicos en Supabase (sobre la capa PostgREST). |
 | `lib/postgrest.js` | **Capa PostgREST unificada (servidor):** query-builder sobre `fetch` + service-role. Fuente unica de acceso a datos del backend. Ver `docs/plans/2026-06-21-postgrest-capa-unificada-piloto-cotizaciones.md`. |

@@ -179,7 +179,7 @@
                     return {
                         valid,
                         mode: 'place',
-                        reason: valid ? '' : 'Seleccioná un lugar de Google Maps.',
+                        reason: valid ? '' : 'Selecciona un lugar de Google Maps.',
                     };
                 }
 
@@ -188,7 +188,7 @@
                 return {
                     valid,
                     mode: 'studio',
-                    reason: valid ? '' : 'Seleccioná un estudio existente.',
+                    reason: valid ? '' : 'Selecciona un estudio existente.',
                 };
             },
 

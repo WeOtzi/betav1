@@ -786,7 +786,7 @@ function mountInstagramImportInDashboard() {
             // Refresh local state and rerender the gallery so imported items appear.
             const before = new Set(normalizeDashboardGalleryFeedItems().map((item) => item.url));
             await loadArtistData().catch(() => {});
-            // El servidor no sella la fecha de importación: la marcamos acá para
+            // El servidor no sella la fecha de importación: la marcamos aquí para
             // la insignia NUEVO · IG (Figma 2003:2583).
             try {
                 const feed = normalizeDashboardGalleryFeedItems();
@@ -854,7 +854,7 @@ function loadInstagramValidationStateOnce() {
     const visibility = window.WoGalleryVisibility;
     if (typeof visibility?.stateFrom !== 'function' || typeof visibility.isInstagramItem !== 'function') return;
     // Sin fotos de IG no hace falta preguntar; si después se importan, el
-    // render que sigue a la importación vuelve a pasar por acá.
+    // render que sigue a la importación vuelve a pasar por aquí.
     if (!parseJsonArraySafe(artistData?.gallery_feed_items).some((item) => visibility.isInstagramItem(item))) return;
     _igValidationStateRequested = true;
     fetchInstagramValidationState()
@@ -2266,7 +2266,7 @@ function getDashboardGeolocation() {
                 hint.textContent = 'Ubicacion detectada!';
                 hint.style.color = '#4CAF50';
             } else {
-                hint.textContent = 'No se pudo determinar la direccion. Ingresala manualmente.';
+                hint.textContent = 'No se pudo determinar la direccion. Ingrésala manualmente.';
                 hint.style.color = 'var(--primary-red, #e53935)';
             }
         } catch (err) {
@@ -2281,7 +2281,7 @@ function getDashboardGeolocation() {
     // IP del navegador. Si el GPS no responde, se pide la ubicación a mano.
     async function tryIPGeolocation() {
         btn.classList.remove('loading');
-        hint.textContent = 'No se pudo obtener la ubicacion. Ingresala manualmente.';
+        hint.textContent = 'No se pudo obtener la ubicacion. Ingrésala manualmente.';
         hint.style.color = 'var(--primary-red, #e53935)';
     }
 
@@ -2295,7 +2295,7 @@ function getDashboardGeolocation() {
                 // PERMISSION_DENIED: user explicitly said no — don't fallback, show message
                 if (error.code === error.PERMISSION_DENIED) {
                     btn.classList.remove('loading');
-                    hint.textContent = 'Permiso de ubicacion denegado. Ingresala manualmente.';
+                    hint.textContent = 'Permiso de ubicacion denegado. Ingrésala manualmente.';
                     hint.style.color = 'var(--primary-red, #e53935)';
                     return;
                 }
@@ -2574,7 +2574,7 @@ function refreshDashboardAddressEditor(workType) {
 
     if (label) {
         label.textContent = (workType === 'independent')
-            ? 'Dirección donde recibís clientes'
+            ? 'Dirección donde recibes clientes'
             : 'Dirección del estudio';
     }
 
@@ -2940,7 +2940,7 @@ async function handleProfileSave(e) {
                         body: JSON.stringify({ kind: 'membership_request_created', membership_id: reqData.membership_id })
                     }).catch(() => {});
                 }
-            } else if (!/Ya tenés/i.test(String(reqError.message || ''))) {
+            } else if (!/Ya (?:tenés|tienes)/i.test(String(reqError.message || ''))) {
                 console.warn('[dashboard] solicitud de alta:', reqError);
             }
         }
@@ -3018,9 +3018,13 @@ async function generateAIAvatar() {
 
     const config = window.ConfigManager?.get() || {};
 
-    messageEl.textContent = 'Generando imagen, esto puede tardar unos segundos...';
+    // La generación (OpenAI GPT Image) puede tardar entre medio minuto y dos
+    // minutos: no hay timeout en el navegador y el estado queda a la vista.
+    messageEl.textContent = 'Generando tu imagen… Puede tardar hasta dos minutos. No cierres esta ventana.';
     messageEl.className = 'form-message info';
+    messageEl.setAttribute('role', 'status');
     generateBtn.disabled = true;
+    generateBtn.setAttribute('aria-busy', 'true');
     previewContainer.style.display = 'none';
     useBtn.style.display = 'none';
 
@@ -3028,30 +3032,27 @@ async function generateAIAvatar() {
         const aiSettings = config.aiProfilePicture || {};
         const fullPrompt = `${aiSettings.defaultPrompt || ''}\n\nUser request: ${prompt}`;
 
-        const response = await fetch('/api/gemini/generate-image', {
+        // El servidor decide el modelo, el tamaño y la calidad: del navegador solo
+        // viajan el prompt y la proporción. Con sesión, el servidor identifica la
+        // cuenta ante el proveedor con un hash (nunca el email).
+        const headers = { 'Content-Type': 'application/json' };
+        const token = await getDashboardAccessToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch('/api/ai/generate-image', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt: fullPrompt,
-                model: aiSettings.model || config.gemini?.model,
-                aspectRatio: "1:1",
-                imageSize: aiSettings.resolution || "1K",
-                temperature: aiSettings.temperature || 0.7,
-                maxOutputTokens: aiSettings.maxTokens || 1024,
-                safetySettings: aiSettings.filters === 'High' ? [
-                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_LOW_AND_ABOVE" },
-                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_LOW_AND_ABOVE" },
-                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_LOW_AND_ABOVE" },
-                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_LOW_AND_ABOVE" }
-                ] : undefined
-            })
+            headers,
+            body: JSON.stringify({ prompt: fullPrompt, aspectRatio: '1:1' })
         });
 
-        const data = await response.json();
+        // Si un proxy corta la espera, la respuesta puede no ser JSON.
+        const data = await response.json().catch(() => null);
+        const image = data && data.success && /^data:image\/(png|jpeg|webp);base64,/.test(String(data.image || '')) ? data.image : '';
+        if (!image) {
+            const own = data && (data.code || data.rate_limited) && typeof data.error === 'string' ? data.error : '';
+            throw new Error(own || 'No pudimos generar la imagen. Inténtalo de nuevo en un rato.');
+        }
 
-        if (!data.success) throw new Error(data.error || 'Error al generar imagen');
-
-        previewImg.src = data.image;
+        previewImg.src = image;
         previewContainer.style.display = 'block';
         useBtn.style.display = 'block';
         messageEl.textContent = '¡Imagen generada con éxito!';
@@ -3059,10 +3060,13 @@ async function generateAIAvatar() {
 
     } catch (error) {
         console.error('AI Generation Error:', error);
-        messageEl.textContent = 'Error: ' + error.message;
+        messageEl.textContent = error instanceof TypeError
+            ? 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.'
+            : error.message;
         messageEl.className = 'form-message error';
     } finally {
         generateBtn.disabled = false;
+        generateBtn.removeAttribute('aria-busy');
     }
 }
 
@@ -3084,8 +3088,11 @@ async function useAIAvatar() {
         const res = await fetch(base64Data);
         const blob = await res.blob();
         
-        // Generate unique filename
-        const fileName = `ai-avatar-${Date.now()}.png`;
+        // Generate unique filename. La imagen llega en JPEG (OpenAI) o PNG
+        // (proveedor heredado): extensión y tipo siguen al contenido real.
+        const avatarType = /^image\/(png|jpeg|webp)$/.test(blob.type) ? blob.type : 'image/jpeg';
+        const avatarExt = avatarType === 'image/jpeg' ? 'jpg' : avatarType.split('/')[1];
+        const fileName = `ai-avatar-${Date.now()}.${avatarExt}`;
         const filePath = `${currentUser.id}/${fileName}`;
 
         // Upload to Supabase Storage
@@ -3094,7 +3101,7 @@ async function useAIAvatar() {
             .upload(filePath, blob, {
                 cacheControl: '3600',
                 upsert: true,
-                contentType: 'image/png'
+                contentType: avatarType
             });
 
         if (uploadError) throw uploadError;
@@ -3315,11 +3322,11 @@ async function uploadDashboardGalleryFile(file, kind) {
 
 // Mensaje de cierre de una subida: éxito total, parcial o fallo completo.
 function galleryUploadOutcomeMessage(uploaded, total, ephemeral) {
-    if (!uploaded) return { text: 'No pudimos subir los archivos. Probá de nuevo en unos minutos.', type: 'error' };
+    if (!uploaded) return { text: 'No pudimos subir los archivos. Prueba de nuevo en unos minutos.', type: 'error' };
     const done = uploaded === 1 ? '1 archivo subido a tu galería.' : `${uploaded} archivos subidos a tu galería.`;
     if (uploaded < total) {
         const failed = total - uploaded;
-        return { text: `${done} ${failed === 1 ? 'Uno no se pudo subir' : failed + ' no se pudieron subir'}; probá de nuevo con ese archivo.`, type: 'warning' };
+        return { text: `${done} ${failed === 1 ? 'Uno no se pudo subir' : failed + ' no se pudieron subir'}; prueba de nuevo con ese archivo.`, type: 'warning' };
     }
     if (ephemeral) return { text: `${done} Vista previa: el video se ve hasta que recargues la página.`, type: 'warning' };
     return { text: done, type: 'success' };
@@ -3608,8 +3615,8 @@ async function handleGalleryUpload(e) {
 
     if (files.length > remainingSlots) {
         showStatusMessage(remainingSlots > 0
-            ? `Podés subir ${remainingSlots === 1 ? '1 archivo más' : remainingSlots + ' archivos más'} (máximo ${MAX_GALLERY_IMAGES}).`
-            : `Tu galería ya tiene ${MAX_GALLERY_IMAGES} archivos. Borrá alguno para subir otro.`, 'error');
+            ? `Puedes subir ${remainingSlots === 1 ? '1 archivo más' : remainingSlots + ' archivos más'} (máximo ${MAX_GALLERY_IMAGES}).`
+            : `Tu galería ya tiene ${MAX_GALLERY_IMAGES} archivos. Borra alguno para subir otro.`, 'error');
         e.target.value = '';
         return;
     }
@@ -3636,8 +3643,8 @@ async function handleGalleryUpload(e) {
     if (currentVideoCount + videoFiles.length > MAX_GALLERY_VIDEOS) {
         const free = Math.max(0, MAX_GALLERY_VIDEOS - currentVideoCount);
         showStatusMessage(free
-            ? `Podés sumar ${free === 1 ? '1 video más' : free + ' videos más'} (máximo ${MAX_GALLERY_VIDEOS}).`
-            : `Ya tenés el máximo de ${MAX_GALLERY_VIDEOS} videos en tu galería.`, 'error');
+            ? `Puedes sumar ${free === 1 ? '1 video más' : free + ' videos más'} (máximo ${MAX_GALLERY_VIDEOS}).`
+            : `Ya tienes el máximo de ${MAX_GALLERY_VIDEOS} videos en tu galería.`, 'error');
         e.target.value = '';
         return;
     }
@@ -4367,7 +4374,7 @@ async function handleGalleryEditUpload(e) {
     // Validate video files (misma regla que el contador "N/2 VIDEOS").
     const currentVideoCount = currentFeedItems.filter(isFeedItemVideo).length;
     if (currentVideoCount + videoFiles.length > MAX_GALLERY_VIDEOS) {
-        showStatusMessage(`Ya tenés el máximo de ${MAX_GALLERY_VIDEOS} videos en tu galería.`, 'error');
+        showStatusMessage(`Ya tienes el máximo de ${MAX_GALLERY_VIDEOS} videos en tu galería.`, 'error');
         e.target.value = '';
         return;
     }

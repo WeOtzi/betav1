@@ -10,7 +10,7 @@
 (function () {
     'use strict';
 
-    var state = { artist: null, panel: null, dest: 'profile', qr: null, cardBlob: null, cardBlobUrl: '' };
+    var state = { artist: null, panel: null, dest: 'profile', qr: null, cardBlob: null, cardBlobUrl: '', story: null };
     var els = {};
     // Canvas/SVG no leen custom properties: se resuelven los tokens del DS al
     // generar (los literales son solo respaldo si tokens.css no cargó).
@@ -71,14 +71,15 @@
         var u = username();
         if (!u) return '';
         var hash = dest === 'gallery' ? 'block-gallery' : '';
-        if (window.WoArtistPublicUrl) return window.WoArtistPublicUrl.publicProfileUrl(u, base(), { hash: hash });
         // Turnos (frente turnos): página pública /turnos con los turnos libres.
+        // Va antes de la URL corta: si no, la pestaña TURNOS compartía el perfil.
         if (dest === 'turnos') return base() + '/turnos?artist=' + encodeURIComponent(u);
+        if (window.WoArtistPublicUrl) return window.WoArtistPublicUrl.publicProfileUrl(u, base(), { hash: hash });
         var url = base() + '/artist/profile?artist=' + encodeURIComponent(u);
         return hash ? url + '#' + hash : url;
     }
 
-    /* ------------------- onboarding: paso "Compartí tu perfil" ------------------- */
+    /* ------------------- onboarding: paso "Comparte tu perfil" ------------------- */
     // Auditoría PP-07: copiar marca 'compartir.enlace'; compartir por una red,
     // el menú nativo o descargar la tarjeta marca 'compartir'. Una vez por id.
     var acked = {};
@@ -120,12 +121,132 @@
     function isTouch() {
         try { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) { return false; }
     }
+
+    /* ------------- ronda 2: compartidos, historia y tarjeta OG ------------- */
+    // Registra cada compartido del perfil (POST /api/artist/profile-share; el
+    // servidor cuenta una vez por persona, canal y hora). Los que salen de este
+    // panel van con la sesión del artista: quedan guardados para estadísticas
+    // (is_owner) pero NO puntúan en Most Wanted, donde nadie suma a su propio
+    // perfil. Nunca frena la UI.
+    function trackShare(channel) {
+        var u = username();
+        if (!u || (window.WoDemo && window.WoDemo.enabled)) return;
+        accessToken().then(function (token) {
+            var headers = { 'Content-Type': 'application/json' };
+            if (token) headers.Authorization = 'Bearer ' + token;
+            return fetch(appPath('/api/artist/profile-share'), {
+                method: 'POST', headers: headers, keepalive: true,
+                body: JSON.stringify({ artist_username: u, channel: channel })
+            });
+        }).catch(function () { /* telemetría opcional */ });
+    }
+
+    // Compositor de tarjetas (wo-share-cards.js): se carga a demanda, una vez.
+    var cardsLoading = null;
+    function ensureCards() {
+        if (window.WoShareCards) return Promise.resolve(window.WoShareCards);
+        if (!cardsLoading) {
+            cardsLoading = new Promise(function (resolve) {
+                var s = document.createElement('script');
+                s.src = appPath('/shared/js/wo-share-cards.js');
+                s.async = true;
+                s.onload = function () { resolve(window.WoShareCards || null); };
+                s.onerror = function () { cardsLoading = null; resolve(null); };
+                document.head.appendChild(s);
+            });
+        }
+        return cardsLoading;
+    }
+    // Datos de la tarjeta: el artista del dashboard + su privacidad pública
+    // (para no dibujar la ciudad si la tiene oculta).
+    function cardInput(C) {
+        var artist = state.artist || window.artistData || {};
+        var url = shareUrl('profile');
+        return Promise.resolve(typeof C.loadPrefs === 'function' ? C.loadPrefs(artist.user_id) : null)
+            .catch(function () { return null; })
+            .then(function (prefs) { return { artist: artist, prefs: prefs || {}, url: url }; });
+    }
+
+    // Historia vertical 1080×1920: se prepara al abrir el panel para poder
+    // compartirla dentro del mismo click (Safari iOS exige el gesto).
+    function prepareStory() {
+        var url = shareUrl('profile');
+        // El panel se vuelve a pintar al cambiar de pestaña: la imagen se reutiliza.
+        if (state.story && state.story.url === url) return;
+        var story = { url: url, blob: null, file: null, ready: false, promise: null };
+        state.story = story;
+        story.promise = ensureCards().then(function (C) {
+            if (!C) return story;
+            return cardInput(C).then(function (input) { return C.storyBlob(input); }).then(function (blob) {
+                story.blob = blob;
+                try { story.file = new File([blob], C.storyFileName(username()), { type: 'image/jpeg' }); } catch (e) { story.file = null; }
+                story.ready = true;
+                return story;
+            });
+        }).catch(function () { return story; });
+    }
+    function canShareStory(story) {
+        if (!story || !story.ready || !story.file || !navigator.share || !navigator.canShare) return false;
+        try { return navigator.canShare({ files: [story.file] }) === true; } catch (e) { return false; }
+    }
+    function downloadStory(story) {
+        var href = URL.createObjectURL(story.blob);
+        var name = window.WoShareCards ? window.WoShareCards.storyFileName(username()) : 'historia.jpg';
+        download(href, name);
+        setTimeout(function () { URL.revokeObjectURL(href); }, 2000);
+    }
+    function shareStory() {
+        var story = state.story;
+        var url = shareUrl('profile');
+        ack('compartir');
+        trackShare('story');
+        // El enlace va al portapapeles en el mismo click: se pega en el sticker de enlace.
+        var copied = copy(url);
+        if (isTouch() && canShareStory(story)) {
+            navigator.share({ files: [story.file], title: displayName() + ' · We Ötzi' })
+                .then(function () { toast('Agrega el sticker de enlace en tu historia y pega tu enlace: ya está copiado.'); })
+                .catch(function (e) { if (e && e.name !== 'AbortError') toast('No pudimos abrir el menú para compartir.', 'error'); });
+            copied.catch(function () { /* el enlace sigue visible en el panel */ });
+            return;
+        }
+        if (isTouch() && navigator.share && (!story || !story.ready)) {
+            // La imagen todavía no está: se comparte el enlace por el menú del sistema.
+            nativeShare(false);
+            return;
+        }
+        var finish = function (done) {
+            if (!done || !done.ready || !done.blob) {
+                copied.then(function () { toast('No pudimos crear la imagen. Copiamos tu enlace: pégalo en tu historia.'); })
+                    .catch(function () { toast('No pudimos crear la imagen. Copia tu enlace y pégalo en tu historia.', 'error'); });
+                return;
+            }
+            downloadStory(done);
+            copied.then(function () { toast('Descargamos la imagen y copiamos tu enlace: sube la imagen a tu historia y pega el enlace.'); })
+                .catch(function () { toast('Descargamos la imagen: súbela a tu historia y pega tu enlace.'); });
+        };
+        if (story && story.ready) finish(story);
+        else if (story && story.promise) { toast('Preparando tu historia…'); story.promise.then(finish); }
+        else finish(null);
+    }
+
+    // Tarjeta Open Graph 1200×630: se regenera sola si cambió algo del perfil.
+    // `auto`: chequeo al abrir el dashboard (espaciado); al compartir no espera.
+    function syncOgCard(auto) {
+        if (!username() || (window.WoDemo && window.WoDemo.enabled)) return;
+        ensureCards().then(function (C) {
+            if (!C || typeof C.syncOgCard !== 'function') return null;
+            return cardInput(C).then(function (input) {
+                input.auto = auto === true;
+                return C.syncOgCard(input);
+            });
+        }).catch(function () { /* la vista previa usa la foto de perfil */ });
+    }
     function prettyUrl(url) { return String(url || '').replace(/^https?:\/\//, ''); }
     function shareText(dest) {
-        if (dest === 'turnos') return 'Elegí uno de mis turnos disponibles y pedime tu cotización en We Ötzi';
+        if (dest === 'turnos') return 'Elige uno de mis turnos disponibles y pídeme tu cotización en We Ötzi';
         return dest === 'gallery'
-            ? 'Mirá mi galería de trabajos en We Ötzi'
-            : 'Mirá mi perfil de artista en We Ötzi';
+            ? 'Mira mi galería de trabajos en We Ötzi'
+            : 'Mira mi perfil de artista en We Ötzi';
     }
 
     /* ------------------------------ copiar ------------------------------ */
@@ -155,6 +276,7 @@
         return copy(url).then(function () {
             toast('Enlace copiado.');
             ack('compartir.enlace');
+            trackShare('copy');
             if (btn && okLabel) {
                 var original = btn.getAttribute('data-label') || btn.textContent;
                 btn.setAttribute('data-label', original);
@@ -163,7 +285,7 @@
                 label.textContent = okLabel;
                 setTimeout(function () { label.textContent = original.trim(); btn.classList.remove('is-done'); }, 2000);
             }
-        }).catch(function () { toast('No pudimos copiar el enlace. Copialo a mano.', 'error'); });
+        }).catch(function () { toast('No pudimos copiar el enlace. Cópialo a mano.', 'error'); });
     }
 
     function nativeShare(withCard) {
@@ -182,7 +304,7 @@
                 if (navigator.canShare && navigator.canShare({ files: [file] })) data.files = [file];
             } catch (e) { /* sin archivo */ }
         }
-        return navigator.share(data).then(function () { ack('compartir'); })
+        return navigator.share(data).then(function () { ack('compartir'); trackShare('native'); })
             .catch(function (e) { if (e && e.name !== 'AbortError') toast('No pudimos compartir.', 'error'); });
     }
 
@@ -268,7 +390,7 @@
         document.body.appendChild(a); a.click(); a.remove();
     }
     function downloadPng() {
-        try { download(cardCanvas().toDataURL('image/png'), fileName('png')); toast('Descargamos tu tarjeta QR.'); ack('compartir'); }
+        try { download(cardCanvas().toDataURL('image/png'), fileName('png')); toast('Descargamos tu tarjeta QR.'); ack('compartir'); trackShare('qr'); }
         catch (e) { toast(e.message || 'No pudimos generar la tarjeta.', 'error'); }
     }
     function downloadSvg() {
@@ -296,11 +418,12 @@
         setTimeout(function () { URL.revokeObjectURL(href); }, 1500);
         toast('Descargamos tu tarjeta QR en SVG.');
         ack('compartir');
+        trackShare('qr');
     }
 
     /* ------------------------------ render ------------------------------ */
     function tabsHtml() {
-        return '<p class="wod-label">QUÉ QUERÉS COMPARTIR</p>' +
+        return '<p class="wod-label">QUÉ QUIERES COMPARTIR</p>' +
             '<div class="wod-seg wod-seg--3 wod-share-tabs" role="tablist">' +
                 ['profile', 'gallery', 'turnos'].map(function (d) {
                     var on = state.dest === d;
@@ -329,20 +452,15 @@
                 '<button type="button" class="wod-share-copyic" data-copy-icon aria-label="Copiar enlace">' + icon('copy') + '</button></div>' +
             '<button type="button" class="wod-btn is-ghost is-block wod-share-copy" data-copy><span>COPIAR ENLACE</span></button>' +
             '<button type="button" class="wod-btn is-ink is-block wod-share-main" data-share>' + icon('share-2') + '<span>COMPARTIR</span></button>' +
+            // Ronda 2 (nota N8): sin Mail, Telegram ni LinkedIn; Instagram arma
+            // una historia vertical con tu foto, estilos, ciudad y enlace.
             '<p class="wod-label wod-share-gap2">COMPARTIR EN</p>' +
             '<div class="wod-share-nets">' +
                 '<a class="wod-net" data-net="whatsapp" href="#" target="_blank" rel="noopener">' + icon('message-circle') + '<span>WHATSAPP</span></a>' +
-                '<button type="button" class="wod-net" data-net="instagram">' + icon('instagram') + '<span>INSTAGRAM</span></button>' +
-                '<a class="wod-net" data-net="mail" href="#">' + icon('mail') + '<span>MAIL</span></a>' +
-                '<button type="button" class="wod-net" data-net="qr">' + icon('grid') + '<span>CÓDIGO QR</span></button>' +
-            '</div>' +
-            // Más redes (auditoría PP-16; el Figma 801:562 dibuja las cuatro de arriba).
-            '<p class="wod-label wod-share-gap2">MÁS REDES</p>' +
-            '<div class="wod-share-nets wod-share-nets--more">' +
+                '<button type="button" class="wod-net" data-net="instagram" aria-label="Compartir en una historia de Instagram" title="Crea una historia con tu perfil">' + icon('instagram') + '<span>INSTAGRAM</span></button>' +
                 netLink('facebook', 'facebook', 'FACEBOOK') +
                 netLink('x', 'twitter', 'X') +
-                netLink('telegram', 'send', 'TELEGRAM') +
-                netLink('linkedin', 'linkedin', 'LINKEDIN') +
+                '<button type="button" class="wod-net" data-net="qr" style="grid-column: 1 / -1;">' + icon('grid') + '<span>CÓDIGO QR</span></button>' +
             '</div>';
     }
 
@@ -357,9 +475,7 @@
         return {
             whatsapp: 'https://wa.me/?text=' + encodeURIComponent(text + ': ' + url),
             facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + u,
-            x: 'https://twitter.com/intent/tweet?url=' + u + '&text=' + t,
-            telegram: 'https://t.me/share/url?url=' + u + '&text=' + t,
-            linkedin: 'https://www.linkedin.com/sharing/share-offsite/?url=' + u
+            x: 'https://twitter.com/intent/tweet?url=' + u + '&text=' + t
         };
     }
 
@@ -420,7 +536,7 @@
         var canvas = els.panel.querySelector('.wod-qr-canvas');
         var qr = buildQr(shareUrl(state.dest));
         if (!canvas || !qr) {
-            if (canvas) canvas.replaceWith(Object.assign(document.createElement('p'), { className: 'wod-view-empty', textContent: 'Completá tu usuario para generar el QR.' }));
+            if (canvas) canvas.replaceWith(Object.assign(document.createElement('p'), { className: 'wod-view-empty', textContent: 'Completa tu usuario para generar el QR.' }));
             return;
         }
         drawQr(canvas, qr, 560);
@@ -447,28 +563,19 @@
         var png = p.querySelector('[data-png]'); if (png) png.addEventListener('click', downloadPng);
         var svg = p.querySelector('[data-svg]'); if (svg) svg.addEventListener('click', downloadSvg);
         var nets = networkUrls(url, shareText(state.dest));
-        ['whatsapp', 'facebook', 'x', 'telegram', 'linkedin'].forEach(function (net) {
+        ['whatsapp', 'facebook', 'x'].forEach(function (net) {
             var a = p.querySelector('[data-net="' + net + '"]');
             if (!a) return;
             a.href = nets[net];
-            a.addEventListener('click', function () { ack('compartir'); });
+            a.addEventListener('click', function () { ack('compartir'); trackShare(net); });
         });
-        var mail = p.querySelector('[data-net="mail"]');
-        if (mail) mail.href = 'mailto:?subject=' + encodeURIComponent(displayName() + ' · We Ötzi') +
-            '&body=' + encodeURIComponent(shareText(state.dest) + ':\n' + url);
+        // Instagram: historia con la imagen ya preparada (shareStory la comparte
+        // o la descarga dentro del mismo click y copia el enlace).
         var ig = p.querySelector('[data-net="instagram"]');
-        if (ig) ig.addEventListener('click', function () {
-            ack('compartir');
-            // Teléfono: el menú nativo ofrece Instagram e Historias.
-            if (isTouch() && navigator.share) { nativeShare(false); return; }
-            // Instagram no acepta enlaces por URL: copiamos y abrimos Instagram
-            // en el mismo click (Safari bloquea window.open después de una promesa).
-            var pending = copy(url);
-            try { window.open('https://www.instagram.com/', '_blank', 'noopener'); } catch (e) { /* bloqueado */ }
-            pending.then(function () {
-                toast('Copiamos tu enlace: pegalo en tu bio o en una historia.');
-            }).catch(function () { toast('Copiá el enlace y pegalo en Instagram.', 'error'); });
-        });
+        if (ig) {
+            prepareStory();
+            ig.addEventListener('click', shareStory);
+        }
         var qrBtn = p.querySelector('[data-net="qr"]');
         if (qrBtn) qrBtn.addEventListener('click', function () { open('qr', state.dest); });
     }
@@ -477,7 +584,7 @@
         ensureShell();
         state.artist = window.artistData || state.artist;
         if (!username()) {
-            toast('Completá tu usuario en el perfil para compartirlo.', 'error');
+            toast('Completa tu usuario en el perfil para compartirlo.', 'error');
             return;
         }
         if (trigger) els.trigger = trigger;
@@ -485,6 +592,8 @@
         state.dest = dest === 'gallery' || dest === 'turnos' ? dest : 'profile';
         placeDrawer();
         render();
+        // Al compartir, la vista previa del enlace (og:image) tiene que estar al día.
+        syncOgCard(false);
         els.scrim.hidden = false;
         els.panel.hidden = false;
         document.body.classList.add('wod-drawer-open');
@@ -527,6 +636,8 @@
         state.artist = (detail && detail.artistData) || window.artistData || null;
         wireButtons();
         applyUrlState();
+        // Tarjeta OG al día sin estorbar la carga del dashboard.
+        setTimeout(function () { syncOgCard(true); }, 4000);
     }
     window.addEventListener('wo:dashboard-ready', function (ev) { boot(ev && ev.detail); });
     var tries = 0;

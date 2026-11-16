@@ -1,6 +1,6 @@
 'use strict';
 // Frente cot-cliente (beta cerrada): panel del cliente — estados claros,
-// propuesta del artista, desglose manual, seña/pagos y aceptar/rechazar
+// propuesta del artista, desglose manual, anticipo/pagos y aceptar/rechazar
 // (CC-01 / CC-11 / CC-13 / COT-A-10), y vínculo por el servidor (CC-02).
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -88,14 +88,14 @@ test('todo lo que viene de datos se escapa', () => {
 });
 
 // ------------------------------------------------------------ desglose manual (COT-A-10)
-test('cotización manual: conceptos, descuento, impuestos, seña, condiciones y notas', () => {
+test('cotización manual: conceptos, descuento, impuestos, anticipo, condiciones y notas', () => {
     const manual = {
         status: 'sent', currency: 'ars', line_items: [
             { name: 'Diseño personalizado', description: 'Boceto + ajustes', qty: '1', price: '50000' },
             { name: 'Sesión de tatuaje', qty: '2', price: '100000' },
         ],
         discount_pct: 10, tax_pct: 21, deposit_pct: 30, subtotal: 250000, total: 272250, deposit_amount: 81675,
-        validity_days: 14, cancellation_policy: 'no-reembolsable-48', client_notes: 'Transferí al alias LAU.INK', extra_terms: 'Traer DNI',
+        validity_days: 14, cancellation_policy: 'no-reembolsable-48', client_notes: 'Transfiere al alias LAU.INK', extra_terms: 'Traer DNI',
     };
     const b = UI.manualBreakdown(manual);
     assert.equal(b.items.length, 2);
@@ -110,31 +110,31 @@ test('cotización manual: conceptos, descuento, impuestos, seña, condiciones y 
     assert.match(html, /Sesión de tatuaje × 2/);
     assert.match(html, /Descuento \(10%\)/);
     assert.match(html, /Impuestos \(21%\)/);
-    assert.match(html, /Seña \(30%\)/);
+    assert.match(html, /Anticipo \(30%\)/);
     assert.match(html, /81\.675 ARS/);
-    assert.match(html, /La seña no es reembolsable/);
-    assert.match(html, /Transferí al alias LAU\.INK/);
+    assert.match(html, /El anticipo no es reembolsable/);
+    assert.match(html, /Transfiere al alias LAU\.INK/);
     assert.match(html, /Traer DNI/);
 });
 
-// ------------------------------------------------------------ seña y pagos (CC-11)
-test('seña y pagos: estado de la seña, pagado y saldo; sin pasarela inventada', () => {
+// ------------------------------------------------------------ anticipo y pagos (CC-11)
+test('anticipo y pagos: estado del anticipo, pagado y saldo; sin pasarela inventada', () => {
     const manual = { status: 'sent', currency: 'ARS', total: 300000, deposit_amount: 90000, deposit_pct: 30, line_items: [] };
     const quote = q({ quote_status: 'client_approved', final_budget_amount: '300000', final_budget_currency: 'ARS' });
     const summary = PaymentsModel.summarize(quote, manual, [
         { id: 'p1', quotation_id: 7, kind: 'deposit', method: 'transfer', amount: 90000, currency: 'ARS', paid_on: '2026-11-12' },
     ]);
     const html = UI.renderProposal(quote, { now: NOW, manual, payments: { summary } });
-    assert.match(html, /Seña y pagos/);
-    assert.match(html, /<dt>Estado de la seña<\/dt><dd>Pagada<\/dd>/);
+    assert.match(html, /Anticipo y pagos/);
+    assert.match(html, /<dt>Estado del anticipo<\/dt><dd>Pagado<\/dd>/);
     assert.match(html, /<dt>Pagado<\/dt><dd>90\.000 ARS<\/dd>/);
     assert.match(html, /<dt>Saldo<\/dt><dd>210\.000 ARS<\/dd>/);
     assert.match(html, /Transferencia/);
-    assert.match(html, /coordiná la seña y el saldo con el artista/);
+    assert.match(html, /coordina el anticipo y el saldo con el artista/);
     assert.doesNotMatch(html, /Pagar ahora|checkout|mercadopago/i);
 
     const pendingDeposit = UI.renderProposal(q(), { now: NOW, manual });
-    assert.match(pendingDeposit, /<dt>Estado de la seña<\/dt><dd>Pendiente<\/dd>/);
+    assert.match(pendingDeposit, /<dt>Estado del anticipo<\/dt><dd>Pendiente<\/dd>/);
 });
 
 // ------------------------------------------------------------ dashboard (vm)
@@ -181,7 +181,7 @@ test('listado: borradores aparte con "Continuar cotización", sin estados crudos
         ];
         vm.runInContext('currentQuotations = list; currentFilter = "all"; renderQuotations();', context);
         const html = nodes.get('quotations-list').innerHTML;
-        assert.match(html, /Tenés una cotización sin enviar/);
+        assert.match(html, /Tienes una cotización sin enviar/);
         assert.match(html, /href="\/quotation"/);
         assert.doesNotMatch(html, /data-quote-id="WO-D"/, `withUi=${withUi}`);
         assert.doesNotMatch(html, /En proceso|>cancelled<|>in_progress</);

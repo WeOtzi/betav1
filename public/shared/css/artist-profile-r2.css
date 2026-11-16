@@ -1,0 +1,511 @@
+/* ============================================================================
+   We Ötzi · Perfil público del artista — ronda 2 (frente "perfil")
+   Capa sobre artist-profile.css (mismos tokens del DS, cero hex sueltos).
+
+   Pasada de diseño pensada para quien VISITA el perfil:
+     identidad → portafolio → cotizar y turnos → sobre el artista → reseñas →
+     ubicación. El HTML ya viene en ese orden; aquí va lo visual:
+     · insignias Embajador We Ötzi y Most Wanted junto al usuario (P21)
+     · hero compacto en pantallas bajas: el llamado a cotizar entra sin scroll
+     · portafolio con pie de foto y favorito por trabajo; estado vacío con salida
+     · favoritos (data-wo-favorite) y denuncia (data-wo-report): visibles solo
+       cuando el módulo de ese frente está cargado (html.wo-has-*)
+   ========================================================================== */
+
+/* ---------- Insignias de la cabecera ---------- */
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 24px;
+    padding: 4px 10px;
+    border: var(--border-hairline) solid var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--meta-s-size);
+    font-weight: var(--weight-bold, 700);
+    letter-spacing: var(--meta-s-track);
+    line-height: 1.2;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.hero-badge[hidden] {
+    display: none;
+}
+
+.hero-badge [data-wo-icon] {
+    display: inline-flex;
+    width: 13px;
+    height: 13px;
+    flex: none;
+}
+
+.hero-badge [data-wo-icon] svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Embajador: tinta con el ícono en amarillo (sello institucional). */
+.hero-badge--ambassador {
+    background: var(--ink);
+    color: var(--neutral-100);
+}
+
+.hero-badge--ambassador [data-wo-icon] {
+    color: var(--yellow-300);
+}
+
+/* Most Wanted: amarillo con sombra dura (lo que está en tendencia). */
+.hero-badge--wanted {
+    max-width: 100%;
+    background: var(--yellow-300);
+    color: var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+}
+
+.hero-badge--wanted > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hero-ident {
+    row-gap: var(--space-2);
+}
+
+/* ---------- Favoritos (contrato data-wo-favorite) ----------
+   El botón llega vacío y lo activa wo-favorites.js. Sin ese módulo no se ve. */
+.profile-fav {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 var(--space-3);
+    background: var(--white);
+    border: var(--border-hairline) solid var(--ink);
+    border-radius: var(--radius-none);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform var(--duration-press, 120ms), box-shadow var(--duration-press, 120ms);
+}
+
+html.wo-has-favorites .profile-fav:not([hidden]) {
+    display: inline-flex;
+}
+
+/* Corazón por defecto mientras el módulo no pinta el suyo. */
+.profile-fav:empty::before {
+    content: "";
+    width: 20px;
+    height: 20px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.profile-fav:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard-sm);
+}
+
+.profile-fav:active {
+    transform: none;
+    box-shadow: none;
+}
+
+.profile-fav[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--yellow-300);
+}
+
+.profile-fav:focus-visible,
+.profile-report-btn:focus-visible,
+.gallery-image-item:focus-visible,
+.cta-quote-link:focus-visible {
+    outline: 3px solid var(--blue-400);
+    outline-offset: 2px;
+}
+
+.hero-cta-row .hero-cta-fav {
+    min-width: 52px;
+    min-height: 52px;
+}
+
+/* ---------- Portafolio ---------- */
+.gallery-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-6);
+}
+
+.gallery-head[hidden],
+.gallery-count[hidden] {
+    display: none;
+}
+
+.gallery-count {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--meta-m-size);
+    letter-spacing: var(--meta-m-track);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* Cada trabajo: imagen (botón que abre el visor) + favorito + pie de foto. */
+.gallery-cell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+}
+
+.gallery-cell .gallery-image-item {
+    flex: none;
+}
+
+.gallery-caption {
+    display: -webkit-box;
+    margin: var(--space-2) 0 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+
+.gallery-fav {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    z-index: 2;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+}
+
+@media (pointer: coarse) {
+    .gallery-fav {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* Visitante + perfil sin trabajos: una tarjeta con salida, no una grilla vacía. */
+.gallery-band.is-empty {
+    padding-block: var(--space-10);
+}
+
+.gallery-empty-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-5) var(--space-8);
+    padding: var(--space-6);
+    background: var(--white);
+    border: var(--border-strong-width) solid var(--ink);
+    box-shadow: var(--shadow-hard);
+}
+
+.gallery-empty-card[hidden] {
+    display: none;
+}
+
+/* Marca Bauhaus en CSS (cuadrado rojo + círculo amarillo): sin imagen que cargar. */
+.gallery-empty-shape {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    flex: none;
+    background: var(--red-300);
+    border: var(--border-strong-width) solid var(--ink);
+    box-sizing: border-box;
+}
+
+.gallery-empty-shape::after {
+    content: "";
+    position: absolute;
+    right: -18px;
+    bottom: -14px;
+    width: 44px;
+    height: 44px;
+    background: var(--yellow-300);
+    border: var(--border-strong-width) solid var(--ink);
+    border-radius: var(--radius-circle);
+    box-sizing: border-box;
+}
+
+.gallery-empty-copy {
+    flex: 1 1 260px;
+    min-width: 0;
+    padding-left: var(--space-3);
+}
+
+.gallery-empty-title {
+    margin: 0 0 var(--space-1);
+    font-family: var(--font-display);
+    font-size: clamp(20px, 2.4vw, 28px);
+    line-height: 1.1;
+    color: var(--text-heading);
+}
+
+.gallery-empty-text {
+    max-width: 52ch;
+    margin: 0;
+    font-size: var(--body-s-size);
+    line-height: var(--body-s-lh);
+    color: var(--text-muted);
+}
+
+.wo-app a.gallery-empty-cta,
+.gallery-empty-cta {
+    gap: var(--space-2);
+    flex: none;
+}
+
+/* ---------- Banda roja: cotizar junto a reservar ---------- */
+.cta-quote-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 var(--space-5);
+    background: var(--neutral-100);
+    border: var(--border-hairline) solid var(--neutral-500);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: var(--weight-bold, 700);
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    text-transform: uppercase;
+    color: var(--ink);
+    transition: transform var(--duration-press, 120ms), box-shadow var(--duration-press, 120ms);
+}
+
+.wo-app a.cta-quote-link,
+.wo-app a.cta-quote-link:hover {
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.cta-quote-link:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard-sm);
+}
+
+/* ---------- Visor: pie de foto ---------- */
+.lightbox-caption {
+    position: absolute;
+    left: 50%;
+    bottom: calc(var(--space-6) + 28px);
+    width: max-content;
+    max-width: min(720px, calc(100vw - 2 * var(--space-6)));
+    max-height: 22vh;
+    margin: 0;
+    padding: var(--space-2) var(--space-4);
+    overflow: auto;
+    transform: translateX(-50%);
+    background: color-mix(in srgb, var(--ink) 88%, transparent);
+    border: var(--border-hairline) solid color-mix(in srgb, var(--neutral-100) 40%, transparent);
+    font-size: 14px;
+    line-height: 1.45;
+    text-align: center;
+    color: var(--neutral-100);
+    overflow-wrap: anywhere;
+    box-sizing: border-box;
+}
+
+.lightbox-caption[hidden] {
+    display: none;
+}
+
+/* ---------- Denunciar perfil (contrato data-wo-report) ---------- */
+.profile-report-band {
+    display: none;
+    padding: var(--space-5) 0;
+    border-top: var(--border-hairline) solid var(--neutral-200);
+}
+
+html.wo-has-report .profile-report-band:not([hidden]) {
+    display: block;
+}
+
+.profile-report-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-6);
+}
+
+.profile-report-text {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.profile-report-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 var(--space-2);
+    background: transparent;
+    border: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-decoration: underline;
+    text-transform: uppercase;
+    text-underline-offset: 3px;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+/* ---------- Escritorio ---------- */
+@media (min-width: 1280px) {
+    /* El portafolio ahora sigue a la franja de cifras (antes, a la banda roja). */
+    .gallery-band {
+        padding-block: 56px 64px;
+    }
+
+    .gallery-band.is-empty {
+        padding-block: 44px;
+    }
+
+    .gallery-chips {
+        margin: 20px 0 28px;
+    }
+
+    .gallery-head + .gallery-chips[hidden] + .gallery-grid {
+        margin-top: 28px;
+    }
+
+    .cta-actions {
+        gap: var(--space-4);
+    }
+}
+
+/* Pantallas bajas (1280×720, 1366×768): el hero se compacta para que el
+   llamado a cotizar quede a la vista sin scroll, también con dos insignias. */
+@media (min-width: 1280px) and (max-height: 820px) {
+    .hero-band,
+    .hero-grid {
+        min-height: 0;
+    }
+
+    .hero-grid {
+        padding-top: 40px;
+    }
+
+    .hero-copy {
+        min-height: 0;
+        padding: 32px 40px 36px 0;
+    }
+
+    .hero-name {
+        font-size: 88px;
+    }
+
+    .hero-ident {
+        margin-bottom: 18px;
+    }
+
+    .hero-styles {
+        margin-top: 18px;
+    }
+
+    .hero-cta-row {
+        margin-top: 22px;
+    }
+
+    .hero-portrait {
+        padding-top: 32px;
+    }
+
+    .hero-portrait::before {
+        height: 300px;
+    }
+
+    .hero-portrait-frame {
+        max-height: 420px;
+    }
+}
+
+/* Tablet apaisada baja (1024×720): mismo criterio, sin tocar la composición. */
+@media (min-width: 769px) and (max-width: 1279px) and (max-height: 820px) {
+    .hero-band {
+        padding-top: var(--space-8);
+        padding-bottom: var(--space-10);
+    }
+
+    .hero-name {
+        font-size: clamp(40px, 6vw, 72px);
+    }
+
+    .hero-cta-row {
+        margin-top: var(--space-6);
+    }
+}
+
+/* ---------- Teléfono ---------- */
+@media (max-width: 768px) {
+    .gallery-caption {
+        font-size: 12px;
+    }
+
+    .gallery-empty-card {
+        padding: var(--space-5);
+    }
+
+    .gallery-empty-cta {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .hero-cta-row .hero-cta-fav {
+        min-width: 52px;
+    }
+
+    .profile-report-inner {
+        justify-content: flex-start;
+    }
+
+    .lightbox-caption {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-badge {
+        white-space: normal;
+    }
+
+    .cta-quote-link {
+        width: 100%;
+        justify-content: center;
+        box-sizing: border-box;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .profile-fav,
+    .cta-quote-link {
+        transition: none;
+    }
+
+    .profile-fav:hover,
+    .cta-quote-link:hover {
+        transform: none;
+    }
+}

@@ -43,9 +43,9 @@
 
     // Mismo tope y formatos que el bucket (file_size_limit / allowed_mime_types).
     function validate(file) {
-        if (!file) return 'Elegí una imagen.';
-        if (file.type && TYPES.indexOf(file.type) === -1) return 'Formato no admitido. Subí JPG, PNG, WEBP, GIF o HEIC.';
-        if (!file.type && !/\.(jpe?g|png|webp|gif|heic)$/i.test(file.name || '')) return 'Formato no admitido. Subí JPG, PNG, WEBP, GIF o HEIC.';
+        if (!file) return 'Elige una imagen.';
+        if (file.type && TYPES.indexOf(file.type) === -1) return 'Formato no admitido. Sube JPG, PNG, WEBP, GIF o HEIC.';
+        if (!file.type && !/\.(jpe?g|png|webp|gif|heic)$/i.test(file.name || '')) return 'Formato no admitido. Sube JPG, PNG, WEBP, GIF o HEIC.';
         if (file.size > MAX_BYTES) return 'La imagen pesa más de 10 MB.';
         return null;
     }

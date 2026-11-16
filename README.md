@@ -77,7 +77,7 @@ Ver [EASYPANEL_DEPLOYMENT.md](docs/EASYPANEL_DEPLOYMENT.md) para instrucciones c
 *   **Gestión de Artistas**: Registro, perfiles públicos y dashboards.
 *   **Cotizaciones Inteligentes**: Flujo completo desde solicitud del cliente hasta carpeta en Drive.
 *   **Oportunidades y agenda**: Job Board, Spots, postulaciones, invitaciones, calendario, Travel e Inbox con persistencia y permisos por propietario.
-*   **IA Integrada**: Generación de referencias de tatuajes con Gemini 3 Pro.
+*   **IA Integrada**: Generación de referencias de tatuajes con OpenAI (GPT Image 2.6).
 *   **Backup & Restore**: Sistema propio de copias de seguridad completas.
 *   **Design System navegable**: catálogo Bauhaus reutilizable con componentes web, tokens y composiciones responsive.
 
@@ -96,7 +96,7 @@ weotzi-unified/
 
 La aplicación se conecta a:
 *   **Supabase**: Base de datos PostgreSQL y Auth.
-*   **Google Cloud**: Drive API (almacenamiento) y Gemini API (IA).
+*   **Google Cloud**: Drive API (almacenamiento). **OpenAI**: Images API con GPT Image 2.6 (imágenes con IA) y chat de soporte.
 
 ---
 *Desarrollado por el equipo de We Ötzi. v2.0.1*

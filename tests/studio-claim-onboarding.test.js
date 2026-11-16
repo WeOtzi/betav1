@@ -19,7 +19,7 @@ const CLAIM_ID = '22222222-2222-4222-8222-222222222222';
 const TERMS = '2026-11-13';
 const user = { id: 'owner-id', email: 'studio@example.test', user_metadata: {} };
 const catalogStudio = { id: STUDIO_ID, name: 'Black Ink', slug: 'black-ink', city: 'Rosario', country: 'Argentina', logo_image: null };
-const claimDraft = { studio_id: STUDIO_ID, evidence: 'Soy la dueña, mirá el Instagram @blackink', contact_name: 'Ana', contact_phone: '+54 341 555', terms_version: TERMS };
+const claimDraft = { studio_id: STUDIO_ID, evidence: 'Soy la dueña, mira el Instagram @blackink', contact_name: 'Ana', contact_phone: '+54 341 555', terms_version: TERMS };
 const profile = { name: 'Black Ink', languages: ['Español'], terms_accepted: true, terms_version: TERMS };
 const locations = [{ label: 'Principal', formatted_address: 'Calle 123', is_primary: true }];
 const pendingClaim = { id: CLAIM_ID, studio_id: STUDIO_ID, user_id: user.id, status: 'pending', created_at: '2026-10-30T12:00:00Z', studios: catalogStudio };
@@ -209,7 +209,7 @@ test('con sesión abierta reclama al instante sin otro signUp y una cuenta disti
 
     const other = harness({ session: sessionWith() });
     await assert.rejects(other.auth.claim({ studioId: STUDIO_ID, evidence: claimDraft.evidence, email: 'otra@example.test', termsVersion: TERMS }), /otra cuenta abierta/);
-    await assert.rejects(other.auth.claim({ studioId: STUDIO_ID, evidence: '   ', termsVersion: TERMS }), /Contanos cómo podemos verificar/);
+    await assert.rejects(other.auth.claim({ studioId: STUDIO_ID, evidence: '   ', termsVersion: TERMS }), /Cuéntanos cómo podemos verificar/);
 });
 
 test('un reclamo pendiente bloquea el borrador y fuera del registro lleva a la pantalla de revisión', async () => {
@@ -266,7 +266,7 @@ test('homónimo con dueño, dirección en conflicto y términos faltantes son co
     for (const [error, code] of [
         [{ code: '23505', message: 'Ya hay un estudio llamado «Black Ink»' }, '23505'],
         [{ code: '23P01', message: 'La dirección de Principal coincide con «Otro»' }, '23P01'],
-        [{ code: '22023', hint: 'terms_required', message: 'Aceptá los Términos y la Política de Privacidad para crear el estudio.' }, 'terms']
+        [{ code: '22023', hint: 'terms_required', message: 'Acepta los Términos y la Política de Privacidad para crear el estudio.' }, 'terms']
     ]) {
         const h = harness({
             pathname: '/studio/login', session: sessionWith({ studio_registration: { profile, locations } }),
@@ -281,7 +281,7 @@ test('homónimo con dueño, dirección en conflicto y términos faltantes son co
     const { auth } = harness();
     assert.equal(auth.isClaimableError(RECLAMALO), true);
     assert.equal(auth.isClaimableError({ code: '23505', message: 'duplicate key' }), false);
-    assert.equal(auth.isTermsError({ code: '22023', message: 'Aceptá los Términos' }), true);
+    assert.equal(auth.isTermsError({ code: '22023', message: 'Acepta los Términos' }), true);
     assert.equal(auth.isTermsError({ code: '22023', message: 'El nombre debe tener entre 2 y 160 caracteres.' }), false);
 });
 
@@ -342,8 +342,8 @@ test('la pantalla de reclamo escapa los datos del catálogo y conserva el prefij
     assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
     assert.match(html, /href="\/beta\/studio\/profile\/\?studio=a%20b%26c"/);
     assert.match(html, /En revisión/);
-    const failed = h.auth.claimScreenHtml({ kind: 'claim_failed', error: '<b>Ya tenés un reclamo</b>' });
-    assert.match(failed, /&lt;b&gt;Ya tenés un reclamo&lt;\/b&gt;/);
+    const failed = h.auth.claimScreenHtml({ kind: 'claim_failed', error: '<b>Ya tienes un reclamo</b>' });
+    assert.match(failed, /&lt;b&gt;Ya tienes un reclamo&lt;\/b&gt;/);
     assert.match(failed, /href="\/beta\/studio\/register\?nuevo=1"/);
 });
 
@@ -365,7 +365,7 @@ test('las tarjetas de coincidencia escapan datos, descartan logos inseguros y of
     assert.match(unowned, />Ficha sin dueño</);
     assert.doesNotMatch(unowned, /link de alta/);
     const artistCreated = reg.matchCardHtml({ id: 'a', name: 'Sumado', owned: false, artist_created: true, match: 'exact', locations: [] });
-    assert.match(artistCreated, /pedile el link de alta/);
+    assert.match(artistCreated, /pídele el link de alta/);
     assert.match(artistCreated, /data-match-action="claim"/);
     const owned = reg.matchCardHtml({ id: 'o', name: 'Black Ink', owned: true, artist_created: false, verified: true, match: 'exact', logo_image: 'https://cdn.example.test/logo.png', locations: [] });
     assert.doesNotMatch(owned, /data-match-action="claim"/, 'un estudio con dueño no se reclama: se inicia sesión');

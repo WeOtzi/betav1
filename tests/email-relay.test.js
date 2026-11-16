@@ -21,9 +21,11 @@ function fakeQuery(tables) {
         const api = {
             select() { return api; }, limit() { return api; }, single() { api._single = true; return api; },
             eq(col, val) { filters.push([col, val]); return api; }, ilike(col, val) { filters.push([col, String(val).replace(/\\/g, '')]); return api; },
+            in(col, values) { filters.push([col, values]); return api; },
             gte() { return api; }, lte() { return api; }, order() { return api; },
             async execute() {
-                const rows = (tables[table] || []).filter(row => filters.every(([c, v]) => String(row[c]).toLowerCase() === String(v).toLowerCase()));
+                const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+                const rows = (tables[table] || []).filter(row => filters.every(([c, v]) => (Array.isArray(v) ? v.some(item => same(row[c], item)) : same(row[c], v))));
                 return api._single ? rows[0] || null : rows;
             }
         };
@@ -154,6 +156,63 @@ test('EM-N3: las preferencias del cliente se respetan (y el artista sigue recibi
     assert.equal(prefs.resolvePreference({ postulaciones: { email: false } }, 'postulaciones', 'email', { defaults: prefs.CLIENT_NOTIF_DEFAULTS }), false);
 });
 
+// EP-03: los correos nuevos de cotización (negociación, propuesta reenviada y
+// hoja vinculada) llevan el pie "Gestionar notificaciones": respetan el toggle.
+test('EP-03: "Cotizaciones → Email" apagado silencia los correos nuevos de negociación', async () => {
+    const tables = (email) => ({
+        artists_db: [{ user_id: 'artist-1', email: 'mateo.artista@example.com' }],
+        clients_db: [{ user_id: 'client-1', email: 'lucia.cliente@example.com' }],
+        user_preferences: [
+            { user_id: 'artist-1', notification_prefs: { cotizaciones: { email, push: true }, mensajes: { email: true } } },
+            { user_id: 'client-1', notification_prefs: { cotizaciones: { email, push: true }, mensajes: { email: true } } }
+        ]
+    });
+    const artist = { role: 'artist', user_id: 'artist-1', email: 'mateo.artista@example.com' };
+    const client = { role: 'client', user_id: 'client-1', email: 'lucia.cliente@example.com' };
+    const toArtist = ['negotiation_counter_proposed', 'negotiation_amendment_proposed', 'negotiation_amendment_accepted',
+        'negotiation_amendment_rejected', 'negotiation_proposal_withdrawn', 'shared_quotation_linked'];
+    const toClient = ['artist_updated_quotation_proposal', 'negotiation_counter_accepted', 'negotiation_counter_declined',
+        'negotiation_amendment_proposed', 'negotiation_amendment_accepted', 'negotiation_amendment_rejected', 'negotiation_proposal_withdrawn'];
+
+    const off = { query: fakeQuery(tables(false)) };
+    const on = { query: fakeQuery(tables(true)) };
+    for (const eventId of toArtist) {
+        assert.deepEqual(await prefs.allowRecipient(eventId, artist, off), { allowed: false, kind: 'cotizaciones' }, `${eventId} → artista`);
+        assert.equal((await prefs.allowRecipient(eventId, artist, on)).allowed, true, `${eventId} → artista con el toggle encendido`);
+    }
+    for (const eventId of toClient) {
+        assert.deepEqual(await prefs.allowRecipient(eventId, client, off), { allowed: false, kind: 'cotizaciones' }, `${eventId} → cliente`);
+        assert.equal((await prefs.allowRecipient(eventId, client, on)).allowed, true, `${eventId} → cliente con el toggle encendido`);
+    }
+
+    // Camino de sendEmail con un solo destinatario (recipient_role en el payload).
+    const single = (eventId, who) => prefs.applyEmailPreferences(eventId,
+        { recipient_role: who.role, recipient_email: who.email, recipient_user_id: who.user_id }, off);
+    assert.deepEqual(await single('negotiation_counter_proposed', artist), { skip: true, payload: { recipient_role: 'artist', recipient_email: artist.email, recipient_user_id: 'artist-1' }, kind: 'cotizaciones', reason: 'notification_pref' });
+    assert.equal((await single('negotiation_amendment_proposed', client)).skip, true);
+    assert.equal((await single('artist_updated_quotation_proposal', client)).skip, true);
+    assert.equal((await single('shared_quotation_linked', artist)).skip, true);
+    assert.equal((await prefs.applyEmailPreferences('negotiation_counter_accepted',
+        { recipient_role: 'client', recipient_email: client.email, recipient_user_id: 'client-1' }, on)).skip, false);
+
+    // Cada correo de categoría "quotations" de estos frentes tiene su tipo para el rol que lo recibe:
+    // si alguien suma uno nuevo con el pie de preferencias, tiene que entrar en la matriz.
+    const { getSpec } = require('../lib/email-render');
+    for (const file of ['negociacion', 'cot-respuesta', 'cot-detalle']) {
+        for (const eventId of Object.keys(require(`../services/email-events/${file}`))) {
+            const spec = getSpec(eventId);
+            assert.equal(spec.category, 'quotations', eventId);
+            const roles = ['artist', 'client'].filter((role) => prefs.kindForRecipient(eventId, role) === 'cotizaciones');
+            assert.ok(roles.length >= 1, `${eventId}: sin tipo en la matriz de preferencias`);
+            if (spec.audience === 'artist' || spec.audience === 'client') assert.ok(roles.includes(spec.audience), `${eventId}: falta el rol ${spec.audience}`);
+            else assert.deepEqual(roles, ['artist', 'client'], `${eventId}: lo recibe cualquiera de las dos partes`);
+        }
+    }
+    // Las confirmaciones transaccionales siguen saliendo siempre.
+    assert.deepEqual(await prefs.allowRecipient('client_quotation_submitted', client, off), { allowed: true, kind: null });
+    assert.deepEqual(await prefs.allowRecipient('session_confirmation_requested', client, off), { allowed: true, kind: null });
+});
+
 test('inbox: avisa al otro participante con ventana de 15 min y no si ya leyó', async () => {
     const tables = {
         inbox_messages: { id: '4a1f2c3d-5e6f-4a7b-8c9d-0e1f2a3b4c5d', thread_id: 'th-1', sender_user_id: 'artist-1', body: 'Hola <b>Estudio</b>', created_at: '2026-11-14T12:00:00Z' },
@@ -189,6 +248,26 @@ test('inbox: avisa al otro participante con ventana de 15 min y no si ya leyó',
     const bad = await resolveEmailContext({ headers: {} }, 'inbox_message_received', { message_id: "1' or 1=1" }, { ...deps, read: async (...args) => { reads.push(args); return null; } });
     assert.equal(bad.status, 400);
     assert.equal(reads.filter(([table]) => table === 'inbox_messages').length, 0);
+});
+
+// CF-10: el enlace del aviso nombra el hilo también para el cliente (wo-notify.js lo compara con la dirección).
+test('inbox: el aviso al cliente abre /client/chats en ese hilo', async () => {
+    const message = { id: '4a1f2c3d-5e6f-4a7b-8c9d-0e1f2a3b4c5d', thread_id: 'th-9', sender_user_id: 'artist-1', body: 'Hola', created_at: '2026-11-14T12:00:00Z' };
+    const deps = {
+        resolveUser: async () => ({ id: 'artist-1', email: 'artista@example.com' }),
+        read: async (table, filters) => {
+            if (table === 'artists_db') return filters.user_id === 'artist-1' ? { user_id: 'artist-1', name: 'Mateo', email: 'artista@example.com' } : null;
+            if (table === 'clients_db') return filters.user_id === 'client-1' ? { user_id: 'client-1', full_name: 'Lucía', email: 'lucia@example.com' } : null;
+            if (table === 'inbox_messages') return filters.sender_user_id === 'artist-1' ? message : null;
+            if (table === 'inbox_threads') return { id: 'th-9', artist_user_id: 'artist-1', counterparty_user_id: 'client-1', subject: 'Consulta' };
+            return null;
+        },
+        listParticipants: async () => [{ user_id: 'artist-1' }, { user_id: 'client-1', last_read_at: null }]
+    };
+    const ctx = await resolveEmailContext({ headers: {} }, 'inbox_message_received', { message_id: message.id }, deps);
+    assert.equal(ctx.ok, true, ctx.error);
+    assert.equal(ctx.payload.recipient_role, 'client');
+    assert.match(ctx.payload.chat_url, /\/client\/chats\?thread=th-9$/);
 });
 
 test('cierre por el cliente: resumen a ambos + pedido de reseña, solo si está completada', async () => {
@@ -255,6 +334,65 @@ test('recordatorio 24 h: busca la ventana 23-25 h y envía con clave por sesión
         assert.equal(none.length, 0, status);
         assert.equal(out.skipped, 1, status);
     }
+});
+
+// DB-05 (P28): la sesión propuesta queda 'scheduled' con client_confirmation 'pending'
+// (o 'change_requested' si el cliente pidió otra fecha) y entraba igual al recordatorio.
+test('recordatorio 24 h: no recuerda sesiones que el cliente todavía no confirmó', async () => {
+    const NOW = Date.parse('2026-11-14T14:30:00Z');
+    const quotes = { quotations_db: [{ id: 9, quote_id: 'WO-9', quote_status: 'client_approved', client_email: 'c@example.com', artist_id: 'a-1' }],
+        artists_db: [{ user_id: 'a-1', email: 'a@example.com', name: 'Mateo' }] };
+    const session = (id, extra) => Object.assign({ id, quotation_id: 9, session_number: 1, session_date: '2026-11-15T14:00:00Z', status: 'scheduled' }, extra);
+    async function run(sessions, query) {
+        const sent = [];
+        const summary = await sessionReminders.dispatchSessionReminders({
+            query: query || fakeQuery(Object.assign({ quotation_sessions: sessions }, quotes)),
+            sendEmail: async (...args) => { sent.push(args); return { ok: true }; }, baseUrl: 'https://beta.weotzi.com', now: NOW, log: { warn() {} } });
+        return { summary, ids: sent.map(args => args[1].session_id) };
+    }
+
+    const mixed = await run([
+        session('s-pend', { client_confirmation: 'pending' }),
+        session('s-change', { client_confirmation: 'change_requested' }),
+        session('s-ok', { client_confirmation: 'confirmed' }),
+        session('s-legacy'), // fila sin la columna: cuenta como acordada
+        session('s-resched', { status: 'rescheduled', client_confirmation: 'confirmed' }), // cambio aceptado o reprogramada desde el calendario
+        session('s-resched-pend', { status: 'rescheduled', client_confirmation: 'pending' }),
+        session('s-done', { status: 'completed', client_confirmation: 'confirmed' }),
+        session('s-cancel', { status: 'cancelled', client_confirmation: 'confirmed' })
+    ]);
+    assert.deepEqual(mixed.ids, ['s-ok', 's-legacy', 's-resched']);
+    assert.deepEqual(mixed.summary, { found: 6, sent: 3, skipped: 3, failed: 0 });
+    assert.equal(sessionReminders.awaitsClientConfirmation({ client_confirmation: 'pending' }), true);
+    assert.equal(sessionReminders.awaitsClientConfirmation({ client_confirmation: 'confirmed' }), false);
+    assert.equal(sessionReminders.awaitsClientConfirmation({}), false);
+
+    // Base sin la migración 20261116150000: la columna no existe → se repite con las columnas de siempre.
+    const selects = [];
+    const base = fakeQuery(Object.assign({ quotation_sessions: [session('s-old'), session('s-old-resched', { status: 'rescheduled' })] }, quotes));
+    const withoutColumn = (error) => (table) => {
+        const api = base(table);
+        if (table !== 'quotation_sessions') return api;
+        const select = api.select;
+        let columns = '';
+        api.select = (cols) => { columns = cols; selects.push(cols); return select.call(api, cols); };
+        const execute = api.execute;
+        api.execute = async () => { if (/client_confirmation/.test(columns)) throw error; return execute.call(api); };
+        return api;
+    };
+    for (const error of [
+        Object.assign(new Error('column quotation_sessions.client_confirmation does not exist'), { code: '42703' }),
+        new Error("PGRST204: Could not find the 'client_confirmation' column of 'quotation_sessions' in the schema cache")
+    ]) {
+        selects.length = 0;
+        const legacy = await run(null, withoutColumn(error));
+        assert.deepEqual(legacy.ids, ['s-old', 's-old-resched']);
+        assert.equal(selects.length, 2);
+        assert.match(selects[0], /,client_confirmation$/);
+        assert.doesNotMatch(selects[1], /client_confirmation/);
+    }
+    // Cualquier otro error no se tapa con el reintento.
+    await assert.rejects(() => run(null, withoutColumn(new Error('fetch failed'))), /fetch failed/);
 });
 
 test('resolveRequestUser: un fallo de Auth no se cachea; un usuario válido sí', async () => {

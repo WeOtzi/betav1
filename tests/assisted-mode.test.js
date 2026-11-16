@@ -17,14 +17,14 @@ const cssSource = fs.readFileSync(CSS_FILE, 'utf8');
 // Contrato §1 (ids estables, orden y títulos).
 const CONTRACT_STEPS = ['perfil', 'portafolio', 'compartir', 'retiro', 'disponibilidad', 'notificaciones', 'verificacion', 'configuracion'];
 const CONTRACT_TITLES = {
-    perfil: 'Completá tu perfil',
-    portafolio: 'Validá tu Instagram y tu portafolio',
-    compartir: 'Compartí tu perfil en Instagram',
-    retiro: 'Configurá un medio de retiro',
-    disponibilidad: 'Configurá tu disponibilidad',
-    notificaciones: 'Configurá tus notificaciones',
-    verificacion: 'Completá la verificación',
-    configuracion: 'Completá la configuración',
+    perfil: 'Completa tu perfil',
+    portafolio: 'Valida tu Instagram y tu portafolio',
+    compartir: 'Comparte tu perfil en Instagram',
+    retiro: 'Configura un medio de retiro',
+    disponibilidad: 'Configura tu disponibilidad',
+    notificaciones: 'Configura tus notificaciones',
+    verificacion: 'Completa la verificación',
+    configuracion: 'Completa la configuración',
 };
 const CONTRACT_CHECKS = {
     perfil: [['banner', false], ['foto', false], ['redes', false], ['whatsapp', false], ['email', false], ['bio', true]],
@@ -129,7 +129,7 @@ test('los mensajes para la bio son 16 o más, únicos, cortos, sin exclamaciones
         assert.doesNotMatch(m, /\p{Extended_Pictographic}/u, m + ': sin emoji');
         assert.doesNotMatch(m, /https?:|www\./, m + ': el enlace va aparte');
     }
-    for (const sample of ['Agendá conmigo en el enlace', 'Cotizá fácil desde el enlace', 'Pedí tu cotización en el enlace', 'Reservá tu turno en el enlace']) {
+    for (const sample of ['Agenda conmigo en el enlace', 'Cotiza fácil desde el enlace', 'Pide tu cotización en el enlace', 'Reserva tu turno en el enlace']) {
         assert.ok(messages.includes(sample), sample);
     }
 });
@@ -184,7 +184,7 @@ test('anchorSelectors usa ~= (lista separada por espacios) del check al paso y c
 test('normalizeSteps respeta el orden del contrato y completa lo que falte', () => {
     const steps = plain(I.normalizeSteps({ steps: [
         { id: 'retiro', status: 'unavailable', checks: [{ id: 'destino', done: false }] },
-        { id: 'perfil', status: 'done', title: 'Completá tu perfil', checks: [{ id: 'bio', label: 'Biografía', done: true, optional: true }] },
+        { id: 'perfil', status: 'done', title: 'Completa tu perfil', checks: [{ id: 'bio', label: 'Biografía', done: true, optional: true }] },
         { id: 'raro', status: 'done' },
         { id: 'portafolio', status: 'whatever' },
     ] }));
@@ -194,7 +194,7 @@ test('normalizeSteps respeta el orden del contrato y completa lo que falte', () 
     assert.equal(steps[1].status, 'pending', 'status desconocido = pending');
     assert.equal(steps[3].status, 'unavailable');
     assert.equal(steps[3].checks[0].label, 'Destino de retiro activo', 'etiqueta de respaldo de STEP_COPY');
-    assert.equal(steps[4].title, 'Configurá tu disponibilidad');
+    assert.equal(steps[4].title, 'Configura tu disponibilidad');
 });
 
 test('nextStepAfter salta lo hecho o postergado, muestra una vez lo no disponible y vuelve al inicio', () => {
@@ -223,7 +223,7 @@ test('el panel nunca suma un botón accent (el de la página manda) en ningún e
     const variants = [];
     for (const id of CONTRACT_STEPS) {
         for (const status of ['pending', 'skipped', 'unavailable', 'done']) {
-            variants.push([id + '/' + status, I.buildPanelModel(onboarding({ [id]: status }), { view: id, bio: 'Agendá conmigo en el enlace' }, CTX)]);
+            variants.push([id + '/' + status, I.buildPanelModel(onboarding({ [id]: status }), { view: id, bio: 'Agenda conmigo en el enlace' }, CTX)]);
         }
     }
     variants.push(['completo', I.buildPanelModel(onboarding(Object.fromEntries(CONTRACT_STEPS.map((id) => [id, 'done']))), {}, CTX)]);
@@ -242,7 +242,7 @@ test('el panel nunca suma un botón accent (el de la página manda) en ningún e
 test('el paso pendiente muestra eyebrow, checklist con opcionales y las acciones del contrato', () => {
     const html = I.renderPanel(I.buildPanelModel(onboarding(), {}, CTX));
     assert.match(html, /Modo asistido · paso 1 de 8/);
-    assert.match(html, /<h2 class="wo-assist__title" id="wo-assist-title" tabindex="-1">Completá tu perfil<\/h2>/);
+    assert.match(html, /<h2 class="wo-assist__title" id="wo-assist-title" tabindex="-1">Completa tu perfil<\/h2>/);
     assert.match(html, /data-wo-icon="circle"/);
     assert.match(html, /Check bio<\/span><span class="wo-assist__opt">Opcional<\/span>/);
     assert.match(html, /data-assist-act="go"[^>]*>IR AL PASO →</);
@@ -264,17 +264,17 @@ test('el paso pendiente muestra eyebrow, checklist con opcionales y las acciones
 
 test('compartir arma el enlace, el mensaje de bio y las instrucciones de Instagram dentro del panel', () => {
     const data = onboarding({ perfil: 'done', portafolio: 'done' });
-    const model = I.buildPanelModel(data, { bio: 'Reservá tu turno en el enlace' }, CTX);
+    const model = I.buildPanelModel(data, { bio: 'Reserva tu turno en el enlace' }, CTX);
     assert.equal(model.viewId, 'compartir');
     const html = I.renderPanel(model);
     assert.match(html, /Modo asistido · paso 3 de 8/);
     assert.match(html, /<input class="wo-assist__field" id="wo-assist-link" type="text" readonly value="https:\/\/beta\.weotzi\.com\/artist\/profile\?artist=laura">/);
     assert.match(html, />COPIAR ENLACE</);
-    assert.match(html, /En Instagram: Editar perfil → Enlaces → Agregar enlace externo\. Pegá este enlace en el campo URL\./);
-    assert.match(html, /<textarea[^>]*id="wo-assist-bio"[^>]*readonly>Reservá tu turno en el enlace<\/textarea>/);
+    assert.match(html, /En Instagram: Editar perfil → Enlaces → Agregar enlace externo\. Pega este enlace en el campo URL\./);
+    assert.match(html, /<textarea[^>]*id="wo-assist-bio"[^>]*readonly>Reserva tu turno en el enlace<\/textarea>/);
     assert.match(html, />GENERAR OTRO</);
     assert.match(html, />COPIAR MENSAJE</);
-    assert.match(html, /Pegalo al final de tu presentación sin borrar lo que ya tenés\./);
+    assert.match(html, /Pégalo al final de tu presentación sin borrar lo que ya tienes\./);
     assert.match(html, /<a [^>]*href="https:\/\/www\.instagram\.com\/accounts\/edit\/" target="_blank" rel="noopener">ABRIR INSTAGRAM →<\/a>/);
     assert.match(html, /data-assist-act="pasted"[^>]*>YA LO PEGUÉ EN MI INSTAGRAM</);
     assert.doesNotMatch(html, /IR AL PASO/, 'compartir no tiene página propia');
@@ -300,7 +300,7 @@ test('con todo completo el panel ofrece la bienvenida y la lista suma la entrada
     assert.match(html, /Bienvenida a We Ötzi/);
     assert.doesNotMatch(html, /id="wo-assist-steps"[^>]* hidden/);
     const confirm = I.renderPanel(I.buildPanelModel(all, {}, { confirmExit: true }));
-    assert.match(confirm, /¿Salir del modo asistido\?<\/h2><p class="wo-assist__desc">Podés retomarlo desde el menú Ö\.<\/p>/);
+    assert.match(confirm, /¿Salir del modo asistido\?<\/h2><p class="wo-assist__desc">Puedes retomarlo desde el menú Ö\.<\/p>/);
 });
 
 test('la bienvenida final es un diálogo modal accesible con un solo accent y todo el contenido pedido', () => {
@@ -309,12 +309,12 @@ test('la bienvenida final es un diálogo modal accesible con un solo accent y to
     assert.match(html, /role="dialog" aria-modal="true" aria-labelledby="wo-assist-welcome-title"/);
     assert.match(html, /id="wo-assist-welcome-title" tabindex="-1">Felicitaciones, Laura: tu perfil está listo</);
     assert.match(html, /Bienvenido a We Ötzi/);
-    assert.match(html, /Todo lo que podés hacer en We Ötzi/);
+    assert.match(html, /Todo lo que puedes hacer en We Ötzi/);
     for (const name of ['Cotizaciones', 'Calendario', 'Job board', 'Spots e invitaciones', 'Travel', 'Inbox', 'Estadísticas', 'Wallet']) {
         assert.match(html, new RegExp('<b>' + name + '</b>'), name);
     }
     assert.match(html, /Por qué conviene que tus clientes coticen con We Ötzi/);
-    for (const re of [/idea, zona, tamaño, referencias y presupuesto/, /historial y sin mensajes perdidos/, /cotizador las 24 horas/, /recordatorios conectados/, /señas protegidos en el Wallet/, /Reseñas verificadas/, /cancelaciones, disputas o dudas/]) {
+    for (const re of [/idea, zona, tamaño, referencias y presupuesto/, /historial y sin mensajes perdidos/, /cotizador las 24 horas/, /recordatorios conectados/, /anticipos protegidos en el Wallet/, /Reseñas verificadas/, /cancelaciones, disputas o dudas/]) {
         assert.match(html, re);
     }
     assert.match(html, /Inbox → Soporte/);
@@ -371,7 +371,7 @@ test('el copy de wo-assist.js no usa signos de exclamación (regla 10 del DS)', 
     assert.doesNotMatch(jsSource, /`/, 'sin template strings (ES5 como wo-tour.js)');
     const literals = stringLiterals(jsSource);
     assert.ok(literals.length > 200, 'el escáner encontró los textos (' + literals.length + ')');
-    assert.ok(literals.includes('Completá tu perfil'));
+    assert.ok(literals.includes('Completa tu perfil'));
     const offenders = literals.filter((s) => s.includes('!'));
     assert.deepEqual(offenders, []);
 });
@@ -474,7 +474,7 @@ test('el CTA accent de la bienvenida es un <a>: su texto vuelve a --action-accen
 /* ------------------------- markup de los fixes ------------------------- */
 
 test('portafolio sin el módulo de Instagram suma una línea: por ahora alcanza con cargar trabajos', () => {
-    const NOTE = 'La validación de Instagram se habilita pronto: por ahora cargá tus trabajos.';
+    const NOTE = 'La validación de Instagram se habilita pronto: por ahora carga tus trabajos.';
     const off = onboarding({ perfil: 'done' }, { instagram: { available: false } });
     const model = I.buildPanelModel(off, {}, CTX);
     assert.equal(model.viewId, 'portafolio');
@@ -508,7 +508,7 @@ test('notificaciones y configuración ofrecen "Ya lo revisé" (ghost); el resto 
 });
 
 test('el acceso al demo del dock es un enlace simple, sin accent, y solo aparece cuando el modelo lo pide', () => {
-    const link = '<button type="button" class="wo-assist__link wo-assist__demo" data-assist-act="demo">Probá el modo demo →</button>';
+    const link = '<button type="button" class="wo-assist__link wo-assist__demo" data-assist-act="demo">Prueba el modo demo →</button>';
     const withLink = I.renderPanel(I.buildPanelModel(onboarding(), {}, Object.assign({ demoLink: true }, CTX)));
     assert.ok(withLink.includes(link));
     assert.equal(countAccent(withLink), 0);
@@ -680,10 +680,10 @@ function allDone() { return onboarding(Object.fromEntries(CONTRACT_STEPS.map((id
 
 /* ------------------------------ comportamiento ------------------------------ */
 
-test('dashboard: el dock ofrece "Probá el modo demo →" (abre el demo con recorrido) y se va si la sugerencia se apaga', async () => {
+test('dashboard: el dock ofrece "Prueba el modo demo →" (abre el demo con recorrido) y se va si la sugerencia se apaga', async () => {
     const h = mountHarness();
     assert.equal(await h.api.boot({ start: true, identity: IDENTITY }), true);
-    assert.match(h.panelHtml(), /data-assist-act="demo">Probá el modo demo →<\/button>/);
+    assert.match(h.panelHtml(), /data-assist-act="demo">Prueba el modo demo →<\/button>/);
     h.click('demo');
     assert.deepEqual(h.calls.enable, [{ tour: true }], 'WoDemo.enable({ tour: true })');
     h.doc.dispatchEvent(new FakeCustomEvent('wo:demo-suggestions-changed', { detail: { enabled: false } }));
@@ -724,7 +724,7 @@ test('ESCUCHAR con la voz apagada en el recorrido la vuelve a prender antes de l
     assert.deepEqual(h.narrator.toggles, [true], 'setVoiceEnabled(true) por el toque explícito');
     assert.equal(h.narrator.speaks.length, 1);
     assert.equal(h.narrator.speaks[0].voice, true, 'speak corre con la voz ya prendida');
-    assert.match(h.narrator.speaks[0].text, /^Completá tu perfil\./);
+    assert.match(h.narrator.speaks[0].text, /^Completa tu perfil\./);
     h.narrator.done(true, 'end');
     await h.flush();
     assert.equal(h.live(), '', 'si sonó, no hay aviso');
@@ -736,9 +736,9 @@ test('ESCUCHAR con la voz apagada en el recorrido la vuelve a prender antes de l
 test('ESCUCHAR que no arranca avisa el motivo en la región viva; cortarlo a mano no avisa nada', async () => {
     const cases = [
         ['unsupported', 'Este navegador no tiene voz para leer los pasos.'],
-        ['gesture', 'Tocá de nuevo para escuchar: el navegador pide un toque antes de habilitar la voz.'],
-        ['error', 'No pudimos leer el paso en voz alta. Probá de nuevo.'],
-        ['off', 'No pudimos leer el paso en voz alta. Probá de nuevo.'],
+        ['gesture', 'Toca de nuevo para escuchar: el navegador pide un toque antes de habilitar la voz.'],
+        ['error', 'No pudimos leer el paso en voz alta. Prueba de nuevo.'],
+        ['off', 'No pudimos leer el paso en voz alta. Prueba de nuevo.'],
         ['stopped', ''],
     ];
     for (const [reason, message] of cases) {

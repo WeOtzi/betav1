@@ -1,6 +1,6 @@
 'use strict';
 // Ronda 3 · grupo "pagos" (12 nov 2026). Cubre:
-//   - quotation-payments-model.js (validación, saldo, seña, dashboard, actividad)
+//   - quotation-payments-model.js (validación, saldo, anticipo, dashboard, actividad)
 //   - wallet-model.js con movimientos informativos «Cobrado por fuera»
 //   - helpers puros de la pestaña VERIFICACIONES de soporte
 //   - la migración 20261112170000 (forma, RLS, RPC) y su reversa
@@ -67,10 +67,10 @@ test('parseAmount acepta formatos es-AR y en-US y rechaza negativos o vacíos', 
 });
 
 test('validate: montos sanos, moneda de la lista, fecha no futura, nota y comprobante acotados', () => {
-    const base = { quotationId: 10, kind: 'deposit', method: 'cash', amount: '300', currency: 'usd', paidOn: TODAY, note: '  seña  ' };
+    const base = { quotationId: 10, kind: 'deposit', method: 'cash', amount: '300', currency: 'usd', paidOn: TODAY, note: '  anticipo  ' };
     const ok = P.validate(base, { today: TODAY });
     assert.equal(ok.ok, true);
-    assert.deepEqual(ok.value, { quotationId: 10, kind: 'deposit', method: 'cash', amount: 300, currency: 'USD', paid_on: TODAY, note: 'seña' });
+    assert.deepEqual(ok.value, { quotationId: 10, kind: 'deposit', method: 'cash', amount: 300, currency: 'USD', paid_on: TODAY, note: 'anticipo' });
 
     const bad = (patch) => P.validate(Object.assign({}, base, patch), { today: TODAY }).errors;
     assert.ok(bad({ amount: '0' }).amount);
@@ -91,7 +91,7 @@ test('validate: montos sanos, moneda de la lista, fecha no futura, nota y compro
     assert.equal(bad({ file: { name: 'recibo.jpg', type: 'image/jpeg', size: 1000 } }).file, undefined);
 });
 
-/* --------------------------------- saldo y seña --------------------------------- */
+/* --------------------------------- saldo y anticipo --------------------------------- */
 
 test('agreedTotal: final > artista > total de la cotización manual', () => {
     assert.deepEqual(P.agreedTotal(quote()), { amount: 1000, currency: 'USD', source: 'final' });
@@ -101,7 +101,7 @@ test('agreedTotal: final > artista > total de la cotización manual', () => {
     assert.equal(P.agreedTotal(quote({ final_budget_amount: null, artist_budget_amount: null })), null);
 });
 
-test('summarize: saldo real (acordado − cobrado), seña pendiente → parcial → pagada', () => {
+test('summarize: saldo real (acordado − cobrado), anticipo pendiente → parcial → pagado', () => {
     const manual = { currency: 'USD', total: 1000, deposit_pct: 30, deposit_amount: 300 };
     let s = P.summarize(quote(), manual, []);
     assert.equal(s.total, 1000);
@@ -125,7 +125,7 @@ test('summarize: saldo real (acordado − cobrado), seña pendiente → parcial 
     assert.equal(s.lastPaidOn, '2026-11-11');
     assert.equal(P.suggestAmount(s, 'balance'), 300);
 
-    // Un pago de sesión que ya cubre la seña la da por pagada.
+    // Un pago de sesión que ya cubre el anticipo lo da por pagado.
     s = P.summarize(quote(), manual, [pay({ kind: 'session', amount: 350 })]);
     assert.equal(s.deposit.status, 'paid');
 
@@ -145,7 +145,7 @@ test('summarize: otras monedas se convierten si hay tipo de cambio; si no, queda
     const noRates = P.summarize(quote(), null, payments, {});
     assert.equal(noRates.paid, 0);
     assert.equal(noRates.others.length, 2);
-    assert.equal(P.summarize(quote(), null, []).deposit, null, 'sin cotización manual no hay seña');
+    assert.equal(P.summarize(quote(), null, []).deposit, null, 'sin cotización manual no hay anticipo');
 });
 
 test('isPayable: respondidas o con acuerdo; nunca el borrador del cotizador del cliente', () => {
@@ -197,7 +197,7 @@ test('income: pagos por fecha de pago + completadas sin pagos (sin contar dos ve
     assert.equal(inc.counted, 4);
 });
 
-test('activityEvents: «Pago recibido · Mateo · $180» y «Seña recibida» con la fecha del pago', () => {
+test('activityEvents: «Pago recibido · Mateo · $180» y «Anticipo recibido» con la fecha del pago', () => {
     const money = (a) => '$' + a;
     const evs = P.activityEvents([
         P.normalize(pay({ amount: 180, paid_on: P.isoDateLocal(new Date()), created_at: new Date().toISOString() })),
@@ -205,7 +205,7 @@ test('activityEvents: «Pago recibido · Mateo · $180» y «Seña recibida» co
     ], { money });
     assert.equal(evs[0].txt, 'Pago recibido · Mateo · $180');
     assert.equal(evs[0].icon, 'dollar-sign');
-    assert.equal(evs[1].txt, 'Seña recibida · Sofía · $75');
+    assert.equal(evs[1].txt, 'Anticipo recibido · Sofía · $75');
     // Un pago de la semana pasada registrado hoy no figura como "hace 1 min".
     assert.equal(P.isoDateLocal(new Date(evs[1].when)), '2026-11-04');
     assert.equal(evs[1].quoteId, 'COT-1');
@@ -222,7 +222,7 @@ test('receiptPath: <artista>/<cotización>/<id>-<archivo saneado>', () => {
 test('Wallet: los cobros por fuera son informativos y nunca suman al saldo retirable', () => {
     const moves = [
         { kind: 'release', status: 'completed', amount: 500, currency: 'USD', title: 'Fondos liberados', occurred_at: '2026-11-01T10:00:00Z' },
-        { kind: 'payment', status: 'completed', amount: 300, currency: 'USD', title: 'Seña recibida — Mateo', quote_id: 'COT-1', occurred_at: '2026-11-10T10:00:00Z',
+        { kind: 'payment', status: 'completed', amount: 300, currency: 'USD', title: 'Anticipo recibido — Mateo', quote_id: 'COT-1', occurred_at: '2026-11-10T10:00:00Z',
           metadata_json: { source: 'manual_payment', off_platform: true, method: 'cash', payment_kind: 'deposit' } },
         { kind: 'payment', status: 'completed', amount: 1000, currency: 'USD', title: 'Trabajo completado — Mateo', occurred_at: '2026-11-11T10:00:00Z',
           metadata_json: { source: 'quotation', off_platform: true, balance: 700 } },
@@ -258,7 +258,7 @@ test('soporte: rechazar exige nota (≥5) y la decisión se mapea por cola', () 
     assert.deepEqual(SV.buildReview('documents', 'approve', ' ok '), { decision: 'verificado', note: 'ok' });
     assert.equal(SV.buildReview('documents', 'reject', 'mal').field, 'note');
     assert.deepEqual(SV.buildReview('destinations', 'reject', 'El titular no coincide'), { decision: 'rejected', note: 'El titular no coincide' });
-    assert.deepEqual(SV.buildReview('documents', 'reject', 'Foto borrosa, subila de nuevo'), { decision: 'rechazado', note: 'Foto borrosa, subila de nuevo' });
+    assert.deepEqual(SV.buildReview('documents', 'reject', 'Foto borrosa, súbela de nuevo'), { decision: 'rechazado', note: 'Foto borrosa, súbela de nuevo' });
     assert.equal(SV.buildReview('documents', 'approve', 'x'.repeat(501)).field, 'note');
     assert.equal(SV.normalizeStatus('pendiente'), 'pending');
     assert.equal(SV.normalizeStatus('verificado'), 'verified');
@@ -327,7 +327,7 @@ function rpc(store, fn, args, userId) {
     return { status: res.status, body: res.body == null ? null : JSON.parse(res.body) };
 }
 
-test('fixtures: pagos de Sofía, Mateo y Lucía, seña pendiente de DEMO-S01 y movimientos informativos', () => {
+test('fixtures: pagos de Sofía, Mateo y Lucía, anticipo pendiente de DEMO-S01 y movimientos informativos', () => {
     assert.ok(Fixtures.EXTENSIONS.includes('pagos'));
     const { fx, store, me } = makeDemo();
     const rows = fx.tables.quotation_payments;
@@ -370,9 +370,9 @@ test('fixtures: RPC espejo de record/void con las mismas reglas que el SQL', () 
     // RPC de soporte del preview: rechazo con nota obligatoria.
     const doc = store.rows('artist_verification_documents')[0];
     assert.equal(rpc(store, 'support_review_verification_document', { p_document_id: doc.id, p_decision: 'rechazado', p_note: 'no' }, me).status, 400);
-    const reviewed = rpc(store, 'support_review_verification_document', { p_document_id: doc.id, p_decision: 'rechazado', p_note: 'Foto borrosa, subila de nuevo' }, me);
+    const reviewed = rpc(store, 'support_review_verification_document', { p_document_id: doc.id, p_decision: 'rechazado', p_note: 'Foto borrosa, súbela de nuevo' }, me);
     assert.equal(reviewed.body.status, 'rechazado');
-    assert.equal(reviewed.body.reviewer_notes, 'Foto borrosa, subila de nuevo');
+    assert.equal(reviewed.body.reviewer_notes, 'Foto borrosa, súbela de nuevo');
     const dest = store.rows('artist_payout_destinations')[0];
     const verified = rpc(store, 'support_review_payout_destination', { p_destination_id: dest.id, p_decision: 'verified', p_note: null }, me);
     assert.equal(verified.body.verification_status, 'verified');

@@ -51,6 +51,9 @@
 .cqp-decision-copy,.cqp-confirm-copy{margin:0 0 var(--space-3);font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-body)}
 .cqp-decision-actions{display:flex;flex-wrap:wrap;gap:var(--space-3);margin-top:var(--space-3)}
 .cqp-decision-actions[hidden],.cqp-confirm[hidden]{display:none}
+/* Ronda 2 · negociación: Modificar aparece cuando el servidor lo habilita; advertencia del rechazo. */
+.cqp-decision[hidden],.cqp-decision .wo-btn[hidden]{display:none}
+.cqp-warning{margin:0 0 var(--space-3);padding:var(--space-3) var(--space-4);border:var(--border-hairline) solid var(--yellow-300);border-left-width:var(--border-rule-width);background:var(--status-warning-bg);color:var(--status-warning-fg);font-size:var(--body-s-size);line-height:var(--body-s-lh);font-weight:var(--weight-semibold)}
 .cqp-confirm .wo-textarea{min-height:88px}
 .cqp-decision .wo-btn:focus-visible,.cqp-confirm .wo-textarea:focus-visible{outline:2px solid var(--border-focus);outline-offset:2px}
 .cqp-feedback{margin:var(--space-3) 0 0;font-size:var(--body-s-size);line-height:var(--body-s-lh);color:var(--text-muted);min-height:0}

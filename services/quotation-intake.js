@@ -3,7 +3,7 @@
 // Intake del cotizador web (/quotation y pre-cotizador).
 // ---------------------------------------------------------------------------
 // El navegador nunca escribe quotations_db: autosave (mode=draft) y envío
-// (mode=submit) pasan por acá con service role. La "llave" del borrador es
+// (mode=submit) pasan por aquí con service role. La "llave" del borrador es
 // submission_key (UUID v4 secreto del navegador): el quote_id se deriva con
 // sha256 y no se puede adivinar ni reutilizar desde afuera.
 //
@@ -58,16 +58,29 @@ function normalizeIntake(body, user, artist) {
     q.client_full_name = String(q.client_full_name || '').trim();
     if (JSON.stringify(q).length > 40000) invalid('La solicitud es demasiado extensa.');
     if (body.mode === 'submit') {
-        if (!q.client_full_name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.client_email)) invalid('Completá nombre y correo válidos.');
-        if (!q.tattoo_idea_description || !q.tattoo_style || !q.tattoo_body_part || !q.tattoo_size) invalid('Completá la idea, estilo, zona y tamaño.');
+        if (!q.client_full_name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.client_email)) invalid('Completa nombre y correo válidos.');
+        if (!q.tattoo_idea_description || !q.tattoo_style || !q.tattoo_body_part || !q.tattoo_size) invalid('Completa la idea, estilo, zona y tamaño.');
         // Nunca una cotización enviada sin destino: sin artista el wizard ofrece
         // artistas sugeridos o el Job Board (POST /api/quotations/intake/job-board).
-        if (!artist) invalid('Elegí un artista o publicá tu idea en el Job Board.', 409, { needs_destination: true });
+        if (!artist) invalid('Elige un artista o publica tu idea en el Job Board.', 409, { needs_destination: true });
     }
     if (q.client_budget_amount != null && (!Number.isFinite(Number(q.client_budget_amount)) || Number(q.client_budget_amount) < 0)) invalid('El presupuesto no es válido.');
     if (q.client_birth_date != null && !/^\d{4}-\d{2}-\d{2}$/.test(String(q.client_birth_date))) q.client_birth_date = null;
-    const age = cotForm.ageFromBirthDate(q.client_birth_date);
-    q.client_age = age == null ? null : String(age);
+    // Ronda 2 (P15): la edad se valida también aquí. Menos de 14 no se envía;
+    // entre 14 y 17 la base marca client_is_minor (trigger sobre client_birth_date).
+    const ageInfo = cotForm.ageStatus(q.client_birth_date);
+    q.client_age = ageInfo.age == null ? null : String(ageInfo.age);
+    if (body.mode === 'submit' && !ageInfo.allowed) {
+        invalid(`Para cotizar un tatuaje necesitas tener al menos ${cotForm.MIN_CLIENT_AGE} años.`, 400, { code: 'under_age', field: 'client_birth_date' });
+    }
+    // Sin tatuajes previos no hay nada que cubrir ("Es un cover-up" solo se pregunta si no es el primero).
+    if (q.tattoo_is_first_tattoo === true || q.tattoo_is_first_tattoo === 'true') q.tattoo_is_cover_up = false;
+    // P14: rango tentativo elegido en el calendario (client_preferred_date sigue siendo el texto visible).
+    const dateRange = cotForm.normalizeDateRange(input.preferred_date_from, input.preferred_date_to);
+    q.preferred_date_from = dateRange.from;
+    q.preferred_date_to = dateRange.to;
+    // P27: la sede la resuelve prepareQuotation contra las opciones reales del artista (solo en el envío).
+    Object.assign(q, cotForm.preferredLocationColumns(null));
     const quoteId = deriveQuoteId(body.submission_key);
     Object.assign(q, {
         quote_id: quoteId,
@@ -81,7 +94,29 @@ function normalizeIntake(body, user, artist) {
     const extra = body.extras || {};
     const extras = { idea_mode: extra.idea_mode === 'explorar' ? 'explorar' : 'idea', personalization_level: ['tal_cual','interpretacion','propuesta'].includes(extra.personalization_level) ? extra.personalization_level : null, reference_notes: Array.isArray(extra.reference_notes) ? extra.reference_notes.slice(0,4).map(n => String(n).slice(0,2000)) : [] };
     const references = body.mode === 'submit' ? cotForm.normalizeReferences(body.references, quoteId) : [];
+    if (body.mode === 'submit') {
+        // P13: cada nota queda pegada a SU imagen. Un navegador con el script
+        // anterior manda solo paths y las notas en extras, alineadas por índice.
+        const legacyPaths = Array.isArray(body.references) && body.references.every(item => typeof item === 'string');
+        if (legacyPaths) references.forEach((ref, i) => { ref.note = cotForm.cleanReferenceNote(extras.reference_notes[i]); });
+        extras.reference_notes = cotForm.referenceNotes(references);
+    }
     return { q, extras, references };
+}
+
+// P27: sede elegida por el cliente. El navegador manda solo la llave de la
+// opción; los datos que se guardan salen de las opciones reales del artista.
+async function resolvePreferredLocation(artistId, requested) {
+    const key = typeof requested === 'string' ? requested : requested && requested.key;
+    if (!artistId || !key || typeof key !== 'string') return cotForm.preferredLocationColumns(null);
+    try {
+        const sources = await require('../lib/repos/cot-form').CotFormRepo.locationSources(artistId);
+        const options = sources ? cotForm.buildLocationOptions(sources) : [];
+        return cotForm.preferredLocationColumns(cotForm.findLocationOption(options, key));
+    } catch (error) {
+        console.warn('[quotation-intake] sede preferida:', String(error.message || '').slice(0, 200));
+        return cotForm.preferredLocationColumns(null);
+    }
 }
 
 async function loadArtist(id) {
@@ -114,17 +149,22 @@ async function callSaveRpc(q, extras) {
         return await pgrest.raw('rpc/save_web_quotation', { method: 'POST', body: { p_quote: q, p_extras: extras } });
     } catch (error) {
         console.error('[quotation-intake] save_web_quotation:', error.status, String(error.message || '').slice(0, 300));
-        invalid('No pudimos guardar la cotización. Intentá nuevamente.', 502);
+        invalid('No pudimos guardar la cotización. Intenta nuevamente.', 502);
     }
 }
 
 // Normaliza el borrador y resuelve artista, borrador previo y vínculo de cuenta
 // (sin guardar). La usan saveQuotation y el envío con turno (lib/turnos-intake).
-async function prepareQuotation(body, user, { forceNoArtist = false } = {}) {
+async function prepareQuotation(body, user, { forceNoArtist = false, reusedFrom = null } = {}) {
     const input = body.quotation || {};
     const artist = forceNoArtist ? null : await loadArtist(input.artist_id);
     if (forceNoArtist && body.quotation) body = { ...body, quotation: { ...input, artist_id: null } };
     const { q, extras, references } = normalizeIntake(body, user, artist);
+    // P32: origen de "Cotizar con otro artista" (solo lo fija el servidor al clonar).
+    if (reusedFrom) q.reused_from_quote_id = String(reusedFrom).slice(0, 64);
+    if (body.mode === 'submit' && artist && body.preferred_location) {
+        Object.assign(q, await resolvePreferredLocation(artist.user_id, body.preferred_location));
+    }
     const previous = await existingDraft(q.quote_id);
     if (previous && previous.job_board_request_id) {
         return { q, extras, references, artist, previous, jobBoard: true };
@@ -164,7 +204,26 @@ async function persistReferences(quoteId, references) {
         { reference_images: urls, reference_images_count: urls.length }, { returning: false });
     await pgrest('quotations_attachments').eq('quotation_id', quoteId).eq('attachment_type', 'reference')
         .is('google_drive_id', null).delete();
-    await pgrest('quotations_attachments').insert(cotForm.attachmentRows(quoteId, references, supabaseUrl), { returning: false });
+    // Cada fila lleva la nota de SU imagen (note) y la marca de IA (ai_generated).
+    const rows = cotForm.attachmentRows(quoteId, references, supabaseUrl);
+    try {
+        await pgrest('quotations_attachments').insert(rows, { returning: false });
+    } catch (error) {
+        // Migración 20261116110000 sin aplicar: se guardan igual las referencias.
+        if (!/PGRST204|Could not find the '(note|ai_generated)' column/i.test(String(error.message || ''))) throw error;
+        await pgrest('quotations_attachments').insert(cotForm.legacyAttachmentRows(rows), { returning: false });
+    }
+}
+
+// Código corto visible (quotations_db.short_code). null si la migración no está aplicada.
+async function shortCodeOf(quoteId, known) {
+    if (cotForm.isShortCode(known)) return known;
+    try {
+        const row = await pgrest('quotations_db').select('short_code').eq('quote_id', quoteId).limit(1).single().execute();
+        return row && cotForm.isShortCode(row.short_code) ? row.short_code : null;
+    } catch (_) {
+        return null;
+    }
 }
 
 function sendError(res, e) {
@@ -208,7 +267,10 @@ async function handleSlotSubmit(req, res, body, user, slot, sessionExpired) {
                 .catch(error => console.error('[quotation-intake] avisos post-envío:', error.message));
         }
     }
-    return res.status(captured.status).json(out.success ? { ...out, session_expired: sessionExpired, references_saved: referencesSaved } : out);
+    if (!out.success) return res.status(captured.status).json(out);
+    // El RPC con turno no devuelve el código corto: se lee de la fila guardada.
+    const shortCode = await shortCodeOf(prepared.q.quote_id, out.short_code);
+    return res.status(captured.status).json({ ...out, short_code: shortCode, session_expired: sessionExpired, references_saved: referencesSaved });
 }
 
 function notifyArtist(quoteId, req) {
@@ -251,8 +313,8 @@ async function handleIntake(req, res) {
                     .catch(error => console.error('[quotation-intake] avisos post-envío:', error.message));
             }
         }
-        res.json({ success: true, quote_id: saved.result.quote_id, status, session_expired: sessionExpired, references_saved: referencesSaved });
+        res.json({ success: true, quote_id: saved.result.quote_id, short_code: cotForm.isShortCode(saved.result.short_code) ? saved.result.short_code : null, status, session_expired: sessionExpired, references_saved: referencesSaved });
     } catch (e) { sendError(res, e); }
 }
 
-module.exports = { handleIntake, normalizeIntake, prepareQuotation, saveQuotation, persistReferences, deriveQuoteId, sendError, hooks, CLIENT_FIELDS };
+module.exports = { handleIntake, normalizeIntake, prepareQuotation, saveQuotation, persistReferences, deriveQuoteId, sendError, shortCodeOf, hooks, CLIENT_FIELDS };

@@ -1,6 +1,6 @@
 // ============================================
 // WE ÖTZI - MARKETPLACE (flujo clientes)
-// Referencias: Figma 801:1127 "Descubrí artistas" y 2113:9145 "Descubrí
+// Referencias: Figma 801:1127 "Descubre artistas" y 2113:9145 "Descubre
 // estudios". Lógica pura (estilos, precio, agenda, ciudades, estudios) en
 // marketplace-core.js; lecturas en data/marketplace-repo.js.
 // ============================================
@@ -164,35 +164,35 @@ const FILTER_DEFS = {
 // Textos que cambian con el modo (Figma 801:1127 / 2113:9145).
 const MODE_COPY = {
     artists: {
-        title: 'Descubrí artistas',
-        sub: 'Encontrá el tatuador que encaja con tu estilo.',
+        title: 'Descubre artistas',
+        sub: 'Encuentra el tatuador que encaja con tu estilo.',
         placeholder: 'Buscar artistas, estilos, ciudades…',
         loading: 'Cargando artistas…',
         noun: ['artista encontrado', 'artistas encontrados'],
         more: 'Cargar más artistas',
         emptyTitle: 'No encontramos artistas con esos criterios',
-        emptyText: 'Probá con otro estilo o ciudad, o limpiá los filtros para ver todos.',
+        emptyText: 'Prueba con otro estilo o ciudad, o limpia los filtros para ver todos.',
         emptyCta: 'Ver todos los artistas',
         featuredTitle: 'Artistas destacados',
         featuredSub: 'Artistas promocionados en We Ötzi',
         featuredLink: 'Ver artistas destacados →',
-        forYouTitle: 'Artistas para vos',
+        forYouTitle: 'Artistas para ti',
         forYouSub: 'Basado en tu búsqueda e intereses'
     },
     studios: {
-        title: 'Descubrí estudios',
-        sub: 'Encontrá el estudio y los artistas para tu próximo tatuaje.',
+        title: 'Descubre estudios',
+        sub: 'Encuentra el estudio y los artistas para tu próximo tatuaje.',
         placeholder: 'Buscar estudios, estilos, ciudades…',
         loading: 'Cargando estudios…',
         noun: ['estudio encontrado', 'estudios encontrados'],
         more: 'Cargar más estudios',
         emptyTitle: 'No encontramos estudios con esos criterios',
-        emptyText: 'Probá con otra ciudad o estilo, o limpiá los filtros para ver todos.',
+        emptyText: 'Prueba con otra ciudad o estilo, o limpia los filtros para ver todos.',
         emptyCta: 'Ver todos los estudios',
         featuredTitle: 'Estudios destacados',
         featuredSub: 'Estudios promocionados en We Ötzi',
         featuredLink: 'Ver estudios destacados →',
-        forYouTitle: 'Estudios para vos',
+        forYouTitle: 'Estudios para ti',
         forYouSub: 'Según tus estilos guardados y tus favoritos'
     }
 };
@@ -242,7 +242,7 @@ function showLoadError() {
     if (!empty) return;
     empty.classList.remove('hidden');
     setText('empty-title', browseMode === 'studios' ? 'No pudimos cargar los estudios' : 'No pudimos cargar los artistas');
-    setText('empty-text', 'Revisá tu conexión y reintentá.');
+    setText('empty-text', 'Revisa tu conexión y reintenta.');
     const retry = document.getElementById('empty-cta');
     if (retry) {
         retry.textContent = 'Reintentar';
@@ -257,7 +257,7 @@ function setText(id, value) {
 }
 
 // Catálogo de estilos del registro (alias de etiquetas históricas). Si falla,
-// marketplace-core usa su copia local de los alias: el filtro sigue andando.
+// marketplace-core usa su copia local de los alias: el filtro sigue funcionando.
 async function loadStyleCatalog() {
     try {
         const base = window.WEOTZI_BASE_PATH || '';
@@ -279,7 +279,8 @@ const CLIENT_NAV = [
     { href: '/marketplace', label: 'Explorar artistas', active: true },
     { href: '/client/dashboard?tab=solicitudes', label: 'Job board' },
     { href: '/explore/globe', label: 'Tattooglobe' },
-    { href: '/client/chats/', label: 'Inbox' }
+    { href: '/client/chats/', label: 'Inbox' },
+    { href: '/client/favorites/', label: 'Favoritos' }
 ];
 
 function navLinksHtml(items, cls) {
@@ -614,6 +615,7 @@ async function loadFavorites() {
         }
         if (pending.length) {
             try { localStorage.removeItem(FAV_STORAGE_KEY); } catch (e) { /* noop */ }
+            if (window.WoFavorites && window.WoFavorites.__real) window.WoFavorites.reload();
         }
         const rows = await WeotziData.Favorites.listByClient(sessionUserId);
         favoriteIds = new Set(rows.map(r => r.artist_user_id));
@@ -654,6 +656,18 @@ function syncHeartButtons(artistUserId) {
         btn.setAttribute('aria-pressed', String(isFav));
     });
 }
+
+// Listas de favoritos (wo-favorites.js, ronda 2 · P22): con el módulo activo,
+// él maneja los corazones de artistas y estudios (guardar, elegir lista,
+// invitar a iniciar sesión) y aquí solo se espeja el conjunto de artistas
+// guardados para el filtro "Solo favoritos" y las sugerencias. Sin el módulo,
+// o si la base todavía no tiene las listas, sigue el camino de arriba.
+document.addEventListener('wo:favorites-change', () => {
+    const W = window.WoFavorites;
+    if (!W || !W.__real || !W.available || !W.loaded) return;
+    favoriteIds = new Set(W.ids('artist'));
+    if (favoritesOnly && browseMode === 'artists' && dataReady) applyFilters();
+});
 
 // Atajo corazón del hero (Figma 286:11980): filtra solo favoritos.
 function toggleFavoritesOnly() {
@@ -929,7 +943,7 @@ function ratingHtml(summary) {
     return `<span class="mk-card-rating"><i data-wo-icon="star" aria-hidden="true"></i><span class="wo-sr-only">Calificación </span>${Number(summary.average_rating).toFixed(1)}</span>`;
 }
 
-// Card de artista compartida por la grilla, "destacados" y "para vos".
+// Card de artista compartida por la grilla, "destacados" y "para ti".
 // Toda la card es un enlace real (mk-card-hit: Tab, clic medio, nueva pestaña);
 // el corazón queda por encima.
 function artistCardHtml(artist, opts = {}) {
@@ -960,6 +974,8 @@ function artistCardHtml(artist, opts = {}) {
                 </div>
                 ${userId ? `
                 <button type="button" class="mk-card-fav${isFav ? ' is-fav' : ''}" data-fav-artist="${userId}"
+                        data-wo-favorite data-kind="artist" data-id="${userId}" data-label="${name}"
+                        data-image="${escapeHtml(media)}" data-url="${escapeHtml(href)}"
                         aria-pressed="${isFav}" aria-label="${escapeHtml(`Guardar a ${displayName} en favoritos`)}">
                     <i data-wo-icon="heart" aria-hidden="true"></i>
                 </button>` : ''}
@@ -1004,6 +1020,13 @@ function studioCardHtml(studio, opts = {}) {
                     ${opts.sponsored ? `<span class="mk-card-sponsored"><i data-wo-icon="award" aria-hidden="true"></i>Patrocinado</span>` : ''}
                     ${status ? `<span class="mk-card-status mk-card-status--${status.key}">${escapeHtml(status.label)}</span>` : ''}
                 </div>
+                ${studio.id ? `
+                <button type="button" class="mk-card-fav" hidden
+                        data-wo-favorite data-kind="studio" data-id="${escapeHtml(studio.id)}" data-label="${escapeHtml(displayName)}"
+                        data-image="${escapeHtml(media)}" data-url="${escapeHtml(href)}"
+                        aria-pressed="false" aria-label="${escapeHtml(`Guardar el estudio ${displayName} en favoritos`)}">
+                    <i data-wo-icon="heart" aria-hidden="true"></i>
+                </button>` : ''}
                 <div class="mk-card-overlay">
                     <span class="mk-card-avatar" aria-hidden="true">${escapeHtml(getInitials(studio.name))}</span>
                     <div class="mk-card-id">
@@ -1121,7 +1144,7 @@ function scrollFeaturedIntoView() {
     grid?.querySelector('.mk-card-hit')?.focus({ preventScroll: true });
 }
 
-// ============ PARA VOS (Figma 286:12794 / 2113:9145) ============
+// ============ PARA TI (Figma 286:12794 / 2113:9145) ============
 // Personalización client-side: estilos y ciudades filtrados recientemente
 // (localStorage) y, en artistas, los favoritos. Sin señal no se muestra.
 function readSearchSignals() {

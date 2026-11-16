@@ -24,8 +24,8 @@
     const D = () => window.WeotziData || {};
     const ADD_TYPES = ['text', 'title', 'list', 'checklist', 'quote', 'separator', 'image'];
     const PLACEHOLDER = {
-        text: 'Escribí acá...', title: 'Título', list: 'Elemento de la lista', checklist: 'Tarea',
-        quote: 'Cita del cliente', image: 'O pegá la URL de la imagen',
+        text: 'Escribe aquí...', title: 'Título', list: 'Elemento de la lista', checklist: 'Tarea',
+        quote: 'Cita del cliente', image: 'O pega la URL de la imagen',
     };
 
     const st = { opts: null, el: null, notes: [], current: null, timer: null, saving: false, failed: false, pending: null, removedPaths: [] };
@@ -55,7 +55,7 @@
             <aside class="wn-panel" role="dialog" aria-modal="true" aria-labelledby="wn-title" tabindex="-1">
                 <header class="wn-head">
                     <div class="wn-head-copy">
-                        <p class="wn-eyebrow">Notas de trabajo · solo vos</p>
+                        <p class="wn-eyebrow">Notas de trabajo · solo tú</p>
                         <input class="wn-title" id="wn-title" maxlength="120" aria-label="Título de la nota" autocomplete="off">
                         <p class="wn-meta" id="wn-meta" aria-live="polite"></p>
                     </div>
@@ -135,7 +135,7 @@
     }
 
     // persist=false (apertura por URL con ?plantilla=): arma la nota sin
-    // guardarla; recién se inserta cuando el artista la edita. Así recargar o
+    // guardarla; solo se inserta cuando el artista la edita. Así recargar o
     // compartir el link no duplica notas en quotation_notes.
     function applyTemplate(key, persist = true) {
         const template = M.templateByKey(key);
@@ -210,7 +210,7 @@
         const meta = $('#wn-meta');
         if (!meta || !st.current) return;
         if (st.saving) meta.textContent = 'Guardando…';
-        else if (st.failed) meta.textContent = 'No se pudo guardar · reintentá';
+        else if (st.failed) meta.textContent = 'No se pudo guardar · reintenta';
         else meta.textContent = `Guardado automáticamente · ${M.blocksLabel(st.current.blocks.length)}`;
         meta.classList.toggle('is-error', !!st.failed);
     }
@@ -238,7 +238,7 @@
                     ? `<img data-sign-path="${esc(b.path)}" alt="${alt}" loading="lazy" hidden>`
                     : (b.url ? `<img src="${esc(b.url)}" alt="${alt}" loading="lazy">` : '');
                 const urlField = b.path
-                    ? '<p class="wn-image-meta">Imagen privada · solo vos la ves</p>'
+                    ? '<p class="wn-image-meta">Imagen privada · solo tú la ves</p>'
                     : `<input class="wn-line" data-field="url" type="url" value="${esc(b.url)}" placeholder="${ph}" aria-label="URL de la imagen">`;
                 return `<div class="wn-image"><div class="wn-image-row">${upload}${urlField}</div>${preview}<p class="wn-image-error" role="alert" hidden></p></div>`;
             }
@@ -350,7 +350,7 @@
             console.error('[work-notes] upload', error);
             b.uploading = false;
             renderBlocks();
-            imageError(b.id, 'No pudimos subir la imagen. Probá de nuevo.');
+            imageError(b.id, 'No pudimos subir la imagen. Prueba de nuevo.');
         }
     }
 

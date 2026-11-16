@@ -98,7 +98,7 @@ test('requestEligibility: misma regla que la RPC (documentos obligatorios, estad
     assert.deepEqual(Verif.requestEligibility({ verification_state: 'Requested' }, []), { ok: true, alreadyRequested: true, state: 'Requested' });
     const none = Verif.requestEligibility({ verification_state: 'No' }, []);
     assert.equal(none.ok, false);
-    assert.equal(none.error, 'Antes de solicitarla, subí tu documento de identidad y tu comprobante de domicilio.');
+    assert.equal(none.error, 'Antes de solicitarla, sube tu documento de identidad y tu comprobante de domicilio.');
     const rejected = Verif.requestEligibility({ verification_state: 'Denied' },
         [{ doc_type: 'identidad', status: 'rechazado' }, { doc_type: 'domicilio', status: 'pendiente' }]);
     assert.deepEqual(rejected.missing, ['tu documento de identidad']);
@@ -108,8 +108,8 @@ test('requestEligibility: misma regla que la RPC (documentos obligatorios, estad
 });
 
 test('mapRpcError: el mensaje de la RPC llega al artista; sin migración → 503', () => {
-    const err = new Error('PostgREST POST rpc/request_artist_verification failed (400): {"code":"22023","details":null,"hint":null,"message":"Antes de solicitarla, subí tu comprobante de domicilio."}');
-    assert.deepEqual(Verif.mapRpcError(err), { status: 409, error: 'Antes de solicitarla, subí tu comprobante de domicilio.' });
+    const err = new Error('PostgREST POST rpc/request_artist_verification failed (400): {"code":"22023","details":null,"hint":null,"message":"Antes de solicitarla, sube tu comprobante de domicilio."}');
+    assert.deepEqual(Verif.mapRpcError(err), { status: 409, error: 'Antes de solicitarla, sube tu comprobante de domicilio.' });
     const missing = new Error('PostgREST POST rpc/request_artist_verification failed (404): {"code":"PGRST202","message":"Could not find the function public.request_artist_verification"}');
     assert.equal(Verif.mapRpcError(missing).status, 503);
     assert.equal(Verif.mapRpcError(new Error('boom')).status, 500);
@@ -236,7 +236,7 @@ test('support-decision-model: verification_history → notificación del artista
     assert.equal(d.artistUserId, ARTIST);
     assert.equal(d.outcome, 'rejected');
     assert.equal(SDM.href(d), '/artist/account#verificacion');
-    assert.deepEqual(SDM.describe(d), { title: 'No pudimos verificar tu perfil', detail: 'Motivo: Falta domicilio. Revisá tus documentos y volvé a solicitarla desde Cuenta · Verificación.' });
+    assert.deepEqual(SDM.describe(d), { title: 'No pudimos verificar tu perfil', detail: 'Motivo: Falta domicilio. Revisa tus documentos y vuelve a solicitarla desde Cuenta · Verificación.' });
     assert.equal(SDM.fromRow('verification', { id: HISTORY, action: 'pending_review', created_at: '2026-11-15T12:00:00Z' }), null);
     const items = SDM.feedItems({ verifications: [{ id: HISTORY, action: 'approved', created_at: '2026-11-15T12:00:00Z' }] }, { now: new Date('2026-11-16T00:00:00Z') });
     assert.equal(items.length, 1);
@@ -411,9 +411,9 @@ test('estados: pre-cotización excluye denegados; Spots no promete "verificado";
 
 test('revisión: el motivo no duplica el punto final (aviso in-app y cuenta)', () => {
     const d = SDM.fromRow('verification', { id: HISTORY, action: 'rejected', notes: 'Falta domicilio.', created_at: '2026-11-15T12:00:00Z', artists_db: { user_id: ARTIST } });
-    assert.equal(SDM.describe(d).detail, 'Motivo: Falta domicilio. Revisá tus documentos y volvé a solicitarla desde Cuenta · Verificación.');
+    assert.equal(SDM.describe(d).detail, 'Motivo: Falta domicilio. Revisa tus documentos y vuelve a solicitarla desde Cuenta · Verificación.');
     const r = SDM.fromRow('verification', { id: HISTORY, action: 'revoked', notes: '¿Perfil duplicado?', created_at: '2026-11-15T12:00:00Z' });
-    assert.match(SDM.describe(r).detail, /^Motivo: ¿Perfil duplicado\? Podés volver/);
+    assert.match(SDM.describe(r).detail, /^Motivo: ¿Perfil duplicado\? Puedes volver/);
     const account = read('public/shared/js/artist-account.js');
     assert.match(account, /Motivo: \$\{String\(lastVerifDecision\.notes\)\.trim\(\)\.replace\(\/\[\.!\?…\]\+\$\/, ''\)\}\./);
 });

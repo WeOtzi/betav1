@@ -58,6 +58,7 @@
     function status(elId, kind, msg) {
         const el = document.getElementById(elId);
         if (!el) return;
+        if (window.WoNeutralEs) msg = window.WoNeutralEs.neutralize(msg); // la base todavía puede responder en voseo
         el.className = 'studio-status studio-status-' + kind;
         el.textContent = msg;
         el.hidden = false;
@@ -94,7 +95,7 @@
             if (button.disabled) return;
             button.disabled = true;
             try { await action(event); }
-            catch (error) { status(statusId, 'error', error.message || 'No pudimos guardar el cambio. Intentá nuevamente.'); }
+            catch (error) { status(statusId, 'error', error.message || 'No pudimos guardar el cambio. Intenta nuevamente.'); }
             finally { button.disabled = false; }
         };
     }
@@ -131,7 +132,7 @@
         if (!nav || !jobs) return;
         nav.insertAdjacentHTML('afterbegin', '<button type="button" class="wo-btn wo-btn--nav" data-sub="bookings" aria-pressed="false">Agenda</button>');
         jobs.insertAdjacentHTML('beforebegin', `<div id="ops-sub-bookings" class="sdo-subpanel">
-            <p class="studio-help">Reservá horarios de tu roster. Al completar una reserva se registra el trabajo y se actualizan clientes y estadísticas.</p>
+            <p class="studio-help">Reserva horarios de tu roster. Al completar una reserva se registra el trabajo y se actualizan clientes y estadísticas.</p>
             <div class="sdo-toolbar">
                 <label class="wo-label" for="booking-month">Mes</label><input id="booking-month" class="studio-input wo-input sdo-month-input" type="month" value="${localDateTime().slice(0, 7)}">
                 <button class="studio-btn studio-btn-primary wo-btn" id="booking-new">Nueva reserva</button>
@@ -184,7 +185,7 @@
         const host = document.getElementById('booking-editor');
         const artistOptions = members.map(member => ({ id: member.artist_user_id, name: member.artists_db?.name || member.artists_db?.username || 'Artista' }));
         if (existing && !artistOptions.some(artist => artist.id === existing.artist_user_id)) artistOptions.push({ id: existing.artist_user_id, name: existing.artists_db?.name || 'Artista de esta reserva' });
-        if (!artistOptions.length) { status('ops-status', 'error', 'Invitá a un artista y esperá su aceptación en Roster antes de crear una reserva.'); return; }
+        if (!artistOptions.length) { status('ops-status', 'error', 'Invita a un artista y espera su aceptación en Roster antes de crear una reserva.'); return; }
         const from = existing?.starts_at || new Date(Date.now() + 3600000).toISOString();
         const until = existing?.ends_at || new Date(new Date(from).getTime() + 3600000).toISOString();
         host.innerHTML = `<div class="studio-location-row sdo-editor">
@@ -204,7 +205,7 @@
             const get = id => document.getElementById('booking-' + id).value.trim();
             const start = new Date(get('start')), end = new Date(get('end'));
             const payload = { studio_id: studio.id, artist_user_id: get('artist'), location_id: get('location') || null, client_name: get('client'), client_email: get('email') || null, amount: Number(get('amount')), currency: get('currency').toUpperCase(), notes: get('notes') || null };
-            if (!payload.client_name || !document.getElementById('booking-email').checkValidity() || !Number.isFinite(start.getTime()) || !(end > start) || !Number.isFinite(payload.amount) || payload.amount < 0 || !/^[A-Z]{3}$/.test(payload.currency)) throw new Error('Revisá cliente, correo, fechas, importe y moneda.');
+            if (!payload.client_name || !document.getElementById('booking-email').checkValidity() || !Number.isFinite(start.getTime()) || !(end > start) || !Number.isFinite(payload.amount) || payload.amount < 0 || !/^[A-Z]{3}$/.test(payload.currency)) throw new Error('Revisa cliente, correo, fechas, importe y moneda.');
             payload.starts_at = start.toISOString(); payload.ends_at = end.toISOString();
             requireResult(await WeotziData.StudioOps.saveBooking(existing?.id, payload));
             document.getElementById('booking-month').value = localDateTime(start).slice(0, 7);
@@ -320,12 +321,12 @@
                 supplies_cost:       numOrNull(document.getElementById('job-supplies').value),
                 notes:               document.getElementById('job-notes').value.trim() || null
             };
-            if (!payload.artist_user_id) { status('ops-status', 'error', 'Elegí un artista.'); return; }
+            if (!payload.artist_user_id) { status('ops-status', 'error', 'Elige un artista.'); return; }
             if (!document.getElementById('job-email').checkValidity() || payload.gross_amount < 0 || (payload.duration_hours != null && payload.duration_hours <= 0) || [payload.artist_split_amount, payload.studio_split_amount, payload.supplies_cost].some(value => value != null && value < 0)) {
-                status('ops-status', 'error', 'Revisá el correo, duración e importes.'); return;
+                status('ops-status', 'error', 'Revisa el correo, duración e importes.'); return;
             }
             payload.gross_currency = payload.gross_currency.toUpperCase();
-            if (!/^[A-Z]{3}$/.test(payload.gross_currency)) { status('ops-status', 'error', 'Usá una moneda de tres letras, como ARS o USD.'); return; }
+            if (!/^[A-Z]{3}$/.test(payload.gross_currency)) { status('ops-status', 'error', 'Usa una moneda de tres letras, como ARS o USD.'); return; }
             const result = existing
                 ? await WeotziData.StudioOps.updateJob(existing.id, payload)
                 : await WeotziData.StudioOps.createJob(payload);
@@ -414,7 +415,7 @@
                     const row = requireResult(await WeotziData.StudioOps.getInvoiceById(btn.dataset.id));
                     await openInvoiceEditor(supabase, studio, row);
                 } else if (btn.dataset.action === 'paid') {
-                    if (!confirm('¿Confirmás que ya recibiste este pago? Se registrará en tu contabilidad interna.')) return;
+                    if (!confirm('¿Confirmas que ya recibiste este pago? Se registrará en tu contabilidad interna.')) return;
                     requireResult(await WeotziData.StudioOps.markInvoicePaid(btn.dataset.id));
                     renderInvoicesList(supabase, studio);
                 } else if (btn.dataset.action === 'delete') {
@@ -501,7 +502,7 @@
                 sort_order:  idx
             }));
             if (!headerPayload.invoice_number || !headerPayload.issue_date || !document.getElementById('inv-email').checkValidity() || !itemRows.length || itemRows.some(item => !item.description || !(item.quantity > 0) || item.unit_price == null || item.unit_price < 0)) {
-                status('ops-status', 'error', 'Completá número, fecha y al menos un concepto con cantidad y precio válidos.'); return;
+                status('ops-status', 'error', 'Completa número, fecha y al menos un concepto con cantidad y precio válidos.'); return;
             }
             requireResult(await WeotziData.StudioOps.saveInvoice(existing?.id, headerPayload, itemRows));
             status('ops-status', 'success', 'Factura guardada.');
@@ -551,7 +552,7 @@
                         const url = path ? requireResult(await supabase.storage.from('studio-documents').createSignedUrl(path, 300)).signedUrl : validUrl(doc.file_url);
                         if (!url) throw new Error('El documento no tiene un archivo válido.');
                         if (preview) preview.location = url;
-                        else { status('ops-status', 'error', 'Permití las ventanas emergentes para abrir el documento.'); }
+                        else { status('ops-status', 'error', 'Permite las ventanas emergentes para abrir el documento.'); }
                     } catch (error) { preview?.close(); throw error; }
                 } else if (btn.dataset.action === 'edit') {
                     const row = requireResult(await WeotziData.StudioOps.getDocumentById(btn.dataset.id));
@@ -601,7 +602,7 @@
                     <textarea id="doc-desc" class="studio-textarea wo-textarea" rows="2">${escapeHtml(existing?.description || '')}</textarea></div>
                 <div class="studio-field wo-field"><label class="studio-label wo-label" for="doc-file">Archivo privado (PDF, Word o imagen; hasta 10 MB)</label>
                     <input id="doc-file" class="studio-input wo-input" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.doc,.docx">
-                    ${documentStoragePath(existing) ? '<span class="studio-help">Ya tiene un archivo privado. Elegí otro para reemplazarlo.</span>' : ''}</div>
+                    ${documentStoragePath(existing) ? '<span class="studio-help">Ya tiene un archivo privado. Elige otro para reemplazarlo.</span>' : ''}</div>
                 <div class="studio-field wo-field"><label class="studio-label wo-label" for="doc-url">O enlace a un archivo</label>
                     <input id="doc-url" class="studio-input wo-input" type="url" value="${escapeAttr(existing?.file_url || '')}" placeholder="https://…">
                     <span class="studio-help">Los archivos subidos solo se abren mediante un enlace temporal.</span></div>
@@ -614,7 +615,7 @@
                     </label>
                 </div>
                 <button class="studio-btn studio-btn-primary wo-btn" id="doc-save"><i data-wo-icon="save" aria-hidden="true"></i> Guardar</button>
-                ${existing ? '<div id="doc-links" class="sdo-section-gap"></div>' : '<p class="studio-help">Guardá el documento para vincularlo a un artista, trabajo o factura.</p>'}
+                ${existing ? '<div id="doc-links" class="sdo-section-gap"></div>' : '<p class="studio-help">Guarda el documento para vincularlo a un artista, trabajo o factura.</p>'}
             </div>
         `;
         document.getElementById('doc-cancel').addEventListener('click', () => { c.innerHTML = ''; });
@@ -635,13 +636,13 @@
             let uploadedPath = null;
             if (file) {
                 const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-                if (!allowed.includes(file.type) || file.size > 10 * 1024 * 1024) { status('ops-status', 'error', 'Elegí un PDF, Word o imagen de hasta 10 MB.'); return; }
+                if (!allowed.includes(file.type) || file.size > 10 * 1024 * 1024) { status('ops-status', 'error', 'Elige un PDF, Word o imagen de hasta 10 MB.'); return; }
                 uploadedPath = studio.id + '/' + crypto.randomUUID() + '/' + file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
                 requireResult(await supabase.storage.from('studio-documents').upload(uploadedPath, file, { contentType: file.type, upsert: false }));
                 payload.storage_path = uploadedPath;
                 payload.file_url = null;
             }
-            if (!payload.file_url && !payload.storage_path) { status('ops-status', 'error', 'Adjuntá un archivo o agregá un enlace.'); return; }
+            if (!payload.file_url && !payload.storage_path) { status('ops-status', 'error', 'Adjunta un archivo o agrega un enlace.'); return; }
             await persistDocument(supabase, existing, payload, uploadedPath);
             status('ops-status', 'success', 'Documento guardado.');
             c.innerHTML = '';
@@ -664,19 +665,19 @@
         const host = document.getElementById('doc-links');
         if (!host) return;
         host.innerHTML = `<h3 class="studio-section-kicker">Vínculos y firmas recibidas</h3>
-            <p class="studio-help">Asociá este archivo a su registro. La firma recibida se registra manualmente; conservá el documento firmado como archivo.</p>
+            <p class="studio-help">Asocia este archivo a su registro. La firma recibida se registra manualmente; conserva el documento firmado como archivo.</p>
             ${(links || []).length ? '<ul>' + links.map(link => `<li>${escapeHtml(targets.find(target => target.id === link.attached_to_id)?.label || link.attached_to_kind)}${link.signed_at ? ' · Firma recibida de ' + escapeHtml(link.signer_name) + ' el ' + fmtDate(link.signed_at) : ' · Sin firma registrada'} <button type="button" class="studio-location-row-remove wo-btn wo-btn--secondary wo-btn--s" data-doc-unlink="${escapeAttr(link.id)}">Desvincular</button></li>`).join('') + '</ul>' : '<p class="studio-help">Sin vínculos todavía.</p>'}
-            <div class="studio-field wo-field"><label for="doc-target" class="studio-label wo-label">Vincular a</label><select id="doc-target" class="studio-input wo-input"><option value="">Seleccioná un registro</option>${targets.map((target, index) => `<option value="${index}">${escapeHtml(target.label)}</option>`).join('')}</select></div>
+            <div class="studio-field wo-field"><label for="doc-target" class="studio-label wo-label">Vincular a</label><select id="doc-target" class="studio-input wo-input"><option value="">Selecciona un registro</option>${targets.map((target, index) => `<option value="${index}">${escapeHtml(target.label)}</option>`).join('')}</select></div>
             <div class="studio-field wo-field"><label for="doc-signer" class="studio-label wo-label">Firmante (opcional)</label><input id="doc-signer" class="studio-input wo-input" placeholder="Nombre que figura en el documento firmado"></div>
             <div class="studio-field wo-field"><label for="doc-signed-date" class="studio-label wo-label">Fecha de firma recibida (opcional)</label><input id="doc-signed-date" class="studio-input wo-input" type="date" max="${localDateTime().slice(0, 10)}"></div>
             <button type="button" class="studio-btn wo-btn wo-btn--secondary wo-btn--s" id="doc-link-save">Agregar vínculo</button>`;
         document.getElementById('doc-link-save').addEventListener('click', guardedAction(async () => {
             const value = document.getElementById('doc-target').value;
-            if (value === '') throw new Error('Seleccioná un artista, factura o trabajo.');
+            if (value === '') throw new Error('Selecciona un artista, factura o trabajo.');
             const target = targets[Number(value)];
             const signer = document.getElementById('doc-signer').value.trim();
             const date = document.getElementById('doc-signed-date').value;
-            if (!!signer !== !!date) throw new Error('Para registrar una firma recibida, completá nombre y fecha.');
+            if (!!signer !== !!date) throw new Error('Para registrar una firma recibida, completa nombre y fecha.');
             if ((links || []).some(link => link.attached_to_id === target.id && link.attached_to_kind === target.kind)) throw new Error('El documento ya está vinculado a ese registro.');
             requireResult(await WeotziData.StudioOps.createDocumentAttachment({ document_id: doc.id, attached_to_kind: target.kind, attached_to_id: target.id, signer_name: signer || null, signed_at: date ? new Date(date + 'T00:00:00').toISOString() : null }));
             status('ops-status', 'success', 'Vínculo guardado.');
@@ -799,7 +800,7 @@
                     </div></div>
                 <div class="studio-field wo-field"><label class="studio-label wo-label">Stock inicial / reorder / costo</label>
                     <div class="sdo-field-row">
-                        <input id="it-qty" aria-label="Stock inicial"   class="studio-input wo-input" type="number" step="0.001" min="0" ${existing ? 'disabled title="Registrá un movimiento para cambiar el stock"' : ''} value="${escapeAttr(existing?.quantity_on_hand ?? 0)}" placeholder="Stock">
+                        <input id="it-qty" aria-label="Stock inicial"   class="studio-input wo-input" type="number" step="0.001" min="0" ${existing ? 'disabled title="Registra un movimiento para cambiar el stock"' : ''} value="${escapeAttr(existing?.quantity_on_hand ?? 0)}" placeholder="Stock">
                         <input id="it-reord" aria-label="Nivel de reposición" class="studio-input wo-input" type="number" step="0.001" value="${escapeAttr(existing?.reorder_level ?? '')}" placeholder="Reorder">
                         <input id="it-cost" aria-label="Costo unitario"  class="studio-input wo-input" type="number" step="0.01"  value="${escapeAttr(existing?.cost_per_unit ?? '')}" placeholder="Costo unit.">
                         <input id="it-curr" aria-label="Moneda del costo"  class="studio-input wo-input" placeholder="USD" value="${escapeAttr(existing?.currency || 'USD')}">
@@ -827,7 +828,7 @@
             };
             if (!payload.name) { status('inventory-status', 'error', 'Nombre obligatorio.'); return; }
             payload.currency = payload.currency.toUpperCase();
-            if (payload.quantity_on_hand < 0 || (payload.reorder_level != null && payload.reorder_level < 0) || (payload.cost_per_unit != null && payload.cost_per_unit < 0) || !/^[A-Z]{3}$/.test(payload.currency)) { status('inventory-status', 'error', 'Revisá cantidades, costo y moneda.'); return; }
+            if (payload.quantity_on_hand < 0 || (payload.reorder_level != null && payload.reorder_level < 0) || (payload.cost_per_unit != null && payload.cost_per_unit < 0) || !/^[A-Z]{3}$/.test(payload.currency)) { status('inventory-status', 'error', 'Revisa cantidades, costo y moneda.'); return; }
             if (existing) delete payload.quantity_on_hand;
             const result = existing
                 ? await WeotziData.StudioOps.updateInventoryItem(existing.id, payload)
@@ -878,7 +879,7 @@
                 related_artist_user_id: document.getElementById('mv-artist').value || null,
                 notes: document.getElementById('mv-notes').value.trim() || null
             };
-            if (!payload.quantity || (payload.kind !== 'adjustment' && payload.quantity < 0)) { status('inventory-status', 'error', 'Ingresá una cantidad positiva. Los ajustes permiten valores negativos.'); return; }
+            if (!payload.quantity || (payload.kind !== 'adjustment' && payload.quantity < 0)) { status('inventory-status', 'error', 'Ingresa una cantidad positiva. Los ajustes permiten valores negativos.'); return; }
             const { error } = await WeotziData.StudioOps.createInventoryMovement(payload);
             if (error) { status('inventory-status', 'error', error.message); return; }
             status('inventory-status', 'success', 'Movimiento registrado.');
@@ -1083,7 +1084,7 @@
                     </label>
                 </div>
                 <div class="studio-field wo-field">
-                    <label class="studio-label wo-label">Artistas sponsoreados</label>
+                    <label class="studio-label wo-label">Artistas patrocinados</label>
                     <div class="studio-check-grid" id="sponsor-artists">
                         ${artistOptions || '<p class="studio-help">Todavía no hay artistas activos en el roster.</p>'}
                     </div>
@@ -1099,7 +1100,7 @@
                 bucket: 'studio-photos',
                 pathPrefix: studio.id + '/sponsors',
                 accept: 'image/*',
-                placeholder: 'pegá la URL del logo'
+                placeholder: 'pega la URL del logo'
             });
         }
 
@@ -1118,7 +1119,7 @@
                 is_public: document.getElementById('sponsor-public').checked
             };
             if (!payload.name) { status('sponsors-status', 'error', 'Nombre obligatorio.'); return; }
-            if ((payload.ends_on && payload.starts_on && payload.ends_on < payload.starts_on) || (payload.monthly_value != null && payload.monthly_value < 0) || (payload.website && !validUrl(payload.website)) || (payload.logo_url && !validUrl(payload.logo_url))) { status('sponsors-status', 'error', 'Revisá fechas, importe y enlaces.'); return; }
+            if ((payload.ends_on && payload.starts_on && payload.ends_on < payload.starts_on) || (payload.monthly_value != null && payload.monthly_value < 0) || (payload.website && !validUrl(payload.website)) || (payload.logo_url && !validUrl(payload.logo_url))) { status('sponsors-status', 'error', 'Revisa fechas, importe y enlaces.'); return; }
             const result = existing
                 ? await WeotziData.StudioOps.updateSponsor(existing.id, payload)
                 : await WeotziData.StudioOps.createSponsor(payload);
@@ -1175,7 +1176,7 @@
 
         // Monthly table
         if (months.length === 0) {
-            monEl.innerHTML = '<p class="studio-help">Sin datos suficientes. Registrá trabajos para ver métricas.</p>';
+            monEl.innerHTML = '<p class="studio-help">Sin datos suficientes. Registra trabajos para ver métricas.</p>';
         } else {
             monEl.innerHTML = `
                 <div class="sdo-table-wrap" tabindex="0" role="region" aria-label="Datos del estudio"><table class="studio-roster-table wo-table">

@@ -12,28 +12,28 @@
 
     function emailKey(email) {
         const value = String(email || '').trim().toLowerCase();
-        if (!/^\S+@\S+\.\S+$/.test(value)) throw new Error('Escribí un email válido para guardar las fotos.');
+        if (!/^\S+@\S+\.\S+$/.test(value)) throw new Error('Escribe un email válido para guardar las fotos.');
         return value;
     }
     function validate(files) {
         const gallery = Array.from(files?.gallery || []);
-        if (gallery.length > MAX_GALLERY) throw new Error('Podés agregar hasta 8 fotos a la galería.');
+        if (gallery.length > MAX_GALLERY) throw new Error('Puedes agregar hasta 8 fotos a la galería.');
         const selected = [files?.cover, files?.logo, ...gallery].filter(Boolean);
         selected.forEach(file => {
-            if (!TYPES.has(file.type)) throw new Error('Elegí imágenes JPG, PNG o WebP.');
+            if (!TYPES.has(file.type)) throw new Error('Elige imágenes JPG, PNG o WebP.');
             if (!file.size || file.size > MAX_BYTES) throw new Error('Cada imagen debe pesar entre 1 byte y 5 MB.');
-            if (typeof file.arrayBuffer !== 'function') throw new Error('No pudimos leer una de las imágenes. Seleccionala nuevamente.');
+            if (typeof file.arrayBuffer !== 'function') throw new Error('No pudimos leer una de las imágenes. Selecciónala nuevamente.');
         });
         return selected.length;
     }
     function openDatabase() {
-        if (!window.indexedDB) return Promise.reject(new Error('Este navegador no permite guardar las fotos. Habilitá el almacenamiento o continuá sin imágenes.'));
+        if (!window.indexedDB) return Promise.reject(new Error('Este navegador no permite guardar las fotos. Habilita el almacenamiento o continúa sin imágenes.'));
         if (!database) database = new Promise((resolve, reject) => {
             const request = window.indexedDB.open(databaseName, 1);
             request.onupgradeneeded = () => request.result.createObjectStore('drafts', { keyPath: 'email' });
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => { database = null; reject(new Error('No pudimos guardar las fotos en este navegador.')); };
-            request.onblocked = () => { database = null; reject(new Error('Cerrá las otras pestañas de registro y volvé a intentar.')); };
+            request.onblocked = () => { database = null; reject(new Error('Cierra las otras pestañas de registro y vuelve a intentar.')); };
         });
         return database;
     }
@@ -45,7 +45,7 @@
             let result;
             request.onsuccess = () => { result = request.result; };
             tx.oncomplete = () => resolve(result);
-            tx.onerror = tx.onabort = () => reject(new Error('No pudimos guardar el progreso de las fotos. Revisá el espacio del navegador y reintentá.'));
+            tx.onerror = tx.onabort = () => reject(new Error('No pudimos guardar el progreso de las fotos. Revisa el espacio del navegador y reintenta.'));
         });
     }
     const read = email => transaction('readonly', store => store.get(emailKey(email)));
@@ -94,16 +94,16 @@
         if (error) throw error;
         const owner = data?.session?.user;
         if (!owner || emailKey(owner.email) !== key || studio.user_id !== owner.id) {
-            throw new Error('Iniciá sesión con la cuenta del estudio para subir sus fotos.');
+            throw new Error('Inicia sesión con la cuenta del estudio para subir sus fotos.');
         }
-        if (!window.WeOtziUploader?.uploadFile) throw new Error('No pudimos cargar el gestor de imágenes. Recargá y volvé a intentar.');
+        if (!window.WeOtziUploader?.uploadFile) throw new Error('No pudimos cargar el gestor de imágenes. Recarga y vuelve a intentar.');
         for (const item of draft.items) {
             if (item.uploaded) continue;
             validate({ [item.slot === 'gallery' ? 'gallery' : item.slot]: item.slot === 'gallery' ? [item.file] : item.file });
             item.uploaded = await window.WeOtziUploader.uploadFile({
                 supabase: client, bucket: 'studio-photos', file: item.file, pathPrefix: studio.id + '/registration'
             });
-            if (!item.uploaded?.publicUrl) throw new Error('La imagen se subió, pero no pudimos obtener su enlace. Reintentá.');
+            if (!item.uploaded?.publicUrl) throw new Error('La imagen se subió, pero no pudimos obtener su enlace. Reintenta.');
             await write(draft);
         }
         const patch = {};

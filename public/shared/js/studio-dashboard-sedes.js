@@ -95,9 +95,9 @@
     // Errores de validación del editor (null si está todo bien).
     function validateDraft(draft, typedAddress) {
         const a = (draft && draft.address) || {};
-        if (!String(a.formatted_address || '').trim()) return { field: 'address', message: 'Buscá la dirección y elegila de las sugerencias, o completá el ingreso manual.' };
+        if (!String(a.formatted_address || '').trim()) return { field: 'address', message: 'Busca la dirección y elígela de las sugerencias, o completa el ingreso manual.' };
         if (typedAddress != null && String(typedAddress).trim() !== String(a.formatted_address).trim()) {
-            return { field: 'address', message: 'Elegí la dirección de las sugerencias o tocá "Usar esta dirección" en el ingreso manual.' };
+            return { field: 'address', message: 'Elige la dirección de las sugerencias o toca "Usar esta dirección" en el ingreso manual.' };
         }
         if (draft.isPrimary && draft.isActive === false) return { field: 'active', message: 'La sede principal debe estar activa.' };
         return null;
@@ -114,7 +114,7 @@
             .sort((a, b) => (order(a) - order(b)) || (created(a) - created(b)));
         return {
             blocked: activeOthers.length === 0,
-            blockedReason: activeOthers.length === 0 ? 'Es tu única sede activa. Agregá otra antes de quitar esta.' : null,
+            blockedReason: activeOthers.length === 0 ? 'Es tu única sede activa. Agrega otra antes de quitar esta.' : null,
             artists: count || 0,
             nextPrimary: loc.is_primary && activeOthers.length ? activeOthers[0] : null
         };
@@ -157,7 +157,7 @@
 
         function renderError(error) {
             listEl.innerHTML = '<div class="studio-sedes-state" role="alert"><h3 class="studio-sedes-state-title">No pudimos cargar tus sedes</h3>'
-                + '<p class="studio-help">' + esc(error && error.message ? error.message : 'Revisá tu conexión.') + '</p>'
+                + '<p class="studio-help">' + esc(error && error.message ? error.message : 'Revisa tu conexión.') + '</p>'
                 + '<button type="button" class="wo-btn wo-btn--secondary" data-sede-action="reload">Reintentar</button></div>';
         }
 
@@ -180,7 +180,7 @@
                 + '</select></div></div>'
                 + (rows.length
                     ? '<ul class="studio-sedes-list">' + rows.map(rowHtml).join('') + '</ul>'
-                    : '<p class="studio-help studio-sedes-empty" role="status">' + (state.query ? 'Ninguna sede coincide con la búsqueda.' : state.status === 'archived' ? 'No tenés sedes archivadas.' : 'No hay sedes en este filtro.') + '</p>');
+                    : '<p class="studio-help studio-sedes-empty" role="status">' + (state.query ? 'Ninguna sede coincide con la búsqueda.' : state.status === 'archived' ? 'No tienes sedes archivadas.' : 'No hay sedes en este filtro.') + '</p>');
             doc.getElementById('sedes-search').addEventListener('input', event => {
                 state.query = event.target.value;
                 const pos = event.target.selectionStart;
@@ -230,20 +230,20 @@
                 + '<h3 class="studio-sedes-heading" id="' + fid + '-title" tabindex="-1">' + (isNew ? 'Agregar sede' : 'Editar ' + esc(loc.label || 'sede')) + '</h3>'
                 + '<div class="studio-form-grid">'
                 + field(fid, 'label', 'Etiqueta de la sede', '<input type="text" id="' + fid + '-label" class="wo-input" maxlength="120" value="' + esc(draft.label) + '" placeholder="Madrid Centro">')
-                + field(fid, 'address', 'Dirección', '<input type="text" id="' + fid + '-address" class="wo-input" placeholder="Buscá la dirección…" autocomplete="off" value="' + esc(draft.address.formatted_address || '') + '">')
+                + field(fid, 'address', 'Dirección', '<input type="text" id="' + fid + '-address" class="wo-input" placeholder="Busca la dirección…" autocomplete="off" value="' + esc(draft.address.formatted_address || '') + '">')
                 + '<div class="studio-field"><span class="wo-label">País / provincia / ciudad / localidad</span><p class="studio-sede-detail" data-region></p></div>'
                 + '<div class="studio-field"><span class="wo-label">Calle / número / unidad / código postal</span><p class="studio-sede-detail" data-street></p></div>'
                 + '<div class="studio-field studio-form-full"><span class="wo-label" id="' + fid + '-pin-label">Pin en el mapa</span>'
                 + '<div class="studio-sede-map" data-map role="application" aria-labelledby="' + fid + '-pin-label" aria-describedby="' + fid + '-pin-help" hidden></div>'
                 + '<p class="studio-sede-detail" data-pin id="' + fid + '-pin-help" aria-live="polite"></p></div>'
                 + '<details class="studio-manual-address studio-form-full"><summary>Ingresar dirección manualmente</summary>'
-                + '<p class="studio-help">Si el buscador no encuentra la dirección, escribila arriba y completá al menos ciudad y país. Si el mapa está disponible, el pin se ubica solo y podés ajustarlo.</p>'
+                + '<p class="studio-help">Si el buscador no encuentra la dirección, escríbela arriba y completa al menos ciudad y país. Si el mapa está disponible, el pin se ubica solo y puedes ajustarlo.</p>'
                 + '<div class="studio-form-grid">' + MANUAL_FIELDS.map(([key, title]) => field(fid, 'm-' + key, title, '<input type="text" id="' + fid + '-m-' + key + '" class="wo-input" data-manual-field="' + key + '" maxlength="120" value="' + esc(draft.address[key] || '') + '">')).join('') + '</div>'
                 + '<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" data-sede-action="manual">Usar esta dirección</button></details>'
                 + field(fid, 'phone', 'Teléfono de la sede', '<input type="tel" id="' + fid + '-phone" class="wo-input" maxlength="40" value="' + esc(draft.phone) + '" autocomplete="tel">')
                 + field(fid, 'hours', 'Horarios de atención', '<textarea id="' + fid + '-hours" class="wo-textarea" maxlength="500" placeholder="Lunes a viernes de 10 a 19 h">' + esc(draft.hoursText) + '</textarea>')
                 + '<div class="studio-field"><label class="studio-sede-switch"><span class="wo-toggle"><input type="checkbox" id="' + fid + '-primary" role="switch"' + (draft.isPrimary ? ' checked' : '') + (lockPrimary || onlyLocation ? ' disabled' : '') + ' aria-describedby="' + fid + '-primary-help"><span class="knob"></span></span>Sede principal</label>'
-                + '<span class="studio-help studio-sede-switch-help" id="' + fid + '-primary-help">' + (lockPrimary ? 'Para cambiarla, elegí otra sede como principal.' : onlyLocation ? 'Tu primera sede es la principal.' : 'La principal define la ciudad y el pin del perfil.') + '</span></div>'
+                + '<span class="studio-help studio-sede-switch-help" id="' + fid + '-primary-help">' + (lockPrimary ? 'Para cambiarla, elige otra sede como principal.' : onlyLocation ? 'Tu primera sede es la principal.' : 'La principal define la ciudad y el pin del perfil.') + '</span></div>'
                 + '<div class="studio-field"><label class="studio-sede-switch"><span class="wo-toggle"><input type="checkbox" id="' + fid + '-active" role="switch"' + (draft.isActive ? ' checked' : '') + (lockPrimary || draft.isPrimary ? ' disabled' : '') + ' aria-describedby="' + fid + '-active-help"><span class="knob"></span></span>Sede activa</label>'
                 + '<span class="studio-help studio-sede-switch-help" id="' + fid + '-active-help">' + (lockPrimary || draft.isPrimary ? 'La sede principal siempre está activa.' : 'Una sede archivada no se muestra en tu perfil ni en las invitaciones.') + '</span></div>'
                 + '</div>'
@@ -257,18 +257,18 @@
 
             const renderDetails = (mapReady = editor.map && editor.map.isReady) => {
                 const a = draft.address;
-                q('[data-region]').textContent = [a.country, a.state_province, a.city, a.locality].filter((p, i, all) => p && all.indexOf(p) === i).join(' · ') || 'Seleccioná una dirección';
-                q('[data-street]').textContent = [a.street, a.street_number, a.unit, a.postal_code].filter(Boolean).join(' · ') || a.formatted_address || 'Seleccioná una dirección';
+                q('[data-region]').textContent = [a.country, a.state_province, a.city, a.locality].filter((p, i, all) => p && all.indexOf(p) === i).join(' · ') || 'Selecciona una dirección';
+                q('[data-street]').textContent = [a.street, a.street_number, a.unit, a.postal_code].filter(Boolean).join(' · ') || a.formatted_address || 'Selecciona una dirección';
                 const located = hasPin(a);
                 const pin = q('[data-pin]');
-                if (mapReady) pin.textContent = located ? 'Pin ubicado. Arrastralo o tocá el mapa si la puerta del estudio está en otro punto.' : 'Tocá el mapa o buscá la dirección para ubicar el pin.';
-                else pin.textContent = located ? 'Pin ubicado (' + Number(a.latitude).toFixed(5) + ', ' + Number(a.longitude).toFixed(5) + ').' : a.formatted_address ? 'Dirección manual · pin pendiente.' : 'Comprobá la ubicación.';
+                if (mapReady) pin.textContent = located ? 'Pin ubicado. Arrástralo o toca el mapa si la puerta del estudio está en otro punto.' : 'Toca el mapa o busca la dirección para ubicar el pin.';
+                else pin.textContent = located ? 'Pin ubicado (' + Number(a.latitude).toFixed(5) + ', ' + Number(a.longitude).toFixed(5) + ').' : a.formatted_address ? 'Dirección manual · pin pendiente.' : 'Comprueba la ubicación.';
             };
             renderDetails(false);
 
             if (root.WeOtziAddressPicker) {
                 editor.picker = root.WeOtziAddressPicker.attach(addressInput, {
-                    placeholder: 'Buscá la dirección…',
+                    placeholder: 'Busca la dirección…',
                     onChange(addr) {
                         draft.address = { ...(addr || {}) };
                         renderDetails();
@@ -282,9 +282,9 @@
                     latitude: finiteOrNull(draft.address.latitude) ?? undefined,
                     longitude: finiteOrNull(draft.address.longitude) ?? undefined,
                     timeoutMs: 20000,
-                    pinTitle: 'Arrastrá el pin hasta la puerta del estudio',
+                    pinTitle: 'Arrastra el pin hasta la puerta del estudio',
                     onPending() { q('[data-pin]').textContent = 'Buscando la dirección del pin en Google Maps…'; },
-                    onError() { say('error', 'No pudimos traer la dirección de ese punto. Probá moverlo un poco o buscala arriba.'); },
+                    onError() { say('error', 'No pudimos traer la dirección de ese punto. Prueba moverlo un poco o búscala arriba.'); },
                     onPick(address) {
                         draft.address = { ...draft.address, ...address };
                         if (address.formatted_address) addressInput.value = address.formatted_address;
@@ -325,8 +325,8 @@
             const { draft, section, addressInput } = editor;
             const manual = {};
             section.querySelectorAll('[data-manual-field]').forEach(input => { manual[input.dataset.manualField] = input.value.trim() || null; });
-            if (!addressInput.value.trim()) { say('error', 'Escribí la dirección de la sede en el campo Dirección.'); addressInput.focus(); return; }
-            if (!manual.city || !manual.country) { say('error', 'Para ingresar la dirección a mano completá al menos ciudad y país.'); return; }
+            if (!addressInput.value.trim()) { say('error', 'Escribe la dirección de la sede en el campo Dirección.'); addressInput.focus(); return; }
+            if (!manual.city || !manual.country) { say('error', 'Para ingresar la dirección a mano completa al menos ciudad y país.'); return; }
             draft.address = { ...manual, formatted_address: addressInput.value.trim(), latitude: null, longitude: null, google_place_id: null };
             const query = [draft.address.formatted_address, manual.city, manual.country].filter(Boolean).join(', ');
             let found = editor.map && editor.map.isReady ? await editor.map.locate(query) : null;
@@ -337,14 +337,14 @@
             if (found && hasPin(found)) {
                 draft.address.latitude = Number(found.latitude);
                 draft.address.longitude = Number(found.longitude);
-                say('success', 'Ubicamos la dirección en el mapa. Revisá el pin antes de guardar.');
+                say('success', 'Ubicamos la dirección en el mapa. Revisa el pin antes de guardar.');
             } else {
                 say('info', 'Guardamos la dirección sin pin: queda como "pin pendiente" hasta que la ubiques en el mapa.');
             }
             const pin = section.querySelector('[data-pin]');
             section.querySelector('[data-region]').textContent = [manual.country, manual.state_province, manual.city, manual.locality].filter(Boolean).join(' · ');
             section.querySelector('[data-street]').textContent = [manual.street, manual.street_number, manual.unit, manual.postal_code].filter(Boolean).join(' · ') || draft.address.formatted_address;
-            pin.textContent = hasPin(draft.address) ? 'Pin ubicado. Podés ajustarlo en el mapa.' : 'Dirección manual · pin pendiente.';
+            pin.textContent = hasPin(draft.address) ? 'Pin ubicado. Puedes ajustarlo en el mapa.' : 'Dirección manual · pin pendiente.';
         }
 
         async function saveEditor(button) {
@@ -370,7 +370,7 @@
                 closeEditor();
                 await load();
                 ctx.onChanged && await ctx.onChanged();
-                say('success', hasPin(saved) ? 'Sede guardada.' : 'Sede guardada sin pin: ubicala en el mapa cuando puedas.');
+                say('success', hasPin(saved) ? 'Sede guardada.' : 'Sede guardada sin pin: ubícala en el mapa cuando puedas.');
             } catch (err) {
                 say('error', (err && err.message) || 'No se pudo guardar la sede.');
             } finally {
@@ -413,7 +413,7 @@
                     ? '<p>' + esc(impact.blockedReason) + '</p>'
                     : '<p>Quitar la sede es definitivo. ' + (impact.artists ? esc(artistsText(impact.artists)) + ' de tu equipo, ' : 'Los artistas, ') + 'los spots, las reservas y los trabajos asignados a esta sede quedan sin sede.'
                         + (impact.nextPrimary ? ' «' + esc(impact.nextPrimary.label || 'Otra sede') + '» pasa a ser la principal.' : '') + '</p>'
-                        + (loc.is_primary ? '' : '<p>Si solo querés dejar de mostrarla, archivala: conserva todo y la podés reactivar.</p>'))
+                        + (loc.is_primary ? '' : '<p>Si solo quieres dejar de mostrarla, archívala: conserva todo y la puedes reactivar.</p>'))
                 + '</div>'
                 + '<div class="wo-modal-actions">'
                 + (!impact.blocked && !loc.is_primary && loc.is_active !== false ? '<button type="button" class="wo-btn" data-dialog="archive">Archivar sede</button>' : '')
@@ -431,7 +431,7 @@
                 if (action === 'cancel') { close(); return; }
                 dialog.querySelectorAll('button').forEach(b => { b.disabled = true; });
                 if (action === 'archive') {
-                    await patchLocation(loc, { isActive: false }, 'Sede archivada. La podés reactivar desde el filtro Archivadas.');
+                    await patchLocation(loc, { isActive: false }, 'Sede archivada. La puedes reactivar desde el filtro Archivadas.');
                     close();
                     return;
                 }
@@ -465,7 +465,7 @@
             if (action === 'remove' && loc) { openRemoveDialog(loc); return; }
             if (!loc) return;
             btn.disabled = true;
-            if (action === 'archive') await patchLocation(loc, { isActive: false }, 'Sede archivada. La podés reactivar desde el filtro Archivadas.');
+            if (action === 'archive') await patchLocation(loc, { isActive: false }, 'Sede archivada. La puedes reactivar desde el filtro Archivadas.');
             else if (action === 'restore') await patchLocation(loc, { isActive: true }, 'Sede reactivada.');
             else if (action === 'primary') await patchLocation(loc, { isPrimary: true, isActive: true }, '«' + (loc.label || 'La sede') + '» ahora es la principal.');
             if (btn.isConnected) btn.disabled = false;

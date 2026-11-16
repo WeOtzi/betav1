@@ -9,7 +9,7 @@
  *                       versión. Botón «Imprimir» y estilos @media print.
  *                       La salida depende de quién mira: el vendedor vuelve
  *                       al pedido en su Store, quien compró a Mis compras y
- *                       el resto a «Verificá un código →».
+ *                       el resto a «Verifica un código →».
  *   ?verificar=<código> público, sin sesión: verifyLicense → válida, usada,
  *                       revocada o no encontrada, con iniciales del titular.
  *                       Form para verificar otro código.
@@ -83,7 +83,7 @@
         if (uid && order && String(order.buyer_user_id) === uid) {
             return { label: '← Mis compras', className: 'stb-back', href: orderId ? M.purchasesUrl(orderId) : M.purchasesUrl() };
         }
-        return { label: 'Verificá un código →', className: 'stb-link', href: S.appPath('/store/license/') };
+        return { label: 'Verifica un código →', className: 'stb-link', href: S.appPath('/store/license/') };
     }
 
     function renderCertificate(license, viewer) {
@@ -148,19 +148,19 @@
         return S.requireSession({ returnTo: returnTo }).then(function (session) {
             if (!session) {
                 var links = S.loginLinks(returnTo);
-                showMessage({ icon: 'lock', heading: 'Certificado de licencia', title: 'Ingresá para ver tu certificado.',
-                    text: 'Los certificados están en la cuenta de quien compró la licencia. Si te pasaron un código, también lo podés verificar sin cuenta.',
-                    actionLabel: 'Ingresá →', actionHref: links.client,
-                    links: [{ label: 'Creá tu cuenta →', href: links.register }, { label: '¿Sos artista? Ingresá →', href: links.artist },
-                        { label: 'Verificá un código →', href: S.appPath('/store/license/') }] });
+                showMessage({ icon: 'lock', heading: 'Certificado de licencia', title: 'Ingresa para ver tu certificado.',
+                    text: 'Los certificados están en la cuenta de quien compró la licencia. Si te pasaron un código, también lo puedes verificar sin cuenta.',
+                    actionLabel: 'Ingresa →', actionHref: links.client,
+                    links: [{ label: 'Crea tu cuenta →', href: links.register }, { label: '¿Eres artista? Ingresa →', href: links.artist },
+                        { label: 'Verifica un código →', href: S.appPath('/store/license/') }] });
                 return null;
             }
             return Promise.all([Store.getLicense(id), S.viewer()]).then(function (res) {
                 var license = res[0];
                 if (!license) {
                     showMessage({ icon: 'search', heading: 'Certificado de licencia', title: 'No encontramos este certificado.',
-                        text: 'Puede que sea de otra cuenta o que el enlace esté incompleto. Si tenés el código, verificalo.',
-                        actionLabel: 'Verificá un código →', actionHref: '/store/license/' });
+                        text: 'Puede que sea de otra cuenta o que el enlace esté incompleto. Si tienes el código, verifícalo.',
+                        actionLabel: 'Verifica un código →', actionHref: '/store/license/' });
                     return null;
                 }
                 renderCertificate(license, res[1]);
@@ -174,7 +174,7 @@
 
     function verifyCopy(result, view) {
         if (!result || result.found === false || view.status === 'invalid') {
-            return { title: 'No encontramos una licencia con ese código.', text: 'Revisá que esté bien escrito: WOL, cuatro caracteres, guion y otros cuatro. Si el problema sigue, consultalo con quien te pasó el código.' };
+            return { title: 'No encontramos una licencia con ese código.', text: 'Revisa que esté bien escrito: WOL, cuatro caracteres, guion y otros cuatro. Si el problema sigue, consúltalo con quien te pasó el código.' };
         }
         if (view.revoked) return { title: 'Licencia revocada', text: 'El código existe, pero la licencia ya no es válida: el pedido se reembolsó o la revocó soporte.' };
         if (view.used) return { title: 'Licencia válida · ya usada', text: 'La licencia es auténtica y ya se usó el ' + (view.usedLabel || '') + '. Cada licencia cubre un solo tatuaje.' };
@@ -187,7 +187,7 @@
         // verifyLicense devuelve null solo si falló la consulta (no lanza).
         var failed = result == null;
         var copy = failed
-            ? { title: 'No pudimos verificar el código ahora.', text: 'Probá de nuevo en unos minutos.' }
+            ? { title: 'No pudimos verificar el código ahora.', text: 'Prueba de nuevo en unos minutos.' }
             : verifyCopy(result, view);
         var found = !failed && result.found !== false && view.status !== 'invalid';
         var tag = found ? view.statusTag : (failed ? 'wo-tag wo-tag--soft' : 'wo-tag wo-tag--urgent');
@@ -237,7 +237,7 @@
         if (!code) {
             $('stb-verify-result').hidden = true;
             if (input) input.value = rawCode || '';
-            setVerifyError('Ingresá un código con el formato WOL-XXXX-XXXX.');
+            setVerifyError('Ingresa un código con el formato WOL-XXXX-XXXX.');
             showState('stb-verify', input);
             return Promise.resolve();
         }
@@ -299,15 +299,15 @@
         S.mountStoreTopbar('store-topbar', {});
         S.isStoreEnabled().then(function (enabled) {
             if (!enabled) {
-                showMessage({ icon: 'clock', title: 'La Store todavía no está disponible.', text: 'Estamos terminando de prepararla. Volvé a mirarla en unos días.',
-                    actionLabel: 'Explorá artistas →', actionHref: '/marketplace' });
+                showMessage({ icon: 'clock', title: 'La Store todavía no está disponible.', text: 'Estamos terminando de prepararla. Vuelve a mirarla en unos días.',
+                    actionLabel: 'Explora artistas →', actionHref: '/marketplace' });
                 return null;
             }
             return route();
         }).catch(function (err) {
             if (window.console) console.error('[store-license]', err);
-            showMessage({ icon: 'alert-circle', title: 'No pudimos cargar la licencia.', text: 'Probá de nuevo en unos minutos.',
-                actionLabel: 'Verificá un código →', actionHref: '/store/license/' });
+            showMessage({ icon: 'alert-circle', title: 'No pudimos cargar la licencia.', text: 'Prueba de nuevo en unos minutos.',
+                actionLabel: 'Verifica un código →', actionHref: '/store/license/' });
         });
     }
 

@@ -21,9 +21,9 @@ module.exports = {
             audience: 'studio',                    // artist | client | studio | admin
             category: 'studios',                   // transactional | quotations | messages | calendar | account | studios
             subject: d => `Nueva solicitud de ${d.artist_name}`,
-            preheader: d => `${d.artist_name} quiere sumarse a ${d.studio_name}. Revisá su perfil y respondé.`, // 40–110 caracteres
+            preheader: d => `${d.artist_name} quiere sumarse a ${d.studio_name}. Revisa su perfil y responde.`, // 40–110 caracteres
             eyebrow: 'SOLICITUD DE TATUADOR',
-            headline: d => 'Tenés una solicitud nueva',
+            headline: d => 'Tienes una solicitud nueva',
             intro: d => `${d.artist_name} quiere sumarse a tu estudio.`,
             rows: d => [['Tatuador', d.artist_name], ['Fecha', d.created_at]], // ISO → fecha en español, vacíos se omiten
             cta: (d, ctx) => ({ label: 'Revisar solicitud', url: ctx.url('/studio/dashboard') }) // siempre absoluto

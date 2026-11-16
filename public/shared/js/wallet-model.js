@@ -325,23 +325,23 @@
         var errors = {};
         var keepIdentifier = !!(opts && opts.keepIdentifier) && !String(input && input.accountIdentifier || '').trim();
         var method = DESTINATION_METHODS[input && input.method];
-        if (!method || !method.available) errors.method = 'Elegí un método disponible.';
+        if (!method || !method.available) errors.method = 'Elige un método disponible.';
         var holder = String(input && input.holderName || '').trim();
-        if (holder.length < 2) errors.holderName = 'Ingresá el titular de la cuenta.';
+        if (holder.length < 2) errors.holderName = 'Ingresa el titular de la cuenta.';
         var currency = upper(input && input.currency, '');
-        if (!/^[A-Z]{3,4}$/.test(currency)) errors.currency = 'Elegí una moneda.';
+        if (!/^[A-Z]{3,4}$/.test(currency)) errors.currency = 'Elige una moneda.';
         var id = String(input && input.accountIdentifier || '').trim();
         if (keepIdentifier) { /* se conserva la cuenta guardada */ }
-        else if (looksLikeCardNumber(id)) errors.accountIdentifier = 'No ingreses números de tarjeta. Usá el CBU, IBAN o alias de la cuenta.';
-        else if (id.length < 4 || id.length > 64) errors.accountIdentifier = 'Ingresá el CBU, IBAN o alias de la cuenta.';
-        else if (!/^[A-Za-z0-9 .\-_]+$/.test(id)) errors.accountIdentifier = 'Usá solo letras, números, puntos o guiones.';
+        else if (looksLikeCardNumber(id)) errors.accountIdentifier = 'No ingreses números de tarjeta. Usa el CBU, IBAN o alias de la cuenta.';
+        else if (id.length < 4 || id.length > 64) errors.accountIdentifier = 'Ingresa el CBU, IBAN o alias de la cuenta.';
+        else if (!/^[A-Za-z0-9 .\-_]+$/.test(id)) errors.accountIdentifier = 'Usa solo letras, números, puntos o guiones.';
         return { ok: Object.keys(errors).length === 0, errors: errors };
     }
 
     function validateWithdrawal(amount, available, destination) {
-        if (!destination) return 'Agregá un destino de retiro.';
+        if (!destination) return 'Agrega un destino de retiro.';
         if (destination.verification_status && destination.verification_status !== 'verified') return 'El destino todavía no está verificado.';
-        if (!isFinite(amount) || amount <= 0) return 'Ingresá un monto mayor a cero.';
+        if (!isFinite(amount) || amount <= 0) return 'Ingresa un monto mayor a cero.';
         if (amount > available + 1e-9) return 'El monto supera tu saldo disponible.';
         return null;
     }

@@ -65,7 +65,7 @@ test('share and cancel dialogs match the reference controls and exact copy', () 
     assert.match(page, />\s*WhatsApp\s*</i);
     assert.doesNotMatch(page, /id="tvs-enabled"|tvm-togglerow/i);
 
-    assert.match(page, /¿Estás seguro que querés cancelar este viaje\?/i);
+    assert.match(page, /¿Estás seguro que quieres cancelar este viaje\?/i);
     assert.match(page, /Esta acción se puede revertir más adelante desde el itinerario\./i);
     assert.doesNotMatch(page, /id="tv-cancel-reason"|Motivo \(opcional\)/i);
     assert.match(script, /travel\/t\//i);

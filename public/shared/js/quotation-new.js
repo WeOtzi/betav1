@@ -131,9 +131,21 @@
         let book = [];
         let fromQuotes = [];
         try { book = await D().ArtistClients.listForArtist(user.id); } catch (e) { if (!e.missingSchema) console.warn('[quotation-new] libreta', e); }
-        try { fromQuotes = M.clientsFromQuotes(await D().Quotations.listClientContactsForArtist(user.id)); } catch (e) { console.warn('[quotation-new] contactos', e); }
+        try { fromQuotes = M.clientsFromQuotes(await loadQuoteClients(user.id)); } catch (e) { console.warn('[quotation-new] contactos', e); }
         clientsCache = M.mergeClients(book, fromQuotes);
         return clientsCache;
+    }
+
+    // Clientes de cotizaciones anteriores. El contacto de una cotización recibida lo
+    // decide el servidor (P20/P23: solo con el perfil verificado y nunca en una
+    // rechazada); el navegador ya no lee esas columnas. Si el servidor no responde
+    // (o en la demo), quedan los nombres y la ciudad.
+    async function loadQuoteClients(userId) {
+        const info = D().QuotationInfo;
+        if (info && typeof info.clientContacts === 'function') {
+            try { return await info.clientContacts(); } catch (e) { console.warn('[quotation-new] contactos (servidor)', e); }
+        }
+        return D().Quotations.listClientNamesForArtist(userId);
     }
 
     // ---------------------------------------------------------------- render
@@ -198,7 +210,7 @@
                 ${clientsCache === null ? '<p class="qn-results-empty">Buscando clientes…</p>' : results.length ? results.map((c, i) => `
                     <button type="button" class="qn-result" role="option" data-qn-pick="${i}">
                         <strong>${esc(c.name)}</strong><span>${esc([c.email, c.whatsapp, c.city].filter(Boolean).join(' · '))}</span>
-                    </button>`).join('') : `<p class="qn-results-empty">No encontramos a «${esc(ui.clientQuery)}». Crealo con el enlace de abajo.</p>`}
+                    </button>`).join('') : `<p class="qn-results-empty">No encontramos a «${esc(ui.clientQuery)}». Créalo con el enlace de abajo.</p>`}
             </div>` : '';
         const createForm = ui.creatingClient ? `
             <div class="qn-newclient">
@@ -268,8 +280,8 @@
                 <div class="qn-trow qn-trow--rule"><label for="qn-f-discount">Descuento</label><span class="qn-pct"><input id="qn-f-discount" type="number" min="0" max="100" step="any" data-qn-field="discountPct" value="${esc(state.discountPct)}"><span>%</span></span></div>
                 <div class="qn-trow qn-trow--rule"><label for="qn-f-tax">Impuestos</label><span class="qn-pct"><input id="qn-f-tax" type="number" min="0" max="100" step="any" data-qn-field="taxPct" value="${esc(state.taxPct)}"><span>%</span></span></div>
                 <div class="qn-trow qn-trow--total"><span>Total</span><span class="qn-tbig" data-qn-total="total">${esc(money(t.total))}</span></div>
-                <div class="qn-trow qn-trow--top"><label for="qn-f-deposit">Seña requerida</label><span class="qn-pct"><input id="qn-f-deposit" type="number" min="0" max="100" step="any" data-qn-field="depositPct" value="${esc(state.depositPct)}"><span>%</span></span></div>
-                <div class="qn-trow"><span>Seña</span><span class="qn-tval qn-tval--bold" data-qn-total="deposit">${esc(money(t.deposit))}</span></div>
+                <div class="qn-trow qn-trow--top"><label for="qn-f-deposit">Anticipo requerido</label><span class="qn-pct"><input id="qn-f-deposit" type="number" min="0" max="100" step="any" data-qn-field="depositPct" value="${esc(state.depositPct)}"><span>%</span></span></div>
+                <div class="qn-trow"><span>Anticipo</span><span class="qn-tval qn-tval--bold" data-qn-total="deposit">${esc(money(t.deposit))}</span></div>
                 <div class="qn-trow"><span>Saldo restante</span><span class="qn-tval" data-qn-total="balance">${esc(money(t.balance))}</span></div>
                 <p class="qn-totals-note">Todos los valores son editables antes de enviar.</p>
             </div>`;
@@ -308,7 +320,7 @@
 
                     <h3 class="qn-step">02 · Información del tatuaje</h3>
                     ${field('Título del proyecto', `<input id="qn-f-title" class="qn-input qn-input--lg" data-qn-field="title" value="${esc(state.title)}" maxlength="140" placeholder="Ej. Jaguar en blackwork cubriendo antebrazo">`, 'qn-f-title')}
-                    ${field('Descripción de la idea', `<textarea id="qn-f-desc" class="qn-textarea" data-qn-field="description" maxlength="4000" placeholder="Contá qué quiere el cliente, referencias, detalles a tener en cuenta...">${esc(state.description)}</textarea>`, 'qn-f-desc')}
+                    ${field('Descripción de la idea', `<textarea id="qn-f-desc" class="qn-textarea" data-qn-field="description" maxlength="4000" placeholder="Cuenta qué quiere el cliente, referencias, detalles a tener en cuenta...">${esc(state.description)}</textarea>`, 'qn-f-desc')}
                     <div class="qn-grid">
                         ${field('Estilo', `<span class="qn-select"><select id="qn-f-style" data-qn-field="style">${options(styleOptions, styleValue, { placeholder: 'Elegir estilo' })}</select></span>`, 'qn-f-style')}
                         ${field('Parte del cuerpo', `<input id="qn-f-body" class="qn-input" data-qn-field="bodyPart" value="${esc(state.bodyPart)}" list="qn-body-parts" placeholder="Ej. Antebrazo" autocomplete="off"><datalist id="qn-body-parts">${c.bodyParts.map((p) => `<option value="${esc(p)}"></option>`).join('')}</datalist>`, 'qn-f-body')}
@@ -582,7 +594,7 @@
     function close(opts) {
         opts = opts || {};
         if (!openFlag) return;
-        if (!opts.force && isDirty() && !window.confirm('Tenés cambios sin guardar en esta cotización. ¿Querés salir igual?')) return;
+        if (!opts.force && isDirty() && !window.confirm('Tienes cambios sin guardar en esta cotización. ¿Quieres salir de todos modos?')) return;
         closePreview({ keepUrl: true });
         openFlag = false;
         const sheet = $('#qn-sheet');
@@ -838,9 +850,14 @@
             busy = false;
             close({ force: true, stay: true }); // queda en el listado con el resumen de la nueva
             await page().reload();
-            toast(`Cotización ${quoteId} creada y enviada a ${quotePayload.client_full_name}.` + (uploads.failed ? ` No pudimos subir ${uploads.failed} ${uploads.failed === 1 ? 'archivo' : 'archivos'}.` : '') + (expiryFailed ? ' No pudimos activar el vencimiento: activalo desde el detalle.' : ''), uploads.failed || expiryFailed ? 'info' : 'success');
+            toast(`Cotización ${quoteId} creada y enviada a ${quotePayload.client_full_name}.` + (uploads.failed ? ` No pudimos subir ${uploads.failed} ${uploads.failed === 1 ? 'archivo' : 'archivos'}.` : '') + (expiryFailed ? ' No pudimos activar el vencimiento: actívalo desde el detalle.' : ''), uploads.failed || expiryFailed ? 'info' : 'success');
             const created = page().findQuote(quoteId);
             if (created && window.QuotationSummary) window.QuotationSummary.open(created.id);
+            // cot-detalle (P30): al terminar, ofrecer el enlace público, el PDF y la imagen
+            // para mandarle la cotización al cliente (Instagram, WhatsApp…).
+            if (window.WoQuoteShare && !window.WoQuoteShare.isPreview()) {
+                window.WoQuoteShare.openDialog({ quoteId, clientName: quotePayload.client_full_name || '', created: true });
+            }
         } catch (err) {
             busy = false;
             sheet.querySelectorAll('[data-qn-submit]').forEach((b) => { b.classList.remove('is-busy'); b.textContent = 'Crear y enviar cotización'; });
@@ -851,7 +868,7 @@
                 toast('Para crear cotizaciones manuales falta aplicar la actualización de la base de datos. Guardamos la cotización como borrador en este navegador.', 'error');
             } else if (/23P01|CALENDAR_OVERLAP|SLOT_TAKEN/.test(overlapText)) {
                 // Turnos: la sesión pisa otra sesión, un evento que bloquea o una cita de estudio.
-                toast('La fecha de la sesión se superpone con otra sesión, un evento que bloquea o una cita de estudio. Elegí otro horario. Guardamos un borrador en este navegador.', 'error');
+                toast('La fecha de la sesión se superpone con otra sesión, un evento que bloquea o una cita de estudio. Elige otro horario. Guardamos un borrador en este navegador.', 'error');
             } else {
                 console.error('[quotation-new] crear', err);
                 toast(M.createErrorMessage(err), 'error');
@@ -1011,7 +1028,7 @@
             if (t.id === 'qn-file-input') {
                 const picked = Array.from(t.files || []);
                 // El bucket acepta una lista cerrada de tipos: lo que no entra se
-                // descarta acá (con aviso) y no al enviar. Sin file.type (HEIC en
+                // descarta aquí (con aviso) y no al enviar. Sin file.type (HEIC en
                 // Windows) el tipo se infiere por la extensión.
                 const unsupported = [];
                 const typed = [];
@@ -1093,7 +1110,7 @@
         if (isNewRoute() && !openFlag) open(paramsOpts());
         else if (!isNewRoute() && openFlag) {
             // El Atrás del navegador pide la misma confirmación que "×" y "Cancelar".
-            if (isDirty() && !window.confirm('Tenés cambios sin guardar en esta cotización. ¿Querés salir igual?')) {
+            if (isDirty() && !window.confirm('Tienes cambios sin guardar en esta cotización. ¿Quieres salir de todos modos?')) {
                 window.history.pushState({ qn: true }, '', sheetUrl || buildNewUrl({}));
                 pushedHistory = true;
                 return;

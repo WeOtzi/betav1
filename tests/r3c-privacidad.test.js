@@ -34,7 +34,9 @@ test('sanitizeConfig: valores por defecto completos y válidos', () => {
     assert.deepEqual(config.categories.map((c) => c.id), ['necessary', 'analytics', 'marketing']);
     assert.equal(config.categories.find((c) => c.id === 'marketing').enabled, false, 'no hay marketing hoy');
     assert.equal(config.scripts[0].type, 'clarity');
-    assert.deepEqual(config.scripts[0].exclude_paths, ['/backoffice', '/support']);
+    // SEG-03: la hoja pública de una cotización lleva su llave en la dirección.
+    assert.deepEqual(config.scripts[0].exclude_paths, ['/backoffice', '/support', '/cotizacion']);
+    assert.deepEqual(priv.sanitizeConfig({ scripts: [{ type: 'clarity', project_id: 'abcdef12' }] }).config.scripts[0].exclude_paths, ['/backoffice', '/support', '/cotizacion']);
 });
 
 test('sanitizeConfig: necesarias siempre activas, versión y tipos validados, textos sin etiquetas', () => {

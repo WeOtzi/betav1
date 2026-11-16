@@ -4,10 +4,10 @@
  *   ctx = { tables, relations, rpcs, views, clients, identity, TABLES, VIEWS, helpers }
  *
  * Cubre la migración NO aplicada 20261112170000_quotation_payments_wallet_support:
- *   - quotation_payments: seña de Sofía (DEMO-D01), pago de sesión de Mateo
- *     (DEMO-D02, «Pago recibido · Mateo · $180» del Figma 24:1425) y seña +
+ *   - quotation_payments: anticipo de Sofía (DEMO-D01), pago de sesión de Mateo
+ *     (DEMO-D02, «Pago recibido · Mateo · $180» del Figma 24:1425) y anticipo +
  *     saldo de Lucía (DEMO-D03, pagada en su totalidad).
- *   - artist_manual_quotes enviada para DEMO-S01 con seña del 30 % pendiente
+ *   - artist_manual_quotes enviada para DEMO-S01 con anticipo del 30 % pendiente
  *     (801:556 → 801:577).
  *   - Movimientos informativos «Cobrado por fuera» en artist_wallet_movements
  *     (no cambian los saldos de la extensión "cuenta").
@@ -24,7 +24,7 @@
         var CURRENCIES = ['USD', 'CAD', 'MXN', 'CRC', 'COP', 'VES', 'PEN', 'BRL', 'ARS', 'CLP', 'UYU',
             'EUR', 'GBP', 'CHF', 'DKK', 'NOK', 'SEK', 'PLN', 'KRW', 'THB', 'IDR', 'JPY', 'AUD', 'NZD'];
         var PAYABLE = ['responded', 'client_approved', 'in_progress', 'en_progreso', 'artist_completed', 'completed'];
-        var LABELS = { deposit: 'Seña recibida', balance: 'Saldo recibido', session: 'Pago de sesión recibido', other: 'Pago recibido' };
+        var LABELS = { deposit: 'Anticipo recibido', balance: 'Saldo recibido', session: 'Pago de sesión recibido', other: 'Pago recibido' };
 
         function pad2(n) { return String(n).padStart(2, '0'); }
         function dateOnly(offsetDays) {
@@ -55,7 +55,7 @@
 
         // [ref, kind, method, monto, díasAtrás, horasAtrás(alta), nota]
         var SEED = [
-            ['DEMO-D01', 'deposit', 'transfer', 75, 8, null, 'Seña del 30 % por transferencia'],
+            ['DEMO-D01', 'deposit', 'transfer', 75, 8, null, 'Anticipo del 30 % por transferencia'],
             ['DEMO-D02', 'session', 'cash', 180, 0, 1, 'Sesión 1 en efectivo'],
             ['DEMO-D03', 'deposit', 'cash', 54, 18, null, null],
             ['DEMO-D03', 'balance', 'transfer', 126, 6, null, 'Saldo al cerrar la segunda sesión']
@@ -74,7 +74,7 @@
         });
         tables.quotation_payments = payments;
 
-        // Cotización manual enviada con seña pendiente (DEMO-S01, 380 USD · 30 %).
+        // Cotización manual enviada con anticipo pendiente (DEMO-S01, 380 USD · 30 %).
         var s01 = byRef('DEMO-S01');
         tables.artist_manual_quotes = (tables.artist_manual_quotes || []).concat(s01 ? [{
             id: 'a1d0e000-0000-4000-8000-0000000005a1', artist_id: artistId, quote_ref: 'DEMO-S01', status: 'sent', origin: 'manual',
@@ -94,13 +94,13 @@
             var uid = (rpcCtx && rpcCtx.userId) || artistId;
             var q = store.rows('quotations_db').find(function (r) { return Number(r.id) === Number(args.p_quotation_id); });
             if (!q || q.artist_id !== uid) fail('No encontramos esa cotización en tu cuenta.');
-            if (PAYABLE.indexOf(q.quote_status) === -1) fail('Solo podés registrar pagos de cotizaciones respondidas o con acuerdo.');
-            if (['deposit', 'session', 'balance', 'other'].indexOf(args.p_kind) === -1) fail('Elegí el tipo de pago.');
-            if (['cash', 'transfer', 'other'].indexOf(args.p_method) === -1) fail('Elegí el medio de pago.');
+            if (PAYABLE.indexOf(q.quote_status) === -1) fail('Solo puedes registrar pagos de cotizaciones respondidas o con acuerdo.');
+            if (['deposit', 'session', 'balance', 'other'].indexOf(args.p_kind) === -1) fail('Elige el tipo de pago.');
+            if (['cash', 'transfer', 'other'].indexOf(args.p_method) === -1) fail('Elige el medio de pago.');
             var amount = Number(args.p_amount);
-            if (!(amount > 0) || amount > 1e9 || Math.round(amount * 100) / 100 !== amount) fail('Ingresá un monto mayor a cero, con hasta 2 decimales.');
+            if (!(amount > 0) || amount > 1e9 || Math.round(amount * 100) / 100 !== amount) fail('Ingresa un monto mayor a cero, con hasta 2 decimales.');
             var cur = String(args.p_currency || '').toUpperCase();
-            if (CURRENCIES.indexOf(cur) === -1) fail('Elegí una moneda de la lista.');
+            if (CURRENCIES.indexOf(cur) === -1) fail('Elige una moneda de la lista.');
             var paidOn = args.p_paid_on || dateOnly(0);
             if (paidOn > dateOnly(1)) fail('La fecha del pago no puede ser futura.');
             var row = {
@@ -133,7 +133,7 @@
         /* ------- RPC de soporte (el preview no tiene rol de soporte: solo las reglas de datos) ------- */
         function reviewNote(decisionReject, note) {
             var clean = String(note == null ? '' : note).trim();
-            if (decisionReject && clean.length < 5) fail('Escribí el motivo del rechazo (mínimo 5 caracteres).');
+            if (decisionReject && clean.length < 5) fail('Escribe el motivo del rechazo (mínimo 5 caracteres).');
             if (clean.length > 500) fail('La nota puede tener hasta 500 caracteres.');
             return clean || null;
         }

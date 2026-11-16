@@ -46,12 +46,12 @@ module.exports = {
             headline: d => `${text(d.studio_name, 'Tu estudio')} ya está en We Ötzi`,
             intro: d => (d.verification_required === 'si'
                 ? 'Registramos tu estudio y sus sedes. Encontramos estudios con un nombre parecido, así que antes de mostrar el sello de verificado te vamos a pedir información desde el panel.'
-                : 'Registramos tu estudio y sus sedes. Desde el panel podés completar el perfil, sumar a tu equipo y pedir el sello de estudio verificado.'),
+                : 'Registramos tu estudio y sus sedes. Desde el panel puedes completar el perfil, sumar a tu equipo y pedir el sello de estudio verificado.'),
             rows: d => [
                 ['Estudio', text(d.studio_name, 'Tu estudio')],
                 ['Sedes', text(d.locations_text, 'Sin sedes cargadas')],
-                ['Próximo paso', 'Invitá a los artistas de tu equipo'],
-                ['Verificación', d.verification_required === 'si' ? 'Pendiente: enviá la información' : 'Podés pedirla desde el panel'],
+                ['Próximo paso', 'Invita a los artistas de tu equipo'],
+                ['Verificación', d.verification_required === 'si' ? 'Pendiente: envía la información' : 'Puedes pedirla desde el panel'],
             ],
             cta: d => (d.dashboard_url ? { label: 'Ir al panel del estudio', url: d.dashboard_url } : null),
         },
@@ -78,13 +78,13 @@ module.exports = {
                 ? `Aprobamos tu reclamo de ${text(d.studio_name, 'tu estudio')}`
                 : `Tu reclamo de ${text(d.studio_name, 'tu estudio')} no fue aprobado`),
             preheader: d => (d.status === 'approved'
-                ? 'Ya administrás el estudio en We Ötzi.'
+                ? 'Ya administras el estudio en We Ötzi.'
                 : 'Revisamos tu reclamo y no pudimos aprobarlo.'),
             eyebrow: 'Estudios · Reclamo de ficha',
-            headline: d => (d.status === 'approved' ? 'Ya sos el dueño del estudio' : 'No aprobamos tu reclamo'),
+            headline: d => (d.status === 'approved' ? 'Ya eres el dueño del estudio' : 'No aprobamos tu reclamo'),
             intro: d => (d.status === 'approved'
-                ? `Revisamos tu reclamo y ya administrás ${text(d.studio_name, 'el estudio')} en We Ötzi. Completá el perfil y las sedes desde el panel.`
-                : `Revisamos tu reclamo de ${text(d.studio_name, 'el estudio')} y no pudimos aprobarlo. Si el estudio es tuyo, escribinos con más datos; también podés registrar un estudio nuevo.`),
+                ? `Revisamos tu reclamo y ya administras ${text(d.studio_name, 'el estudio')} en We Ötzi. Completa el perfil y las sedes desde el panel.`
+                : `Revisamos tu reclamo de ${text(d.studio_name, 'el estudio')} y no pudimos aprobarlo. Si el estudio es tuyo, escríbenos con más datos; también puedes registrar un estudio nuevo.`),
             rows: d => [
                 ['Estudio', text(d.studio_name, 'tu estudio')],
                 ['Estado', d.status === 'approved' ? 'Aprobado' : 'Rechazado'],

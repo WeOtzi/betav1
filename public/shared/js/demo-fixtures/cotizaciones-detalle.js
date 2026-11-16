@@ -121,7 +121,7 @@
                         header('Preparación'),
                         para('Cliente parece serio, ya tiene el tatuaje pensado hace tiempo. Ofrecer plan de pago en 2 cuotas.'),
                         check('Confirmar tamaño final del stencil', true),
-                        check('Pedir foto de la zona sin remera', false),
+                        check('Pedir foto de la zona sin camiseta', false),
                         quote('Quiero que envuelva todo el antebrazo, como un brazalete.')
                     ], ['geométrico', 'antebrazo']) },
                 { id: 999102, quotation_id: s01.id, title: 'Consulta inicial · llamada', label: null, note_date: ago(5), created_at: ago(5), updated_at: ago(5),

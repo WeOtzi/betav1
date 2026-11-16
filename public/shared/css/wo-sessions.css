@@ -1,0 +1,155 @@
+/* ============================================================================
+   We Ötzi · Sesiones (ronda 2 · frente "sesiones" · P28 y P27-sesión)
+   Diálogos y controles compartidos (wo-session-ui.js), extras de la fila del
+   expediente y del editor del calendario (wo-session-flow.js) y el panel
+   "Mis sesiones" del cliente (client-sessions.js).
+   DS Bauhaus: solo tokens de ds/tokens.css, sin radios ni sombras blandas.
+   ========================================================================== */
+
+/* ------------------------------- diálogos ------------------------------- */
+.ws-overlay { z-index: 1200; padding: var(--space-4); }
+.ws-modal { display: grid; gap: var(--space-3); max-width: 560px; max-height: min(92vh, 688px); padding: var(--space-6); }
+.ws-modal .wo-modal-title { margin: 0; }
+.ws-modal .wo-modal-actions { margin-top: var(--space-2); }
+.ws-dialog-copy { margin: 0; color: var(--text-muted); font-size: var(--body-s-size); line-height: var(--body-s-lh); }
+.ws-dialog-error { margin: 0; padding: var(--space-3) var(--space-4); border-left: var(--border-rule-width) solid var(--system-error); background: var(--error-bg); color: var(--error-fg); font-size: var(--body-s-size); }
+.ws-dialog-error[hidden] { display: none; }
+.ws-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); }
+.ws-grid .is-wide,
+.ws-modal > .is-wide { grid-column: 1 / -1; }
+.ws-modal .wo-input,
+.ws-modal .wo-select,
+.ws-modal .wo-textarea { width: 100%; min-height: var(--control-h-md); padding: var(--space-3) var(--space-4); }
+.ws-modal .wo-select { padding-right: var(--space-10); }
+.ws-modal .ws-textarea,
+.ws-textarea { min-height: 76px; resize: vertical; }
+.ws-modal .wo-btn:focus-visible,
+.ws-tab:focus-visible,
+.ws-link:focus-visible,
+.ws-card .wo-btn:focus-visible { outline: 0; box-shadow: var(--shadow-focus); }
+
+.ws-summary { display: grid; gap: var(--space-1); margin: 0; padding: var(--space-3) var(--space-4); border: var(--border-hairline) solid var(--border-subtle); background: var(--neutral-100); }
+.ws-summary > div { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: var(--space-3); align-items: baseline; }
+.ws-summary dt { font-family: var(--font-mono); font-size: var(--meta-m-size); letter-spacing: var(--meta-m-track); text-transform: uppercase; color: var(--text-muted); }
+.ws-summary dd { margin: 0; color: var(--ink); font-size: var(--body-s-size); line-height: var(--body-s-lh); overflow-wrap: anywhere; }
+.ws-summary--proposal { border-color: var(--yellow-300); background: var(--warning-bg); }
+
+/* ------------------------- selector de ubicación ------------------------- */
+.ws-location { display: grid; gap: var(--space-2); min-width: 0; }
+.ws-location-custom { display: grid; gap: var(--space-2); }
+.ws-location-custom[hidden] { display: none; }
+.ws-location-preview { margin: 0; padding-left: var(--space-3); border-left: var(--border-rule-width) solid var(--blue-400); color: var(--neutral-400); font-size: var(--body-s-size); line-height: var(--body-s-lh); overflow-wrap: anywhere; }
+.ws-location-preview[hidden] { display: none; }
+/* El desplegable de Google Places tiene que quedar por encima del diálogo. */
+.pac-container { z-index: 1400 !important; font-family: var(--font-body); border-radius: 0; }
+
+/* ------------------------------ calificación ------------------------------ */
+.ws-stars { margin: 0; padding: 0; border: 0; min-width: 0; display: grid; gap: var(--space-2); }
+.ws-stars legend { padding: 0; }
+.ws-stars-row { display: flex; gap: 0; }
+/* El estado no depende solo del color: estrella hueca / estrella llena sobre
+   una ficha amarilla (tinta sobre amarillo, contraste alto). */
+.ws-star { position: relative; display: inline-flex; align-items: center; justify-content: center; width: var(--tap-target-min); height: var(--tap-target-min); border: var(--border-hairline) solid var(--neutral-500); background: var(--white); color: var(--neutral-500); cursor: pointer; font-size: 26px; line-height: 1; }
+.ws-star + .ws-star { border-left: 0; }
+.ws-star input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.ws-star > span[aria-hidden]::before { content: '☆'; }
+.ws-star.is-on { background: var(--yellow-300); }
+.ws-star.is-on > span[aria-hidden]::before { content: '★'; }
+.ws-star:hover { background: var(--yellow-100); }
+.ws-star.is-on:hover { background: var(--yellow-200); }
+.ws-star:focus-within { box-shadow: var(--shadow-focus); z-index: 1; }
+.ws-record { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4); border-left: var(--border-rule-width) solid var(--neutral-400); background: var(--neutral-100); }
+.ws-record p { margin: 0; color: var(--ink); font-size: var(--body-s-size); line-height: var(--body-s-lh); overflow-wrap: anywhere; }
+.ws-record-stars { color: var(--neutral-500); letter-spacing: 0.1em; }
+
+/* -------------------------------- insignias -------------------------------- */
+.ws-badge { display: inline-flex; align-items: center; min-height: 26px; padding: 0 var(--space-3); border-radius: var(--radius-none); font-family: var(--font-mono); font-size: 11px; font-weight: var(--weight-medium); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+.ws-badge--info { background: var(--info-bg); color: var(--blue-500); }
+.ws-badge--success { background: var(--success-bg); color: var(--success-fg); }
+/* Tinta sobre el amarillo claro: el par warning-fg/warning-bg mide 4,0:1 (no alcanza AA en 11px). */
+.ws-badge--warning { background: var(--yellow-200); color: var(--neutral-500); }
+.ws-badge--danger { background: var(--error-bg); color: var(--error-fg); }
+.ws-badge--muted { background: var(--sand-050); color: var(--neutral-400); }
+
+.ws-place { overflow-wrap: anywhere; }
+.ws-place a { color: var(--blue-500); text-decoration: underline; text-underline-offset: 2px; }
+.ws-place a:hover { color: var(--ink); }
+.ws-place--empty { color: var(--neutral-400); }
+
+/* ---------------------------------- aviso ---------------------------------- */
+.ws-toast { position: fixed; left: 50%; bottom: var(--space-6); z-index: 1500; transform: translateX(-50%); max-width: min(480px, calc(100vw - 32px)); padding: var(--space-4) var(--space-5); border: var(--border-strong-width) solid var(--neutral-500); background: var(--yellow-300); color: var(--neutral-500); font-size: var(--body-s-size); font-weight: var(--weight-semibold); line-height: var(--body-s-lh); box-shadow: var(--shadow-hard-sm); }
+.ws-toast[hidden] { display: none; }
+.ws-toast.is-error { background: var(--red-400); border-color: var(--red-500); color: var(--white); }
+
+@keyframes ws-highlight { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 30%, 70% { box-shadow: 0 0 0 4px var(--yellow-300); } }
+.ws-highlight { animation: ws-highlight 2.2s ease-in-out 2; }
+@media (prefers-reduced-motion: reduce) { .ws-highlight { animation: none; box-shadow: 0 0 0 4px var(--yellow-300); } }
+
+/* ------------------- expediente del artista (fila de sesión) ------------------- */
+.qd-session .ws-row-note { margin: 2px 0 0; color: var(--neutral-400); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
+.qd-session .ws-row-note strong { color: var(--ink); font-weight: var(--weight-semibold); }
+.qd-session .ws-row-note--request { padding-left: var(--space-3); border-left: var(--border-rule-width) solid var(--yellow-300); color: var(--ink); }
+.qd-session .ws-row-note--lock { color: var(--red-700); }
+.qd-session .ws-row-note--stars { color: var(--neutral-500); letter-spacing: 0.02em; }
+.qd-session .qd-session-place { overflow-wrap: anywhere; }
+.qd-dialog [data-ws-location-slot] { min-width: 0; }
+.qd-dialog [data-ws-location-slot]:empty { display: none; }
+
+/* --------------------- calendario (editor de un turno) --------------------- */
+.cal-location-custom { display: grid; gap: 0.35rem; margin-top: 0.45rem; }
+.cal-location-custom[hidden] { display: none; }
+.cal-location-custom small { color: var(--neutral-400); font: 400 0.66rem/1.4 var(--font-body); }
+
+/* ----------------------- panel del cliente: Mis sesiones ----------------------- */
+.client-sessions { padding: var(--space-8) 0; scroll-margin-top: 96px; }
+.client-sessions[hidden] { display: none; }
+.ws-panel-head { align-items: flex-end; flex-wrap: wrap; }
+.ws-panel-sub { margin: var(--space-2) 0 0; color: var(--text-muted); font-size: var(--body-s-size); line-height: var(--body-s-lh); }
+.ws-tabs { display: flex; gap: 0; }
+.ws-tab { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-h-sm); padding: 0 var(--space-4); border: var(--border-hairline) solid var(--border-strong); border-radius: var(--radius-none); background: var(--white); color: var(--neutral-500); font-family: var(--font-mono); font-size: var(--meta-m-size); letter-spacing: var(--meta-m-track); text-transform: uppercase; cursor: pointer; }
+.ws-tab + .ws-tab { border-left: 0; }
+.ws-tab.is-active { background: var(--neutral-500); color: var(--white); }
+.ws-tab:disabled { background: var(--neutral-100); color: var(--neutral-400); cursor: default; }
+.ws-tab-count { font-weight: var(--weight-bold); }
+
+.ws-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+.ws-empty { margin: 0; color: var(--text-muted); font-size: var(--body-s-size); }
+.ws-card { display: grid; align-content: start; gap: var(--space-2); min-width: 0; padding: var(--space-5); border: var(--border-hairline) solid var(--border-strong); background: var(--white); }
+.ws-card:focus { outline: 0; }
+.ws-card.is-action { border-left: var(--border-rule-width) solid var(--yellow-300); box-shadow: var(--shadow-hard-sm); }
+.ws-card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); }
+.ws-card-meta { color: var(--neutral-400); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+.ws-card-date { margin: var(--space-1) 0 0; color: var(--ink); font-family: var(--font-display); font-size: 20px; line-height: 1.25; }
+.ws-card-with,
+.ws-card-place { margin: 0; color: var(--neutral-500); font-size: var(--body-s-size); line-height: var(--body-s-lh); }
+.ws-card-request { display: grid; gap: 2px; margin-top: var(--space-1); padding: var(--space-3) var(--space-4); border-left: var(--border-rule-width) solid var(--yellow-300); background: var(--warning-bg); color: var(--ink); font-size: var(--body-s-size); line-height: var(--body-s-lh); overflow-wrap: anywhere; }
+.ws-card-quote { color: var(--neutral-500); }
+.ws-card-wait { color: var(--neutral-500); font-size: 12.5px; font-style: italic; }
+.ws-card-note { margin: 0; color: var(--neutral-400); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
+.ws-card-note--lock { color: var(--red-700); }
+.ws-card-note--stars { color: var(--neutral-500); }
+.ws-card-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.ws-card-links { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.ws-link { min-height: var(--control-h-sm); padding: 0; border: 0; background: transparent; color: var(--blue-500); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.ws-link:hover { color: var(--ink); }
+
+@media (min-width: 768px) {
+    .ws-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1200px) {
+    .ws-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+    .ws-overlay { padding: var(--space-3); align-items: flex-end; }
+    .ws-modal { max-height: 94vh; padding: var(--space-5); }
+    .ws-grid { grid-template-columns: minmax(0, 1fr); }
+    .ws-summary > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .ws-modal .wo-modal-actions { justify-content: stretch; }
+    .ws-modal .wo-modal-actions .wo-btn { flex: 1 1 auto; }
+    .ws-panel-head { align-items: flex-start; }
+    .ws-tabs { width: 100%; }
+    .ws-tab { flex: 1 1 0; justify-content: center; }
+    .ws-card { padding: var(--space-4); }
+    .ws-card-actions .wo-btn { flex: 1 1 100%; }
+    .ws-toast { bottom: var(--space-4); }
+}

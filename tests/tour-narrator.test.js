@@ -90,7 +90,7 @@ function makeSynth(voices = []) {
             const dropped = this.queue.splice(0);
             this.speaking = false;
             this.pending = false;
-            // Como Chrome: lo cortado recibe un error (acá sincrónico, el caso más exigente).
+            // Como Chrome: lo cortado recibe un error (aquí sincrónico, el caso más exigente).
             dropped.forEach((u) => { if (u.onerror) u.onerror({ error: 'interrupted' }); });
         },
         pause() { this.pauses += 1; this.paused = true; },
@@ -332,7 +332,7 @@ test('chunkText trocea cada paso del guion en frases de hasta 160 caracteres sin
 test('chunkText corta por frase, después por coma/punto y coma/dos puntos y en último caso por palabras', () => {
     const { internal } = loadTour();
     assert.deepEqual(plain(internal.chunkText('Hola.  Chau…   ¿Seguimos?  Sí')), ['Hola.', 'Chau…', '¿Seguimos?', 'Sí']);
-    assert.deepEqual(plain(internal.chunkText('Subí 1.5 veces más. Listo.')), ['Subí 1.5 veces más.', 'Listo.'], 'un punto sin espacio no corta');
+    assert.deepEqual(plain(internal.chunkText('Sube 1.5 veces más. Listo.')), ['Sube 1.5 veces más.', 'Listo.'], 'un punto sin espacio no corta');
     assert.deepEqual(plain(internal.chunkText(['Primer párrafo.', 'Segundo párrafo.'])), ['Primer párrafo.', 'Segundo párrafo.']);
     const a = 'a'.repeat(100);
     const b = 'b'.repeat(100);
@@ -843,9 +843,9 @@ test('el guion explica velocidad, modo asistido, contacto, validación de Instag
     const { win } = loadTour({ withSteps: true, querySelector: (sel) => { selectors.push(sel); return null; } });
     const byId = (chapter) => Object.fromEntries(win.WoTourSteps.chapters.find((c) => c.id === chapter).steps.map((s) => [s.id, s]));
     const dash = byId('dashboard');
-    assert.match(dash.intro.hint, /Con el botón 1× cambiás la velocidad de la voz\./);
+    assert.match(dash.intro.hint, /Con el botón 1× cambias la velocidad de la voz\./);
     assert.match(dash.menu.text, /Modo asistido/);
-    assert.match(dash.menu.text, /modo demo, lo desactivás desde este mismo menú/);
+    assert.match(dash.menu.text, /modo demo, lo desactivas desde este mismo menú/);
 
     const account = win.WoTourSteps.chapters.find((c) => c.id === 'account');
     const ids = account.steps.map((s) => s.id);

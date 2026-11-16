@@ -43,8 +43,8 @@ test('quotation agrupa las preguntas en las pantallas del Figma (01…08)', () =
         assert.match(script, new RegExp(`num: '${num}'`));
     });
     // Titulares literales del Figma.
-    ['¿Qué querés tatuarte\\?', '¿Qué estilo estás buscando\\?', '¿Dónde querés llevarlo\\?',
-     '¿Qué tamaño imaginás\\?', 'Mostranos lo que te inspira', 'Contanos los detalles', 'Tu tatuaje']
+    ['¿Qué quieres tatuarte\\?', '¿Qué estilo estás buscando\\?', '¿Dónde quieres llevarlo\\?',
+     '¿Qué tamaño imaginas\\?', 'Muéstranos lo que te inspira', 'Cuéntanos los detalles', 'Tu tatuaje']
         .forEach((title) => assert.match(script, new RegExp(title)));
 
     // La pantalla 06 agrupa color + fecha + presupuesto.

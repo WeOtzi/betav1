@@ -332,17 +332,17 @@
         const detail = String(err.detail || '').trim();
         const raw = String(err.message || '').trim();
         if (err.code === 'PASSWORD_REQUIRED') {
-            return { title: 'Falta tu contraseña', message: 'Por seguridad no guardamos tu contraseña mientras completás el registro. Escribila de nuevo en «Tu acceso» y confirmá.', retry: false };
+            return { title: 'Falta tu contraseña', message: 'Por seguridad no guardamos tu contraseña mientras completas el registro. Escríbela de nuevo en «Tu acceso» y confirma.', retry: false };
         }
         if (err.name === 'TypeError' || /failed to fetch|networkerror|load failed|network request failed/i.test(raw)) {
-            return { title: 'Sin conexión con el servidor', message: 'No pudimos comunicarnos con We Ötzi. Revisá tu conexión y volvé a intentar: tus datos siguen acá.', retry: true };
+            return { title: 'Sin conexión con el servidor', message: 'No pudimos comunicarnos con We Ötzi. Revisa tu conexión y vuelve a intentar: tus datos siguen aquí.', retry: true };
         }
         if (status === 409) {
             const text = server || raw || 'Ya existe una cuenta con esos datos.';
-            return { title: 'Ese email ya tiene una cuenta', message: (/[.!?]$/.test(text) ? text : text + '.') + ' Iniciá sesión o cambiá el email en «Tu acceso». (Error 409)', retry: true };
+            return { title: 'Ese email ya tiene una cuenta', message: (/[.!?]$/.test(text) ? text : text + '.') + ' Inicia sesión o cambia el email en «Tu acceso». (Error 409)', retry: true };
         }
         if (status === 429) {
-            return { title: 'Demasiados intentos seguidos', message: 'Esperá un minuto y volvé a intentar. Tus datos siguen acá.', retry: true };
+            return { title: 'Demasiados intentos seguidos', message: 'Espera un minuto y vuelve a intentar. Tus datos siguen aquí.', retry: true };
         }
         const parts = [];
         const main = server || raw || 'No se pudo finalizar el registro.';
@@ -365,10 +365,10 @@
         const type = String(file && file.type || '').toLowerCase();
         const size = Number(file && file.size) || 0;
         if (type === 'application/pdf') {
-            return { ok: false, reason: 'pdf', message: `Por ahora la galería publica imágenes: subí tus trabajos en ${PORTFOLIO_FORMATS_LABEL}.` };
+            return { ok: false, reason: 'pdf', message: `Por ahora la galería publica imágenes: sube tus trabajos en ${PORTFOLIO_FORMATS_LABEL}.` };
         }
         if (!PORTFOLIO_IMAGE_TYPES.includes(type)) {
-            return { ok: false, reason: 'type', message: `Formato no admitido. Usá ${PORTFOLIO_FORMATS_LABEL}.` };
+            return { ok: false, reason: 'type', message: `Formato no admitido. Usa ${PORTFOLIO_FORMATS_LABEL}.` };
         }
         if (size > MAX_PORTFOLIO_FILE_BYTES) {
             return { ok: false, reason: 'size', message: 'Cada archivo puede pesar hasta 10 MB.' };
@@ -705,7 +705,7 @@
                     <div class="ra-styles-head-row">
                         <div>
                             <h3 class="ra-styles-title" id="ra-styles-title">Todos los estilos</h3>
-                            <p class="ra-styles-sub">Seleccioná todos los estilos que representen tu trabajo.</p>
+                            <p class="ra-styles-sub">Selecciona todos los estilos que representen tu trabajo.</p>
                         </div>
                         <button type="button" class="ra-styles-close" data-styles-close aria-label="Cerrar">×</button>
                     </div>
@@ -1006,6 +1006,12 @@
             caption.textContent = mediaCaption(item);
             cell.appendChild(media);
             cell.appendChild(caption);
+            // ── registro (ronda 2 · N3): pie de foto editable por trabajo (el de
+            // Instagram llega precargado). Sin el módulo, la grilla queda igual.
+            if (root.WoRegistroR2 && typeof root.WoRegistroR2.captionField === 'function') {
+                cell.classList.add('has-caption-field');
+                cell.appendChild(root.WoRegistroR2.captionField(item, persist));
+            }
             grid.appendChild(cell);
         });
         const add = document.createElement('button');
@@ -1074,7 +1080,7 @@
         const input = $('ra-ig-connect-handle');
         const handle = normalizeInstagramHandle(input ? input.value : '');
         if (!handle || !/^[a-z0-9._]{1,30}$/i.test(handle)) {
-            setConnectStatus('Escribí tu usuario de Instagram (por ejemplo, @tu_estudio).', 'error');
+            setConnectStatus('Escribe tu usuario de Instagram (por ejemplo, @tu_estudio).', 'error');
             if (input) input.focus();
             return;
         }
@@ -1097,11 +1103,11 @@
 
     function openInstagramImporter(handle) {
         if (!root.IGImport || typeof root.IGImport.open !== 'function') {
-            setConnectStatus('El importador de Instagram no está disponible en este momento. Probá subir tus archivos.', 'error');
+            setConnectStatus('El importador de Instagram no está disponible en este momento. Prueba subir tus archivos.', 'error');
             return;
         }
         if (portfolioUi.mode === 'instagram') {
-            setConnectStatus('Abrimos el importador para @' + handle + '. Seguí los pasos en la ventana de Instagram.', 'info');
+            setConnectStatus('Abrimos el importador para @' + handle + '. Sigue los pasos en la ventana de Instagram.', 'info');
         }
         const previous = igDraftItems();
         root.IGImport.open({
@@ -1395,13 +1401,13 @@
         overlay.className = 'wo-overlay ra-resume-overlay';
         const where = opts.groupLabel ? ` Te quedaste en <strong>${escapeHtml(opts.groupLabel)}</strong>.` : '';
         const filesNote = opts.localFilesLost
-            ? '<p class="ra-resume-note">Las fotos que subiste desde tu dispositivo no se guardan en el borrador: vas a tener que volver a cargarlas.</p>'
+            ? '<p class="ra-resume-note">Las fotos que subiste desde tu dispositivo no se guardan en el borrador: vas a tener que volver a subirlas.</p>'
             : '';
         overlay.innerHTML = `
             <div class="wo-modal ra-resume" role="dialog" aria-modal="true" aria-labelledby="ra-resume-title" aria-describedby="ra-resume-text" tabindex="-1">
                 <p class="ra-eyebrow">Registro en curso</p>
                 <h2 class="wo-modal-title ra-resume-title" id="ra-resume-title">¿Seguimos donde lo dejaste?</h2>
-                <p class="ra-resume-text" id="ra-resume-text">Guardamos lo que completaste.${where} Podés continuar o empezar de cero (se borra lo que cargaste).</p>
+                <p class="ra-resume-text" id="ra-resume-text">Guardamos lo que completaste.${where} Puedes continuar o empezar de cero (se borra lo que completaste).</p>
                 ${filesNote}
                 <div class="wo-modal-actions ra-resume-actions">
                     <button type="button" class="ra-ghost ra-resume-restart" data-resume="restart">Empezar de cero</button>
@@ -1486,6 +1492,10 @@
         wireSuccessCta();
         prefillExtras(ctx && ctx.loadedArtistRecord);
         renderPortfolio();
+        // ── registro (ronda 2 · P3): marcas "Traído de Instagram" del borrador.
+        if (root.WoRegistroR2 && typeof root.WoRegistroR2.renderInstagramMarks === 'function' && hasRegister()) {
+            try { root.WoRegistroR2.renderInstagramMarks(formState.data, formState.preAuthMode === true); } catch (_) { /* marcas opcionales */ }
+        }
         applyPreviewState();
         applyReviewPreviewState();
         // Catálogo del servidor: si responde, reemplaza al local (mismo formato).

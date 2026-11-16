@@ -24,6 +24,9 @@ let currentClientData = null;
 const RETURN_TO_PARAM = 'returnTo';
 const RETURN_TO_PREFIX = '/store/';
 const RETURN_TO_EXACT = ['/client/chats', '/client/chats/'];
+// cot-detalle: enlace público de una cotización (/cotizacion/<token>). Al
+// volver del login o del registro, esa página vincula la cotización a la cuenta.
+const RETURN_TO_SHARED_QUOTE = /^\/cotizacion\/[A-Za-z0-9_-]{43}$/;
 
 function clientBasePath() {
     const w = typeof window !== 'undefined' ? window : {};
@@ -61,7 +64,8 @@ function normalizeReturnTo(value) {
     if (pathPart === '/store') pathPart = RETURN_TO_PREFIX;
     // Inbox del cliente: el CTA del correo de chat (/client/chats?quote=…)
     // vuelve a la conversación después de iniciar sesión.
-    if (pathPart.indexOf(RETURN_TO_PREFIX) !== 0 && RETURN_TO_EXACT.indexOf(pathPart) === -1) return null;
+    if (pathPart.indexOf(RETURN_TO_PREFIX) !== 0 && RETURN_TO_EXACT.indexOf(pathPart) === -1
+        && !RETURN_TO_SHARED_QUOTE.test(pathPart)) return null;
     return pathPart + rest;
 }
 
@@ -82,7 +86,7 @@ function postAuthDestination(fallback = '/client/dashboard') {
 
 function isOAuthCallbackUrl() {
     const loc = (typeof window !== 'undefined' && window.location) || {};
-    // ?code= de PKCE; ojo: "error_code=" (link vencido) NO es una vuelta de OAuth.
+    // ?code= de PKCE; atención: "error_code=" (link vencido) NO es una vuelta de OAuth.
     let hasCode = false;
     try { hasCode = new URLSearchParams(String(loc.search || '').replace(/^\?/, '')).has('code'); } catch (_) { hasCode = false; }
     return String(loc.hash || '').includes('access_token') || hasCode;
@@ -98,7 +102,7 @@ function onClientLoginPage() {
 }
 
 // Links entre login y registro: conservan ?returnTo= (también los que se
-// insertan después, como el «Ingresá» del mensaje de email ya registrado).
+// insertan después, como el «Ingresa» del mensaje de email ya registrado).
 function withReturnTo(href, returnTo) {
     if (!href || !returnTo) return href;
     const raw = String(href);
@@ -131,7 +135,7 @@ function propagateReturnTo(root) {
     // CTA de la pantalla de éxito del registro: vuelve a la Store.
     root.querySelectorAll('[data-ca-return-link]').forEach((a) => {
         a.setAttribute('href', clientAppPath(returnTo));
-        const label = a.getAttribute('data-ca-return-label');
+        const label = RETURN_TO_SHARED_QUOTE.test(returnTo.split(/[?#]/)[0]) ? 'Ver mi cotización' : a.getAttribute('data-ca-return-label');
         if (!label) return;
         const textNode = Array.prototype.find.call(a.childNodes, (n) => n.nodeType === 3 && n.textContent.trim());
         if (textNode) textNode.textContent = label + ' ';
@@ -204,7 +208,7 @@ function showClientEmailNotConfirmed(email) {
     const EC = window.WeotziEmailConfirm;
     const box = document.getElementById('form-message');
     if (!EC || !box) {
-        showFormMessage('Confirmá tu email antes de ingresar. Revisá tu bandeja de entrada.', 'error');
+        showFormMessage('Confirma tu email antes de ingresar. Revisa tu bandeja de entrada.', 'error');
         return;
     }
     box.className = ''; // sin el marco de .form-message: el aviso trae el suyo
@@ -265,14 +269,14 @@ function showClientLinkError(linkError) {
     const EC = window.WeotziEmailConfirm;
     const box = document.getElementById('form-message');
     if (!EC || !box || typeof EC.renderLinkErrorNotice !== 'function') {
-        showFormMessage('El link venció o ya se usó. Pedí uno nuevo o ingresá con tu contraseña.', 'error');
+        showFormMessage('El link venció o ya se usó. Pide uno nuevo o ingresa con tu contraseña.', 'error');
         return;
     }
     box.className = '';
     EC.renderLinkErrorNotice(box, {
         linkError,
         what: 'link de acceso',
-        hint: 'Escribí tu email arriba y pedí otro link, o ingresá con tu contraseña.',
+        hint: 'Escribe tu email arriba y pide otro link, o ingresa con tu contraseña.',
         actions: [{ label: 'Enviarme otro link', onClick: () => handleClientMagicLink() }]
     });
     box.style.display = 'block';
@@ -373,7 +377,7 @@ async function checkClientAuthState() {
 // ============================================
 
 function loadQuotationData() {
-    // El wizard de /client/register hace su propio precargado visual; acá solo
+    // El wizard de /client/register hace su propio precargado visual; aquí solo
     // se retiene el payload de la cotización (quote_id, salud/alergias) para
     // que handleClientRegistration lo enlace al crear la cuenta.
     const quotationDataStr = localStorage.getItem('weotzi_client_registration_data');
@@ -437,11 +441,11 @@ async function handleClientRegistration(payload) {
     const instagram = String(payload.instagram || currentClientData?.client_instagram || '').trim();
 
     if (!name || !email || !password) {
-        throw new Error('Completá los campos obligatorios.');
+        throw new Error('Completa los campos obligatorios.');
     }
     // ACC-08: sin aceptar Términos y Privacidad no se crea la cuenta.
     if (payload.termsAccepted !== true) {
-        throw new Error('Aceptá los Términos y la Política de Privacidad para crear tu cuenta.');
+        throw new Error('Acepta los Términos y la Política de Privacidad para crear tu cuenta.');
     }
     if (password.length < 8) {
         throw new Error('Password should be at least 8 characters.');
@@ -478,7 +482,7 @@ async function handleClientRegistration(payload) {
                 health_conditions: currentClientData?.client_health_conditions || '',
                 allergies: currentClientData?.client_allergies || '',
                 // handle_new_user sella terms_accepted_at con la hora de la
-                // base y la versión vigente (nunca se copia una fecha de acá).
+                // base y la versión vigente (nunca se copia una fecha de aquí).
                 terms_accepted: true
             },
             // Con "Confirm email" activo, el link vuelve al wizard: retoma el
@@ -571,7 +575,7 @@ async function handleClientRegistration(payload) {
 // cot-cliente (CC-02 / ACC-12): el vínculo lo hace el SERVIDOR con el email
 // verificado de la sesión (POST /api/client/quotations/claim). Desde el
 // navegador la RLS no deja ver ni reclamar cotizaciones sin dueño, y sin sesión
-// (registro con confirmación pendiente) no hay nada que hacer acá: al confirmar
+// (registro con confirmación pendiente) no hay nada que hacer aquí: al confirmar
 // el email, el trigger on_email_confirmed_link_client_quotations las vincula.
 // Los parámetros se conservan por compatibilidad con los llamadores.
 // Los llamadores suelen pedir "por email" y "por id" seguidos: una sola llamada.
@@ -628,7 +632,7 @@ async function handleClientLogin(e) {
     clearFormMessage();
     
     if (!email || !password) {
-        showFormMessage('Ingresá tu email y tu contraseña.', 'error');
+        showFormMessage('Ingresa tu email y tu contraseña.', 'error');
         return;
     }
     
@@ -714,7 +718,7 @@ async function handleClientLogin(e) {
             return;
         }
 
-        let errorMessage = 'No pudimos iniciar sesión. Probá de nuevo.';
+        let errorMessage = 'No pudimos iniciar sesión. Prueba de nuevo.';
         if (error.message.includes('Invalid login credentials')) {
             errorMessage = 'Email o contraseña incorrectos.';
         }
@@ -736,19 +740,19 @@ function clientAuthRedirectUrl() {
 }
 
 // En /client/register el botón de Google exige el checkbox de Términos; en
-// /client/login el aviso "Al continuar… aceptás" acompaña a los botones.
+// /client/login el aviso "Al continuar… aceptas" acompaña a los botones.
 function clientTermsGateForOAuth() {
     const box = document.getElementById('cw-terms');
     if (box && !box.checked) {
         box.focus();
         const msg = document.getElementById('cw-message');
         if (msg) {
-            msg.textContent = 'Aceptá los Términos y la Política de Privacidad para continuar.';
+            msg.textContent = 'Acepta los Términos y la Política de Privacidad para continuar.';
             msg.className = 'cw-message error';
         }
         return false;
     }
-    // Solo cuenta como aceptación si la persona la vio: checkbox tildado o el
+    // Solo cuenta como aceptación si la persona la vio: checkbox marcado o el
     // aviso legal junto a los botones (/client/login).
     if (box || document.querySelector('.ca-legal')) rememberClientTermsForOAuth();
     return true;
@@ -765,7 +769,7 @@ async function handleClientFacebookLogin() {
         if (error) throw error;
     } catch (error) {
         console.error('Facebook login error:', error);
-        showFormMessage('No pudimos conectar con Facebook. Probá de nuevo o ingresá con tu email.', 'error');
+        showFormMessage('No pudimos conectar con Facebook. Prueba de nuevo o ingresa con tu email.', 'error');
     }
 }
 
@@ -775,13 +779,15 @@ async function handleClientMagicLink() {
     const input = document.getElementById('login-email');
     const email = String(input?.value || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-        showFormMessage('Escribí tu email arriba y te mandamos un link de acceso, sin contraseña.', 'info');
+        showFormMessage('Escribe tu email arriba y te mandamos un link de acceso, sin contraseña.', 'info');
         if (typeof focusClientEmailLogin === 'function') focusClientEmailLogin();
         else if (input) input.focus();
         return;
     }
-    const btn = document.getElementById('btn-client-magic-link');
-    if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+    // Ronda 2 (N6): el ícono "Email" y el botón de texto visible comparten flujo.
+    const magicButtons = ['btn-client-magic-link', 'btn-client-magic-link-text']
+        .map((id) => document.getElementById(id)).filter(Boolean);
+    magicButtons.forEach((b) => { b.disabled = true; b.setAttribute('aria-busy', 'true'); });
     let error = null;
     try {
         const res = await _supabase.auth.signInWithOtp({
@@ -792,13 +798,13 @@ async function handleClientMagicLink() {
     } catch (err) {
         error = err || new Error('network');
     } finally {
-        if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+        magicButtons.forEach((b) => { b.disabled = false; b.removeAttribute('aria-busy'); });
     }
     const EC = window.WeotziEmailConfirm;
     const outcome = EC && EC.magicLinkOutcome
         ? EC.magicLinkOutcome(error, email)
-        : (error ? { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Probá de nuevo en un momento.' }
-            : { ok: true, kind: 'success', message: 'Si tenés una cuenta, te enviamos un link de acceso. Revisá tu correo.' });
+        : (error ? { ok: false, kind: 'error', message: 'No pudimos enviar el link de acceso. Prueba de nuevo en un momento.' }
+            : { ok: true, kind: 'success', message: 'Si tienes una cuenta, te enviamos un link de acceso. Revisa tu correo.' });
     if (!outcome.ok) console.warn('Client magic link error:', error);
     showFormMessage(outcome.message, outcome.kind);
 }
@@ -822,7 +828,7 @@ async function handleGoogleLogin() {
         
     } catch (error) {
         console.error('Google login error:', error);
-        showFormMessage('No pudimos conectar con Google. Probá de nuevo.', 'error');
+        showFormMessage('No pudimos conectar con Google. Prueba de nuevo.', 'error');
     }
 }
 
@@ -846,7 +852,7 @@ async function handlePasswordRecovery(e) {
     if (e) e.preventDefault();
 
     // La recuperación vive ahora en /recover (código OTP de Supabase Auth).
-    // Solo redirigimos, con el email prefilleado si ya lo tipearon.
+    // Solo redirigimos, con el email prefilleado si ya lo escribieron.
     const emailInput = document.getElementById('login-email') || document.getElementById('register-email');
     const email = emailInput?.value.trim().toLowerCase();
     const qs = email ? '&email=' + encodeURIComponent(email) : '';
@@ -1058,7 +1064,7 @@ window.ClientAuth = {
         // Recovery verifies ownership before changing the password. It shares the
         // same OTP delivery path as /recover and never sends credentials twice.
         const { error } = await _supabase.auth.resetPasswordForEmail(String(email || '').trim().toLowerCase());
-        if (error) throw new Error('No pudimos procesar la solicitud. Probá de nuevo en un momento.');
+        if (error) throw new Error('No pudimos procesar la solicitud. Prueba de nuevo en un momento.');
         return { success: true, message: 'Si existe una cuenta, recibirás un correo para recuperar el acceso.' };
     }
 };

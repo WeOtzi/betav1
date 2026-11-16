@@ -1,7 +1,7 @@
 /* ============================================================================
    We Ötzi · /explore — Atlas de tatuadores (mapa)
    Rediseño Bauhaus sobre el DS (ds/tokens.css + ds/components.css).
-   Referencia Figma: "Descubrí artistas" (flujo clientes · pantalla 25).
+   Referencia Figma: "Descubre artistas" (flujo clientes · pantalla 25).
    Regla: solo var(--token); radius 0; sombra dura solo en hover.
    Página autosuficiente: ya no carga styles.css ni marketplace.css.
    ========================================================================== */

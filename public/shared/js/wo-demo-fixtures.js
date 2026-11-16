@@ -25,7 +25,7 @@
     var ASSETS = '/shared/assets/demo/';
     var DAY = 24 * 60 * 60 * 1000;
 
-    // Tablas que el demo sirve desde memoria. Todo lo que no esté acá se lee
+    // Tablas que el demo sirve desde memoria. Todo lo que no esté aquí se lee
     // del backend real (y sus escrituras se ignoran mientras dura el demo).
     var TABLES = [
         'quotations_db', 'quotation_sessions', 'quotations_attachments', 'chat_messages', 'quotation_notes',
@@ -294,12 +294,12 @@
 
         var CHATS = [
             ['DEMO-P01', 'client', 'Hola, te paso más referencias del retrato. ¿Te sirven?', false, T.minutesAgo(35)],
-            ['DEMO-P01', 'client', 'Si podés, me gustaría que las hojas queden bien finas.', false, T.minutesAgo(33)],
+            ['DEMO-P01', 'client', 'Si puedes, me gustaría que las hojas queden bien finas.', false, T.minutesAgo(33)],
             ['DEMO-D01', 'client', 'Confirmo el turno de hoy, gracias.', false, T.minutesAgo(12)],
             ['DEMO-D02', 'client', '¿Podemos mover la sesión del viernes una hora más tarde?', false, T.hoursAgo(3)],
             ['DEMO-D02', 'artist', 'Sí, sin problema. Te confirmo el horario nuevo mañana.', true, T.hoursAgo(2)],
-            ['DEMO-D04', 'artist', 'Te espero a las 16. Traé la crema que te indiqué.', true, T.daysAgo(1)],
-            ['DEMO-S01', 'artist', 'Te mandé la propuesta con dos sesiones. Cualquier duda me escribís.', true, T.daysAgo(3)],
+            ['DEMO-D04', 'artist', 'Te espero a las 16. Trae la crema que te indiqué.', true, T.daysAgo(1)],
+            ['DEMO-S01', 'artist', 'Te mandé la propuesta con dos sesiones. Cualquier duda me escribes.', true, T.daysAgo(3)],
             ['DEMO-S01', 'client', 'Gracias, lo veo el fin de semana y te confirmo.', true, T.daysAgo(2)]
         ];
         tables.chat_messages = CHATS.map(function (m, i) {
@@ -357,7 +357,7 @@
             { id: uid('e2', 2), request_id: tables.job_board_requests[1].id, artist_id: artistId, status: 'pending', message: 'Trabajo retratos de mascotas en realismo y puedo resolverlo en una sesión larga.', estimated_price: '320 USD', estimated_sessions: 1, availability_note: 'Fines de semana', portfolio_links: ['/artist/profile?artist=' + artistUsername], created_at: T.daysAgo(2), updated_at: T.daysAgo(2), decided_at: null, viewed_at: null }
         ];
         tables.job_board_counter_offers = [
-            { id: uid('e4', 1), application_id: tables.job_board_applications[0].id, author_role: 'client', price: 380, currency: 'USD', proposed_date: T.dateOnly(21), note: '¿Podés hacerlo por 380 si te confirmo esta semana?', status: 'pendiente', created_at: T.daysAgo(1), decided_at: null }
+            { id: uid('e4', 1), application_id: tables.job_board_applications[0].id, author_role: 'client', price: 380, currency: 'USD', proposed_date: T.dateOnly(21), note: '¿Puedes hacerlo por 380 si te confirmo esta semana?', status: 'pendiente', created_at: T.daysAgo(1), decided_at: null }
         ];
         tables.artist_saved_job_requests = [{ artist_user_id: artistId, request_id: tables.job_board_requests[2].id, created_at: T.daysAgo(1) }];
 
@@ -415,7 +415,7 @@
             { id: uid('b2', 2), spot_id: tables.studio_spots[1].id, artist_user_id: artistId, message: 'Quiero sumarme a la residencia y puedo trabajar en inglés sin problema.', portfolio_url: '/artist/profile?artist=' + artistUsername, requested_dates: daterange(tables.studio_spots[1].start_date, tables.studio_spots[1].end_date), status: 'shortlisted', created_at: T.daysAgo(6), decided_at: T.daysAgo(2) }
         ];
         tables.studio_spot_counter_offers = [
-            { id: uid('b4', 1), application_id: tables.studio_spot_applications[1].id, author_role: 'studio', split_pct: 65, proposed_start_date: T.dateOnly(50), proposed_end_date: T.dateOnly(170), note: 'Podemos subir el reparto al 65% si te sumás por cuatro meses.', status: 'pending', created_at: T.daysAgo(1), decided_at: null }
+            { id: uid('b4', 1), application_id: tables.studio_spot_applications[1].id, author_role: 'studio', split_pct: 65, proposed_start_date: T.dateOnly(50), proposed_end_date: T.dateOnly(170), note: 'Podemos subir el reparto al 65% si te sumas por cuatro meses.', status: 'pending', created_at: T.daysAgo(1), decided_at: null }
         ];
 
         tables.studio_artist_memberships = [
@@ -424,7 +424,7 @@
             { id: uid('d1', 3), studio_id: tables.studios[1].id, artist_user_id: artistId, role: 'guest', status: 'rejected', location_id: tables.studios[1].primary_location_id, invited_at: T.daysAgo(22), started_at: null, ended_at: T.daysAgo(15), revenue_split_pct: 55, notes: 'Guest spot de un mes en Manhattan.', created_at: T.daysAgo(22), updated_at: T.daysAgo(15) }
         ];
         tables.studio_membership_invitation_details = [
-            { membership_id: uid('d1', 1), is_featured: true, styles: ['Fine line', 'Blackwork'], response_due_at: T.inDays(7), proposed_start_date: T.dateOnly(30), duration_label: '4 semanas', benefits: ['Reparto 70/30 a tu favor', 'Difusión en redes del estudio', 'Clientes del estudio con agenda abierta'], studio_provides: ['Estación completa', 'Insumos básicos', 'Recepción y cobros'], artist_expectations: ['Portfolio actualizado', 'Agenda propia de al menos el 60%'], requirements: ['Certificado de bioseguridad', 'Monotributo o factura'], acceptance_steps: ['Aceptá la invitación', 'Coordiná fechas con Marina', 'Firmá el acuerdo de guest'], contact_name: 'Marina Paz', contact_email: 'marina@ejemplo.weotzi.demo', contact_title: 'Manager', message: 'Vimos tu trabajo en fine line y creemos que encaja perfecto con nuestra clientela de primavera.', created_at: T.minutesAgo(20), updated_at: T.minutesAgo(20) }
+            { membership_id: uid('d1', 1), is_featured: true, styles: ['Fine line', 'Blackwork'], response_due_at: T.inDays(7), proposed_start_date: T.dateOnly(30), duration_label: '4 semanas', benefits: ['Reparto 70/30 a tu favor', 'Difusión en redes del estudio', 'Clientes del estudio con agenda abierta'], studio_provides: ['Estación completa', 'Insumos básicos', 'Recepción y cobros'], artist_expectations: ['Portfolio actualizado', 'Agenda propia de al menos el 60%'], requirements: ['Certificado de bioseguridad', 'Monotributo o factura'], acceptance_steps: ['Acepta la invitación', 'Coordina fechas con Marina', 'Firma el acuerdo de guest'], contact_name: 'Marina Paz', contact_email: 'marina@ejemplo.weotzi.demo', contact_title: 'Manager', message: 'Vimos tu trabajo en fine line y creemos que encaja perfecto con nuestra clientela de primavera.', created_at: T.minutesAgo(20), updated_at: T.minutesAgo(20) }
         ];
         tables.studio_invitation_change_requests = [];
 
@@ -432,7 +432,7 @@
         var TRIPS = [
             ['Barcelona', 'España', 'Europa', 19, 33, 'guest_spot', 'confirmado', 'Zorro Rojo Tattoo', null, 'Llevar máquinas de línea y cartuchos 3RL.', 'barcelona-zorro-rojo', true, 41.3874, 2.1686, 14],
             ['Madrid', 'España', 'Europa', 35, 42, 'guest_spot', 'pendiente', 'La Nave Tattoo', null, 'Confirmar fechas con el estudio.', null, false, 40.4168, -3.7038, 6],
-            ['Ciudad de México', 'México', 'Norteamérica', 70, 77, 'convencion', 'planificado', null, 'Expo Tattoo México', 'Sacar pasajes con anticipación.', null, false, 19.4326, -99.1332, 21],
+            ['Ciudad de México', 'México', 'Norteamérica', 70, 77, 'convencion', 'planificado', null, 'Expo Tattoo México', 'Comprar pasajes con anticipación.', null, false, 19.4326, -99.1332, 21],
             ['Montevideo', 'Uruguay', 'Sudamérica', -50, -43, 'guest_spot', 'finalizado', 'Ink Society', null, 'Buena respuesta, repetir el año que viene.', null, false, -34.9011, -56.1645, 9],
             ['Lima', 'Perú', 'Sudamérica', -100, -93, 'guest_spot', 'finalizado', 'Lima Ink Studio', null, null, null, false, -12.0464, -77.0428, 5]
         ];
@@ -469,7 +469,7 @@
         tables.artist_calendar_events = [
             { id: uid('a1', 1), artist_user_id: artistId, event_type: 'blocked_day', title: 'Día bloqueado · descanso', client_name: null, starts_at: mondayIso, ends_at: mondayEnd, all_day: true, location: null, notes: 'Sin turnos.', status: 'scheduled', recurrence_rule: 'none', recurrence_until: null, created_at: T.daysAgo(5), updated_at: T.daysAgo(5) },
             { id: uid('a1', 2), artist_user_id: artistId, event_type: 'personal', title: 'Turno con el dentista', client_name: null, starts_at: T.at(3, '09:00'), ends_at: T.at(3, '10:00'), all_day: false, location: 'Consultorio', notes: null, status: 'scheduled', recurrence_rule: 'none', recurrence_until: null, created_at: T.daysAgo(4), updated_at: T.daysAgo(4) },
-            { id: uid('a1', 3), artist_user_id: artistId, event_type: 'reservation', title: 'Tomás Vega — reserva', client_name: 'Tomás Vega', starts_at: T.at(5, '15:00'), ends_at: T.at(5, '17:00'), all_day: false, location: 'Estudio propio', notes: 'Pieza grande en la pierna, esperando seña.', status: 'pending', recurrence_rule: 'none', recurrence_until: null, created_at: T.daysAgo(2), updated_at: T.daysAgo(2) }
+            { id: uid('a1', 3), artist_user_id: artistId, event_type: 'reservation', title: 'Tomás Vega — reserva', client_name: 'Tomás Vega', starts_at: T.at(5, '15:00'), ends_at: T.at(5, '17:00'), all_day: false, location: 'Estudio propio', notes: 'Pieza grande en la pierna, esperando anticipo.', status: 'pending', recurrence_rule: 'none', recurrence_until: null, created_at: T.daysAgo(2), updated_at: T.daysAgo(2) }
         ];
 
         /* ------------------------------- visitas ------------------------------- */
@@ -504,7 +504,7 @@
         /* -------------------------------- reseñas -------------------------------- */
         tables.verified_reviews = [
             ['DEMO-C01', 'martin', 5, 'Una experiencia excelente y un trabajo impecable. Cuidó cada detalle del retrato.', ['trato', 'resultado', 'puntualidad'], 2],
-            ['DEMO-C02', 'paula', 5, 'El dotwork quedó exactamente como lo imaginé. Muy prolija y clara con los cuidados.', ['resultado', 'higiene'], 11],
+            ['DEMO-C02', 'paula', 5, 'El dotwork quedó exactamente como lo imaginé. Muy ordenada y clara con los cuidados.', ['resultado', 'higiene'], 11],
             ['DEMO-C04', 'rocio', 4, 'Líneas finísimas y muy buen ojo para la composición. Repetiría sin dudar.', ['resultado', 'trato'], 20]
         ].map(function (r, i) {
             var q = quotesById[r[0]];
@@ -523,12 +523,12 @@
         // clients · quotations · support · invitations · spots · job_board · studios · trips
         var THREADS = [
             // categoría, contraparte, iniciales, asunto, contexto, último mensaje, hace (min), sin leer, prioridad, favorito, context_type
-            ['spots', 'Costa Ink Collective', 'CI', 'Guest spot · Valparaíso', { spot_title: 'Guest spot · Valparaíso · 2 semanas', city: 'Valparaíso', dates: T.dateOnly(12) + ' → ' + T.dateOnly(26) }, '¿Podés confirmar si llegás el lunes o el martes? Te reservamos la estación de la ventana.', 25, 1, true, false, 'studio_spot'],
+            ['spots', 'Costa Ink Collective', 'CI', 'Guest spot · Valparaíso', { spot_title: 'Guest spot · Valparaíso · 2 semanas', city: 'Valparaíso', dates: T.dateOnly(12) + ' → ' + T.dateOnly(26) }, '¿Puedes confirmar si llegas el lunes o el martes? Te reservamos la estación de la ventana.', 25, 1, true, false, 'studio_spot'],
             ['support', 'Soporte We Ötzi', 'WO', 'Verificación de perfil', { ticket: 'SOP-1042' }, 'Recibimos tus documentos. En 48 h te confirmamos la verificación.', 190, 1, false, false, 'support'],
-            ['invitations', 'La Aguja Negra', 'LA', 'Invitación · guest artist de primavera', { studio: 'La Aguja Negra', role: 'guest', split: '70/30' }, 'Te mandamos la invitación formal con las condiciones. Cualquier duda, acá estamos.', 20, 0, false, false, 'studio_membership'],
-            ['studios', 'Zorro Rojo Tattoo', 'ZR', 'Guest spot Barcelona · logística', { studio: 'Zorro Rojo Tattoo', city: 'Barcelona' }, 'Perfecto, te esperamos el 22. Traé tu portfolio impreso para la vidriera.', 60 * 26, 0, false, false, 'studio'],
+            ['invitations', 'La Aguja Negra', 'LA', 'Invitación · guest artist de primavera', { studio: 'La Aguja Negra', role: 'guest', split: '70/30' }, 'Te mandamos la invitación formal con las condiciones. Cualquier duda, aquí estamos.', 20, 0, false, false, 'studio_membership'],
+            ['studios', 'Zorro Rojo Tattoo', 'ZR', 'Guest spot Barcelona · logística', { studio: 'Zorro Rojo Tattoo', city: 'Barcelona' }, 'Perfecto, te esperamos el 22. Trae tu portfolio impreso para la vitrina.', 60 * 26, 0, false, false, 'studio'],
             ['spots', 'Bang Bang NYC', 'BB', 'Residency · Nueva York', { spot_title: 'Residency · Nueva York · 3 a 6 meses', city: 'Nueva York' }, 'Quedaste en la lista corta. Te contamos novedades la semana que viene.', 60 * 50, 0, false, true, 'studio_spot'],
-            ['trips', 'Expo Tattoo México', 'EM', 'Stand y acreditación', { city: 'Ciudad de México', event: 'Expo Tattoo México' }, 'Tu acreditación de artista quedó confirmada. Te mandamos el mapa del predio.', 60 * 80, 0, false, false, 'artist_trip']
+            ['trips', 'Expo Tattoo México', 'EM', 'Stand y acreditación', { city: 'Ciudad de México', event: 'Expo Tattoo México' }, 'Tu acreditación de artista quedó confirmada. Te mandamos el mapa del recinto.', 60 * 80, 0, false, false, 'artist_trip']
         ];
         tables.inbox_threads = THREADS.map(function (t, i) {
             return {
@@ -541,14 +541,14 @@
         var MESSAGES = [
             [0, 'counterparty', 'Hola. Vimos tu postulación al guest spot y nos encantó tu blackwork.', 60 * 24 * 2],
             [0, 'artist', 'Gracias. Tengo disponibilidad completa para esas fechas.', 60 * 24 * 2 - 30],
-            [0, 'counterparty', '¿Podés confirmar si llegás el lunes o el martes? Te reservamos la estación de la ventana.', 25],
+            [0, 'counterparty', '¿Puedes confirmar si llegas el lunes o el martes? Te reservamos la estación de la ventana.', 25],
             [1, 'artist', 'Hola, subí los documentos de verificación. ¿Cuánto tarda la revisión?', 60 * 5],
             [1, 'counterparty', 'Recibimos tus documentos. En 48 h te confirmamos la verificación.', 190],
-            [2, 'counterparty', 'Te mandamos la invitación formal con las condiciones. Cualquier duda, acá estamos.', 20],
+            [2, 'counterparty', 'Te mandamos la invitación formal con las condiciones. Cualquier duda, aquí estamos.', 20],
             [3, 'artist', 'Confirmo que llego el 22 y me quedo dos semanas.', 60 * 28],
-            [3, 'counterparty', 'Perfecto, te esperamos el 22. Traé tu portfolio impreso para la vidriera.', 60 * 26],
+            [3, 'counterparty', 'Perfecto, te esperamos el 22. Trae tu portfolio impreso para la vitrina.', 60 * 26],
             [4, 'counterparty', 'Quedaste en la lista corta. Te contamos novedades la semana que viene.', 60 * 50],
-            [5, 'counterparty', 'Tu acreditación de artista quedó confirmada. Te mandamos el mapa del predio.', 60 * 80]
+            [5, 'counterparty', 'Tu acreditación de artista quedó confirmada. Te mandamos el mapa del recinto.', 60 * 80]
         ];
         tables.inbox_messages = MESSAGES.map(function (m, i) {
             return {
@@ -590,7 +590,7 @@
             { id: uid('a8', 2), artist_user_id: artistId, provider: 'bank_transfer', method_type: 'bank_account_token', provider_reference: 'demo-bank-1', display_name: 'Cuenta bancaria', brand: null, last_four: '4821', account_hint: 'CBU ···· 4821', metadata_json: {}, is_default: false, active: true, created_at: T.daysAgo(45), updated_at: T.daysAgo(45) }
         ];
         tables.artist_financial_entries = [
-            ['income', 'Seña · Mateo Ruiz', 180, 1 / 24], ['income', 'Retrato realista · Martín Aguirre', 1240, 2], ['fee', 'Comisión de plataforma', -62, 2],
+            ['income', 'Anticipo · Mateo Ruiz', 180, 1 / 24], ['income', 'Retrato realista · Martín Aguirre', 1240, 2], ['fee', 'Comisión de plataforma', -62, 2],
             ['payout', 'Transferencia a cuenta ···· 4821', -1178, 1.5], ['income', 'Ornamental · Paula Giménez', 980, 11], ['income', 'Fine line botánico · Rocío Cabrera', 1000, 21]
         ].map(function (e, i) { return { id: uid('a9', i + 1), artist_user_id: artistId, entry_type: e[0], title: e[1], amount: e[2], currency: 'USD', status: 'completed', occurred_at: T.daysAgo(e[3]), external_reference: null, metadata_json: {}, created_at: T.daysAgo(e[3]) }; });
         tables.artist_account_sessions = [
@@ -615,7 +615,7 @@
                     var last = mine.reduce(function (a, b) { return a.created_at > b.created_at ? a : b; });
                     return {
                         quote_id: q.quote_id, quotation_id_int: q.id, artist_id: q.artist_id, artist_name: q.artist_name, artist_username: q.artist_username,
-                        client_user_id: q.client_user_id, client_full_name: q.client_full_name, client_email: q.client_email, quote_status: q.quote_status,
+                        client_user_id: q.client_user_id, client_full_name: q.client_full_name, quote_status: q.quote_status,
                         tattoo_body_part: q.tattoo_body_part, tattoo_style: q.tattoo_style, tattoo_size: q.tattoo_size,
                         final_budget_amount: q.final_budget_amount, final_budget_currency: q.final_budget_currency, source: q.source,
                         last_message: last.message, last_message_sender: last.sender_type, last_message_at: last.created_at,

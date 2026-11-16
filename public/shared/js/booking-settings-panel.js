@@ -66,20 +66,20 @@
             '<div class="bk-settings-head">' +
                 '<p class="bk-eyebrow">Turnos</p>' +
                 '<h2 class="bk-settings-title" id="bk-settings-title">Reservas online</h2>' +
-                '<p class="bk-settings-sub">Calculamos tus turnos libres con el horario semanal de arriba y tu calendario. Tus clientes eligen uno desde tu enlace, te llega la solicitud con el turno apartado y, cuando la aceptás, queda agendado y bloqueado.</p>' +
+                '<p class="bk-settings-sub">Calculamos tus turnos libres con el horario semanal de arriba y tu calendario. Tus clientes eligen uno desde tu enlace, te llega la solicitud con el turno apartado y, cuando la aceptas, queda agendado y bloqueado.</p>' +
             '</div>' +
-            (data.has_schedule ? '' : '<p class="wo-alert wo-alert--warning" role="note">Guardá tu horario semanal (Editar disponibilidad) antes de activar las reservas online.</p>') +
+            (data.has_schedule ? '' : '<p class="wo-alert wo-alert--warning" role="note">Guarda tu horario semanal (Editar disponibilidad) antes de activar las reservas online.</p>') +
             '<form class="bk-grid" id="bk-settings-form" novalidate>' +
                 '<label class="bk-switch bk-field--wide"><input type="checkbox" name="enabled" id="bk-enabled"' + (s.enabled ? ' checked' : '') + '><span>Aceptar reservas online de mis turnos disponibles</span></label>' +
-                field('bk-slot', 'Duración del turno', select('bk-slot', DURATIONS, s.slot_minutes, minutesLabel, 'Lo que dura cada turno que ofrecés.'), 'Lo que dura cada turno que ofrecés.') +
+                field('bk-slot', 'Duración del turno', select('bk-slot', DURATIONS, s.slot_minutes, minutesLabel, 'Lo que dura cada turno que ofreces.'), 'Lo que dura cada turno que ofreces.') +
                 field('bk-step', 'Intervalo entre inicios', select('bk-step', STEPS, s.slot_step_minutes, minutesLabel, 'Cada cuánto puede empezar un turno.'), 'Cada cuánto puede empezar un turno.') +
                 field('bk-buffer', 'Margen entre turnos', select('bk-buffer', BUFFERS, s.buffer_minutes, function (v) { return v ? minutesLabel(v) : 'Sin margen'; }, 'Tiempo libre antes y después de cada evento.'), 'Tiempo libre antes y después de cada evento.') +
                 field('bk-notice', 'Anticipación mínima', select('bk-notice', NOTICES, s.min_notice_hours, hoursLabel, 'No se ofrecen turnos que empiecen antes.'), 'No se ofrecen turnos que empiecen antes.') +
                 field('bk-horizon', 'Horizonte', select('bk-horizon', HORIZONS, s.horizon_days, daysLabel, 'Hasta cuándo se pueden reservar turnos.'), 'Hasta cuándo se pueden reservar turnos.') +
-                field('bk-hold', 'Turno apartado durante', select('bk-hold', HOLDS, s.hold_hours, hoursLabel, 'Mientras respondés, nadie más puede pedir ese turno.'), 'Mientras respondés, nadie más puede pedir ese turno.') +
+                field('bk-hold', 'Turno apartado durante', select('bk-hold', HOLDS, s.hold_hours, hoursLabel, 'Mientras respondes, nadie más puede pedir ese turno.'), 'Mientras respondes, nadie más puede pedir ese turno.') +
                 '<div class="bk-field bk-field--wide"><label for="bk-note">Nota para tus clientes (opcional)</label>' +
-                    '<textarea class="wo-textarea" id="bk-note" name="public_note" maxlength="280" rows="2" placeholder="Las sesiones son en Estudio Norte. Traé tu referencia impresa.">' + esc(s.public_note || '') + '</textarea></div>' +
-                '<p class="bk-tz-note bk-field--wide">Zona horaria de tus turnos: <strong>' + esc(data.timezone) + '</strong>. La cambiás en Configuración.</p>' +
+                    '<textarea class="wo-textarea" id="bk-note" name="public_note" maxlength="280" rows="2" placeholder="Las sesiones son en Estudio Norte. Trae tu referencia impresa.">' + esc(s.public_note || '') + '</textarea></div>' +
+                '<p class="bk-tz-note bk-field--wide">Zona horaria de tus turnos: <strong>' + esc(data.timezone) + '</strong>. La cambias en Configuración.</p>' +
                 '<div class="bk-btn-row bk-field--wide"><button type="submit" class="wo-btn wo-btn--accent wo-btn--hard" id="bk-save">Guardar reservas online</button></div>' +
                 '<p class="bk-status bk-field--wide" id="bk-status" role="status" aria-live="polite"></p>' +
             '</form>' +
@@ -87,7 +87,7 @@
                 '<div class="bk-link-box" aria-labelledby="bk-link-label"><code id="bk-link">' + esc(url) + '</code>' +
                 '<button type="button" class="wo-btn wo-btn--secondary wo-btn--s" id="bk-copy">Copiar enlace</button>' +
                 '<a class="wo-btn wo-btn--ghost wo-btn--s" href="' + esc(url) + '" target="_blank" rel="noopener">Ver página</a></div>' +
-                (s.enabled ? '' : '<p class="wo-help">El enlace muestra tus turnos cuando activás las reservas online.</p>') + '</div>' : '');
+                (s.enabled ? '' : '<p class="wo-help">El enlace muestra tus turnos cuando activas las reservas online.</p>') + '</div>' : '');
 
         var form = host.querySelector('#bk-settings-form');
         form.addEventListener('submit', function (ev) { ev.preventDefault(); save(host, form); });

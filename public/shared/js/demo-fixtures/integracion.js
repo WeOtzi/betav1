@@ -51,8 +51,8 @@
             var reference = text(args.p_reference) || null;
             var note = text(args.p_note) || null;
             if (outcome !== 'completed' && outcome !== 'failed') fail('Resultado inválido.');
-            if (outcome === 'completed' && (!reference || reference.length < 3)) fail('Escribí la referencia de la transferencia (mínimo 3 caracteres).');
-            if (outcome === 'failed' && (!note || note.length < 5)) fail('Escribí el motivo del fallo (mínimo 5 caracteres). Lo ve el artista.');
+            if (outcome === 'completed' && (!reference || reference.length < 3)) fail('Escribe la referencia de la transferencia (mínimo 3 caracteres).');
+            if (outcome === 'failed' && (!note || note.length < 5)) fail('Escribe el motivo del fallo (mínimo 5 caracteres). Lo ve el artista.');
             if (reference && reference.length > 120) fail('La referencia puede tener hasta 120 caracteres.');
             if (note && note.length > 500) fail('La nota puede tener hasta 500 caracteres.');
             var row = store.rows('artist_wallet_movements').find(function (m) { return String(m.id) === String(args.p_movement_id) && m.kind === 'withdrawal'; });

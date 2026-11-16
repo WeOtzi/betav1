@@ -552,7 +552,7 @@
                 canvas.hidden = true;
                 fallback.hidden = false;
                 status.hidden = false;
-                status.textContent = 'El globo interactivo no está disponible. Podés consultar las paradas de la ruta.';
+                status.textContent = 'El globo interactivo no está disponible. Puedes consultar las paradas de la ruta.';
                 this.dataset.renderer = 'svg';
                 this._setPlaybackAvailability(false, false);
                 console.warn('[travel-globe] COBE no pudo iniciar:', error);

@@ -75,8 +75,8 @@ test('formatos de etiqueta, placeholder y opciones iniciales (Local)', () => {
     assert.match(C.countryCurrencyOptionsHtml({ label: 'code' }), /<option value="EUR">EUR<\/option>/);
     assert.match(C.countryCurrencyOptionsHtml({ label: 'code-name' }), /<option value="EUR">EUR · Euro<\/option>/);
     assert.match(C.countryCurrencyOptionsHtml({ label: (c) => `${c.code} - ${c.name}` }), /<option value="JPY">JPY - Yen japonés<\/option>/);
-    const withPlaceholder = C.countryCurrencyOptionsHtml({ value: '', placeholder: 'Elegí una moneda' });
-    assert.match(withPlaceholder, /^<option value="" selected>Elegí una moneda<\/option><optgroup/);
+    const withPlaceholder = C.countryCurrencyOptionsHtml({ value: '', placeholder: 'Elige una moneda' });
+    assert.match(withPlaceholder, /^<option value="" selected>Elige una moneda<\/option><optgroup/);
     const local = C.countryCurrencyOptionsHtml({ value: 'local', leading: [{ value: 'local', label: 'Local' }], label: 'code' });
     assert.match(local, /^<option value="local" selected>Local<\/option><optgroup label="Américas">/);
     assert.doesNotMatch(local, /Otras/);

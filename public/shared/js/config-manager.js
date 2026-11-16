@@ -106,13 +106,23 @@ const ConfigManager = (function () {
             serviceAccountJson: ''
         },
 
+        // IA de imágenes. El proveedor es OpenAI (GPT Image 2.6); la clave vive
+        // solo en el servidor. El nombre "gemini" de este bloque es histórico:
+        // enabled lo publica el servidor (= hay IA de imágenes configurada) y
+        // model solo lo usa el backoffice (gpt-image-2.6-flare | -sunburst).
         gemini: {
             apiKey: '',
-            model: 'gemini-3-pro-image-preview', // or gemini-2.5-flash-image
+            model: 'gpt-image-2.6-flare',
             enabled: false,
             maxTokens: 1024,
             defaultStyle: 'Minimalist line art',
             defaultBackgroundColor: 'White'
+        },
+
+        // Lo publica el servidor en /shared/js/app-config.json (sin claves).
+        aiImages: {
+            enabled: false,
+            provider: 'openai'
         },
 
         emailjs: {
@@ -129,7 +139,7 @@ const ConfigManager = (function () {
 
         aiProfilePicture: {
             enabled: true,
-            model: 'gemini-3-pro-image-preview',
+            model: '', // lo define el servidor (AI_IMAGE_MODEL)
             temperature: 0.7,
             maxTokens: 512,
             resolution: '1K',
@@ -248,6 +258,8 @@ const ConfigManager = (function () {
             }
 
             currentConfig = preserveServerSupabaseConfig(currentConfig, fileConfig);
+            currentConfig = preserveServerAiImagesConfig(currentConfig, fileConfig);
+            forgetStoredAiImageKey(storedConfig);
 
             // Resolve the ready promise
             if (configManagerReadyResolve) {
@@ -353,6 +365,36 @@ const ConfigManager = (function () {
                 ...(serverSupabase.storageBucket ? { storageBucket: serverSupabase.storageBucket } : {})
             }
         };
+    }
+
+    // La IA de imágenes se enciende y se apaga en el servidor (la clave vive en
+    // su .env): lo que publica app-config.json manda sobre lo guardado en este
+    // navegador. Sin esto, un "enabled" viejo en localStorage (el del navegador
+    // que usó el backoffice) escondía "Generar referencia con IA" con la clave
+    // ya cargada, o lo mostraba sin clave. Si el archivo no se pudo leer, queda
+    // apagada: lo guardado no dice nada del servidor.
+    function preserveServerAiImagesConfig(config, fileConfig) {
+        const serverAi = fileConfig && fileConfig.aiImages && typeof fileConfig.aiImages === 'object'
+            ? fileConfig.aiImages
+            : null;
+        const enabled = serverAi
+            ? serverAi.enabled === true
+            : Boolean(fileConfig && fileConfig.gemini && fileConfig.gemini.enabled === true);
+        const gemini = { ...(config.gemini || {}), enabled, apiKey: '' };
+        const provider = serverAi && typeof serverAi.provider === 'string' && serverAi.provider ? serverAi.provider : 'openai';
+        return { ...config, gemini, aiImages: { enabled, provider } };
+    }
+
+    // Una clave de imágenes guardada por una versión anterior del backoffice no
+    // tiene por qué seguir en este navegador: se borra de lo guardado.
+    function forgetStoredAiImageKey(storedConfig) {
+        if (!storedConfig || !storedConfig.gemini || !storedConfig.gemini.apiKey) return;
+        try {
+            const cleaned = { ...storedConfig, gemini: { ...storedConfig.gemini, apiKey: '' } };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+        } catch (error) {
+            console.warn('Could not clean stored config:', error);
+        }
     }
 
     // ========== GETTERS ==========
@@ -587,6 +629,21 @@ const ConfigManager = (function () {
 
     // ========== BODY PARTS - SUPABASE OPERATIONS ==========
 
+    // body_parts.fun_fact (dato curioso) llega con la migración 20261116100000.
+    // Mientras la base no la tenga, escribir esa columna haría fallar el guardado
+    // entero de la zona: se detecta al cargar y solo entonces se escribe.
+    let bodyPartsFunFactColumn = false;
+
+    function bodyPartsSupportFunFact() {
+        return bodyPartsFunFactColumn;
+    }
+
+    /** Columna fun_fact para insert/update: vacía si la base no la tiene o el formulario no la trae. */
+    function funFactColumn(partData) {
+        if (!bodyPartsFunFactColumn || !partData || partData.fun_fact === undefined) return {};
+        return { fun_fact: String(partData.fun_fact || '').trim() || null };
+    }
+
     /**
      * Load body parts from Supabase database
      * Returns hierarchical structure (tree)
@@ -605,6 +662,9 @@ const ConfigManager = (function () {
                 .order('sort_order');
 
             if (error) throw error;
+
+            // select('*') trae la clave fun_fact (aunque sea null) solo si la columna existe.
+            bodyPartsFunFactColumn = (data || []).some(row => Object.prototype.hasOwnProperty.call(row, 'fun_fact'));
 
             // Convert flat data to hierarchical tree
             const tree = buildBodyPartsTree(data);
@@ -636,6 +696,7 @@ const ConfigManager = (function () {
                 description: item.description || '',
                 tattoo_info: item.tattoo_info || '',
                 experience_info: item.experience_info || '',
+                fun_fact: item.fun_fact || '',
                 sort_order: item.sort_order,
                 parent_id: item.parent_id,
                 // Expanded media settings
@@ -686,6 +747,7 @@ const ConfigManager = (function () {
                     description: partData.description || null,
                     tattoo_info: partData.tattoo_info || null,
                     experience_info: partData.experience_info || null,
+                    ...funFactColumn(partData),
                     sort_order: partData.sort_order || 0,
                     // Expanded media settings
                     expanded_media_type: partData.expanded_media_type || 'none',
@@ -727,6 +789,7 @@ const ConfigManager = (function () {
                     description: partData.description || null,
                     tattoo_info: partData.tattoo_info || null,
                     experience_info: partData.experience_info || null,
+                    ...funFactColumn(partData),
                     // Expanded media settings
                     expanded_media_type: partData.expanded_media_type || 'none',
                     expanded_media_url: partData.expanded_media_url || null,
@@ -1300,7 +1363,12 @@ const ConfigManager = (function () {
             googleMaps: { configured: isGoogleMapsConfigured() },
             googleDrive: { configured: isGoogleDriveConfigured() },
             googleCalendar: { configured: isGoogleCalendarConfigured() },
-            gemini: { configured: !!(getValue('gemini.apiKey')) }
+            // IA de imágenes (OpenAI; "gemini" es la clave histórica del servicio).
+            // La clave nunca llega al navegador: el servidor publica solo la bandera.
+            gemini: {
+                configured: getValue('aiImages.enabled') === true || getValue('gemini.enabled') === true,
+                provider: getValue('aiImages.provider') || 'openai'
+            }
         };
 
         // Try real health check endpoint first
@@ -1325,6 +1393,9 @@ const ConfigManager = (function () {
                             health[healthKey].status = svc.status;
                             health[healthKey].latency_ms = svc.latency_ms;
                             health[healthKey].message = svc.error || svc.metadata?.note || '';
+                            // IA de imágenes: el servidor informa el proveedor activo y su modelo.
+                            if (svc.metadata?.provider) health[healthKey].provider = svc.metadata.provider;
+                            if (svc.metadata?.model) health[healthKey].model = svc.metadata.model;
                         }
                     }
                     health._source = 'real';
@@ -1689,6 +1760,7 @@ const ConfigManager = (function () {
         createBodyPartInDB,
         updateBodyPartInDB,
         deleteBodyPartFromDB,
+        bodyPartsSupportFunFact,
 
         // Questions - Supabase
         loadQuestionsFromDB,
@@ -1746,6 +1818,121 @@ const modesScript = document.createElement('script');
 modesScript.src = (window.WEOTZI_BASE_PATH || '') + '/shared/js/account-modes.js';
 modesScript.defer = true;
 document.head.appendChild(modesScript);
+
+// ---------------------------------------------------------------------------
+// Español neutro en tiempo de ejecución: neutral-es.js pasa a tuteo los mensajes
+// que las funciones de la base ya aplicadas todavía levantan en voseo. Carga
+// única aquí; lo usan data/postgrest-client.js (run) y los avisos (wo-notify.js
+// y los helpers de toast/estado). Si no llega a cargar, el texto se muestra tal
+// como vino.
+// ---------------------------------------------------------------------------
+(function () {
+  'use strict';
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    if (window.WoNeutralEs || window.__woNeutralEsLoader) return;
+    var me = document.currentScript;
+    var match = me && me.src ? /^(.*\/shared\/)js\/[^\/?#]+(?:[?#].*)?$/.exec(me.src) : null;
+    if (!match) return;
+    window.__woNeutralEsLoader = true;
+    var s = document.createElement('script');
+    s.src = match[1] + 'js/neutral-es.js';
+    s.async = false;
+    s.setAttribute('data-wo-neutral-es', '');
+    (document.head || document.documentElement).appendChild(s);
+  } catch (err) { /* mejora progresiva: nunca bloquea la página */ }
+})();
+
+// ---------------------------------------------------------------------------
+// Avisos push / in-app (frente push): toast + sonido + Web Push. Carga única
+// aquí porque config-manager.js está en todas las páginas con sesión; sin
+// sesión wo-notify.js no hace nada. Opt-out: <html data-wo-notify="off">.
+// ---------------------------------------------------------------------------
+(function () {
+  'use strict';
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    if (window.__woNotifyLoader) return;
+    var me = document.currentScript;
+    var match = me && me.src ? /^(.*\/shared\/)js\/[^\/?#]+(?:[?#].*)?$/.exec(me.src) : null;
+    if (!match) return;
+    var root = document.documentElement;
+    if (root && root.getAttribute && root.getAttribute('data-wo-notify') === 'off') return;
+    window.__woNotifyLoader = true;
+    var s = document.createElement('script');
+    s.src = match[1] + 'js/wo-notify.js';
+    s.defer = true;
+    s.setAttribute('data-wo-notify', '');
+    (document.head || document.documentElement).appendChild(s);
+  } catch (err) { /* los avisos son mejora progresiva: nunca bloquean la página */ }
+})();
+
+// ---------------------------------------------------------------------------
+// Favoritos (ronda 2 · P22): carga perezosa de wo-favorites.js. Solo se pide
+// cuando la página tiene, o recibe después, un [data-wo-favorite], o cuando
+// quedó un guardado pendiente de antes de iniciar sesión (wo_fav_intent). Las
+// páginas sin corazones no descargan nada.
+// ---------------------------------------------------------------------------
+(function () {
+  'use strict';
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    if (window.__woFavoritesLoader) return;
+    var me = document.currentScript;
+    var match = me && me.src ? /^(.*\/shared\/)js\/[^\/?#]+(?:[?#].*)?$/.exec(me.src) : null;
+    if (!match) return;
+    window.__woFavoritesLoader = true;
+    var base = match[1];
+    var SELECTOR = '[data-wo-favorite]';
+    var loaded = false;
+    var observer = null;
+    var load = function () {
+      if (loaded) return;
+      loaded = true;
+      if (observer) { observer.disconnect(); observer = null; }
+      if (window.WoFavorites && window.WoFavorites.__real) return;
+      var head = document.head || document.documentElement;
+      if (!document.querySelector('link[href*="wo-favorites.css"]')) {
+        var css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = base + 'css/wo-favorites.css';
+        css.setAttribute('data-wo-favorites', '');
+        head.appendChild(css);
+      }
+      ['js/wo-favorites-model.js', 'js/wo-favorites.js'].forEach(function (path) {
+        if (document.querySelector('script[src*="' + path + '"]')) return;
+        var s = document.createElement('script');
+        s.src = base + path;
+        s.async = false;
+        s.setAttribute('data-wo-favorites', '');
+        head.appendChild(s);
+      });
+    };
+    var hasIntent = function () {
+      try { return !!window.localStorage.getItem('wo_fav_intent'); } catch (e) { return false; }
+    };
+    var holds = function (node) {
+      return !!node && node.nodeType === 1
+        && ((node.matches && node.matches(SELECTOR)) || (node.querySelector && !!node.querySelector(SELECTOR)));
+    };
+    var start = function () {
+      if (hasIntent() || document.querySelector(SELECTOR)) { load(); return; }
+      if (typeof MutationObserver !== 'function') return;
+      observer = new MutationObserver(function (mutations) {
+        for (var i = 0; i < mutations.length; i++) {
+          var added = mutations[i].addedNodes;
+          for (var j = 0; j < added.length; j++) {
+            if (holds(added[j])) { load(); return; }
+          }
+        }
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+    };
+    window.WoFavoritesLoader = { load: load };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+    else start();
+  } catch (err) { /* los favoritos son mejora progresiva: nunca bloquean la página */ }
+})();
 
 // Auto-initialize when script loads
 (async function () {
@@ -1817,6 +2004,38 @@ document.head.appendChild(modesScript);
     if (window.__WEOTZI_DEBUG) console.log('ConfigManager ready',
         '| Supabase:', ConfigManager.isSupabaseConfigured() ? 'OK' : 'N/A',
         '| Demo:', ConfigManager.isDemoMode() ? 'ON' : 'OFF');
+})();
+
+// ---------------------------------------------------------------------------
+// Indicador de "hay más abajo" (ronda 2 · P2): si la pantalla no entra entera,
+// wo-scroll-hint.js muestra una flecha animada mientras la persona está arriba.
+// Carga única: este bloque vive en config-manager.js y en wo-icons.js (entre
+// los dos cubren todas las páginas). Opt-out: <html data-wo-scroll-hint="off">.
+// ---------------------------------------------------------------------------
+(function () {
+  'use strict';
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.createElement) return;
+    if (window.__woScrollHintLoader) return;
+    var me = document.currentScript;
+    var match = me && me.src ? /^(.*\/shared\/)js\/[^\/?#]+(?:[?#].*)?$/.exec(me.src) : null;
+    if (!match) return;
+    var root = document.documentElement;
+    if (root && root.getAttribute && root.getAttribute('data-wo-scroll-hint') === 'off') return;
+    window.__woScrollHintLoader = true;
+    var base = match[1];
+    var head = document.head || document.documentElement;
+    var css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = base + 'css/wo-scroll-hint.css';
+    css.setAttribute('data-wo-scroll-hint', '');
+    head.appendChild(css);
+    var s = document.createElement('script');
+    s.src = base + 'js/wo-scroll-hint.js';
+    s.defer = true;
+    s.setAttribute('data-wo-scroll-hint', '');
+    head.appendChild(s);
+  } catch (err) { /* el indicador es mejora progresiva: nunca bloquea la página */ }
 })();
 
 // ---------------------------------------------------------------------------
