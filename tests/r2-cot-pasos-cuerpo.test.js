@@ -594,3 +594,67 @@ test('migración: idempotente, con reversa, sin pisar lo que ya cargó soporte',
     assert.match(down, /when b\.tattoo_info = v\.tattoo_info and b\.part_id = 'brazo' then 'Otro ejemplosas'/);
     assert.match(down, /\('omoplato', 4\)/, 'devuelve el orden anterior');
 });
+
+// REQ-08 (P11): el "dato curioso" se edita desde el backoffice. La columna
+// llega con la migración 20261116100000 y el código se publica antes: mientras
+// la base no la tenga, el editor no ofrece el campo ni lo escribe.
+test('backoffice: el dato curioso de la zona se edita y se guarda solo si la base tiene la columna', async () => {
+    const cm = read('public', 'shared', 'js', 'config-manager.js');
+    const block = cm.slice(cm.indexOf('// ========== BODY PARTS - SUPABASE OPERATIONS =========='), cm.indexOf('     * Delete a body part from Supabase'));
+    assert.ok(block.length > 2000);
+    const load = (rows) => {
+        const writes = [];
+        const chain = (result) => ({ select: () => chain(result), eq: () => chain(result), single: async () => result, order: async () => result });
+        const sandbox = {
+            console: { warn() {}, error() {}, log() {} },
+            _dbg() {}, getBodyParts: () => [], getSupabaseClient: () => ({}),
+            WeotziData: {
+                from(table) {
+                    assert.equal(table, 'body_parts');
+                    return {
+                        select: () => chain({ data: rows, error: null }),
+                        insert: (list) => { writes.push({ op: 'insert', row: list[0] }); return chain({ data: { part_id: list[0].part_id }, error: null }); },
+                        update: (row) => { writes.push({ op: 'update', row }); return chain({ data: { part_id: row.part_id }, error: null }); }
+                    };
+                }
+            }
+        };
+        vm.runInNewContext(`${block}\n*/\nthis.api = { loadBodyPartsFromDB, createBodyPartInDB, updateBodyPartInDB, bodyPartsSupportFunFact };`, sandbox);
+        return { api: sandbox.api, writes };
+    };
+    const row = (extra) => ({ id: 1, part_id: 'brazo', label: 'Brazo', sort_order: 1, parent_id: null, ...extra });
+    const form = { id: 'brazo', label: 'Brazo', description: 'El brazo.', tattoo_info: null, experience_info: null };
+
+    // Base con la columna: el árbol trae el dato y el guardado lo escribe.
+    const withColumn = load([row({ fun_fact: 'Dato del brazo.' }), row({ id: 2, part_id: 'codo', label: 'Codo', parent_id: 1, fun_fact: null })]);
+    assert.equal(withColumn.api.bodyPartsSupportFunFact(), false, 'antes de cargar no se asume la columna');
+    const tree = await withColumn.api.loadBodyPartsFromDB();
+    assert.equal(withColumn.api.bodyPartsSupportFunFact(), true);
+    assert.equal(tree[0].fun_fact, 'Dato del brazo.');
+    assert.equal(tree[0].subparts[0].fun_fact, '');
+    await withColumn.api.updateBodyPartInDB(1, { ...form, fun_fact: '  Otro dato.  ' });
+    await withColumn.api.updateBodyPartInDB(1, { ...form, fun_fact: '   ' });
+    await withColumn.api.createBodyPartInDB({ ...form, id: 'nueva', fun_fact: 'Dato nuevo.' }, 1);
+    assert.deepEqual(withColumn.writes.map((w) => [w.op, w.row.fun_fact]), [['update', 'Otro dato.'], ['update', null], ['insert', 'Dato nuevo.']]);
+    // Un guardado que no trae el campo (formulario sin el textarea) no toca la columna.
+    await withColumn.api.updateBodyPartInDB(1, form);
+    assert.ok(!('fun_fact' in withColumn.writes[3].row));
+    assert.equal(withColumn.writes[3].row.description, 'El brazo.');
+
+    // Base sin la migración: nunca se manda la columna, el resto se guarda igual.
+    const without = load([row({})]);
+    await without.api.loadBodyPartsFromDB();
+    assert.equal(without.api.bodyPartsSupportFunFact(), false);
+    await without.api.updateBodyPartInDB(1, { ...form, fun_fact: 'Dato.' });
+    await without.api.createBodyPartInDB({ ...form, id: 'nueva', fun_fact: 'Dato.' }, null);
+    for (const write of without.writes) assert.ok(!('fun_fact' in write.row), `${write.op} manda fun_fact sin la columna`);
+    assert.equal(without.writes.length, 2);
+    assert.match(cm, /deleteBodyPartFromDB,\n\s+bodyPartsSupportFunFact,/);
+
+    // Editor del backoffice: campo propio, valor escapado y lectura al guardar.
+    const admin = read('public', 'shared', 'js', 'admin.js');
+    assert.match(admin, /const funFactField = window\.ConfigManager\?\.bodyPartsSupportFunFact\?\.\(\) \? `/);
+    assert.match(admin, /<label for="node-fun-fact">Dato curioso<\/label>\s*<textarea id="node-fun-fact"[^>]*>\$\{escapeHtml\(node\.fun_fact \|\| ''\)\}<\/textarea>/);
+    assert.match(admin, /id="node-experience-info"[^\n]*\n\s*<\/div>\n\$\{funFactField\}/, 'va después de "Experiencia de Tatuaje"');
+    assert.match(admin, /fun_fact: document\.getElementById\('node-fun-fact'\) \? document\.getElementById\('node-fun-fact'\)\.value\.trim\(\) : undefined,/);
+});

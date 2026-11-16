@@ -629,6 +629,21 @@ const ConfigManager = (function () {
 
     // ========== BODY PARTS - SUPABASE OPERATIONS ==========
 
+    // body_parts.fun_fact (dato curioso) llega con la migración 20261116100000.
+    // Mientras la base no la tenga, escribir esa columna haría fallar el guardado
+    // entero de la zona: se detecta al cargar y solo entonces se escribe.
+    let bodyPartsFunFactColumn = false;
+
+    function bodyPartsSupportFunFact() {
+        return bodyPartsFunFactColumn;
+    }
+
+    /** Columna fun_fact para insert/update: vacía si la base no la tiene o el formulario no la trae. */
+    function funFactColumn(partData) {
+        if (!bodyPartsFunFactColumn || !partData || partData.fun_fact === undefined) return {};
+        return { fun_fact: String(partData.fun_fact || '').trim() || null };
+    }
+
     /**
      * Load body parts from Supabase database
      * Returns hierarchical structure (tree)
@@ -647,6 +662,9 @@ const ConfigManager = (function () {
                 .order('sort_order');
 
             if (error) throw error;
+
+            // select('*') trae la clave fun_fact (aunque sea null) solo si la columna existe.
+            bodyPartsFunFactColumn = (data || []).some(row => Object.prototype.hasOwnProperty.call(row, 'fun_fact'));
 
             // Convert flat data to hierarchical tree
             const tree = buildBodyPartsTree(data);
@@ -729,6 +747,7 @@ const ConfigManager = (function () {
                     description: partData.description || null,
                     tattoo_info: partData.tattoo_info || null,
                     experience_info: partData.experience_info || null,
+                    ...funFactColumn(partData),
                     sort_order: partData.sort_order || 0,
                     // Expanded media settings
                     expanded_media_type: partData.expanded_media_type || 'none',
@@ -770,6 +789,7 @@ const ConfigManager = (function () {
                     description: partData.description || null,
                     tattoo_info: partData.tattoo_info || null,
                     experience_info: partData.experience_info || null,
+                    ...funFactColumn(partData),
                     // Expanded media settings
                     expanded_media_type: partData.expanded_media_type || 'none',
                     expanded_media_url: partData.expanded_media_url || null,
@@ -1740,6 +1760,7 @@ const ConfigManager = (function () {
         createBodyPartInDB,
         updateBodyPartInDB,
         deleteBodyPartFromDB,
+        bodyPartsSupportFunFact,
 
         // Questions - Supabase
         loadQuestionsFromDB,

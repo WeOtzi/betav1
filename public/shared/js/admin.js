@@ -2902,8 +2902,16 @@ function renderBodyPartsManagerFunc(mode) {
             </button>
         `;
     } else if (mode === 'edit') {
-        const node = editingNode || { id: '', label: '', sides: 'both', sensitivity: 5, pain_level: 5, description: '', tattoo_info: '', experience_info: '' };
+        const node = editingNode || { id: '', label: '', sides: 'both', sensitivity: 5, pain_level: 5, description: '', tattoo_info: '', experience_info: '', fun_fact: '' };
         const isRoot = !parentNodeForAdd && (!editingNode || !editingNode.parent_id);
+        // "Dato curioso" (body_parts.fun_fact, migración 20261116100000): el campo
+        // aparece cuando la base ya tiene la columna; sin ella no se ofrece ni se escribe.
+        const funFactField = window.ConfigManager?.bodyPartsSupportFunFact?.() ? `
+                <div class="form-group">
+                    <label for="node-fun-fact">Dato curioso</label>
+                    <textarea id="node-fun-fact" rows="2" placeholder="Un dato breve de la zona. Se muestra en la ficha del cotizador.">${escapeHtml(node.fun_fact || '')}</textarea>
+                </div>
+` : '';
         const sensitivity = node.sensitivity || 5;
         const painLevel = node.pain_level || 5;
 
@@ -3002,7 +3010,7 @@ function renderBodyPartsManagerFunc(mode) {
                     <label>Experiencia de Tatuaje</label>
                     <textarea id="node-experience-info" rows="2" placeholder="Cómo se siente tatuarse aquí...">${node.experience_info || ''}</textarea>
                 </div>
-
+${funFactField}
                 <div class="form-section-title">Media del Modal Expandido</div>
                 
                 <div class="form-group">
@@ -3184,6 +3192,8 @@ async function saveNodeEdit() {
         description: document.getElementById('node-description').value.trim() || null,
         tattoo_info: document.getElementById('node-tattoo-info').value.trim() || null,
         experience_info: document.getElementById('node-experience-info').value.trim() || null,
+        // undefined (sin el campo en el formulario) = no tocar la columna.
+        fun_fact: document.getElementById('node-fun-fact') ? document.getElementById('node-fun-fact').value.trim() : undefined,
         sort_order: editingNode?.sort_order || (currentBodyPartsConfig.length + 1),
         // Expanded media settings
         expanded_media_type: document.getElementById('node-expanded-media-type')?.value || 'none',
