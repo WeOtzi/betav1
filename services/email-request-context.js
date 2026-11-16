@@ -117,6 +117,20 @@ async function latestChatMessage(quoteId, senderId, deps) {
         .order('created_at', { ascending: false }).limit(1).execute())[0] || null;
 }
 
+/**
+ * Último mensaje que la persona escribió a mano: saltea las respuestas
+ * automáticas del inbox (bienvenida / ausencia), que la base inserta con el
+ * mismo sender_id del artista y `auto_kind` (20261116160200). Se filtra acá y
+ * no en la consulta para que no falle si la columna todavía no existe (EP-11).
+ */
+async function latestWrittenChatMessage(quoteId, senderId, deps) {
+    const rows = deps.latestMessages ? await deps.latestMessages(quoteId, senderId)
+        : deps.latestMessage ? [await deps.latestMessage(quoteId, senderId)]
+            : await pgrest('chat_messages').select('*').eq('quotation_id', quoteId).eq('sender_id', senderId)
+                .order('created_at', { ascending: false }).limit(5).execute();
+    return (Array.isArray(rows) ? rows : []).find(row => row && !row.auto_kind) || null;
+}
+
 /** Quién es quién: rol y datos de contacto de un user_id (artista, cliente o estudio). */
 async function identifyUser(userId, lookup) {
     if (!userId) return null;
@@ -325,9 +339,16 @@ async function resolveEmailContext(req, eventId, input, deps = {}) {
         // EM-N7: el mensaje del artista viaja como extracto en este aviso
         // (el chat no manda un segundo correo por la misma acción).
         entity += `:${quote.quote_status}:${quote.artist_responded_at || ''}:${quote.rating || ''}`;
-        const latest = isArtist ? await latestChatMessage(quote.quote_id, user.id, deps).catch(() => null) : null;
-        const recent = latest && (!quote.artist_responded_at || Math.abs(Date.parse(latest.created_at) - Date.parse(quote.artist_responded_at)) < 10 * 60 * 1000);
-        if (recent) persisted.message_preview = String(latest.message || '').slice(0, 400);
+        // EP-11: primero el mensaje guardado con la propuesta (proposal_message,
+        // 20261116120000). Solo si no hay, el último mensaje del chat escrito a
+        // mano: una bienvenida o ausencia automática no es "Mensaje de <artista>".
+        const proposalMessage = String(quote.proposal_message || '').trim();
+        if (proposalMessage) persisted.message_preview = proposalMessage.slice(0, 400);
+        else {
+            const latest = isArtist ? await latestWrittenChatMessage(quote.quote_id, user.id, deps).catch(() => null) : null;
+            const recent = latest && (!quote.artist_responded_at || Math.abs(Date.parse(latest.created_at) - Date.parse(quote.artist_responded_at)) < 10 * 60 * 1000);
+            if (recent) persisted.message_preview = String(latest.message || '').slice(0, 400);
+        }
     } else if (eventId !== 'client_quotation_submitted') entity += `:${quote.quote_status}:${quote.artist_responded_at || ''}:${quote.rating || ''}`;
     const context = { ok: true, idempotencyKey: entity, payload: buildQuotationEmailPayload(quote, artist, persisted, base, CLIENT_EVENTS.has(eventId) ? 'artist' : 'client') };
     if (defer) context.defer = defer;
