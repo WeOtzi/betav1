@@ -187,7 +187,7 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `POST` | `/api/admin/integrations/apify` | Guarda token Apify como secreto en `app_settings`. | `lib/app-settings.js` |
 | `POST` | `/api/admin/integrations/apify/test` | Prueba token Apify contra un handle. | Apify API |
 | `GET` | `/api/admin/integrations/apify/stats` | Estadisticas de importaciones Instagram y costo estimado. | `instagram_imports` |
-| `GET` | `/api/instagram/proxy-thumb` | Proxy seguro para thumbnails de Instagram/Facebook CDN. | Allowlist CDN |
+| `GET` | `/api/instagram/proxy-thumb` | Proxy seguro para thumbnails de Instagram/Facebook CDN. | Allowlist CDN + límite propio (600 / 15 min por IP) |
 | `POST` | `/api/instagram/preview` | Preview de perfil Instagram via Apify. En dashboard requiere auth; en signup permite modo limitado. | Apify, cache en memoria |
 | `POST` | `/api/instagram/commit` | Importa media seleccionada a Storage y actualiza artista/estudio. | Apify payload, Supabase Storage/REST |
 | `POST` | `/api/store/licenses/:licenseId/assets/:assetId/url` | URL firmada (300 s) para bajar el original o el stencil de una licencia; Bearer, titular o comprador, tope de 50 por licencia en 24 h. Limiter propio `storeDownloadLimiter` (60 cada 15 min por IP). El nombre de descarga es la base sanitizada más la extensión del MIME real del archivo. | `services/store-orders.js`, `lib/storage-sign.js`, bucket `store-design-files` |

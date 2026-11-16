@@ -56,6 +56,8 @@ Los tres endpoints usan service role Supabase (`SUPABASE_SERVICE_ROLE_KEY`) via 
 | `POST /api/register/artist-draft` | `apiLimiter` (solo) | 300 / 15 min | Autosave de alta frecuencia (~30-60 calls por wizard). NO se aplica `authLimiter` porque no es auth-sensitive. |
 | `POST /api/register/artist-finalize` | `apiLimiter` + `authLimiter` | 300 + 10 / 15 min | Crea `auth.users`. Brute-force protection legitima. 10 calls/15 min cubre reintentos razonables. |
 | `POST /api/register/check-uniqueness` | `apiLimiter` (solo) | 300 / 15 min | Lookup read-only. |
+| `GET /api/instagram/proxy-thumb` | `igThumbLimiter` (propio; `apiLimiter` lo saltea) | 600 / 15 min | Miniaturas del preview de Instagram: hasta 50 por alta, cacheadas 1 h. Si contaran en `apiLimiter`, dos o tres altas desde la misma red lo agotaban. |
+| `GET /api/register/confirmation-status` | propio en `lib/routes/registro.js` (`apiLimiter` lo saltea) | 120 / 15 min | Sondeo de la pestaña "Falta confirmar email", cada 12 s con la pestaña visible. |
 
 `express-rate-limit` usa `MemoryStore` por defecto, asi que los contadores viven en memoria del proceso Node y se resetean en cada `npm start`. Para escalar horizontalmente hay que migrar a `RedisStore`.
 
