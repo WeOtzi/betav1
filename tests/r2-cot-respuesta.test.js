@@ -617,7 +617,16 @@ test('migración: offered_slots, proposal_message y artist_message_templates (id
     const down = read('supabase/rollbacks/20261116120000_cot_respuesta_propuesta.down.sql');
     assert.match(down, /drop column if exists offered_slots/);
     assert.match(down, /delete from public\.artist_message_templates where kind = 'quote';/);
-    assert.match(down, /if not exists \(select 1 from public\.artist_message_templates\) then/, 'no borra las plantillas del inbox');
+    // DB-03: la tabla se va solo si queda vacía Y el inbox (20261116160100) no está instalado.
+    assert.match(down, /if not exists \(select 1 from public\.artist_message_templates\)\s*\n\s*and not exists \(\s*\n\s*select 1 from pg_catalog\.pg_constraint c\s*\n\s*where c\.conname = 'artist_message_templates_chat_limits'\s*\n\s*and c\.conrelid = 'public\.artist_message_templates'::regclass\s*\n\s*\) then\s*\n\s*drop table public\.artist_message_templates;/,
+        'no borra las plantillas del inbox ni la tabla que el inbox consulta');
+    // Un solo índice sobre (user_id, kind, sort): las dos migraciones usan el mismo nombre.
+    const INDEX = /create index if not exists artist_message_templates_user_kind_idx\s*\n\s*on public\.artist_message_templates \(user_id, kind, sort\);/;
+    assert.match(sql, INDEX);
+    const inbox = read('supabase/migrations/20261116160100_inbox_mensajes_rapidos.sql');
+    assert.match(inbox, INDEX);
+    assert.doesNotMatch(inbox, /idx_artist_message_templates_owner/);
+    assert.match(inbox, /add constraint artist_message_templates_chat_limits/, 'la señal que mira la reversa');
     const name = '20261116120000_cot_respuesta_propuesta';
     assert.ok(name >= '20261116120000' && name.slice(0, 14) <= '20261116120999', 'timestamp dentro del rango del frente');
 });

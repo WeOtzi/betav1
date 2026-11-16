@@ -29,7 +29,9 @@ create table if not exists public.artist_message_templates (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists idx_artist_message_templates_owner
+-- Mismo nombre que en 20261116120000 (cot-respuesta): si esa migración ya
+-- corrió, esto no crea un segundo índice idéntico.
+create index if not exists artist_message_templates_user_kind_idx
   on public.artist_message_templates (user_id, kind, sort);
 
 -- Límites del Inbox: solo filas kind = 'chat' (no condiciona las de 'quote').

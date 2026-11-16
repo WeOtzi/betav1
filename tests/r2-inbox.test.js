@@ -395,7 +395,7 @@ test('P8 migración de voz: buckets, columnas, topes, trigger y RPC', () => {
 
 test('P9 migración de mensajes rápidos: tabla compartida, RLS de dueño y reglas solo para kind=chat', () => {
     const sql = read(MIGRATION_QUICK).toLowerCase();
-    const table = sql.slice(sql.indexOf('create table if not exists public.artist_message_templates'), sql.indexOf('create index if not exists idx_artist_message_templates_owner'));
+    const table = sql.slice(sql.indexOf('create table if not exists public.artist_message_templates'), sql.indexOf('create index if not exists artist_message_templates_user_kind_idx'));
     for (const column of ['id uuid primary key', 'user_id uuid not null', "kind text not null check (kind in ('quote', 'chat'))", 'title text not null', 'body text not null', 'sort integer not null default 0', 'created_at timestamptz', 'updated_at timestamptz']) {
         assert.ok(table.includes(column), column);
     }
