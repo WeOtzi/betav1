@@ -147,6 +147,171 @@ test('backoffice: la tarjeta muestra OpenAI, sus dos modelos y ningún campo par
     assert.match(backoffice, /onclick="saveGeminiAPI\(\)"/);
     assert.match(admin, /window\.testGeminiAPI = testGeminiAPI;/);
     assert.match(admin, /const AI_IMAGE_MODELS = \['gpt-image-2\.6-flare', 'gpt-image-2\.6-sunburst'\];/);
+    // SCI-04: el check "Habilitar IA Generativa" solo escribía en este navegador (no apagaba
+    // nada en la plataforma ni frenaba el gasto). Se quitó y el panel dice dónde se apaga.
+    assert.doesNotMatch(backoffice, /api-gemini-enabled|Habilitar IA Generativa/);
+    assert.doesNotMatch(admin, /api-gemini-enabled/);
+    assert.match(backoffice, /Para apagarla en toda la plataforma, define <code>AI_IMAGE_PROVIDER=off<\/code>/);
+    assert.doesNotMatch(extract(admin, 'function saveGeminiAPI(').replace(/^\s*\/\/.*$/gm, ''), /enabled/, 'guardar no escribe gemini.enabled');
+});
+
+// Carga config-manager.js en un contexto aislado con lo que publica el servidor
+// (app-config.json) y lo que este navegador tenía guardado en localStorage.
+async function loadConfigManager({ stored, server, fileStatus = 200 }) {
+    const store = new Map();
+    if (stored) store.set('weotzi_config', JSON.stringify(stored));
+    const localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: (k) => { store.delete(k); } };
+    const noop = () => {};
+    const element = () => ({ style: {}, setAttribute: noop, appendChild: noop, addEventListener: noop });
+    const document = { addEventListener: noop, removeEventListener: noop, readyState: 'complete', currentScript: null, getElementById: () => null, querySelector: () => null,
+        querySelectorAll: () => [], createElement: element, head: { appendChild: noop }, body: { appendChild: noop },
+        documentElement: { style: {}, classList: { add: noop, remove: noop }, setAttribute: noop } };
+    const location = { pathname: '/quotation', hostname: 'beta.weotzi.com', origin: 'https://beta.weotzi.com', href: 'https://beta.weotzi.com/quotation', search: '' };
+    const window = { localStorage, document, location, addEventListener: noop, removeEventListener: noop, dispatchEvent: noop, navigator: { userAgent: 'test' } };
+    window.window = window;
+    const fetch = async () => ({ ok: fileStatus === 200, status: fileStatus, json: async () => JSON.parse(JSON.stringify(server)) });
+    const quiet = { log: noop, warn: noop, error: noop, info: noop, debug: noop };
+    const context = vm.createContext({ window, document, localStorage, location, fetch, console: quiet, setTimeout, clearTimeout, AbortController, URL, URLSearchParams,
+        navigator: window.navigator, CustomEvent: function CustomEvent() {}, Event: function Event() {} });
+    vm.runInContext(`${configManager}\n;globalThis.__CM = ConfigManager;`, context);
+    const manager = context.__CM;
+    await manager.init();
+    return { manager, stored: () => (store.has('weotzi_config') ? JSON.parse(store.get('weotzi_config')) : null) };
+}
+
+test('config-manager: la IA de imágenes la decide el servidor, no lo guardado en el navegador (SCI-04)', async () => {
+    assert.match(configManager, /const STORAGE_KEY = 'weotzi_config';/);
+    const flags = async (options) => {
+        const { manager } = await loadConfigManager(options);
+        // Copia por JSON: los objetos del contexto vm tienen otro prototipo.
+        return JSON.parse(JSON.stringify({ gemini: manager.getValue('gemini.enabled'), ai: manager.getValue('aiImages') }));
+    };
+    const on = { supabase: { url: 'https://x.supabase.co', anonKey: 'anon' }, gemini: { enabled: true }, aiImages: { enabled: true, provider: 'openai' } };
+    const off = { ...on, gemini: { enabled: false }, aiImages: { enabled: false, provider: 'openai' } };
+    const enabled = { gemini: true, ai: { enabled: true, provider: 'openai' } };
+    const disabled = { gemini: false, ai: { enabled: false, provider: 'openai' } };
+
+    assert.deepEqual(await flags({ stored: null, server: on }), enabled, 'visitante sin nada guardado');
+    // El navegador del dueño: guardó la configuración en el backoffice cuando todavía no había clave.
+    // Antes veía gemini.enabled=false y el cotizador no le mostraba "Generar referencia con IA".
+    assert.deepEqual(await flags({ stored: { gemini: { model: 'gemini-3-pro-image-preview', enabled: false } }, server: on }), enabled);
+    assert.deepEqual(await flags({ stored: { gemini: { enabled: false }, aiImages: { enabled: false, provider: 'openai' } }, server: on }), enabled);
+    // Al revés: un "enabled" guardado no muestra el botón si el servidor no tiene clave (terminaba en 503).
+    assert.deepEqual(await flags({ stored: { gemini: { enabled: true }, aiImages: { enabled: true, provider: 'gemini' } }, server: off }), disabled);
+    assert.deepEqual(await flags({ stored: { gemini: { enabled: true } }, server: { ...on, gemini: { enabled: false }, aiImages: { enabled: false, provider: 'none' } } }),
+        { gemini: false, ai: { enabled: false, provider: 'none' } }, 'apagada con AI_IMAGE_PROVIDER=off');
+    // Un servidor viejo que solo publica gemini.enabled sigue valiendo.
+    assert.deepEqual(await flags({ stored: { gemini: { enabled: false } }, server: { gemini: { enabled: true } } }), enabled);
+    // Si app-config.json no se pudo leer, lo guardado no dice nada del servidor: queda apagada.
+    assert.deepEqual(await flags({ stored: { gemini: { enabled: true }, aiImages: { enabled: true, provider: 'openai' } }, server: on, fileStatus: 500 }), disabled);
+
+    // Lo demás que guarda el backoffice (modelo y estilo de los íconos) se conserva.
+    const kept = await loadConfigManager({ stored: { gemini: { model: 'gpt-image-2.6-sunburst', defaultStyle: 'Line art', enabled: false } }, server: on });
+    assert.equal(kept.manager.getValue('gemini.model'), 'gpt-image-2.6-sunburst');
+    assert.equal(kept.manager.getValue('gemini.defaultStyle'), 'Line art');
+    // Guardar desde el panel no cambia lo que decide el servidor en la próxima carga.
+    kept.manager.update({ gemini: { defaultStyle: 'Dotwork' } });
+    assert.deepEqual(await flags({ stored: kept.stored(), server: off }), disabled);
+
+    // Una clave vieja de Gemini guardada por el backoffice anterior se borra del navegador.
+    const legacy = await loadConfigManager({ stored: { gemini: { apiKey: 'AIza-clave-vieja-0123456789', enabled: true }, emailjs: { serviceId: 's' } }, server: on });
+    assert.equal(legacy.manager.getValue('gemini.apiKey'), '');
+    assert.doesNotMatch(JSON.stringify(legacy.stored()), /AIza-clave-vieja/);
+    assert.equal(legacy.stored().emailjs.serviceId, 's', 'el resto de lo guardado no se toca');
+    assert.doesNotMatch(JSON.stringify(legacy.manager.get()), /AIza-clave-vieja/);
+    // Sin clave guardada no se reescribe el almacenamiento.
+    const untouched = await loadConfigManager({ stored: null, server: on });
+    assert.equal(untouched.stored(), null);
+});
+
+test('backoffice: "Probar" y "Generar" quedan deshabilitados y con el estado a la vista mientras dura la generación (SCI-05)', async () => {
+    const fakeButton = () => ({ disabled: false, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, removeAttribute(k) { delete this.attrs[k]; } });
+    const pending = () => { let resolve; let reject; const promise = new Promise((res, rej) => { resolve = res; reject = rej; }); return { promise, resolve, reject }; };
+    const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+    // --- Probar (genera una imagen real: cada clic se paga) ---
+    const testButton = fakeButton();
+    const statuses = [];
+    const toasts = [];
+    const requests = [];
+    const elements = { 'api-gemini-model': { value: 'gpt-image-2.6-flare' }, 'api-gemini-test': testButton };
+    const context = vm.createContext({
+        document: { getElementById: (id) => elements[id] || null },
+        updateAPIStatus: (api, status) => statuses.push([api, status]),
+        showToast: (message, type) => toasts.push([type, message]),
+        requestAiImage: (options) => { const p = pending(); requests.push({ options, ...p }); return p.promise; },
+        AI_IMAGE_PROVIDER_LABELS: { openai: 'OpenAI (GPT Image 2.6)' },
+        window: { ConfigManager: { get: () => ({ gemini: { enabled: true, model: 'gpt-image-2.6-flare', defaultStyle: 'Line art', defaultBackgroundColor: 'White' } }) } },
+        console: { error() {}, log() {} }
+    });
+    vm.runInContext(extract(admin, 'function setAiImageButtonBusy('), context);
+    vm.runInContext(extract(admin, 'let aiImageTestRunning = false;'), context);
+    vm.runInContext(extract(admin, 'async function generateBodyPartIcon('), context);
+
+    const first = vm.runInContext('testGeminiAPI()', context);
+    const second = vm.runInContext('testGeminiAPI()', context);
+    await settle();
+    assert.equal(requests.length, 1, 'un segundo clic durante la espera no genera otra imagen');
+    assert.equal(testButton.disabled, true);
+    assert.equal(testButton.attrs['aria-busy'], 'true');
+    assert.deepEqual(statuses, [['gemini', 'working']], 'el estado queda en "Generando…", no en "Sin configurar"');
+    requests[0].resolve({ success: true, image: JPEG_URL, provider: 'openai', model: 'gpt-image-2.6-flare' });
+    await Promise.all([first, second]);
+    assert.equal(testButton.disabled, false);
+    assert.ok(!('aria-busy' in testButton.attrs));
+    assert.deepEqual(statuses.pop(), ['gemini', 'connected']);
+    assert.match(toasts.pop()[1], /Conexión correcta: imagen generada con OpenAI \(GPT Image 2\.6\) · gpt-image-2\.6-flare\./);
+    // Si falla, el botón también vuelve.
+    const failing = vm.runInContext('testGeminiAPI()', context);
+    await settle();
+    assert.equal(testButton.disabled, true);
+    requests[1].reject(new Error('La imagen tardó demasiado en generarse. Inténtalo de nuevo.'));
+    await failing;
+    assert.equal(testButton.disabled, false);
+    assert.deepEqual(statuses.pop(), ['gemini', 'error']);
+    assert.match(toasts.pop()[1], /tardó demasiado/);
+
+    // El estado "working" existe en el indicador y avisa de la espera.
+    const chip = { innerHTML: '', className: '' };
+    const chipContext = vm.createContext({ document: { getElementById: (id) => (id === 'api-gemini-status' ? chip : null) } });
+    vm.runInContext(extract(admin, 'function updateAPIStatus('), chipContext);
+    vm.runInContext(`updateAPIStatus('gemini', 'working')`, chipContext);
+    assert.match(chip.innerHTML, /Generando… puede tardar hasta dos minutos/);
+    assert.doesNotMatch(chip.innerHTML, /Sin configurar/);
+
+    // --- Generar ícono desde el formulario ---
+    const generateButton = fakeButton();
+    const note = { textContent: '' };
+    Object.assign(elements, { 'ai-generate-btn': generateButton, 'ai-generate-status': note, 'node-label': { value: ' Brazo ' }, 'ai-style': { value: 'Line art' },
+        'ai-bg': { value: 'White' }, 'node-image': { value: '' }, 'node-image-preview': { innerHTML: '' } });
+    requests.length = 0;
+    const iconA = vm.runInContext('generateBodyPartIcon()', context);
+    await settle();
+    assert.equal(generateButton.disabled, true);
+    assert.equal(generateButton.attrs['aria-busy'], 'true');
+    assert.match(note.textContent, /Generando… puede tardar hasta dos minutos/);
+    const iconB = vm.runInContext('generateBodyPartIcon()', context);
+    await settle();
+    assert.equal(requests.length, 1, 'un segundo clic no genera otro ícono');
+    requests[0].resolve({ success: true, image: JPEG_URL });
+    await Promise.all([iconA, iconB]);
+    assert.equal(elements['node-image'].value, JPEG_URL);
+    assert.equal(generateButton.disabled, false);
+    assert.ok(!('aria-busy' in generateButton.attrs));
+    assert.equal(note.textContent, '');
+    // La generación masiva (por nodo) no usa ni bloquea el botón del formulario.
+    const batch = vm.runInContext(`generateBodyPartIcon({ label: 'Pierna' })`, context);
+    await settle();
+    assert.equal(generateButton.disabled, false);
+    requests[1].resolve({ success: true, image: JPEG_URL });
+    assert.equal(await batch, JPEG_URL);
+
+    // Los botones existen con esos ids y el estado ocupado se ve.
+    assert.match(backoffice, /<button type="button" class="btn btn-primary btn-sm" id="api-gemini-test" onclick="testGeminiAPI\(\)">/);
+    assert.match(admin, /id="ai-generate-btn" onclick="generateBodyPartIcon\(\)"/);
+    assert.match(admin, /<p id="ai-generate-status" role="status" aria-live="polite"/);
+    assert.match(read('public', 'shared', 'css', 'admin-styles.css'), /\.btn\[aria-busy="true"\] \{\n\s+opacity: 0\.6;\n\s+cursor: progress;\n\}/);
+    for (const text of [note.textContent, chip.innerHTML]) assert.doesNotMatch(text, /cerrés|Esperá|podés/, 'sin voseo');
 });
 
 test('config-manager: sin IDs de Gemini por defecto y la salud ya no depende de una clave en el navegador', () => {
@@ -201,10 +366,12 @@ test('las páginas cargan la versión nueva de los scripts que cambiaron', () =>
         'artist/login/index.html': ['config-manager.js'],
         'backoffice/index.html': ['admin.js', 'config-manager.js']
     };
+    // admin.js y config-manager.js volvieron a cambiar con las correcciones de la revisión (r2d).
+    const version = { 'quotation-r2.js': '20261116-r2c', 'dashboard.js': '20261116-r2c', 'admin.js': '20261116-r2d', 'config-manager.js': '20261116-r2d' };
     for (const [page, scripts] of Object.entries(pages)) {
         const html = read('public', ...page.split('/'));
         for (const script of scripts) {
-            assert.match(html, new RegExp(`/shared/js/${script.replace(/\./g, '\\.')}\\?v=20261116-r2c"`), `${page} → ${script}`);
+            assert.match(html, new RegExp(`/shared/js/${script.replace(/\./g, '\\.')}\\?v=${version[script]}"`), `${page} → ${script}`);
         }
     }
 });

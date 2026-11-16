@@ -2941,12 +2941,13 @@ function renderBodyPartsManagerFunc(mode) {
                     <div style="margin-top: 10px; padding: 10px; background: rgba(var(--primary-rgb), 0.05); border: 1px dashed var(--primary-color); border-radius: 6px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <span style="font-size: 0.85em; font-weight: 600; color: var(--primary-color);"><i class="fa-solid fa-wand-magic-sparkles"></i> Generar con IA</span>
-                            <button type="button" class="btn btn-primary btn-sm" onclick="generateBodyPartIcon()" style="font-size: 0.8em; padding: 2px 8px;">Generar</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="ai-generate-btn" onclick="generateBodyPartIcon()" style="font-size: 0.8em; padding: 2px 8px;">Generar</button>
                         </div>
                         <div class="row-group" style="gap: 8px;">
                             <input type="text" id="ai-style" placeholder="Estilo (ej: Minimalist line art)" value="${window.ConfigManager.getValue('gemini.defaultStyle') || ''}" style="font-size: 0.85em;">
                             <input type="text" id="ai-bg" placeholder="Fondo (ej: White)" value="${window.ConfigManager.getValue('gemini.defaultBackgroundColor') || ''}" style="font-size: 0.85em;">
                         </div>
+                        <p id="ai-generate-status" role="status" aria-live="polite" style="margin: 8px 0 0; font-size: 0.8em; color: var(--text-secondary);"></p>
                     </div>
 
                     <div id="node-image-preview" style="margin-top: 8px;">
@@ -3491,12 +3492,27 @@ async function requestAiImage({ prompt, aspectRatio = '1:1', model } = {}) {
     return data;
 }
 
+// Cada generación es una imagen paga y puede tardar hasta dos minutos: mientras
+// dura, el botón que la disparó queda deshabilitado (no se puede repetir el
+// clic) y marcado como ocupado.
+function setAiImageButtonBusy(button, busy) {
+    if (!button) return;
+    button.disabled = busy;
+    if (busy) button.setAttribute('aria-busy', 'true');
+    else button.removeAttribute('aria-busy');
+}
+
 async function generateBodyPartIcon(specificNode = null) {
     const config = window.ConfigManager?.get();
     if (!config?.gemini?.enabled) {
         showToast('La IA de imágenes no está habilitada', 'error');
         return;
     }
+
+    // Desde el formulario (un solo ícono): botón y estado propios.
+    const button = specificNode ? null : document.getElementById('ai-generate-btn');
+    const status = specificNode ? null : document.getElementById('ai-generate-status');
+    if (button && button.disabled) return;
 
     const nodeLabel = specificNode ? specificNode.label : document.getElementById('node-label').value.trim();
     const style = specificNode ? (config.gemini.defaultStyle || 'Minimalist line art') : document.getElementById('ai-style').value.trim();
@@ -3508,6 +3524,8 @@ async function generateBodyPartIcon(specificNode = null) {
     }
 
     showToast(`Generando icono para "${nodeLabel}"… puede tardar hasta dos minutos.`, 'info');
+    setAiImageButtonBusy(button, true);
+    if (status) status.textContent = 'Generando… puede tardar hasta dos minutos. No cierres esta ventana.';
 
     try {
         const prompt = `Create a ${style} icon of a human body part: ${nodeLabel}. The icon should be ${style}. Background color: ${bg}. Resolution: 1024x1024. Only the body part should be visible, centered.`;
@@ -3534,6 +3552,9 @@ async function generateBodyPartIcon(specificNode = null) {
         console.error('Generation error:', err);
         showToast(`Error al generar: ${err.message}`, 'error');
         return null;
+    } finally {
+        setAiImageButtonBusy(button, false);
+        if (status) status.textContent = '';
     }
 }
 
@@ -3689,7 +3710,6 @@ function loadAPIsSection() {
     document.getElementById('api-gemini-model').value = AI_IMAGE_MODELS.includes(config.gemini?.model) ? config.gemini.model : AI_IMAGE_MODELS[0];
     document.getElementById('api-gemini-style').value = config.gemini?.defaultStyle || 'Minimalist line art';
     document.getElementById('api-gemini-bg').value = config.gemini?.defaultBackgroundColor || 'White';
-    document.getElementById('api-gemini-enabled').checked = config.gemini?.enabled || false;
     
     // Google Calendar
     const gcalendarClientId = document.getElementById('api-gcalendar-client-id');
@@ -3768,6 +3788,8 @@ function updateAPIStatus(api, status) {
         'connected': { icon: 'fa-circle-check', text: 'Conectado', class: 'connected' },
         'configured': { icon: 'fa-circle', text: 'Configurado', class: 'warning' },
         'error': { icon: 'fa-circle-xmark', text: 'Error', class: 'disconnected' },
+        // Prueba en curso de la IA de imágenes: queda a la vista toda la espera.
+        'working': { icon: 'fa-circle-notch fa-spin', text: 'Generando… puede tardar hasta dos minutos', class: 'warning' },
         'none': { icon: 'fa-circle', text: 'Sin configurar', class: '' }
     };
     
@@ -4104,11 +4126,19 @@ function saveGoogleMapsAPI() {
 // Prueba de punta a punta de la IA de imágenes: genera una imagen real con el
 // proveedor activo (consume cuota). No pide la clave: vive en el servidor.
 // (El nombre testGeminiAPI se conserva porque lo llama el HTML del panel.)
+// Cada clic es una imagen paga y la espera puede llegar a dos minutos: mientras
+// dura no se puede volver a disparar y el estado "Generando…" queda a la vista
+// (el aviso emergente se va a los 4 segundos).
+let aiImageTestRunning = false;
 async function testGeminiAPI() {
+    if (aiImageTestRunning) return;
+    aiImageTestRunning = true;
     const model = document.getElementById('api-gemini-model').value;
+    const button = document.getElementById('api-gemini-test');
 
+    setAiImageButtonBusy(button, true);
     showToast('Generando imagen de prueba… puede tardar hasta dos minutos.', 'info');
-    updateAPIStatus('gemini', 'none');
+    updateAPIStatus('gemini', 'working');
 
     try {
         const data = await requestAiImage({
@@ -4122,6 +4152,9 @@ async function testGeminiAPI() {
     } catch (err) {
         updateAPIStatus('gemini', 'error');
         showToast('Error: ' + err.message, 'error');
+    } finally {
+        aiImageTestRunning = false;
+        setAiImageButtonBusy(button, false);
     }
 }
 
@@ -4129,8 +4162,9 @@ function saveGeminiAPI() {
     const model = document.getElementById('api-gemini-model').value;
     const defaultStyle = document.getElementById('api-gemini-style').value.trim();
     const defaultBackgroundColor = document.getElementById('api-gemini-bg').value.trim();
-    const enabled = document.getElementById('api-gemini-enabled').checked;
 
+    // "enabled" no se guarda desde acá: la IA de imágenes se enciende y se apaga
+    // en el servidor (clave y AI_IMAGE_PROVIDER) y ConfigManager toma ese valor.
     window.ConfigManager?.update({
         gemini: {
             // La clave ya no se guarda en el navegador (vive en el servidor):
@@ -4138,8 +4172,7 @@ function saveGeminiAPI() {
             apiKey: '',
             model,
             defaultStyle,
-            defaultBackgroundColor,
-            enabled
+            defaultBackgroundColor
         }
     });
 

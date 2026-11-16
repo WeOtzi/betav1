@@ -258,6 +258,8 @@ const ConfigManager = (function () {
             }
 
             currentConfig = preserveServerSupabaseConfig(currentConfig, fileConfig);
+            currentConfig = preserveServerAiImagesConfig(currentConfig, fileConfig);
+            forgetStoredAiImageKey(storedConfig);
 
             // Resolve the ready promise
             if (configManagerReadyResolve) {
@@ -363,6 +365,36 @@ const ConfigManager = (function () {
                 ...(serverSupabase.storageBucket ? { storageBucket: serverSupabase.storageBucket } : {})
             }
         };
+    }
+
+    // La IA de imágenes se enciende y se apaga en el servidor (la clave vive en
+    // su .env): lo que publica app-config.json manda sobre lo guardado en este
+    // navegador. Sin esto, un "enabled" viejo en localStorage (el del navegador
+    // que usó el backoffice) escondía "Generar referencia con IA" con la clave
+    // ya cargada, o lo mostraba sin clave. Si el archivo no se pudo leer, queda
+    // apagada: lo guardado no dice nada del servidor.
+    function preserveServerAiImagesConfig(config, fileConfig) {
+        const serverAi = fileConfig && fileConfig.aiImages && typeof fileConfig.aiImages === 'object'
+            ? fileConfig.aiImages
+            : null;
+        const enabled = serverAi
+            ? serverAi.enabled === true
+            : Boolean(fileConfig && fileConfig.gemini && fileConfig.gemini.enabled === true);
+        const gemini = { ...(config.gemini || {}), enabled, apiKey: '' };
+        const provider = serverAi && typeof serverAi.provider === 'string' && serverAi.provider ? serverAi.provider : 'openai';
+        return { ...config, gemini, aiImages: { enabled, provider } };
+    }
+
+    // Una clave de imágenes guardada por una versión anterior del backoffice no
+    // tiene por qué seguir en este navegador: se borra de lo guardado.
+    function forgetStoredAiImageKey(storedConfig) {
+        if (!storedConfig || !storedConfig.gemini || !storedConfig.gemini.apiKey) return;
+        try {
+            const cleaned = { ...storedConfig, gemini: { ...storedConfig.gemini, apiKey: '' } };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+        } catch (error) {
+            console.warn('Could not clean stored config:', error);
+        }
     }
 
     // ========== GETTERS ==========

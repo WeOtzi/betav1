@@ -51,7 +51,7 @@ El archivo `server.js` expone los siguientes endpoints API:
     *   Al proveedor va un `safety_identifier`: el SHA-256 de la llave del borrador (cotizador) o del id de la cuenta (endpoint genérico con sesión). Nunca email, nombre ni IP.
     *   Variables: `OPENAI_API_KEY`, `AI_IMAGE_PROVIDER` (`openai` | `gemini` | `off`), `AI_IMAGE_MODEL`, `AI_REFERENCE_MODEL` (cotizador), `AI_IMAGE_QUALITY` (`low` | `medium` | `high`; default `medium`) y `AI_IMAGE_TIMEOUT_MS` (default `120000`, máximo `280000`; tiene que ser menor que la espera del proxy PHP para estas rutas, 150 s en `deployments/hostinger/proxy.php`). Detalle y puesta en marcha en [`deployments/DEPLOY.md`](../deployments/DEPLOY.md).
     *   La organización de OpenAI puede necesitar verificación para usar los modelos GPT Image: sin ella la API responde 403 y el endpoint devuelve `502 ai_error`.
-    *   Config pública (`/shared/js/app-config.json`): `aiImages: { enabled, provider }`. `gemini.enabled` conserva el nombre por compatibilidad y vale lo mismo.
+    *   Config pública (`/shared/js/app-config.json`): `aiImages: { enabled, provider }`. `gemini.enabled` conserva el nombre por compatibilidad y vale lo mismo. En el navegador, `ConfigManager` impone esos dos valores sobre lo guardado en `localStorage` (la IA de imágenes se enciende y se apaga solo en el servidor; el backoffice no tiene interruptor).
     *   Salud: `GET /api/health/gemini` (clave histórica del servicio) consulta el modelo del proveedor activo sin generar imágenes y devuelve `metadata.provider` y `metadata.model`.
 
 ### Google Drive Integration

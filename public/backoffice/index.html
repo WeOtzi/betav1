@@ -1175,15 +1175,11 @@
                         </div>
                         <div class="card-body">
                             <div class="form-group">
-                                <label>
-                                    <input type="checkbox" id="api-gemini-enabled"> Habilitar IA Generativa
-                                </label>
-                            </div>
-                            <div class="form-group">
                                 <label>API Key</label>
                                 <p class="settings-description" id="api-gemini-provider">
                                     La clave se carga en el servidor (variable <code>OPENAI_API_KEY</code>) y no se muestra ni se guarda aquí.
                                 </p>
+                                <small class="form-hint">La IA de imágenes se enciende al cargar la clave en el servidor. Para apagarla en toda la plataforma, define <code>AI_IMAGE_PROVIDER=off</code> en su <code>.env</code> y reinicia la aplicación: desde este panel no se puede apagar.</small>
                             </div>
                             <div class="form-group">
                                 <label for="api-gemini-model">Modelo para las pruebas e íconos de este panel</label>
@@ -1204,7 +1200,7 @@
                                 </div>
                             </div>
                             <div class="btn-group">
-                                <button class="btn btn-primary btn-sm" onclick="testGeminiAPI()">
+                                <button type="button" class="btn btn-primary btn-sm" id="api-gemini-test" onclick="testGeminiAPI()">
                                     <i class="fa-solid fa-plug"></i> Probar
                                 </button>
                                 <button class="btn btn-secondary btn-sm" onclick="saveGeminiAPI()">
@@ -3231,7 +3227,7 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Configuration Manager -->
-    <script src="/shared/js/config-manager.js?v=20261116-r2c"></script>
+    <script src="/shared/js/config-manager.js?v=20261116-r2d"></script>
     <script src="/shared/js/data/postgrest-client.js"></script>
     <script src="/shared/js/data/quotations-repo.js"></script>
     <script src="/shared/js/data/artists-repo.js"></script>
@@ -3247,7 +3243,7 @@
     <script src="/shared/js/weotzi-uploader.js"></script>
 
     <!-- Admin Panel Logic -->
-    <script src="/shared/js/admin.js?v=20261116-r2c"></script>
+    <script src="/shared/js/admin.js?v=20261116-r2d"></script>
     <!-- Reclamos de estudios (frente estudio-registro) -->
     <script src="/shared/js/backoffice-studio-claims.js?v=20261115-reclamos"></script>
     <script src="/shared/js/backoffice-studio-verifications.js"></script>

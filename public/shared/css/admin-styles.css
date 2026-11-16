@@ -2371,6 +2371,13 @@ input[type="range"]::-webkit-slider-thumb:hover {
     color: var(--warning-color);
 }
 
+/* Generación con IA en curso (hasta dos minutos): el botón que la disparó queda
+   deshabilitado y se ve ocupado. */
+.btn[aria-busy="true"] {
+    opacity: 0.6;
+    cursor: progress;
+}
+
 /* INPUT WITH TOGGLE */
 .input-with-toggle {
     position: relative;
