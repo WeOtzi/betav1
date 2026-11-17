@@ -42,6 +42,15 @@ function money(amount, currency) {
     return `${a} ${text(currency, '')}`.trim();
 }
 
+// Flash Tattoos: lib/cot-artista-notices.js manda is_flash, flash_title y flash_price.
+function isFlash(p) {
+    return p.is_flash === true || p.is_flash === 'true';
+}
+
+function flashTitle(p) {
+    return text(p.flash_title, 'Flash');
+}
+
 function yesNo(value) {
     if (value === true || value === 'true') return 'Sí';
     if (value === false || value === 'false') return 'No';
@@ -90,12 +99,26 @@ const EVENTS = {
         render: {
             audience: 'artist',
             category: 'quotations',
-            subject: d => `Nueva solicitud de ${text(d.client_full_name || d.client_name, 'un cliente')}`,
-            preheader: d => `${text(d.client_full_name || d.client_name, 'Un cliente')} quiere cotizar un tatuaje contigo.`,
+            // Flash Tattoos: la solicitud de un flash lo dice en el asunto, el título y el detalle.
+            subject: d => isFlash(d)
+                ? `Nueva solicitud de flash: «${flashTitle(d)}»`
+                : `Nueva solicitud de ${text(d.client_full_name || d.client_name, 'un cliente')}`,
+            preheader: d => isFlash(d)
+                ? `${text(d.client_full_name || d.client_name, 'Un cliente')} quiere tatuarse tu flash «${flashTitle(d)}».`
+                : `${text(d.client_full_name || d.client_name, 'Un cliente')} quiere cotizar un tatuaje contigo.`,
             eyebrow: 'ARTISTA / NUEVA COTIZACIÓN',
-            headline: () => 'Tienes una solicitud nueva.',
-            intro: d => `${text(d.client_full_name || d.client_name, 'Un cliente')} te mandó una idea para cotizar. Responde desde el detalle: presupuesto, sesiones, anticipo y disponibilidad.`,
-            rows: d => [
+            headline: d => (isFlash(d) ? 'Te pidieron un flash.' : 'Tienes una solicitud nueva.'),
+            intro: d => isFlash(d)
+                ? `${text(d.client_full_name || d.client_name, 'Un cliente')} quiere tatuarse tu flash «${flashTitle(d)}». El precio ya está cargado en la propuesta: revisa la zona y la fecha, y respóndele desde el detalle.`
+                : `${text(d.client_full_name || d.client_name, 'Un cliente')} te mandó una idea para cotizar. Responde desde el detalle: presupuesto, sesiones, anticipo y disponibilidad.`,
+            rows: d => (isFlash(d) ? [
+                ['Flash', flashTitle(d)],
+                ['Precio del flash', text(d.flash_price, '')],
+                ['Cliente', text(d.client_full_name || d.client_name)],
+                ['Zona', text(d.tattoo_body_part)],
+                ['Fecha preferida', text(d.client_preferred_date, 'Flexible')],
+                ['Referencia', text(d.quote_id)]
+            ] : [
                 ['Cliente', text(d.client_full_name || d.client_name)],
                 ['Idea', text(d.tattoo_idea_description).slice(0, 280)],
                 ['Estilo', text(styleName(d.tattoo_style))],
@@ -104,7 +127,7 @@ const EVENTS = {
                 ['Presupuesto del cliente', money(d.client_budget_amount, d.client_budget_currency) || 'Sin indicar'],
                 ['Fecha preferida', text(d.client_preferred_date, 'Flexible')],
                 ['Referencia', text(d.quote_id)]
-            ],
+            ]),
             cta: d => (d.quotation_url ? { label: 'Ver solicitud', url: d.quotation_url } : null)
         }
     },

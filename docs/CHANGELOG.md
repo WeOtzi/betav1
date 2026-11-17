@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.1] - 2026-11-17
+
+- Flash Tattoos en los correos al artista: «Nueva solicitud» y «Nueva solicitud con turno» dicen que es un flash en el asunto, el título y el texto, y muestran el título y el precio del flash. En el correo del flash no aparece «Presupuesto del cliente», porque el precio lo fija el artista. Las variables para un webhook propio de n8n también llevan is_flash, flash_title y flash_price. Los dos correos salen por el relé con el HTML que arma el servidor, así que no hay que tocar n8n.
+- Sin migraciones.
+- Validación: node --test "tests/*.test.js": 3002 pruebas, 3000 pasan, 0 fallan, 2 salteadas; test:prequote en verde. Prueba nueva que arma los dos correos con renderEmail, con y sin flash, y las variables para n8n.
+- Rollback: el controlador a la release 2.6.0 (c3d0615).
+
 ## [2.6.0] - 2026-11-17
 
 - Feedback de la beta cerrada: botón «Comentarios» en todas las páginas con sesión de artista, cliente o estudio (tipo error, idea o comentario, nota de 1 a 5, texto y hasta 2 capturas; guarda página, tipo de cuenta, pantalla y navegador). Encuestas cortas de 1 a 5 que aparecen una sola vez al terminar el registro (tatuador, cliente, estudio), enviar una cotización, enviar una propuesta, agendar la primera sesión y sumar el primer tatuador al estudio. Pestaña «Feedback» en /support/dashboard con resumen por rol, tipo y encuesta, filtros, estado, nota y exportación a CSV. Solo escribe el servidor (tope diario por persona y por IP; la encuesta tiene que corresponder al tipo de cuenta). Ver docs/FEEDBACK_BETA.md.

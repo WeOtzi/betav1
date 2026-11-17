@@ -15,6 +15,10 @@ function text(value, fallback) {
     return s || fallback;
 }
 
+function isFlash(p) {
+    return p.is_flash === true || p.is_flash === 'true';
+}
+
 module.exports = {
     booking_slot_requested: {
         name: 'Turnos: solicitud con turno (artista)',
@@ -30,16 +34,27 @@ module.exports = {
             slot_timezone: text(p.slot_timezone, ''),
             hold_expires_label: text(p.hold_expires_label, '-'),
             quotation_url: p.quotation_url || '',
+            // Flash Tattoos (lib/turnos-notify.js requestedPayload).
+            is_flash: isFlash(p),
+            flash_title: text(p.flash_title, ''),
+            flash_price: text(p.flash_price, ''),
         }),
         render: {
             audience: 'artist',
             category: 'calendar',
-            subject: (d) => `Nueva solicitud con turno · ${text(d.slot_label, 'turno pedido')}`,
-            preheader: (d) => `${text(d.client_name, 'Un cliente')} pidió un turno. Queda apartado hasta ${text(d.hold_expires_label, 'que respondas')}.`,
+            subject: (d) => (isFlash(d)
+                ? `Nueva solicitud de flash con turno · ${text(d.slot_label, 'turno pedido')}`
+                : `Nueva solicitud con turno · ${text(d.slot_label, 'turno pedido')}`),
+            preheader: (d) => (isFlash(d)
+                ? `${text(d.client_name, 'Un cliente')} quiere tatuarse tu flash «${text(d.flash_title, 'Flash')}». El turno queda apartado hasta ${text(d.hold_expires_label, 'que respondas')}.`
+                : `${text(d.client_name, 'Un cliente')} pidió un turno. Queda apartado hasta ${text(d.hold_expires_label, 'que respondas')}.`),
             eyebrow: 'Turnos',
-            headline: () => 'Te pidieron un turno',
-            intro: (d) => `${text(d.client_name, 'Un cliente')} eligió uno de tus turnos disponibles y te mandó su idea. El turno queda apartado mientras respondes: si lo aceptas, se agenda y se bloquea en tu calendario.`,
+            headline: (d) => (isFlash(d) ? 'Te pidieron un flash con turno' : 'Te pidieron un turno'),
+            intro: (d) => (isFlash(d)
+                ? `${text(d.client_name, 'Un cliente')} quiere tatuarse tu flash «${text(d.flash_title, 'Flash')}» y eligió uno de tus turnos disponibles. El precio ya está cargado en la propuesta. El turno queda apartado mientras respondes: si lo aceptas, se agenda y se bloquea en tu calendario.`
+                : `${text(d.client_name, 'Un cliente')} eligió uno de tus turnos disponibles y te mandó su idea. El turno queda apartado mientras respondes: si lo aceptas, se agenda y se bloquea en tu calendario.`),
             rows: (d) => [
+                ...(isFlash(d) ? [['Flash', text(d.flash_title, 'Flash')], ['Precio del flash', text(d.flash_price, '')]] : []),
                 ['Turno pedido', text(d.slot_label, '-')],
                 ['Zona horaria', text(d.slot_timezone, '-')],
                 ['Apartado hasta', text(d.hold_expires_label, '-')],
