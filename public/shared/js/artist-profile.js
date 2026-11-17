@@ -1537,7 +1537,9 @@ function normalizeGalleryItems() {
         const filterValues = styles.map((style) => window.ArtistProfilePresentation?.filterKey?.(style) || String(style).toLowerCase());
         // Pie de foto (ronda 2): texto plano del ítem, si lo trae.
         const caption = galleryCaptionOf(raw);
-        items.push({ url, key, title, category, styles, filterValues, caption, kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image' });
+        // Flash Tattoos: título, precio, tamaño y estado del flash (flash-model.js).
+        const flash = category === 'flash' && window.WoFlash ? window.WoFlash.flashOf(raw) : null;
+        items.push({ url, key, title: flash && raw?.title ? flash.title : title, category, styles, filterValues, caption, flash, kind: raw?.kind === 'video' || isUrlVideo(url) ? 'video' : 'image' });
         seen.add(url);
     }
 
@@ -1648,6 +1650,32 @@ function gallerySlotCount(visibleCount, owner) {
     return visibleCount;
 }
 
+/**
+ * Flash Tattoos: ficha del flash (título, precio, tamaño, estado) y botón
+ * "Reservar este flash". El botón no aparece si el flash está reservado, si
+ * no tiene precio o si quien mira es el dueño del perfil.
+ */
+function flashBookingUrl(flash) {
+    const base = appBaseUrl().replace(window.location.origin, '');
+    return window.WoFlash.bookingUrl(artistData?.username || '', flash.id, base);
+}
+
+function flashCardHtml(item, owner) {
+    const flash = item && item.flash;
+    if (!flash || !window.WoFlash) return '';
+    const bookable = window.WoFlash.canBook(flash, { owner });
+    const meta = [flash.priceLabel, flash.size].filter(Boolean);
+    return `
+        <div class="wo-flash-card${flash.available ? '' : ' is-reserved'}">
+            <p class="wo-flash-card-head">
+                <span class="wo-flash-card-title">${escapeHtml(flash.title)}</span>
+                <span class="wo-flash-status wo-flash-status--${flash.status}">${escapeHtml(flash.statusLabel)}</span>
+            </p>
+            ${meta.length ? `<p class="wo-flash-card-meta">${meta.map((m) => `<span>${escapeHtml(m)}</span>`).join('')}</p>` : ''}
+            ${bookable ? `<a class="wo-btn wo-btn--accent wo-btn--hard wo-btn--s wo-flash-book" href="${escapeHtml(flashBookingUrl(flash))}" data-flash-book="${escapeHtml(flash.id)}">Reservar este flash</a>` : ''}
+        </div>`;
+}
+
 function renderGalleryGrid() {
     const galleryGrid = document.getElementById('gallery-grid');
     const galleryEmpty = document.getElementById('gallery-empty');
@@ -1688,8 +1716,8 @@ function renderGalleryGrid() {
                 ? `<button type="button" class="profile-fav gallery-fav" data-wo-favorite data-kind="design" data-id="${escapeHtml(favId)}" data-artist-id="${escapeHtml(artistData?.user_id || '')}" data-label="${escapeHtml(favLabel)}" data-image="${escapeHtml(item.kind === 'video' ? '' : item.url)}" aria-label="${escapeHtml(`Guardar el trabajo ${number} en favoritos`)}"></button>`
                 : '';
             html += `
-                <figure class="gallery-cell${caption ? ' has-caption' : ''}">
-                    <button type="button" class="gallery-image-item" data-gallery-index="${index}" aria-label="${escapeHtml(label)}">
+                <figure class="gallery-cell${caption ? ' has-caption' : ''}${item.flash ? ' is-flash' : ''}">
+                    <button type="button" class="gallery-image-item" data-gallery-index="${index}" aria-label="${escapeHtml(item.flash ? `Abrir el flash ${item.flash.title}` : label)}">
                         ${item.kind === 'video'
                             ? `<video src="${escapeHtml(item.url)}" preload="metadata" muted playsinline></video><span class="gallery-play-overlay"><i data-wo-icon="play" class="wo-icon-18" aria-hidden="true"></i></span>`
                             : `<img src="${escapeHtml(item.url)}" alt="${escapeHtml(alt)}" loading="lazy" width="1200" height="800">`}
@@ -1697,6 +1725,7 @@ function renderGalleryGrid() {
                     </button>
                     ${favButton}
                     ${caption ? `<figcaption class="gallery-caption">${escapeHtml(caption)}</figcaption>` : ''}
+                    ${flashCardHtml(item, owner)}
                 </figure>
             `;
         } else {
@@ -2408,6 +2437,19 @@ function updateLightboxImage() {
     if (caption) {
         caption.textContent = item.caption || '';
         caption.hidden = !item.caption;
+    }
+
+    // Flash Tattoos: ficha del flash en el visor (mismo botón que la tarjeta).
+    let flashPanel = document.getElementById('lightbox-flash');
+    if (!flashPanel && item.flash) {
+        flashPanel = document.createElement('div');
+        flashPanel.id = 'lightbox-flash';
+        flashPanel.className = 'lightbox-flash';
+        (caption?.parentNode || document.getElementById('gallery-lightbox'))?.appendChild(flashPanel);
+    }
+    if (flashPanel) {
+        flashPanel.innerHTML = item.flash ? flashCardHtml(item, isOwnerView()) : '';
+        flashPanel.hidden = !item.flash;
     }
 }
 

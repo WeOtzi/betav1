@@ -40,15 +40,18 @@ function deriveQuoteId(submissionKey) {
 }
 
 // quotations_db_source_check (vivo) acepta direct | job_board | recommendation |
-// web_chat. El pre-cotizador se marca en quotation_medium para no violar el
-// CHECK; 'recommendation' = artista elegido entre las sugerencias del sistema.
-function resolveSource(input, artist) {
+// web_chat (+ manual, prequote y, desde 20261117130000, flash). El pre-cotizador
+// se marca en quotation_medium; 'recommendation' = artista elegido entre las
+// sugerencias del sistema. 'flash' lo fija SOLO el servidor (POST
+// /api/flash/request pasa options.flash): el navegador no puede pedirlo.
+function resolveSource(input, artist, options = {}) {
+    if (options.flash && artist) return { source: 'flash', quotation_medium: 'web' };
     if (input.source === 'recommendation' && artist) return { source: 'recommendation', quotation_medium: 'web' };
     if (input.source === 'prequote') return { source: 'web_chat', quotation_medium: 'prequote' };
     return { source: 'web_chat', quotation_medium: 'web' };
 }
 
-function normalizeIntake(body, user, artist) {
+function normalizeIntake(body, user, artist, options = {}) {
     if (!UUID_V4_RE.test(body.submission_key || '')) invalid('La clave de la solicitud no es válida.');
     if (!['draft','submit'].includes(body.mode)) invalid('Operación no válida.');
     const input = body.quotation || {};
@@ -93,7 +96,7 @@ function normalizeIntake(body, user, artist) {
         artist_instagram: artist?.instagram || null, artist_styles: artist?.styles_array || [],
         artist_current_city: artist?.ubicacion || artist?.city || null, artist_studio_name: artist?.estudios || null,
         artist_session_cost_amount: artist?.session_price || null
-    }, resolveSource(input, artist));
+    }, resolveSource(input, artist, options));
     const extra = body.extras || {};
     const extras = { idea_mode: extra.idea_mode === 'explorar' ? 'explorar' : 'idea', personalization_level: ['tal_cual','interpretacion','propuesta'].includes(extra.personalization_level) ? extra.personalization_level : null, reference_notes: Array.isArray(extra.reference_notes) ? extra.reference_notes.slice(0,4).map(n => String(n).slice(0,2000)) : [] };
     const references = body.mode === 'submit' ? cotForm.normalizeReferences(body.references, quoteId) : [];
@@ -158,11 +161,15 @@ async function callSaveRpc(q, extras) {
 
 // Normaliza el borrador y resuelve artista, borrador previo y vínculo de cuenta
 // (sin guardar). La usan saveQuotation y el envío con turno (lib/turnos-intake).
-async function prepareQuotation(body, user, { forceNoArtist = false, reusedFrom = null } = {}) {
+async function prepareQuotation(body, user, { forceNoArtist = false, reusedFrom = null, flash = null } = {}) {
     const input = body.quotation || {};
     const artist = forceNoArtist ? null : await loadArtist(input.artist_id);
     if (forceNoArtist && body.quotation) body = { ...body, quotation: { ...input, artist_id: null } };
-    const { q, extras, references } = normalizeIntake(body, user, artist);
+    const { q, extras, references } = normalizeIntake(body, user, artist, { flash: !!flash });
+    // Flash Tattoos: instantánea armada por el servidor (lib/routes/flash.js).
+    // Viaja en p_quote: save_web_quotation (y la variante con turno) la guarda
+    // en el mismo insert/upsert que la cotización (migración 20261117130000).
+    if (flash && artist) q.flash_snapshot = flash;
     // P32: origen de "Cotizar con otro artista" (solo lo fija el servidor al clonar).
     if (reusedFrom) q.reused_from_quote_id = String(reusedFrom).slice(0, 64);
     if (body.mode === 'submit' && artist && body.preferred_location) {
@@ -239,8 +246,8 @@ function sendError(res, e) {
 // los hace save_web_quotation_with_slot. Después, igual que un envío normal:
 // referencias y confirmación al cliente (afterSubmit). El aviso al artista es
 // booking_slot_requested (lo manda lib/turnos-intake), no artist_new_quotation.
-async function handleSlotSubmit(req, res, body, user, slot, sessionExpired) {
-    const prepared = await prepareQuotation(body, user);
+async function handleSlotSubmit(req, res, body, user, slot, sessionExpired, options = {}) {
+    const prepared = await prepareQuotation(body, user, options.prepare || {});
     if (prepared.jobBoard) {
         invalid('Esta idea ya está publicada en el Job Board.', 409, { job_board_request_id: prepared.previous.job_board_request_id });
     }
@@ -282,6 +289,45 @@ function notifyArtist(quoteId, req) {
     notices.inBackground('artist_new_quotation', () => notices.notifyArtistNewQuotation(quoteId, { baseUrl: applicationBase(req) }));
 }
 
+/**
+ * Guardado + envío con un body ya armado. Lo usan POST /api/quotations/intake
+ * (body del navegador) y POST /api/flash/request (body que arma el servidor).
+ * options:
+ *   sessionExpired  la sesión del Bearer venció (la cotización sigue anónima)
+ *   prepare         opciones de prepareQuotation (p. ej. { flash })
+ */
+async function submitIntake(req, res, body, user, options = {}) {
+    const sessionExpired = !!options.sessionExpired;
+    // ── turnos ── envío final con turno elegido: apartado atómico (lib/turnos-intake.js).
+    const slot = turnosIntake.requestedSlot(body);
+    if (slot) return await handleSlotSubmit(req, res, body, user, slot, sessionExpired, options);
+    const saved = await saveQuotation(body, user, options.prepare || {});
+    const status = saved.result.status;
+    if (body.mode === 'submit' && status === 'job_board') {
+        invalid('Esta idea ya está publicada en el Job Board.', 409, { job_board_request_id: saved.previous.job_board_request_id });
+    }
+    let referencesSaved = true;
+    if (body.mode === 'submit' && status === 'pending') {
+        try { await persistReferences(saved.q.quote_id, saved.references); }
+        catch (error) {
+            referencesSaved = false;
+            console.error('[quotation-intake] referencias de', saved.q.quote_id, error.message);
+        }
+        // Avisos y copia a Drive solo en la transición real (un reintento
+        // del mismo envío no los repite; los emails además son idempotentes).
+        const freshlySubmitted = !saved.previous || saved.previous.quote_status === 'in_progress';
+        // COT-A-03: aviso al artista (artist_new_quotation, idempotente). Las elegidas
+        // entre sugerencias ya avisan con quotation_artist_selected (afterSubmit).
+        if (freshlySubmitted && saved.q.artist_id && saved.q.source !== 'recommendation') notifyArtist(saved.q.quote_id, req);
+        if (freshlySubmitted && typeof hooks.afterSubmit === 'function') {
+            Promise.resolve()
+                .then(() => hooks.afterSubmit({ req, quoteId: saved.q.quote_id, quote: saved.q, artist: saved.artist, references: saved.references, user }))
+                .catch(error => console.error('[quotation-intake] avisos post-envío:', error.message));
+        }
+    }
+    return res.json({ success: true, quote_id: saved.result.quote_id, short_code: cotForm.isShortCode(saved.result.short_code) ? saved.result.short_code : null, status, session_expired: sessionExpired, references_saved: referencesSaved });
+}
+
 async function handleIntake(req, res) {
     try {
         const user = await resolveBearerUser(req);
@@ -289,35 +335,8 @@ async function handleIntake(req, res) {
         // por email) en vez de trabar el wizard con un 401.
         const sessionExpired = !!(req.headers.authorization && !user);
         const body = req.body || {};
-        // ── turnos ── envío final con turno elegido: apartado atómico (lib/turnos-intake.js).
-        const slot = turnosIntake.requestedSlot(body);
-        if (slot) return await handleSlotSubmit(req, res, body, user, slot, sessionExpired);
-        const saved = await saveQuotation(body, user);
-        const status = saved.result.status;
-        if (body.mode === 'submit' && status === 'job_board') {
-            invalid('Esta idea ya está publicada en el Job Board.', 409, { job_board_request_id: saved.previous.job_board_request_id });
-        }
-        let referencesSaved = true;
-        if (body.mode === 'submit' && status === 'pending') {
-            try { await persistReferences(saved.q.quote_id, saved.references); }
-            catch (error) {
-                referencesSaved = false;
-                console.error('[quotation-intake] referencias de', saved.q.quote_id, error.message);
-            }
-            // Avisos y copia a Drive solo en la transición real (un reintento
-            // del mismo envío no los repite; los emails además son idempotentes).
-            const freshlySubmitted = !saved.previous || saved.previous.quote_status === 'in_progress';
-            // COT-A-03: aviso al artista (artist_new_quotation, idempotente). Las elegidas
-            // entre sugerencias ya avisan con quotation_artist_selected (afterSubmit).
-            if (freshlySubmitted && saved.q.artist_id && saved.q.source !== 'recommendation') notifyArtist(saved.q.quote_id, req);
-            if (freshlySubmitted && typeof hooks.afterSubmit === 'function') {
-                Promise.resolve()
-                    .then(() => hooks.afterSubmit({ req, quoteId: saved.q.quote_id, quote: saved.q, artist: saved.artist, references: saved.references, user }))
-                    .catch(error => console.error('[quotation-intake] avisos post-envío:', error.message));
-            }
-        }
-        res.json({ success: true, quote_id: saved.result.quote_id, short_code: cotForm.isShortCode(saved.result.short_code) ? saved.result.short_code : null, status, session_expired: sessionExpired, references_saved: referencesSaved });
+        return await submitIntake(req, res, body, user, { sessionExpired });
     } catch (e) { sendError(res, e); }
 }
 
-module.exports = { handleIntake, normalizeIntake, prepareQuotation, saveQuotation, persistReferences, deriveQuoteId, sendError, shortCodeOf, hooks, CLIENT_FIELDS };
+module.exports = { handleIntake, submitIntake, resolveSource, normalizeIntake, prepareQuotation, saveQuotation, persistReferences, deriveQuoteId, sendError, shortCodeOf, hooks, CLIENT_FIELDS };

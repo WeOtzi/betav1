@@ -62,6 +62,15 @@
   }
   var PENDING_HINT = 'Se muestra en tu perfil público cuando valides tu Instagram';
 
+  // Flash Tattoos: datos de venta del flash (item.flash) · flash-model.js.
+  function flashModule() {
+    if (typeof window !== 'undefined' && window.WoFlash) return window.WoFlash;
+    if (typeof module === 'object' && module.exports && typeof require === 'function') {
+      try { return require('./flash-model.js'); } catch (_) { return null; }
+    }
+    return null;
+  }
+
   /* ---------------------------------------------------------------- puras --- */
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -174,8 +183,10 @@
 
   // Campos extra que la normalización del feed tiene que conservar.
   // ig_handle / ig_legacy deciden la visibilidad pública: si se pierden al
-  // guardar, una foto ya publicada pasaría a quedar oculta.
-  var EXTRA_FIELDS = ['id', 'title', 'caption', 'permalink', 'source', 'imported_at', 'ig_handle', 'ig_legacy', 'duration', 'is_featured'];
+  // guardar, una foto ya publicada pasaría a quedar oculta. `flash` lleva el
+  // precio, el tamaño y la disponibilidad de un flash (Flash Tattoos): si se
+  // pierde, el flash deja de poder reservarse.
+  var EXTRA_FIELDS = ['id', 'title', 'caption', 'permalink', 'source', 'imported_at', 'ig_handle', 'ig_legacy', 'duration', 'is_featured', 'flash'];
   function pickExtras(raw) {
     var out = {};
     if (!raw || typeof raw !== 'object') return out;
@@ -197,7 +208,22 @@
       var vd = Math.round(Number(raw.video_duration));
       if (isFinite(vd) && vd > 0) out.duration = vd;
     }
+    if (out.flash != null) {
+      var fm = flashModule();
+      if (typeof out.flash === 'object' && !Array.isArray(out.flash)) out.flash = fm ? fm.sanitizeFlash(out.flash) : out.flash;
+      else delete out.flash;
+    }
     return out;
+  }
+
+  // Insignia del flash en la celda: "FLASH · US$ 120 USD" / "FLASH · RESERVADO" / "FLASH · SIN PRECIO".
+  function flashTag(item) {
+    var fm = flashModule();
+    var view = fm ? fm.flashOf(item) : null;
+    if (!view) return '';
+    if (!view.available) return '<span class="wod-gal-tag is-flash is-reserved">FLASH · RESERVADO</span>';
+    if (!view.hasPrice) return '<span class="wod-gal-tag is-flash is-incomplete" title="Ponle precio para que se pueda reservar">FLASH · SIN PRECIO</span>';
+    return '<span class="wod-gal-tag is-flash">FLASH · ' + esc(view.priceLabel) + '</span>';
   }
 
   /* ------------------------------------------------------------------ DOM --- */
@@ -322,6 +348,8 @@
     if (pending) tags += '<span class="wod-gal-tag is-pending" title="' + PENDING_HINT + '">PENDIENTE · IG</span>';
     else if (fresh) tags += '<span class="wod-gal-tag is-new">NUEVO · IG</span>';
     if (video) tags += '<span class="wod-gal-tag is-video" data-gal-duration>' + (dur ? 'VIDEO · ' + esc(dur) : 'VIDEO') + '</span>';
+    tags += flashTag(item);
+    var isFlash = String(item.category || '').toLowerCase() === 'flash';
 
     return '<div class="gallery-item wod-gal-cell' + (featured ? ' is-featured' : '') + (video ? ' is-video' : '') +
         (fresh ? ' is-new' : '') + (pending ? ' is-pending' : '') + (name ? '' : ' is-untitled') + '" data-index="' + index + '" draggable="true" role="listitem">' +
@@ -341,6 +369,9 @@
         // Ronda 2 (N3): pie de foto (el de Instagram llega precargado).
         '<button type="button" class="wod-gal-cap' + (cleanCaption(item.caption) ? ' has-caption' : '') + '" data-gal-action="caption" title="Pie de foto" aria-label="' +
           (cleanCaption(item.caption) ? 'Editar el pie de foto de ' : 'Agregar un pie de foto a ') + esc(label) + '">' + CAPTION_ICON + '</button>' +
+        // Flash Tattoos: precio, tamaño y disponibilidad (solo fotos).
+        (video ? '' : '<button type="button" class="wod-gal-flashbtn' + (isFlash ? ' is-flash' : '') + '" data-gal-action="flash" title="Datos del flash" aria-label="' +
+          (isFlash ? 'Editar los datos del flash ' : 'Publicar como flash ') + esc(label) + '">' + icon('tag') + '</button>') +
         '<button type="button" class="gallery-item-delete wod-gal-del" data-gal-action="delete" aria-label="Eliminar ' + esc(label) + '">' + icon('trash-2') + '</button>' +
       '</div>' +
     '</div>';
@@ -481,6 +512,19 @@
           });
         });
       }
+      else if (action === 'flash') {
+        // Flash Tattoos: diálogo de flash-editor.js (precio, tamaño, disponibilidad).
+        var items = feed();
+        if (!items[i] || typeof window === 'undefined' || !window.WoFlashEditor) return;
+        window.WoFlashEditor.open(items[i], {
+          onSave: function (nextItem) {
+            var next = feed().slice();
+            if (!next[i]) return null;
+            next[i] = nextItem;
+            return save(next, nextItem.category === 'flash' ? 'Flash guardado.' : 'Ya no es un flash.');
+          }
+        });
+      }
       else if (action === 'feature') move(i, 0, false);
       else if (action === 'rename') startRename(actionEl.closest('.wod-gal-cell'), i);
     });
@@ -574,6 +618,7 @@
     setCaption: setCaption,
     openCaptionDialog: openCaptionDialog,
     pickExtras: pickExtras,
+    flashTag: flashTag,
     cellMarkup: cellMarkup,
     render: render,
     bind: bind

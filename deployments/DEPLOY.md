@@ -582,6 +582,28 @@ Detalle en [docs/PERFIL_INSIGNIAS.md](../docs/PERFIL_INSIGNIAS.md).
 
 ---
 
+## Beta 2.6.0 · Feedback de la beta y Flash Tattoos
+
+Dos migraciones nuevas: `20261117120000_beta_feedback.sql` (tabla `beta_feedback`) y
+`20261117130000_flash_tattoos.sql` (origen `flash`, columna `flash_snapshot`,
+`save_web_quotation` guarda la instantánea, reserva del flash único y sus guardas).
+Las dos son compatibles con el código 2.5.2, así que **van ANTES del código 2.6.0**:
+sin ellas, `/api/feedback` y `/api/flash/request` fallan. La de flash redefine
+`save_web_quotation` a partir de la definición viva (`pg_get_functiondef` + reemplazos
+verificados) y falla entera si la función cambió.
+
+**Para volver atrás:** primero el código 2.5.2 y después las reversas en orden inverso
+(`20261117130000_flash_tattoos.down.sql` y `20261117120000_beta_feedback.down.sql`).
+La reversa de feedback borra los comentarios recibidos: exportarlos antes a CSV desde
+`/support/dashboard#feedback`.
+
+**Comprobar** después: el botón «Comentarios» aparece con sesión de artista, cliente o
+estudio y no en páginas públicas ni en soporte; un comentario llega a la pestaña
+Feedback de soporte. En un perfil con flashes con precio, «Reservar este flash» abre
+`/flash` y la solicitud llega al artista con la insignia Flash y el precio cargado.
+Las plantillas de correo de n8n reciben `is_flash` y `flash_title` en «Nueva
+solicitud», pero todavía no los muestran.
+
 ## Reglas para el agente
 
 | Situación                                           | Acción                                      |

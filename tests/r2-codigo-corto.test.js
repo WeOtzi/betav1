@@ -326,8 +326,10 @@ test('las páginas piden la versión nueva de los scripts que cambiaron', () => 
         'public/my-quotations/index.html': ['quote-share-model.js', 'quotations-view-model.js', 'quotations.js'],
         'public/my-quotations/new/index.html': ['quote-share-model.js', 'quotations-view-model.js', 'quotations.js'],
     };
+    // Flash Tattoos (17 nov 2026): quotations.js cambió otra vez (insignia "Flash").
+    const versionOf = (script) => (script === 'quotations.js' ? '20261117-flash' : '20261116-r2b');
     for (const [page, scripts] of Object.entries(pages)) {
         const html = read(page);
-        for (const script of scripts) assert.ok(html.includes(`/shared/js/${script}?v=20261116-r2b"`), `${page}: ${script}`);
+        for (const script of scripts) assert.ok(html.includes(`/shared/js/${script}?v=${versionOf(script)}"`), `${page}: ${script}`);
     }
 });

@@ -87,6 +87,7 @@ Express sirve rutas limpias; por ejemplo `/artist/dashboard` resuelve a `public/
 | `/` | Publico | `server.js` | Redirige a `/quotation`. |
 | `/quotation` | Cliente | `public/quotation/index.html` | Wizard principal de cotizacion con referencias, seleccion de artista, calendario y handoff a Drive/n8n/Supabase. |
 | `/quotations` | Cliente/legacy | `public/quotations/index.html` | Redirecciona a `/quotation` preservando query/hash. |
+| `/flash` | Cliente/publico | `public/flash/index.html` | Reserva de un flash con precio fijo (`?artist=<usuario>&id=<id del flash>`): contacto, zona y salud, turno o rango tentativo y revision. Ver [FLASH_TATTOOS.md](FLASH_TATTOOS.md). |
 | `/pre-cotizador` | Cliente | `public/pre-cotizador/index.html` | Estimador previo de costo y artistas sugeridos antes de iniciar la cotizacion completa. |
 | `/marketplace` | Cliente/publico | `public/marketplace/index.html` | Busqueda/listado de artistas y estudios (`?modo=estudios`, Figma 801:1127 y 2113:9145). Lee por `WeotziData.Marketplace` (`data/marketplace-repo.js`); filtros puros en `marketplace-core.js` (estilo canónico sin tildes, precio en USD, agenda + `public_artist_trips`, verificados, paginado). |
 | `/explore` | Cliente/publico | `public/explore/index.html` | Mapa 2D de artistas y estudios usando `artists_with_location` y `studio_locations`. |
@@ -176,6 +177,7 @@ Estas pantallas no figuran en el Figma final “We Otzi Pantallas final” y se 
 | `POST` | `/api/quotations/intake` | Autosave y envio del cotizador web (service role, llave `submission_key`). | `services/quotation-intake.js` |
 | `POST` | `/api/quotations/suggestions` | Artistas sugeridos para cotizar sin artista (sin PII). | `lib/artist-matching.js` |
 | `POST` | `/api/quotations/intake/job-board` | Publica la idea sin artista en el Job Board (sesion de cliente). | `lib/routes/cot-form.js` |
+| `POST` | `/api/flash/request` | Reserva de un flash: valida el flash contra la galeria del artista (disponible, con precio) y crea la cotizacion con `source='flash'` por el camino del cotizador. Ver [FLASH_TATTOOS.md](FLASH_TATTOOS.md). | `lib/routes/flash.js`, `lib/flash.js` |
 | `POST` | `/api/quotations/style-suggestions` | Estilos sugeridos segun la idea del cliente y estilos del artista (palabras clave, sin IA ni PII). | `lib/routes/cot-pasos.js` |
 | `GET` | `/api/client-info` | Devuelve la IP **anonimizada** (IPv4 /24, IPv6 /48) y timestamp. | Request headers |
 | `POST` | `/api/session-log` | Recibe logs finales via `sendBeacon` y estima el país por zona horaria/idioma del navegador (`geo_hint`), sin enviar la IP a terceros. | Supabase |
