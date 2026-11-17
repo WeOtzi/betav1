@@ -693,6 +693,42 @@ test('avisos al artista: "Nueva solicitud" dice que es un flash (con o sin turno
     assert.equal(slot.flash_title, 'Golondrina');
 });
 
+test('correos al artista: el HTML de "Nueva solicitud" muestra el flash, su precio y nada del presupuesto del cliente', () => {
+    const { renderEmail } = require('../lib/email-render');
+    const notices = require('../lib/cot-artista-notices');
+    const base = 'https://beta.weotzi.com';
+    const flashRow = { quote_id: 'QN' + 'd'.repeat(32), source: 'flash', client_full_name: 'Lucía', artist_email: 'a@x.test', tattoo_body_part: 'Antebrazo',
+        flash_snapshot: { id: 'fl_x01', title: 'Golondrina', price: 120, currency: 'USD' } };
+    const mail = renderEmail('artist_new_quotation', notices.newQuotationPayload(flashRow, base), { role: 'artist', baseUrl: base });
+    assert.equal(mail.subject, 'Nueva solicitud de flash: «Golondrina»');
+    assert.ok(mail.html.includes('Te pidieron un flash.'));
+    for (const piece of ['Golondrina', 'Precio del flash', '120 USD', 'Antebrazo']) {
+        assert.ok(mail.html.includes(piece) && mail.text.includes(piece), piece);
+    }
+    assert.ok(!mail.html.includes('Presupuesto del cliente'));
+
+    const plain = renderEmail('artist_new_quotation', notices.newQuotationPayload({ ...flashRow, source: 'web_chat', flash_snapshot: null }, base), { role: 'artist', baseUrl: base });
+    assert.equal(plain.subject, 'Nueva solicitud de Lucía');
+    assert.ok(plain.html.includes('Presupuesto del cliente') && !plain.html.includes('Precio del flash'));
+
+    const hold = { starts_at: '2026-12-01T15:00:00Z', ends_at: '2026-12-01T17:00:00Z', expires_at: '2026-12-04T15:00:00Z' };
+    const notify = require('../lib/turnos-notify');
+    const slotPayload = notify.requestedPayload({ artist: { name: 'Ana', email: 'a@x.test' },
+        quote: { id: 7, quote_id: 'QN1', client_full_name: 'Lucía', flash_title: 'Golondrina', flash_price: '120 USD' }, hold, tz: 'UTC', baseUrl: base });
+    const slotMail = renderEmail('booking_slot_requested', slotPayload, { role: 'artist', baseUrl: base });
+    assert.match(slotMail.subject, /^Nueva solicitud de flash con turno · /);
+    for (const piece of ['Te pidieron un flash con turno', 'Golondrina', 'Precio del flash', '120 USD']) assert.ok(slotMail.html.includes(piece), piece);
+    // Las variables para un webhook propio de n8n también llevan el flash.
+    const vars = require('../services/email-event-mapping').buildAttribs('booking_slot_requested', slotPayload);
+    assert.equal(String(vars.is_flash), 'true');
+    assert.equal(vars.flash_title, 'Golondrina');
+    assert.equal(vars.flash_price, '120 USD');
+
+    const plainSlot = renderEmail('booking_slot_requested', notify.requestedPayload({ artist: { name: 'Ana' }, quote: { id: 8, quote_id: 'QN2', client_full_name: 'Lucía' }, hold, tz: 'UTC', baseUrl: base }), { role: 'artist', baseUrl: base });
+    assert.match(plainSlot.subject, /^Nueva solicitud con turno · /);
+    assert.ok(!plainSlot.html.includes('Precio del flash'));
+});
+
 // -------------------------------------------------------- página y demo
 
 test('/flash: página propia con los pasos, la edad mínima y el aviso de cobro', () => {

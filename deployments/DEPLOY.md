@@ -601,8 +601,8 @@ La reversa de feedback borra los comentarios recibidos: exportarlos antes a CSV 
 estudio y no en páginas públicas ni en soporte; un comentario llega a la pestaña
 Feedback de soporte. En un perfil con flashes con precio, «Reservar este flash» abre
 `/flash` y la solicitud llega al artista con la insignia Flash y el precio cargado.
-Las plantillas de correo de n8n reciben `is_flash` y `flash_title` en «Nueva
-solicitud», pero todavía no los muestran.
+Desde la 2.6.1 los correos «Nueva solicitud» y «Nueva solicitud con turno» muestran
+el flash y su precio (los arma el servidor y salen por el relé; no hay que tocar n8n).
 
 ## Reglas para el agente
 
