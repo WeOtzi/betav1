@@ -26,9 +26,12 @@
     'use strict';
 
     // Columnas públicas del estudio (sin email, teléfonos internos ni user_id).
-    const STUDIO_PUBLIC_COLUMNS = 'id,slug,name,tagline,bio,cover_image,logo_image,photo_feed_items,founded_year,'
+    const STUDIO_PUBLIC_COLUMNS_BASE = 'id,slug,name,tagline,bio,cover_image,logo_image,photo_feed_items,founded_year,'
         + 'languages,instagram,tiktok,whatsapp,website,is_verified,verified_at,is_active,profile_complete,city,country,'
         + 'specialty_styles,accepts_guest_spots,is_seeking_artists';
+    // 2.7.0: instagram_badge_ok (columna generada, migración 20261118100000)
+    // decide el sello. Sin la columna se reintenta con el set base.
+    const STUDIO_PUBLIC_COLUMNS = STUDIO_PUBLIC_COLUMNS_BASE + ',instagram_badge_ok';
     const ROLE_LABELS = {
         resident: 'Residente', itinerant: 'Itinerante', guest: 'Invitado', manager: 'Manager', owner: 'Dueño'
     };
@@ -128,15 +131,56 @@
         }).join('');
     }
 
+    // Misma clave que usa el servidor para comprobar la foto (lib/denuncias.js portfolioItemKey).
+    function photoKey(p, url) {
+        const raw = p || {};
+        return String(raw.id || raw.key || String(url || '').split('#')[0].split('?')[0].split('/').pop() || '').slice(0, 120);
+    }
+
+    // Denuncia de una foto (2.7.0, plagio): botón vacío del contrato de wo-report.js,
+    // oculto hasta que el módulo decide (no lo ve quien administra el estudio).
+    function photoReportButtonHtml(studio, p, url, index) {
+        const s = studio || {};
+        if (!s.id || !url) return '';
+        return '<button type="button" class="sp-photo-report" hidden data-wo-report data-kind="studio"'
+            + ' data-id="' + esc(s.id) + '" data-label="' + esc(s.name || 'Estudio') + '" data-reason="plagio_diseno"'
+            + ' data-item-key="' + esc(photoKey(p, url)) + '" data-item-image="' + esc(url) + '"'
+            + ' aria-label="Denunciar la foto ' + (index + 1) + '"></button>';
+    }
+
     function galleryHtml(studio) {
         const list = photos(studio);
         if (!list.length) return '<p class="sp-empty">Todavía no hay imágenes del espacio.</p>';
         const name = (studio && studio.name) || 'el estudio';
         return list.slice(0, 24).map((p, i) => {
             const url = safeUrl(p.url);
-            return '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" aria-label="Abrir foto ' + (i + 1) + ' de ' + esc(name) + '">'
-                + '<img src="' + esc(url) + '" alt="' + esc(p.caption || ('Foto ' + (i + 1) + ' de ' + name)) + '" loading="lazy" decoding="async"></a>';
+            return '<figure class="sp-photo">'
+                + '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" aria-label="Abrir foto ' + (i + 1) + ' de ' + esc(name) + '">'
+                + '<img src="' + esc(url) + '" alt="' + esc(p.caption || ('Foto ' + (i + 1) + ' de ' + name)) + '" loading="lazy" decoding="async"></a>'
+                + photoReportButtonHtml(studio, p, url, i)
+                + '</figure>';
         }).join('');
+    }
+
+    // Estudio visible en lo público (2.7.0): activo y sin sanción. Una sanción
+    // del dueño (suspensión o baneo) fija studios.sanction_state y apaga
+    // is_active (lib/sanciones-service.js); el navegador no lee sanction_state,
+    // así que is_active = false basta para «No encontramos este estudio».
+    function isStudioPublic(studio) {
+        const badge = root.WoVerifiedBadge;
+        if (badge && typeof badge.isStudioPublic === 'function') return badge.isStudioPublic(studio);
+        if (!studio || typeof studio !== 'object') return false;
+        const state = studio.sanction_state;
+        return studio.is_active !== false && (state == null || state === '' || state === 'none');
+    }
+
+    // Sello "Estudio verificado": is_verified y, desde 2.7.0, el Instagram del
+    // estudio validado (WoVerifiedBadge) y el estudio público (sin sanción).
+    // Sin el módulo, la regla anterior más la de estudio público.
+    function studioSealVisible(studio) {
+        const badge = root.WoVerifiedBadge;
+        if (badge && typeof badge.isStudioBadgeVisible === 'function') return badge.isStudioBadgeVisible(studio || {});
+        return Boolean(studio) && studio.is_verified === true && isStudioPublic(studio);
     }
 
     // ── favoritos (ronda 2 · P22): corazón "Guardar" del estudio. Aquí solo se
@@ -332,9 +376,12 @@
     async function render(ref) {
         const D = root.WeotziData;
         const isUuid = UUID_RE.test(ref);
-        const { data: studio, error } = await (isUuid ? D.Studios.getById(ref, STUDIO_PUBLIC_COLUMNS) : D.Studios.getBySlug(ref, STUDIO_PUBLIC_COLUMNS));
+        const fetchStudio = (columns) => (isUuid ? D.Studios.getById(ref, columns) : D.Studios.getBySlug(ref, columns));
+        let { data: studio, error } = await fetchStudio(STUDIO_PUBLIC_COLUMNS);
+        // Base sin instagram_badge_ok (migración de la insignia pendiente): el sello queda oculto.
+        if (error) ({ data: studio, error } = await fetchStudio(STUDIO_PUBLIC_COLUMNS_BASE));
         if (error) throw error;
-        if (!studio || studio.is_active === false) { renderNotFound(); return; }
+        if (!isStudioPublic(studio)) { renderNotFound(); return; }
 
         const [{ data: locData, error: locError }, { data: rosterData, error: rosterError }] = await Promise.all([
             D.StudioLocations.listActiveByStudio(studio.id),
@@ -357,7 +404,7 @@
         setText('sp-title', preparing ? 'El estudio está preparando su perfil' : name);
         setText('sp-sub', [name, place].filter(Boolean).join(' · '));
         const seal = $('sp-seal');
-        if (seal) seal.hidden = studio.is_verified !== true;
+        if (seal) seal.hidden = !studioSealVisible(studio);
         // ── favoritos (P22): corazón del estudio junto al título.
         const titleRow = seal && seal.parentNode;
         if (titleRow && typeof titleRow.querySelector === 'function' && !titleRow.querySelector('[data-wo-favorite]')) {
@@ -421,8 +468,9 @@
         show('sp-loading', false);
         show('sp-profile', true);
 
-        // Denuncias (ronda 2): el botón queda vacío y oculto; /shared/js/wo-report.js
-        // lo muestra solo a dueños o managers de OTRO estudio y abre el modal.
+        // Denuncias: el botón queda vacío y oculto; /shared/js/wo-report.js lo
+        // muestra a cualquiera que no administre este estudio (2.7.0: también a
+        // clientes y a visitantes sin sesión, que el modal invita a entrar).
         const report = $('sp-report');
         if (report) {
             report.setAttribute('data-label', name);
@@ -478,6 +526,11 @@
         teamRows,
         locationsHtml,
         galleryHtml,
+        photoKey,
+        photoReportButtonHtml,
+        studioSealVisible,
+        isStudioPublic,
+        STUDIO_PUBLIC_COLUMNS_BASE,
         linksHtml,
         favoriteButtonHtml,
         joinStudioUrl,

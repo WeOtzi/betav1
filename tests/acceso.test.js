@@ -321,13 +321,21 @@ test('migración 20261115100000: handle_new_user sin artistas OAuth, Términos d
     assert.match(sql, /CASE WHEN terms_ok THEN now\(\) END/);
     assert.match(sql, /current_terms_version constant text := '2026-11-13'/, 'versión con la que nació la constante');
     // La versión vigente la fija la última migración que mueve la constante, tomando la definición viva.
-    const bump = read('supabase/migrations/20261116240000_terminos_version_privacidad_1_1.sql');
+    const previous = read('supabase/migrations/20261116240000_terminos_version_privacidad_1_1.sql');
+    assert.match(previous, /nuevo constant text := \$q\$current_terms_version constant text := '2026-11-16'\$q\$/);
+    const bump = read('supabase/migrations/20261118120000_terminos_reaceptacion.sql');
+    assert.match(bump, /viejo constant text := \$q\$current_terms_version constant text := '2026-11-16'\$q\$/, 'parte de la versión anterior');
+    // El estudio sella la versión del servidor, no la que manda el navegador.
+    assert.match(bump, new RegExp(`v_version constant text := '${TERMS_VERSION}';`));
+    assert.doesNotMatch(bump, /p_profile->>'terms_version'/);
+    assert.match(bump, /create table if not exists public\.terms_acceptances/);
     assert.match(bump, new RegExp(`nuevo constant text := \\$q\\$current_terms_version constant text := '${TERMS_VERSION}'\\$q\\$`), 'misma versión que lib/terms-acceptance.js');
     assert.match(bump, /select pg_get_functiondef\('public\.handle_new_user\(\)'::regprocedure\) into def;/, 'parte de la definición viva, no de una copia del repo');
     assert.match(bump, /execute replace\(def, viejo, nuevo\);/);
     assert.match(bump, /raise exception 'handle_new_user no tiene la constante de versión esperada/, 'si la base no coincide, falla sin tocar nada');
-    const bumpDown = read('supabase/rollbacks/20261116240000_terminos_version_privacidad_1_1.down.sql');
+    const bumpDown = read('supabase/rollbacks/20261118120000_terminos_reaceptacion.down.sql');
     assert.match(bumpDown, /execute replace\(def, nuevo, viejo\);/);
+    assert.match(bumpDown, /drop table if exists public\.terms_acceptances;/);
     assert.doesNotMatch(sql, /delete\s+from\s+public\.artists_db/i, 'nunca borra artistas (el trigger borraría la cuenta de Auth)');
     const down = read(`supabase/rollbacks/${name}.down.sql`);
     assert.match(down, /drop column if exists terms_accepted_at/);

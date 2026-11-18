@@ -146,7 +146,11 @@ test('HTML del modal: motivos por tipo, campos con label y todo dato escapado', 
     assert.match(quotation, /<label class="wor-label" for="wor-description">Cuéntanos qué pasó/);
     assert.match(quotation, /<textarea id="wor-description"[^>]*required/);
     const profile = R.bodyHtml({ step: 'reason', draft: R.newDraft(), reasons: R.reasonsFor('studio') });
-    for (const label of ['Suplantación de identidad', 'Robo de propiedad intelectual', 'Difamación']) assert.ok(profile.includes(`<span>${label}</span>`), label);
+    for (const label of ['Suplantación de identidad', 'Plagio de diseños', 'Uso de marca o nombre ajeno', 'Difamación', 'Estafa']) assert.ok(profile.includes(`<span>${label}</span>`), label);
+    // 2.7.0: cada motivo de perfil lleva su pista debajo.
+    assert.ok(profile.includes('<small class="wor-reason-hint">Cobró y no cumplió, o pidió pagos fuera de la plataforma</small>'));
+    assert.equal((profile.match(/class="wor-reason-hint"/g) || []).length, 5);
+    assert.doesNotMatch(quotation, /wor-reason-hint/, 'los motivos de cotización no tienen pista');
     const evidence = R.bodyHtml({ step: 'evidence', draft: R.newDraft() });
     assert.match(evidence, /<label class="wor-label" for="wor-links">Enlaces/);
     assert.match(evidence, /type="file"[^>]*accept="image\/jpeg,image\/png,image\/webp,image\/heic,\.heic"[^>]*multiple/);
@@ -191,9 +195,20 @@ test('wo-report.js: contrato del botón, endpoints, Storage privado y accesibili
     assert.match(src, /wo:report-submitted/);
     assert.match(src, /root\.__woReportBooted/, 'cargar el script dos veces no duplica nada');
     assert.match(src, /wo-report\.css/);
-    // El botón solo se muestra cuando el servidor confirma que la persona puede denunciar.
-    assert.match(src, /setVisible\(btn, !!\(info && info\.eligible\)\)/);
+    // El botón se muestra cuando el servidor confirma que la persona puede denunciar
+    // y, sin sesión (2.7.0), solo en perfiles de artista o estudio (nunca en cotizaciones).
+    assert.match(src, /setVisible\(btn, buttonVisible\(target\.kind, info\)\)/);
     assert.match(src, /if \(!session\) return \{ eligible: false, code: 'AUTH_REQUIRED'/);
+    assert.equal(R.buttonVisible('quotation', { eligible: true }), true);
+    assert.equal(R.buttonVisible('artist', { eligible: false, code: 'NOT_ALLOWED' }), false);
+    assert.equal(R.buttonVisible('artist', { eligible: false, code: 'AUTH_REQUIRED' }), true);
+    assert.equal(R.buttonVisible('studio', { eligible: false, code: 'AUTH_REQUIRED' }), true);
+    assert.equal(R.buttonVisible('quotation', { eligible: false, code: 'AUTH_REQUIRED' }), false);
+    // Botones de cada foto del portafolio.
+    assert.match(src, /getAttribute\('data-reason'\)/);
+    assert.match(src, /getAttribute\('data-item-key'\)/);
+    assert.match(src, /getAttribute\('data-item-image'\)/);
+    assert.match(src, /payload\.item = \{ key: current\.item\.key, image_url: current\.item\.image \}/);
 });
 
 test('wo-report.css: foco visible, teléfono a pantalla completa y sin movimiento si se pide', () => {

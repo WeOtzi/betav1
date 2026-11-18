@@ -16,8 +16,9 @@
  *   - Carga, si existe, del módulo de favoritos para los botones que el panel
  *     deja preparados: [data-wo-favorite] → el cargador de config-manager.js
  *     (WoFavoritesLoader: modelo y módulo, en ese orden). Si el módulo no está,
- *     el botón no se ve. El panel del cliente no tiene botón de denuncia: las
- *     denuncias (wo-report.js) son de artistas y dueños de estudio.
+ *     el botón no se ve. El panel del cliente no tiene botón de denuncia: el
+ *     cliente denuncia desde el perfil del artista o del estudio (wo-report.js,
+ *     2.7.0); las cotizaciones las sigue denunciando solo el artista.
  *
  * Carga: DESPUÉS de client-panel-model.js. En el dashboard, ANTES de
  * client-dashboard.js. Expone window.WoClientPanelUi.

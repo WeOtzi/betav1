@@ -21,6 +21,9 @@
  *  - Ciudades: clave sin tildes, se muestra la variante más frecuente.
  *  - Estudios: estado ("Turnos disponibles", "Con artistas invitados",
  *    "Busca artistas") desde sus columnas públicas y su roster.
+ *  - Insignia de verificado: artista verificado / estudio verificado y con el
+ *    Instagram validado (instagram_badge_ok). La regla vive en
+ *    verified-badge.js (window.WoVerifiedBadge), que se carga antes.
  */
 (function (root, factory) {
     var api = factory();
@@ -28,6 +31,43 @@
     if (root) root.WeotziMarketplaceCore = api;
 }(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
     'use strict';
+
+    // ---------------------------------------------------------------- insignia
+
+    // verified-badge.js: global en el navegador, require en Node. Si no se
+    // cargó, la misma regla con la columna generada (sin ella: sin insignia).
+    function badgeApi() {
+        var root = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : null);
+        if (root && root.WoVerifiedBadge) return root.WoVerifiedBadge;
+        if (typeof module === 'object' && module.exports && typeof require === 'function') {
+            try { return require('./verified-badge.js'); } catch (_) { return null; }
+        }
+        return null;
+    }
+
+    function isArtistBadgeVisible(artist) {
+        if (!artist) return false;
+        var api = badgeApi();
+        if (api) return api.isBadgeVisible(artist);
+        return artist.verification_state === 'Yes' && artist.instagram_badge_ok === true;
+    }
+
+    // Estudio visible en lo público: activo y sin sanción (2.7.0). Una sanción
+    // de estudio apaga is_active; sanction_state ausente cuenta como 'none'.
+    function isStudioPublic(studio) {
+        if (!studio) return false;
+        var api = badgeApi();
+        if (api && typeof api.isStudioPublic === 'function') return api.isStudioPublic(studio);
+        var state = studio.sanction_state;
+        return studio.is_active !== false && (state == null || state === '' || state === 'none');
+    }
+
+    function isStudioBadgeVisible(studio) {
+        if (!studio) return false;
+        var api = badgeApi();
+        if (api) return api.isStudioBadgeVisible(studio);
+        return studio.is_verified === true && studio.instagram_badge_ok === true && isStudioPublic(studio);
+    }
 
     // ------------------------------------------------------------------ texto
 
@@ -411,7 +451,7 @@
             guests: !!(studio.accepts_guest_spots && guestWindowOpen),
             seeking: !!studio.is_seeking_artists,
             openSlots: roster.some(function (a) { return isAvailable(agenda[a.user_id]); }),
-            verified: studio.is_verified === true
+            verified: isStudioBadgeVisible(studio)
         };
     }
 
@@ -483,6 +523,9 @@
         studioStatus: studioStatus,
         STUDIO_AVAILABILITY_OPTIONS: STUDIO_AVAILABILITY_OPTIONS,
         matchesSearch: matchesSearch,
-        pageInfo: pageInfo
+        pageInfo: pageInfo,
+        isArtistBadgeVisible: isArtistBadgeVisible,
+        isStudioBadgeVisible: isStudioBadgeVisible,
+        isStudioPublic: isStudioPublic
     };
 }));

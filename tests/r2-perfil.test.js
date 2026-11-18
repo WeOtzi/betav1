@@ -170,11 +170,16 @@ test('contratos entre frentes: favoritos en la cabecera y en cada trabajo, y den
     // El favorito no abre el visor: es hermano del botón de la imagen, no hijo.
     const cell = PROFILE_JS.slice(PROFILE_JS.indexOf('<figure class="gallery-cell'), PROFILE_JS.indexOf('</figure>'));
     assert.ok(cell.indexOf('</button>') < cell.indexOf('${favButton}'), 'botones hermanos');
-    // Denuncia: solo artistas con sesión que no son el dueño.
+    // Denuncia (2.7.0): todos menos el dueño (clientes y visitantes incluidos; wo-report.js decide el resto).
     assert.match(HTML, /<button type="button" class="profile-report-btn" id="profile-report-btn" data-wo-report data-kind="artist" data-id="" data-label="">Denunciar perfil<\/button>/);
     assert.match(HTML, /id="profile-report-band" hidden/);
-    assert.match(PROFILE_JS, /const canReport = Boolean\(userId\) && viewer\.kind === 'artist';/);
+    assert.match(PROFILE_JS, /const canReport = Boolean\(userId\) && viewer\.kind !== 'owner';/);
     assert.match(PROFILE_JS, /reportBtn\.dataset\.id = userId;/);
+    // Cada trabajo del portafolio trae su botón de denuncia (plagio), hermano del de la imagen.
+    assert.ok(cell.indexOf('</button>') < cell.indexOf('${reportButton}'), 'denuncia: botón hermano del de la imagen');
+    assert.match(PROFILE_JS, /const reportButton = owner \? '' : workReportButtonHtml\(item, number, 'gallery-report'\);/);
+    assert.match(PROFILE_JS, /data-wo-report data-kind="artist" data-id="\$\{escapeHtml\(userId\)\}"[^`]*data-reason="plagio_diseno" data-item-key="\$\{escapeHtml\(item\.key \|\| ''\)\}" data-item-image="\$\{escapeHtml\(image\)\}"/);
+    assert.match(PROFILE_JS, /workReportButtonHtml\(item, currentLightboxIndex \+ 1, 'lightbox-report-btn'\)/, 'también en el visor');
     // Sin el módulo del otro frente, los botones no se ven (nunca un botón muerto).
     const css = read('public', 'shared', 'css', 'artist-profile-r2.css');
     assert.match(css, /\.profile-fav \{\s*display: none;/);

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>We Ötzi · ¿Dónde está este diseño?</title>
+    <meta name="description" content="Sube una foto y busca si la misma imagen, o una copia con cambios menores, está publicada en We Ötzi. Requiere sesión iniciada.">
+    <meta name="robots" content="noindex">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Design system Bauhaus -->
+    <link rel="stylesheet" href="/shared/css/ds/tokens.css">
+    <link rel="stylesheet" href="/shared/css/ds/components.css">
+    <link rel="stylesheet" href="/shared/css/wo-report.css?v=20261118-kyc">
+    <link rel="stylesheet" href="/shared/css/buscar-diseno.css?v=20261118-kyc2">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/js/config-manager.js"></script>
+    <script src="/shared/js/data/postgrest-client.js"></script>
+    <!-- HEIC (iPhone) → JPEG en el navegador; el servidor solo acepta JPG, PNG y WebP. -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js" defer></script>
+    <script src="/shared/js/heic-converter.js" defer></script>
+    <!-- Consentimiento de cookies: único cargador de scripts no esenciales -->
+    <script src="/shared/js/wo-consent.js" defer></script>
+</head>
+<body class="wo-app bd-page">
+    <!-- Buscador «¿Dónde está este diseño?» (fase 2). La foto se envía a
+         POST /api/disenos/buscar (lib/routes/disenos.js): el servidor calcula
+         la huella en memoria y la descarta. Solo se guarda si la persona abre
+         una denuncia desde un resultado (wo-report.js la sube como evidencia). -->
+    <a class="bd-skip" href="#contenido">Saltar al contenido</a>
+
+    <header class="wo-topbar bd-topbar">
+        <div class="wo-topbar-left">
+            <a href="/inicio" class="wo-topbar-brand" data-bd-link aria-label="We Ötzi inicio">
+                <span class="wo-marks" aria-hidden="true">
+                    <span class="wo-mark-square"></span>
+                    <span class="wo-mark-circle"></span>
+                    <span class="wo-mark-triangle"></span>
+                </span>
+                WE ÖTZI
+            </a>
+        </div>
+        <nav class="bd-top-links" aria-label="Más información">
+            <a href="/seguridad" data-bd-link>Suplantación y plagio</a>
+        </nav>
+    </header>
+
+    <main class="bd-main" id="contenido" tabindex="-1">
+        <section class="bd-hero" aria-labelledby="bd-titulo">
+            <p class="wo-eyebrow">Seguridad · Plagio</p>
+            <h1 class="bd-title" id="bd-titulo">¿Dónde está este diseño?</h1>
+            <p class="bd-lead">Sube la foto de un tatuaje o de un diseño y te mostramos si la misma imagen ya está publicada en We Ötzi, con quién la subió y desde cuándo.</p>
+            <ul class="bd-facts">
+                <li>Busca la misma foto o copias con cambios menores, dentro de We Ötzi. Todavía no encuentra diseños redibujados.</li>
+                <li>Que dos diseños se parezcan no prueba un plagio: soporte revisa cada caso.</li>
+                <li>Tu foto no se guarda. Solo la adjuntamos si decides abrir una denuncia.</li>
+            </ul>
+        </section>
+
+        <!-- Sin sesión: invitación a entrar (la pinta buscar-diseno.js). -->
+        <section class="bd-gate" id="bd-gate" aria-labelledby="bd-gate-title" hidden>
+            <h2 class="bd-h2" id="bd-gate-title">Inicia sesión para buscar</h2>
+            <p class="bd-text">El buscador es solo para personas con cuenta, así nadie puede usarlo para copiar el catálogo. Si todavía no tienes cuenta, crearla es rápido.</p>
+            <div class="bd-actions">
+                <a class="wo-btn wo-btn--accent wo-btn--hard" id="bd-login" href="/client/login?returnTo=%2Fbuscar-diseno">Inicia sesión</a>
+                <a class="wo-btn wo-btn--ghost" id="bd-register" href="/client/register?returnTo=%2Fbuscar-diseno">Crea tu cuenta</a>
+            </div>
+            <p class="bd-help">¿Eres artista? <a id="bd-artist-login" href="/artist/login?returnTo=%2Fbuscar-diseno">Entra con tu cuenta de artista</a>.</p>
+        </section>
+
+        <section class="bd-search" id="bd-search" aria-labelledby="bd-search-title" hidden>
+            <h2 class="bd-h2" id="bd-search-title">Sube la foto</h2>
+            <form class="bd-form" id="bd-form" novalidate>
+                <label class="wo-dropzone bd-drop" id="bd-drop" for="bd-file">
+                    <span class="bd-drop-icon" aria-hidden="true"></span>
+                    <span class="bd-drop-title">Arrastra la foto aquí o elige un archivo</span>
+                    <span class="bd-drop-help" id="bd-file-help">JPG, PNG, WebP o HEIC de hasta 10 MB.</span>
+                    <input class="wo-sr-only" type="file" id="bd-file" name="foto" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" aria-describedby="bd-file-help">
+                </label>
+                <div class="bd-preview" id="bd-preview" hidden>
+                    <div class="bd-preview-media" id="bd-preview-media"></div>
+                    <div class="bd-preview-info">
+                        <p class="bd-preview-name" id="bd-preview-name"></p>
+                        <div class="bd-actions">
+                            <button type="submit" class="wo-btn wo-btn--accent wo-btn--hard" id="bd-submit">Buscar</button>
+                            <button type="button" class="wo-btn wo-btn--ghost" id="bd-change">Elegir otra foto</button>
+                        </div>
+                    </div>
+                </div>
+                <p class="bd-status" id="bd-status" role="status" aria-live="polite" hidden></p>
+                <p class="bd-limit" id="bd-limit" aria-live="polite" hidden></p>
+            </form>
+        </section>
+
+        <section class="bd-results" id="bd-results" aria-labelledby="bd-results-title" aria-live="polite" aria-busy="false" hidden></section>
+    </main>
+
+    <script src="/shared/js/wo-report.js?v=20261118-kyc"></script>
+    <script src="/shared/js/buscar-diseno.js?v=20261118-kyc2"></script>
+</body>
+</html>

@@ -28,6 +28,12 @@ const ARTIST_PUBLIC_FIELDS_LEGACY = [
 
 // `embajador` (ronda 2, P21): insignia pública de embajador ('si' la marca soporte).
 const ARTIST_PUBLIC_FIELDS = `${ARTIST_PUBLIC_FIELDS_LEGACY},studio_id,gallery_feed_items,vacation_start,vacation_end,embajador`;
+// 2.7.0: `instagram_badge_ok` (columna generada, migración 20261118100000) decide
+// si el sello se ve. Si la base todavía no tiene la columna se reintenta sin ella
+// (el sello queda oculto). Ojo: WeotziData.Artists filtra el select con su lista
+// blanca (PUBLIC_COLUMNS de artists-repo.js); si la columna no está ahí se descarta
+// sin error y el sello también queda oculto.
+const ARTIST_PUBLIC_FIELDS_KYC = `${ARTIST_PUBLIC_FIELDS},instagram_badge_ok`;
 
 // Figma 801:1108: grilla de 3 columnas (4 filas en el frame). Nunca menos de 9
 // celdas; con más obras se muestran todas (la galería aparte /artist/profile/gallery
@@ -365,7 +371,14 @@ async function loadArtistData(refOrUsername) {
     }
 
     try {
-        let { data: artist, error } = await fetchPublicArtist(ref, ARTIST_PUBLIC_FIELDS);
+        let { data: artist, error } = await fetchPublicArtist(ref, ARTIST_PUBLIC_FIELDS_KYC);
+
+        // Base sin instagram_badge_ok (migración de la insignia pendiente).
+        if (error) {
+            const retry = await fetchPublicArtist(ref, ARTIST_PUBLIC_FIELDS);
+            artist = retry.data;
+            error = retry.error;
+        }
 
         // Deploys sin studio_id / gallery_feed_items: reintento con el set legacy.
         if (error) {
@@ -616,9 +629,14 @@ async function loadArtistStudio(studioId, artistUserId) {
     // `*` y no una lista: así `location_verified` llega cuando la migración
     // 20261112120000_studio_claim_links está aplicada, sin romper la consulta
     // mientras la columna no exista (anon ya lee todas las columnas de `studios`).
+    // 2.7.0: un estudio inactivo o sancionado (la sanción apaga is_active) no
+    // se muestra: su perfil público responde «No encontramos este estudio».
+    const isPublic = (row) => (window.WoVerifiedBadge?.isStudioPublic
+        ? window.WoVerifiedBadge.isStudioPublic(row)
+        : row.is_active !== false && (row.sanction_state == null || row.sanction_state === 'none'));
     const fetchStudio = async (id) => {
         const { data, error } = await WeotziData.Studios.getById(id, '*');
-        return !error && data ? data : null;
+        return !error && data && isPublic(data) ? data : null;
     };
 
     try {
@@ -716,9 +734,15 @@ function populateProfile() {
 
     // Sello "Verificado" (auditoría PP-11): misma regla que el centro de la
     // cuenta — verification_state 'Yes' o identidad aprobada (RPC de preferencias).
+    // 2.7.0: además tiene que controlar su Instagram (WoVerifiedBadge,
+    // columna instagram_badge_ok); si cambió el Instagram, el sello se oculta.
     const verifiedIcon = document.getElementById('artist-verified-icon');
     if (verifiedIcon) {
-        verifiedIcon.hidden = !(artistData.verification_state === 'Yes' || publicProfilePreferences.verified === true);
+        const verified = artistData.verification_state === 'Yes' || publicProfilePreferences.verified === true;
+        const badge = window.WoVerifiedBadge;
+        verifiedIcon.hidden = badge && typeof badge.isBadgeVisible === 'function'
+            ? !badge.isBadgeVisible({ ...artistData, verification_state: verified ? 'Yes' : artistData.verification_state })
+            : !verified;
     }
     renderBadges();
 
@@ -1009,11 +1033,12 @@ function renderViewerActions() {
         if (!favBtn.hidden) refreshOptionalModule('favorites', favBtn.parentElement);
     }
 
-    // Denunciar perfil: solo artistas con sesión que no son el dueño.
+    // Denunciar perfil (2.7.0): cualquiera que no sea el dueño, también clientes
+    // y visitantes sin sesión (wo-report.js los invita a entrar o crear cuenta).
     const reportBand = document.getElementById('profile-report-band');
     const reportBtn = document.getElementById('profile-report-btn');
     if (reportBand && reportBtn) {
-        const canReport = Boolean(userId) && viewer.kind === 'artist';
+        const canReport = Boolean(userId) && viewer.kind !== 'owner';
         reportBtn.dataset.id = userId;
         reportBtn.dataset.label = name;
         reportBand.hidden = !canReport;
@@ -1715,6 +1740,7 @@ function renderGalleryGrid() {
             const favButton = favId
                 ? `<button type="button" class="profile-fav gallery-fav" data-wo-favorite data-kind="design" data-id="${escapeHtml(favId)}" data-artist-id="${escapeHtml(artistData?.user_id || '')}" data-label="${escapeHtml(favLabel)}" data-image="${escapeHtml(item.kind === 'video' ? '' : item.url)}" aria-label="${escapeHtml(`Guardar el trabajo ${number} en favoritos`)}"></button>`
                 : '';
+            const reportButton = owner ? '' : workReportButtonHtml(item, number, 'gallery-report');
             html += `
                 <figure class="gallery-cell${caption ? ' has-caption' : ''}${item.flash ? ' is-flash' : ''}">
                     <button type="button" class="gallery-image-item" data-gallery-index="${index}" aria-label="${escapeHtml(item.flash ? `Abrir el flash ${item.flash.title}` : label)}">
@@ -1726,6 +1752,7 @@ function renderGalleryGrid() {
                     ${favButton}
                     ${caption ? `<figcaption class="gallery-caption">${escapeHtml(caption)}</figcaption>` : ''}
                     ${flashCardHtml(item, owner)}
+                    ${reportButton}
                 </figure>
             `;
         } else {
@@ -1740,8 +1767,26 @@ function renderGalleryGrid() {
 
     galleryGrid.innerHTML = html;
     galleryGrid.dataset.count = String(visible.length);
-    // Los botones de favorito se acaban de crear: se avisa a su módulo.
-    if (!owner && visible.length) refreshOptionalModule('favorites', galleryGrid);
+    // Los botones de favorito y de denuncia se acaban de crear: se avisa a sus módulos.
+    if (!owner && visible.length) {
+        refreshOptionalModule('favorites', galleryGrid);
+        // wo-report.js ve los botones nuevos con su MutationObserver (una sola
+        // consulta de elegibilidad por perfil): aquí solo se asegura el módulo.
+        void ensureOptionalModule('report');
+    }
+}
+
+/**
+ * Denuncia de un trabajo del portafolio (2.7.0, plagio de diseños): botón vacío
+ * del contrato de wo-report.js con el motivo `plagio_diseno` ya marcado y la
+ * imagen como referencia. Llega oculto: wo-report.js lo muestra a quien no es
+ * el dueño (con o sin sesión). En videos va solo la clave del trabajo.
+ */
+function workReportButtonHtml(item, number, className) {
+    const userId = artistData?.user_id || '';
+    if (!item || !userId) return '';
+    const image = item.kind === 'video' ? '' : item.url;
+    return `<button type="button" class="${escapeHtml(className)}" hidden data-wo-report data-kind="artist" data-id="${escapeHtml(userId)}" data-label="${escapeHtml(profileDisplayName())}" data-reason="plagio_diseno" data-item-key="${escapeHtml(item.key || '')}" data-item-image="${escapeHtml(image)}" aria-label="${escapeHtml(`Denunciar el trabajo ${number}`)}"></button>`;
 }
 
 /**
@@ -2450,6 +2495,19 @@ function updateLightboxImage() {
     if (flashPanel) {
         flashPanel.innerHTML = item.flash ? flashCardHtml(item, isOwnerView()) : '';
         flashPanel.hidden = !item.flash;
+    }
+
+    // Denunciar este trabajo (plagio de diseños) también desde el visor.
+    let reportPanel = document.getElementById('lightbox-report');
+    if (!reportPanel && !isOwnerView()) {
+        reportPanel = document.createElement('div');
+        reportPanel.id = 'lightbox-report';
+        reportPanel.className = 'lightbox-report';
+        (caption?.parentNode || document.getElementById('gallery-lightbox'))?.appendChild(reportPanel);
+    }
+    if (reportPanel) {
+        reportPanel.innerHTML = isOwnerView() ? '' : workReportButtonHtml(item, currentLightboxIndex + 1, 'lightbox-report-btn');
+        if (reportPanel.innerHTML) void ensureOptionalModule('report');
     }
 }
 

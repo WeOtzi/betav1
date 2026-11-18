@@ -1,0 +1,37 @@
+/* ============================================================================
+   We Ötzi · /apelacion (sanciones, 2.7.0)
+   Página pública para apelar una sanción. Usa los tokens y componentes del DS
+   (ds/tokens.css + ds/components.css); aquí solo el layout de la página.
+   ========================================================================== */
+
+.ap-body{background:var(--surface-page);color:var(--text-body);min-height:100vh}
+.ap-main{max-width:720px;padding-top:var(--space-10);padding-bottom:var(--space-16)}
+.ap-eyebrow{margin:0 0 var(--space-2)}
+.ap-title{margin:0 0 var(--space-6);overflow-wrap:anywhere}
+.ap-title:focus{outline:none}
+.ap-loading{display:flex;align-items:center;gap:var(--space-3);margin:0}
+
+.ap-card{margin:0 0 var(--space-6)}
+.ap-h2{margin:0 0 var(--space-3);font-family:var(--font-display);font-size:20px;line-height:1.2;color:var(--text-heading)}
+.ap-text{margin:0 0 var(--space-3);font-size:var(--body-l-size, 16px);line-height:1.55;max-width:65ch}
+.ap-text:last-child{margin-bottom:0}
+
+.ap-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-4) var(--space-6);margin:var(--space-4) 0 0}
+.ap-facts dt{margin:0 0 var(--space-1);font-family:var(--font-mono);font-size:var(--meta-m-size);letter-spacing:var(--meta-m-track);text-transform:uppercase;color:var(--text-muted)}
+.ap-facts dd{margin:0;font-size:16px;line-height:1.4;color:var(--text-heading);overflow-wrap:anywhere}
+
+.ap-form .wo-field{margin:var(--space-5) 0}
+.ap-textarea{min-height:200px;resize:vertical}
+.ap-textarea[aria-invalid="true"]{border-color:var(--red-300)}
+.ap-count{margin:0;text-align:right;font-family:var(--font-mono)}
+.ap-error[hidden]{display:none}
+
+.ap-state{margin:0 0 var(--space-6)}
+.ap-state-title{margin:0 0 var(--space-1);font-weight:700;font-size:16px}
+.ap-foot{margin-top:var(--space-8)}
+.ap-foot a{color:var(--text-link);text-decoration:underline;text-underline-offset:3px}
+
+@media (max-width:600px){
+  .ap-main{padding-left:16px;padding-right:16px;padding-top:var(--space-6)}
+  .ap-facts{grid-template-columns:1fr}
+}

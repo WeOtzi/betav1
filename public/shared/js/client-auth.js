@@ -8,6 +8,20 @@ const supabaseUrl = window.CONFIG?.supabase?.url || 'https://flbgmlvfiejfttlawnf
 const supabaseKey = window.CONFIG?.supabase?.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsYmdtbHZmaWVqZnR0bGF3bmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MTI1ODksImV4cCI6MjA2MTQ4ODU4OX0.AQm4HM8Gjci08p1vfxu6-6MbT_PRceZm5qQbwxA3888';
 const _supabase = (window._supabase = window._supabase || supabase.createClient(supabaseUrl, supabaseKey));
 
+// ── términos (2.7.0): cuenta dada de baja. Supabase Auth responde
+// user_banned («User is banned») al iniciar sesión; se muestra el mensaje de
+// la baja en vez del error técnico. Compartido (idempotente) entre
+// artist-auth.js, client-auth.js y studio-auth.js; artist-login.js puede
+// usar window.WoAccountBan.isBannedError(error) / .MESSAGE.
+window.WoAccountBan = window.WoAccountBan || {
+    MESSAGE: 'Tu cuenta fue dada de baja por incumplir los Términos. Revisa el correo que te enviamos para conocer el motivo y cómo apelar.',
+    isBannedError: function (error) {
+        if (!error) return false;
+        if (error.code === 'user_banned' || error.error_code === 'user_banned') return true;
+        return /\bbanned\b/i.test(String(error.message || error.msg || ''));
+    }
+};
+
 // ============================================
 // Global Variables
 // ============================================
@@ -23,10 +37,12 @@ let currentClientData = null;
 
 const RETURN_TO_PARAM = 'returnTo';
 const RETURN_TO_PREFIX = '/store/';
-const RETURN_TO_EXACT = ['/client/chats', '/client/chats/'];
+const RETURN_TO_EXACT = ['/client/chats', '/client/chats/', '/buscar-diseno', '/buscar-diseno/'];
 // cot-detalle: enlace público de una cotización (/cotizacion/<token>). Al
 // volver del login o del registro, esa página vincula la cotización a la cuenta.
 const RETURN_TO_SHARED_QUOTE = /^\/cotizacion\/[A-Za-z0-9_-]{43}$/;
+// Perfiles públicos (denunciar un perfil sin sesión: «Inicia sesión» vuelve al perfil).
+const RETURN_TO_PROFILE = /^\/(?:artist|studio)\/profile\/?$/;
 
 function clientBasePath() {
     const w = typeof window !== 'undefined' ? window : {};
@@ -65,7 +81,7 @@ function normalizeReturnTo(value) {
     // Inbox del cliente: el CTA del correo de chat (/client/chats?quote=…)
     // vuelve a la conversación después de iniciar sesión.
     if (pathPart.indexOf(RETURN_TO_PREFIX) !== 0 && RETURN_TO_EXACT.indexOf(pathPart) === -1
-        && !RETURN_TO_SHARED_QUOTE.test(pathPart)) return null;
+        && !RETURN_TO_SHARED_QUOTE.test(pathPart) && !RETURN_TO_PROFILE.test(pathPart)) return null;
     return pathPart + rest;
 }
 
@@ -154,6 +170,54 @@ if (typeof document !== 'undefined' && document && typeof document.addEventListe
             a.setAttribute('href', withReturnTo(href, returnTo));
         }
     }, true);
+}
+
+// ── términos (2.7.0) ───────────────────────────────────────────────
+// Gate de re-aceptación y cuentas sancionadas (wo-terms-gate.js). No frena la
+// resolución de la sesión: si hace falta, el modal del gate tapa la página.
+function requestClientTermsGate(session) {
+    try {
+        if (!session || !session.access_token) return;
+        if (window.WoTermsGate && typeof window.WoTermsGate.ensure === 'function') {
+            window.WoTermsGate.ensure(session, { surface: 'client', supabase: _supabase });
+            return;
+        }
+        window.__woTermsGateQueue = window.__woTermsGateQueue || [];
+        window.__woTermsGateQueue.push({ session, surface: 'client', supabase: _supabase });
+        if (document.querySelector('script[data-wo-terms-gate]')) return;
+        const script = document.createElement('script');
+        script.src = clientAppPath('/shared/js/wo-terms-gate.js?v=20261118');
+        script.async = true;
+        script.setAttribute('data-wo-terms-gate', '');
+        (document.head || document.documentElement).appendChild(script);
+    } catch (_) {
+        // El gate también lo carga wo-consent.js.
+    }
+}
+
+// Antes del signUp: ¿el correo, teléfono o Instagram pertenecen a una cuenta
+// dada de baja? Solo mejora la experiencia (el control real lo hace el
+// servidor al revisar la sesión); sin red se sigue con el alta.
+async function precheckClientRegistration({ email, whatsapp, instagram }) {
+    let blocked = null;
+    try {
+        const response = await fetch(clientAppPath('/api/register/precheck'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, phone: whatsapp || null, instagram: instagram || null, flow: 'client' })
+        });
+        if (response.status === 403) {
+            const data = await response.json().catch(() => ({}));
+            if (data && data.code === 'REGISTRATION_BLOCKED') blocked = data.error;
+        }
+    } catch (_) {
+        blocked = null;
+    }
+    if (blocked) {
+        const error = new Error(blocked);
+        error.code = 'REGISTRATION_BLOCKED';
+        throw error;
+    }
 }
 
 async function ensureClientMode(session) {
@@ -324,6 +388,7 @@ async function checkClientAuthState() {
             // Volviendo de Google con returnTo: handleOAuthCallback crea el
             // perfil si falta y después redirige a la Store.
             if (returnTo && onAuthPage && isOAuthCallbackUrl()) return;
+            requestClientTermsGate(session);
 
             // User is logged in - check if they are a client
             const { data: client, error } = await WeotziData.Clients.getByUserId(session.user.id);
@@ -465,6 +530,7 @@ async function handleClientRegistration(payload) {
         localStorage.removeItem('weotzi_client_registration_data');
         return login.user;
     }
+    await precheckClientRegistration({ email, whatsapp, instagram });
     const { data: authData, error: authError } = await _supabase.auth.signUp({
         email: email,
         password: password,
@@ -719,7 +785,9 @@ async function handleClientLogin(e) {
         }
 
         let errorMessage = 'No pudimos iniciar sesión. Prueba de nuevo.';
-        if (error.message.includes('Invalid login credentials')) {
+        if (window.WoAccountBan.isBannedError(error)) {
+            errorMessage = window.WoAccountBan.MESSAGE;
+        } else if (String(error?.message || '').includes('Invalid login credentials')) {
             errorMessage = 'Email o contraseña incorrectos.';
         }
         
@@ -942,6 +1010,7 @@ async function handleOAuthCallback() {
     }
     
     if (session) {
+        requestClientTermsGate(session);
         // Check if client profile exists
         const { data: client } = await WeotziData.Clients.getByUserId(session.user.id);
 
@@ -1023,6 +1092,11 @@ window.ClientAuth = {
         const { data, error } = await _supabase.auth.signInWithPassword({
             email, password
         });
+        if (error && window.WoAccountBan.isBannedError(error)) {
+            const banned = new Error(window.WoAccountBan.MESSAGE);
+            banned.code = 'user_banned';
+            throw banned;
+        }
         if (error) throw error;
 
         const { data: client } = await WeotziData.Clients.getByUserId(data.user.id);

@@ -1978,7 +1978,7 @@ document.head.appendChild(modesScript);
     // propio artista usa la RPC get_my_artist_profile() y soporte
     // support_list_artists() (ver data/artists-repo.js).
     window.ARTIST_PUBLIC_COLUMNS = [
-        'id', 'user_id', 'username', 'name', 'instagram', 'portafolio',
+        'id', 'user_id', 'username', 'name', 'instagram', 'portafolio', 'instagram_badge_ok',
         'ubicacion', 'city', 'country', 'country_code', 'state_province',
         'locality',
         'estudios', 'studio_id', 'work_type',

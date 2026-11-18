@@ -31,7 +31,8 @@ function mediaBlock(source, query) {
 
 test('scripts: capa de datos y lógica compartida, sin los que no se usan', () => {
     for (const s of ['/shared/js/data/marketplace-repo.js', '/shared/js/marketplace-core.js', '/shared/js/data/studios-repo.js']) {
-        assert.ok(html.includes(`<script src="${s}"></script>`), s);
+        // Con o sin ?v= (cache-busting de cada versión).
+        assert.ok(html.includes(`<script src="${s}"></script>`) || html.includes(`<script src="${s}?v=`), s);
     }
     for (const unused of ['quotations-repo.js', 'email-client.js', 'currency-utils.js']) {
         assert.ok(!html.includes(unused), `${unused} no se usa en el marketplace`);
@@ -105,12 +106,15 @@ test('modo Estudios (Figma 2113:9145): textos, filtros propios, cargar más', ()
 });
 
 test('verificados: sello y filtro en marketplace y explore (VER-A6)', () => {
-    assert.ok(js.includes("artist.verification_state === 'Yes'"));
+    // Insignia (KYC 2.7.0): verificado y con el Instagram validado, vía marketplace-core / verified-badge.js.
+    assert.ok(js.includes('Core.isArtistBadgeVisible(artist)'));
+    assert.ok(js.includes('Core.isStudioBadgeVisible(studio)'));
     assert.ok(js.includes('data-verified-toggle'));
     assert.ok(js.includes("verifiedBadge('Estudio verificado')"));
     assert.match(exploreHtml, /id="filter-verified"/);
     assert.match(exploreHtml, /id="modal-verified"/);
-    assert.ok(exploreJs.includes("verification_state === 'Yes'"));
+    assert.ok(exploreJs.includes('Core.isArtistBadgeVisible(artist)'));
+    assert.ok(exploreJs.includes('listArtistBadges()'));
 });
 
 test('búsqueda en vivo con debounce y vaciado que limpia', () => {
@@ -147,7 +151,7 @@ test('marketplace: cada filtro de artistas y estudios aplica la regla correcta',
     const context = vm.createContext({ Core, INDEPENDENT_KEY: 'independent', favoritesOnly: false, favoriteIds: new Set(), artistAgenda: agenda });
     vm.runInContext(src, context);
     const artists = [
-        { user_id: 'a', name: 'Ana', styles_array: ['Japones'], city: 'Bogotá', session_price_amount_usd: 150, studio_id: 's1', _studioName: 'Casa Koi', verification_state: 'Yes' },
+        { user_id: 'a', name: 'Ana', styles_array: ['Japones'], city: 'Bogotá', session_price_amount_usd: 150, studio_id: 's1', _studioName: 'Casa Koi', verification_state: 'Yes', instagram_badge_ok: true },
         { user_id: 'b', name: 'Beto', styles_array: ['Neo-Tradicional'], city: 'bogota', session_price_amount_usd: null, estudios: 'Sin estudio / Independiente' },
         { user_id: 'c', name: 'Ceci', styles_array: ['Tradicional'], city: 'Lima', session_price_amount_usd: 800, estudios: 'Estudio Sur' }
     ];
@@ -169,7 +173,7 @@ test('marketplace: cada filtro de artistas y estudios aplica la regla correcta',
     assert.deepEqual(run({ search: 'BOGOTA' }), ['a', 'b']);
 
     const studios = [
-        { id: 's1', name: 'Casa Koi', is_verified: true, _cities: ['Tokio', 'Lima'], _styles: ['Japones'], _flags: { openSlots: true, guests: false, seeking: false }, _services: ['Láser'] },
+        { id: 's1', name: 'Casa Koi', is_verified: true, instagram_badge_ok: true, _cities: ['Tokio', 'Lima'], _styles: ['Japones'], _flags: { openSlots: true, guests: false, seeking: false }, _services: ['Láser'] },
         { id: 's2', name: 'Ola Norte', is_verified: false, _cities: ['Rosario'], _styles: [], _flags: { openSlots: false, guests: true, seeking: true }, _services: [] }
     ];
     const sbase = { search: '', style: null, location: null, availability: null, services: null, verified: false };

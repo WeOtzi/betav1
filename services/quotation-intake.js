@@ -20,9 +20,10 @@ const { resolveBearerUser } = require('../lib/auth/supabase-auth');
 const cotForm = require('../lib/cot-form');
 const turnosIntake = require('../lib/turnos-intake');
 const { isEmailVerified } = require('../lib/cot-cliente');
+const { isPublicArtist } = require('../lib/artist-visibility');
 
 const CLIENT_FIELDS = ['tattoo_body_part','tattoo_body_side','tattoo_idea_description','tattoo_size','tattoo_style','tattoo_color_type','reference_images_count','tattoo_references','tattoo_is_first_tattoo','tattoo_is_cover_up','client_full_name','client_email','client_instagram','client_city_residence','client_travel_willing','city_mismatch_acknowledged','style_mismatch_acknowledged','client_preferred_date','client_flexible_dates','client_budget_amount','client_budget_currency','client_contact_preference','client_whatsapp','client_birth_date','client_age','client_health_conditions','client_allergies','tattoo_estimated_sessions'];
-const ARTIST_SELECT = 'user_id,username,name,email,instagram,styles_array,ubicacion,city,estudios,session_price,registration_status';
+const ARTIST_SELECT = 'user_id,username,name,email,instagram,styles_array,ubicacion,city,estudios,session_price,registration_status,sanction_state';
 const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // Hooks post-envío (emails, espejo a Drive). Los registra lib/routes/cot-form.js.
@@ -55,7 +56,7 @@ function normalizeIntake(body, user, artist, options = {}) {
     if (!UUID_V4_RE.test(body.submission_key || '')) invalid('La clave de la solicitud no es válida.');
     if (!['draft','submit'].includes(body.mode)) invalid('Operación no válida.');
     const input = body.quotation || {};
-    if (input.artist_id && (!artist || artist.registration_status === 'incompleto' || !artist.username)) invalid('El artista no está disponible.', 404);
+    if (input.artist_id && (!artist || !isPublicArtist(artist) || !artist.username)) invalid('El artista no está disponible.', 404);
     const q = Object.fromEntries(CLIENT_FIELDS.map(k => [k, input[k] ?? null]));
     q.client_email = String(q.client_email || '').trim().toLowerCase();
     q.tattoo_idea_description = String(q.tattoo_idea_description || '').trim();

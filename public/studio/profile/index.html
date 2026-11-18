@@ -15,11 +15,11 @@
     <link rel="stylesheet" href="/shared/css/ds/tokens.css">
     <link rel="stylesheet" href="/shared/css/ds/components.css">
     <link rel="stylesheet" href="/shared/css/reviews.css">
-    <link rel="stylesheet" href="/shared/css/studio-profile-ds.css">
+    <link rel="stylesheet" href="/shared/css/studio-profile-ds.css?v=20261118-kyc">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/js/wo-icons.js" defer></script>
-    <script src="/shared/js/wo-report.js?v=20261116-denuncias" defer></script><!-- denuncias (ronda 2): activa [data-wo-report] -->
+    <script src="/shared/js/wo-report.js?v=20261118-kyc" defer></script><!-- denuncias (ronda 2): activa [data-wo-report] -->
     <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
     <script src="/shared/js/wo-consent.js" defer></script>
 </head>
@@ -144,7 +144,7 @@
                         <div id="studio-reviews"></div>
                     </section>
 
-                    <!-- Denuncias (ronda 2): wo-report.js completa el botón y lo muestra solo a dueños o managers de OTRO estudio -->
+                    <!-- Denuncias (ronda 2): wo-report.js completa el botón y lo muestra a todos menos a quien administra este estudio (2.7.0) -->
                     <div class="wor-row">
                         <button type="button" id="sp-report" data-wo-report data-kind="studio" data-id="" data-label="" hidden></button>
                     </div>
@@ -177,6 +177,7 @@
     <script src="/shared/js/support-loader.js" defer></script>
     <script src="/shared/js/geocoder.js"></script>
     <script src="/shared/js/reviews.js"></script>
-    <script src="/shared/js/studio-profile.js"></script>
+    <script src="/shared/js/verified-badge.js?v=20261118-kyc"></script><!-- insignia: verificado + Instagram validado (2.7.0) -->
+    <script src="/shared/js/studio-profile.js?v=20261118-kyc"></script>
 </body>
 </html>

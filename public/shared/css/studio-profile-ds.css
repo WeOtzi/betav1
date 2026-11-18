@@ -198,6 +198,19 @@ a.sp-row:focus-visible { outline: 2px solid var(--border-focus, var(--ink)); out
 .sp-gallery a:focus-visible { outline: 2px solid var(--border-focus, var(--ink)); outline-offset: 2px; }
 .sp-gallery img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--duration-press, .15s) ease; }
 .sp-gallery a:hover img { transform: scale(1.03); }
+/* 2.7.0: cada foto con su botón de denuncia (plagio); wo-report.js lo llena y lo muestra. */
+.sp-photo { position: relative; margin: 0; }
+.sp-photo-report {
+    position: absolute; top: 8px; left: 8px; z-index: 1;
+    min-width: 40px; min-height: 40px; padding: 0 !important; justify-content: center;
+    background: var(--surface-card, #FCFCFC) !important; border: 1px solid var(--border-strong, #24211D) !important;
+    color: var(--text-body, #24211D) !important; opacity: 0; transition: opacity .2s;
+}
+.sp-photo-report > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.sp-photo:hover .sp-photo-report, .sp-photo:focus-within .sp-photo-report, .sp-photo-report:focus-visible { opacity: 1; }
+.sp-photo-report:focus-visible { outline: 2px solid var(--border-focus, var(--ink)); outline-offset: 2px; }
+@media (hover: none), (pointer: coarse) { .sp-photo-report { min-width: 44px; min-height: 44px; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sp-photo-report { transition: none; } }
 .sp-empty { margin: 0; font-size: var(--body-s-size, 14px); color: var(--text-muted); }
 
 /* Pie */

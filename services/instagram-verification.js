@@ -53,6 +53,7 @@ const UNAVAILABLE_ERROR = 'La validación de Instagram se habilita pronto.';
 const GENERIC_ERROR = 'No pudimos completar la validación de Instagram. Prueba de nuevo en un rato.';
 const MISSING_HANDLE_ERROR = 'Carga tu usuario de Instagram en Mi perfil antes de validar.';
 const INVALID_HANDLE_ERROR = 'Ese usuario de Instagram no es válido. Usa solo letras, números, puntos y guiones bajos.';
+const BLOCKED_HANDLE_ERROR = 'No podemos validar esta cuenta de Instagram. Si crees que es un error, escribe a soporte.';
 const DM_URL = 'https://ig.me/m/weotzi';
 const INSTRUCTIONS = Object.freeze({
     account: 'weotzi',
@@ -67,6 +68,27 @@ const SUPPORT_COLUMNS = 'id,artist_user_id,ig_handle,status,email_sent_to,email_
 const CONFIRM_COLUMNS = SUPPORT_COLUMNS + ',code_hash';
 const SUPPORT_FILTERS = ['pending', 'verified', 'expired', 'cancelled', 'rejected', 'all'];
 
+// Bloqueo de reingreso (plan KYC 1.4): lib/sanciones-service.js compara el
+// HMAC del handle con banned_identifiers. Se carga a demanda: si el módulo no
+// está o falla, la validación sigue (falla abierta, igual que checkReentry).
+function defaultCheckReentry(input) {
+    let service = null;
+    try { service = require('../lib/sanciones-service'); } catch (_) { return null; }
+    if (!service || typeof service.checkReentry !== 'function') return null;
+    return service.checkReentry(input);
+}
+
+// Denuncias de quien dijo ser la cuenta suplantada (lib/repos/denuncias.js):
+// al validar ese Instagram, suben a prioridad alta.
+function defaultBumpClaimantReports(userId, handle) {
+    let mod = null;
+    try { mod = require('../lib/repos/denuncias'); } catch (_) { return null; }
+    if (mod && typeof mod.bumpClaimantReports === 'function') return mod.bumpClaimantReports(userId, handle);
+    const repo = mod && mod.DenunciasRepo;
+    if (repo && typeof repo.bumpClaimantReports === 'function') return repo.bumpClaimantReports(userId, handle);
+    return null;
+}
+
 // Dependencias reemplazables desde los tests (_internal.setDeps).
 const deps = {
     pgrest,
@@ -74,6 +96,8 @@ const deps = {
     sendEmail: (...args) => emailService.sendEmail(...args),
     getSetting: (...args) => appSettings.getSetting(...args),
     now: () => Date.now(),
+    checkReentry: defaultCheckReentry,
+    bumpClaimantReports: defaultBumpClaimantReports,
     // Fallback de estudios (services/studio-verification.js handleInboundCodes):
     // lib/routes/verif-estudio.js lo registra con setStudioInboundHandler.
     // null = solo artistas.
@@ -206,6 +230,37 @@ function logError(scope, error) {
     // Los mensajes de PostgREST pueden traer valores de la fila: nunca un hash entero.
     const message = String((error && error.message) || error || '').replace(/[a-f0-9]{64}/gi, '[hash]').slice(0, 200);
     console.error(`[ig-verify] ${scope} failed${status}:`, message);
+}
+
+// Flujo que se reporta a checkReentry: tiene que ser una clave de
+// FLOW_LABELS de lib/sanciones-service.js (si no, la alerta sale como
+// «Inicio de sesión»). Artista y estudio comparten 'instagram'; el userId de
+// la alerta distingue la cuenta.
+const REENTRY_FLOW = 'instagram';
+
+// ¿El handle pertenece a una cuenta baneada? Falla abierta: ante cualquier
+// error, false.
+async function isHandleBlocked({ handle, userId } = {}) {
+    if (!handle) return false;
+    try {
+        const result = await deps.checkReentry({ instagram: handle, flow: REENTRY_FLOW, userId: userId || null });
+        return Boolean(result && result.blocked);
+    } catch (error) {
+        logError('reentry check', error);
+        return false;
+    }
+}
+
+// Después de validar un Instagram: sube las denuncias abiertas de ese usuario
+// que reclamaban ese handle. Sin esperar y sin frenar la validación.
+function notifyClaimantValidated(userId, handle) {
+    if (!userId || !handle) return;
+    try {
+        Promise.resolve(deps.bumpClaimantReports(userId, handle))
+            .catch((error) => logError('claimant reports', error));
+    } catch (error) {
+        logError('claimant reports', error);
+    }
 }
 
 function guard(scope, handler) {
@@ -378,6 +433,7 @@ async function markVerified(row, { via, verifiedBy, senderHandle, note, fromStat
     } catch (error) {
         logError('cancel others', error);
     }
+    notifyClaimantValidated(row.artist_user_id, handle);
     return { ok: true, verified_at: verifiedAt, handle };
 }
 
@@ -473,6 +529,9 @@ async function requestArtistVerificationHandler(req, res) {
     }
     if (ctx.artist.instagram_verified_at && normalizeHandle(ctx.artist.instagram_verified_handle) === handle) {
         return res.status(409).json({ success: false, code: 'IG_ALREADY_VERIFIED', error: `Tu cuenta @${handle} ya está validada.` });
+    }
+    if (await isHandleBlocked({ handle, flow: 'instagram', userId: ctx.user.id })) {
+        return res.status(409).json({ success: false, code: 'IG_BLOCKED', error: BLOCKED_HANDLE_ERROR });
     }
     const email = ctx.user.email || ctx.artist.email || null;
     if (!email) {
@@ -745,7 +804,10 @@ module.exports = {
         isMissingSchemaError,
         buildState,
         resolveWebhookSecret,
+        isHandleBlocked,
+        notifyClaimantValidated,
         setDeps,
-        TABLE
+        TABLE,
+        BLOCKED_HANDLE_ERROR
     }
 };

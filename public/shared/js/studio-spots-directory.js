@@ -70,7 +70,7 @@
         if (session) {
             const { data: row } = await WeotziData.Artists.getByUserId(
                 session.user.id,
-                'user_id, username, name, city, ubicacion, styles_array, profile_picture, gallery_images, portafolio, verification_state'
+                'user_id, username, name, city, ubicacion, styles_array, profile_picture, gallery_images, portafolio, verification_state, instagram_badge_ok'
             );
             artist = row || null;
             if (artist) loadArtistStats();
@@ -111,8 +111,9 @@
         const parts = [];
         if (artistStats.rating != null) parts.push(artistStats.rating.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
         if (artistStats.works != null) parts.push(artistStats.works + ' trabajo' + (artistStats.works === 1 ? '' : 's'));
-        // verif-artista (VER-A9): "Verificado" solo con la misma regla del sello del perfil.
-        if (artist && artist.verification_state === 'Yes') parts.push('Verificado');
+        // verif-artista (VER-A9): "Verificado" solo con la misma regla del sello
+        // del perfil: verificado y con el Instagram validado (verified-badge.js).
+        if (artist && window.WoVerifiedBadge && window.WoVerifiedBadge.isBadgeVisible(artist)) parts.push('Verificado');
         return parts.join(' · ') || 'Perfil en We Ötzi';
     }
 

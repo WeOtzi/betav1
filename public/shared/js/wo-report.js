@@ -3,19 +3,26 @@
 // ----------------------------------------------------------------------------
 // Activa cualquier
 //   <button data-wo-report data-kind="quotation|artist|studio" data-id="…" data-label="…">
-// que esté en la página o que se agregue después. Contrato entre frentes: las
-// pantallas solo dejan el botón (puede ir vacío); este módulo
+// que esté en la página o que se agregue después. En cada foto del portafolio
+// el botón suma data-reason="plagio_diseno", data-item-key y data-item-image.
+// Contrato entre frentes: las pantallas solo dejan el botón (puede ir vacío);
+// este módulo
 //   · decide quién lo ve (GET /api/reports/eligibility): el artista en una
-//     cotización que recibió, un artista en el perfil de OTRO artista y el
-//     dueño o manager de un estudio en el perfil de OTRO estudio;
-//   · abre el modal: motivo según el tipo, descripción obligatoria, evidencia
-//     opcional (enlaces y hasta 3 imágenes al bucket privado
-//     `support-attachments`), confirmación y acuse con el número de ticket;
+//     cotización que recibió y cualquier persona con sesión en el perfil de un
+//     artista o un estudio que no sea suyo (2.7.0). Sin sesión, el botón de
+//     los perfiles se ve igual y el modal invita a iniciar sesión o a crear
+//     una cuenta de cliente (nunca en cotizaciones);
+//   · abre el modal: motivo según el tipo (con su pista), «¿Eres la persona
+//     o el estudio suplantado?» en suplantación y plagio, descripción
+//     obligatoria, evidencia opcional (enlaces y hasta 3 imágenes al bucket
+//     privado `support-attachments`), confirmación y acuse con el ticket;
 //   · envía la denuncia a POST /api/reports (lib/routes/denuncias.js), que
 //     crea el ticket de soporte con el expediente completo.
 // Carga sus estilos solo (/shared/css/wo-report.css). Basta con incluir este
 // script: usa el cliente de Supabase de la página (ConfigManager).
-// API: window.WoReport.open({ kind, id, label }) · .refresh() · .close()
+// API: window.WoReport.open({ kind, id, label, reason, item: { key, image }, file, context })
+//      · .refresh() · .close()   (file: un File precargado como evidencia;
+//      context: texto corto que se suma a page_context. Los usa /buscar-diseno.)
 // Al enviar dispara en document el CustomEvent 'wo:report-submitted'.
 // En Node (tests) solo exporta los helpers puros.
 // ============================================================================
@@ -43,11 +50,20 @@
         { code: 'spam', label: 'Spam' }
     ];
     const PROFILE_REASONS = [
-        { code: 'suplantacion_identidad', label: 'Suplantación de identidad' },
-        { code: 'robo_propiedad_intelectual', label: 'Robo de propiedad intelectual' },
-        { code: 'difamacion', label: 'Difamación' }
+        { code: 'suplantacion_identidad', label: 'Suplantación de identidad', hint: 'Se hace pasar por otra persona o estudio' },
+        { code: 'plagio_diseno', label: 'Plagio de diseños', hint: 'Publica diseños o fotos de otro artista como propios' },
+        { code: 'robo_propiedad_intelectual', label: 'Uso de marca o nombre ajeno', hint: 'Usa la marca, el logo o el nombre de otro' },
+        { code: 'difamacion', label: 'Difamación', hint: 'Difunde acusaciones falsas para dañar su reputación' },
+        { code: 'estafa', label: 'Estafa', hint: 'Cobró y no cumplió, o pidió pagos fuera de la plataforma' }
     ];
     const REASONS = { quotation: QUOTATION_REASONS, artist: PROFILE_REASONS, studio: PROFILE_REASONS };
+    // «¿Eres la persona o el estudio suplantado?» solo en estos motivos de perfil.
+    const CLAIM_REASONS = ['suplantacion_identidad', 'plagio_diseno'];
+    // Visitantes sin sesión: ven el botón en perfiles (no en cotizaciones) y el modal los invita a entrar.
+    const GUEST_KINDS = ['artist', 'studio'];
+    const IG_HANDLE_RE = /^[A-Za-z0-9._]{1,30}$/;
+    const ITEM_KEY_MAX = 120;
+    const CONTEXT_MAX = 120;
     const TITLES = { quotation: 'Denunciar cotización', artist: 'Denunciar artista', studio: 'Denunciar estudio' };
     const DESCRIPTION_MIN = 20;
     const DESCRIPTION_MAX = 3000;
@@ -61,11 +77,15 @@
     const FOLDER = 'denuncias';
     const STEPS = ['reason', 'evidence', 'confirm'];
     const STEP_LABELS = { reason: 'Paso 1 de 3 · Motivo', evidence: 'Paso 2 de 3 · Evidencia', confirm: 'Paso 3 de 3 · Confirmación' };
-    const CSS_HREF = '/shared/css/wo-report.css?v=20261116-denuncias';
+    const CSS_HREF = '/shared/css/wo-report.css?v=20261118-kyc';
 
     const MSG = {
         trigger: 'Denunciar',
         login: 'Inicia sesión para enviar una denuncia.',
+        guest: 'Para enviar una denuncia, inicia sesión. Si eres la persona o el estudio suplantado y no tienes cuenta, crea una cuenta de cliente: es corta y te permite seguir el caso por correo.',
+        claimInstagram: 'Escribe tu usuario de Instagram para que soporte confirme que eres el titular (por ejemplo, @tuestudio).',
+        claimProof: 'El enlace de prueba debe ser una dirección completa que empiece con https://',
+        itemInvalid: 'No pudimos identificar la imagen que quieres denunciar.',
         unavailable: 'No puedes enviar esta denuncia desde tu cuenta.',
         checking: 'Comprobando si puedes enviar esta denuncia…',
         reason: 'Elige el motivo de la denuncia.',
@@ -100,7 +120,78 @@
     }
 
     function reasonsFor(kind) {
-        return (REASONS[kind] || []).map(function (r) { return { code: r.code, label: r.label }; });
+        return (REASONS[kind] || []).map(function (r) {
+            const out = { code: r.code, label: r.label };
+            if (r.hint) out.hint = r.hint;
+            return out;
+        });
+    }
+
+    function reasonHint(reasons, code) {
+        const found = (reasons || []).find(function (r) { return r.code === code; });
+        return found && found.hint ? String(found.hint) : '';
+    }
+
+    function claimAllowed(kind, reason) {
+        return GUEST_KINDS.indexOf(kind) >= 0 && CLAIM_REASONS.indexOf(reason) >= 0;
+    }
+
+    // Misma regla que el servidor (lib/denuncias.js normalizeInstagram).
+    function normalizeInstagram(value) {
+        let s = String(value == null ? '' : value).trim();
+        const fromUrl = /^(?:https?:\/\/)?(?:www\.|m\.)?instagram\.com\/([^/?#\s]+)/i.exec(s);
+        if (fromUrl) s = fromUrl[1];
+        s = s.replace(/^@+/, '');
+        return IG_HANDLE_RE.test(s) ? s.toLowerCase() : null;
+    }
+
+    // Imagen del portafolio que se denuncia ({ key, image }) → { key, image } | null.
+    function normalizeItem(item) {
+        if (!item || typeof item !== 'object') return null;
+        const key = String(item.key == null ? '' : item.key).trim().slice(0, ITEM_KEY_MAX);
+        let image = '';
+        try {
+            const url = new URL(String(item.image || item.image_url || '').trim());
+            image = url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '';
+        } catch (_) { image = ''; }
+        return key || image ? { key: key, image: image } : null;
+    }
+
+    // Clave del borrador: un borrador por perfil y otro por cada foto denunciada.
+    function draftKey(kind, id, itemKey) {
+        return kind + ':' + id + (itemKey ? ':' + itemKey : '');
+    }
+
+    // page_context: la ruta de la página más un contexto corto que manda quien abre el modal.
+    function pageContext(pathname, search, context) {
+        const base = String(pathname || '') + String(search || '');
+        const extra = String(context == null ? '' : context).replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, CONTEXT_MAX);
+        return (extra ? base + ' · ' + extra : base).slice(0, 300);
+    }
+
+    // Reclamo del titular del borrador → { claim } | { error, field } (null si no reclama).
+    function buildClaim(draft, kind) {
+        const d = draft || {};
+        if (!d.claimVictim || !claimAllowed(kind, d.reason)) return { claim: null };
+        const instagram = normalizeInstagram(d.claimInstagram);
+        if (!instagram) return { field: 'claim_instagram', error: MSG.claimInstagram };
+        const proofText = String(d.claimProof || '').trim();
+        let proof = null;
+        if (proofText) {
+            proof = normalizeLink(proofText);
+            if (!proof) return { field: 'claim_proof', error: MSG.claimProof };
+        }
+        return { claim: { is_victim: true, instagram: instagram, proof_link: proof } };
+    }
+
+    // Enlaces de inicio de sesión y registro para quien no tiene sesión, con vuelta a la página.
+    function guestLinks(returnTo) {
+        const back = encodeURIComponent(String(returnTo || '/'));
+        return {
+            login: '/client/login?returnTo=' + back,
+            register: '/client/register?returnTo=' + back,
+            artistLogin: '/artist/login?returnTo=' + back
+        };
     }
 
     function reasonLabel(reasons, code) {
@@ -167,17 +258,22 @@
     }
 
     function newDraft() {
-        return { reason: '', description: '', linksText: '', files: [], confirmed: false };
+        return {
+            reason: '', description: '', linksText: '', files: [], confirmed: false,
+            claimVictim: false, claimInstagram: '', claimProof: ''
+        };
     }
 
     // Valida un paso del borrador → null | { field, error }
-    function validateStep(draft, step, reasons) {
+    function validateStep(draft, step, reasons, kind) {
         const d = draft || newDraft();
         if (step === 'reason') {
             if (!reasonLabel(reasons, d.reason)) return { field: 'reason', error: MSG.reason };
             const length = String(d.description || '').trim().length;
             if (length < DESCRIPTION_MIN) return { field: 'description', error: MSG.descriptionShort };
             if (length > DESCRIPTION_MAX) return { field: 'description', error: MSG.descriptionLong };
+            const claim = buildClaim(d, kind);
+            if (claim.error) return { field: claim.field, error: claim.error };
             return null;
         }
         if (step === 'evidence') {
@@ -194,7 +290,7 @@
 
     // Paso al que hay que volver cuando el servidor rechaza un campo.
     function stepForField(field) {
-        if (field === 'reason' || field === 'description') return 'reason';
+        if (field === 'reason' || field === 'description' || field === 'claim_instagram' || field === 'claim_proof' || field === 'item') return 'reason';
         if (field === 'links' || field === 'attachments') return 'evidence';
         return 'confirm';
     }
@@ -231,18 +327,56 @@
         }).join('');
     }
 
-    function reasonStepHtml(draft, reasons) {
+    // Miniatura de la foto del portafolio que se denuncia.
+    function itemHtml(item) {
+        const it = normalizeItem(item);
+        if (!it || !it.image) return '';
+        return '<figure class="wor-item"><img src="' + esc(it.image) + '" alt="" loading="lazy" decoding="async">'
+            + '<figcaption><span class="wor-item-label">Imagen denunciada</span>'
+            + '<span class="wor-item-help">Se suma al expediente como referencia.</span></figcaption></figure>';
+    }
+
+    // «¿Eres la persona o el estudio suplantado?» (solo suplantación y plagio en perfiles).
+    function claimHtml(draft, kind) {
         const d = draft || newDraft();
+        if (!claimAllowed(kind, d.reason)) return '';
+        const open = !!d.claimVictim;
+        return '<div class="wor-claim" id="wor-claim">'
+            + '<label class="wor-check"><input type="checkbox" id="wor-claim-victim"' + (open ? ' checked' : '') + ' aria-controls="wor-claim-fields">'
+            + '<span>¿Eres la persona o el estudio suplantado?</span></label>'
+            + '<div class="wor-claim-fields" id="wor-claim-fields"' + (open ? '' : ' hidden') + '>'
+            + '<div class="wor-field">'
+            + '<label class="wor-label" for="wor-claim-instagram">Tu Instagram <span class="wor-req" aria-hidden="true">*</span></label>'
+            + '<input type="text" id="wor-claim-instagram" class="wor-input wor-input--line" maxlength="80" spellcheck="false" autocapitalize="off" autocomplete="off" '
+            + 'placeholder="@tuusuario" value="' + esc(d.claimInstagram) + '" aria-describedby="wor-claim-instagram-help wor-claim-instagram-error">'
+            + '<p class="wor-help" id="wor-claim-instagram-help"><span>Si ya validaste ese Instagram en We Ötzi, tu denuncia pasa a prioridad urgente. Si no, soporte lo confirma contigo.</span></p>'
+            + '<p class="wor-error" id="wor-claim-instagram-error" role="alert" hidden></p>'
+            + '</div>'
+            + '<div class="wor-field">'
+            + '<label class="wor-label" for="wor-claim-proof">Enlace de prueba <span class="wor-optional">(opcional)</span></label>'
+            + '<input type="url" id="wor-claim-proof" class="wor-input wor-input--line" maxlength="500" spellcheck="false" autocapitalize="off" autocomplete="off" '
+            + 'placeholder="https://" value="' + esc(d.claimProof) + '" aria-describedby="wor-claim-proof-help wor-claim-proof-error">'
+            + '<p class="wor-help" id="wor-claim-proof-help"><span>Por ejemplo, tu publicación original con fecha.</span></p>'
+            + '<p class="wor-error" id="wor-claim-proof-error" role="alert" hidden></p>'
+            + '</div></div></div>';
+    }
+
+    function reasonStepHtml(draft, reasons, opts) {
+        const d = draft || newDraft();
+        const o = opts || {};
         const radios = (reasons || []).map(function (r) {
+            const hint = r.hint ? '<small class="wor-reason-hint">' + esc(r.hint) + '</small>' : '';
             return '<label class="wor-reason"><input type="radio" name="wor-reason" value="' + esc(r.code) + '"'
-                + (d.reason === r.code ? ' checked' : '') + '><span>' + esc(r.label) + '</span></label>';
+                + (d.reason === r.code ? ' checked' : '') + '><span>' + esc(r.label) + '</span>' + hint + '</label>';
         }).join('');
         return '<div class="wor-alert" id="wor-alert" role="alert" hidden></div>'
+            + itemHtml(o.item)
             + '<fieldset class="wor-fieldset" aria-describedby="wor-reason-error">'
             + '<legend class="wor-legend">Motivo <span class="wor-req" aria-hidden="true">*</span></legend>'
             + '<div class="wor-reasons">' + radios + '</div>'
             + '<p class="wor-error" id="wor-reason-error" role="alert" hidden></p>'
             + '</fieldset>'
+            + claimHtml(d, o.kind)
             + '<div class="wor-field">'
             + '<label class="wor-label" for="wor-description">Cuéntanos qué pasó <span class="wor-req" aria-hidden="true">*</span></label>'
             + '<textarea id="wor-description" class="wor-input" rows="4" maxlength="' + DESCRIPTION_MAX + '" required '
@@ -292,12 +426,16 @@
         const v = view || {};
         const d = v.draft || newDraft();
         const links = parseLinksText(d.linksText).links || [];
+        const claim = buildClaim(d, v.kind).claim;
+        const item = normalizeItem(v.item);
         return '<div class="wor-alert" id="wor-alert" role="alert" hidden></div>'
             + '<dl class="wor-summary">'
             + '<dt>Denuncias a</dt><dd>' + esc(v.label || TITLES[v.kind] || '') + '</dd>'
             + '<dt>Motivo</dt><dd>' + esc(reasonLabel(v.reasons, d.reason)) + '</dd>'
             + '<dt>Descripción</dt><dd>' + esc(excerpt(d.description, 260)) + '</dd>'
             + '<dt>Evidencia</dt><dd>' + esc(evidenceSummary(links.length, (d.files || []).length)) + '</dd>'
+            + (item && item.image ? '<dt>Imagen denunciada</dt><dd>Incluida como referencia</dd>' : '')
+            + (claim ? '<dt>Titular</dt><dd>Sí, @' + esc(claim.instagram) + '</dd>' : '')
             + '</dl>'
             + '<label class="wor-check"><input type="checkbox" id="wor-confirm"' + (d.confirmed ? ' checked' : '') + ' aria-describedby="wor-confirm-error">'
             + '<span>Confirmo que la información es verdadera y que envío esta denuncia de buena fe.</span></label>'
@@ -308,9 +446,12 @@
     function doneStepHtml(result) {
         const r = result || {};
         const ticket = r.ticket || {};
-        const lead = r.duplicate
-            ? 'Ya habías enviado esta misma denuncia y sigue abierta. Nuestro equipo de soporte la está revisando.'
-            : 'Tu denuncia quedó registrada. Guarda tu número de ticket:';
+        let lead = 'Tu denuncia quedó registrada. Guarda tu número de ticket:';
+        if (r.duplicate) {
+            lead = r.item_added
+                ? 'Ya tenías una denuncia abierta por este motivo: sumamos esta imagen a ese expediente.'
+                : 'Ya habías enviado esta misma denuncia y sigue abierta. Nuestro equipo de soporte la está revisando.';
+        }
         return '<div class="wor-done">'
             + '<span class="wor-done-mark" aria-hidden="true">' + CHECK_ICON + '</span>'
             + '<p class="wor-text">' + esc(lead) + '</p>'
@@ -319,16 +460,31 @@
             + '</div>';
     }
 
-    // view: { step, kind, label, draft, reasons, message, result }
+    // Paso "blocked" para quien no tiene sesión en un perfil: entrar o crear una cuenta de cliente.
+    function guestHtml(returnTo, base) {
+        const prefix = String(base || '');
+        const links = guestLinks(returnTo);
+        return '<div class="wor-guest">'
+            + '<p class="wor-text">' + esc(MSG.guest) + '</p>'
+            + '<div class="wor-guest-actions">'
+            + '<a class="wor-btn" href="' + esc(prefix + links.login) + '">Inicia sesión</a>'
+            + '<a class="wor-btn wor-btn--ghost" href="' + esc(prefix + links.register) + '">Crea tu cuenta de cliente</a>'
+            + '</div>'
+            + '<p class="wor-help"><span>¿Eres artista? <a href="' + esc(prefix + links.artistLogin) + '">Inicia sesión como artista</a>.</span></p>'
+            + '</div>';
+    }
+
+    // view: { step, kind, label, draft, reasons, message, result, item, code, returnTo }
     function bodyHtml(view) {
         const v = view || {};
         if (v.step === 'loading') {
             return '<p class="wor-text" role="status"><span class="wor-spinner" aria-hidden="true"></span> ' + esc(MSG.checking) + '</p>';
         }
         if (v.step === 'blocked') {
+            if (v.code === 'AUTH_REQUIRED' && GUEST_KINDS.indexOf(v.kind) >= 0) return guestHtml(v.returnTo, v.base);
             return '<div class="wor-alert wor-alert--info" role="alert">' + esc(v.message || MSG.unavailable) + '</div>';
         }
-        if (v.step === 'reason') return reasonStepHtml(v.draft, v.reasons);
+        if (v.step === 'reason') return reasonStepHtml(v.draft, v.reasons, { kind: v.kind, item: v.item });
         if (v.step === 'evidence') return evidenceStepHtml(v.draft);
         if (v.step === 'confirm') return confirmStepHtml(v);
         return doneStepHtml(v.result);
@@ -354,10 +510,20 @@
             + (v.busy ? '<span class="wor-spinner" aria-hidden="true"></span>' : '') + 'Enviar denuncia</button>';
     }
 
+    // ¿Se muestra el botón? Con sesión, lo decide el servidor; sin sesión, solo en perfiles.
+    function buttonVisible(kind, info) {
+        if (info && info.eligible) return true;
+        return !!(info && info.code === 'AUTH_REQUIRED' && GUEST_KINDS.indexOf(kind) >= 0);
+    }
+
     const pure = {
-        KINDS: KINDS, REASONS: REASONS, TITLES: TITLES, MSG: MSG, BUCKET: BUCKET, FOLDER: FOLDER, STEPS: STEPS,
+        KINDS: KINDS, REASONS: REASONS, CLAIM_REASONS: CLAIM_REASONS, GUEST_KINDS: GUEST_KINDS, TITLES: TITLES, MSG: MSG,
+        BUCKET: BUCKET, FOLDER: FOLDER, STEPS: STEPS,
         DESCRIPTION_MIN: DESCRIPTION_MIN, DESCRIPTION_MAX: DESCRIPTION_MAX, MAX_LINKS: MAX_LINKS, MAX_IMAGES: MAX_IMAGES,
         MAX_IMAGE_BYTES: MAX_IMAGE_BYTES, IMAGE_TYPES: IMAGE_TYPES,
+        reasonHint: reasonHint, claimAllowed: claimAllowed, normalizeInstagram: normalizeInstagram, normalizeItem: normalizeItem,
+        draftKey: draftKey, pageContext: pageContext, buildClaim: buildClaim, guestLinks: guestLinks, guestHtml: guestHtml,
+        itemHtml: itemHtml, claimHtml: claimHtml, buttonVisible: buttonVisible,
         esc: esc, reasonsFor: reasonsFor, reasonLabel: reasonLabel, normalizeLink: normalizeLink, parseLinksText: parseLinksText,
         fileType: fileType, validateFile: validateFile, safeName: safeName, storagePath: storagePath, newDraft: newDraft,
         validateStep: validateStep, stepForField: stepForField, evidenceSummary: evidenceSummary, excerpt: excerpt,
@@ -462,10 +628,22 @@
     // ---------------------------------------------------------------
     // Botones [data-wo-report]
     // ---------------------------------------------------------------
+    // data-kind, data-id y data-label; en las fotos del portafolio también
+    // data-reason="plagio_diseno", data-item-key y data-item-image.
     function buttonTarget(btn) {
         const kind = String(btn.getAttribute('data-kind') || '').trim();
         const id = String(btn.getAttribute('data-id') || '').trim();
-        return KINDS.indexOf(kind) >= 0 && id ? { kind: kind, id: id, key: kind + ':' + id } : null;
+        if (KINDS.indexOf(kind) < 0 || !id) return null;
+        const item = GUEST_KINDS.indexOf(kind) >= 0
+            ? normalizeItem({ key: btn.getAttribute('data-item-key'), image: btn.getAttribute('data-item-image') })
+            : null;
+        return {
+            kind: kind,
+            id: id,
+            key: kind + ':' + id,
+            reason: String(btn.getAttribute('data-reason') || '').trim(),
+            item: item
+        };
     }
 
     function setVisible(btn, visible) {
@@ -504,7 +682,9 @@
         setVisible(btn, false);
         const info = await eligibility(target.kind, target.id);
         if (btn.__worKey !== target.key || !btn.isConnected) return;
-        setVisible(btn, !!(info && info.eligible));
+        // Con sesión decide el servidor (info.eligible); sin sesión se muestra en
+        // perfiles y el modal invita a iniciar sesión o crear una cuenta de cliente.
+        setVisible(btn, buttonVisible(target.kind, info));
     }
 
     function scan(force) {
@@ -663,6 +843,8 @@
         const map = {
             reason: ['wor-reason-error', 'input[name="wor-reason"]'],
             description: ['wor-description-error', '#wor-description'],
+            claim_instagram: ['wor-claim-instagram-error', '#wor-claim-instagram'],
+            claim_proof: ['wor-claim-proof-error', '#wor-claim-proof'],
             links: ['wor-links-error', '#wor-links'],
             attachments: ['wor-files-error', '[data-wor-add-files]'],
             confirm: ['wor-confirm-error', '#wor-confirm']
@@ -674,7 +856,7 @@
         el.hidden = false;
         const input = dialog.querySelector(entry[1]);
         if (input) {
-            if (field === 'description' || field === 'links') input.setAttribute('aria-invalid', 'true');
+            if (field === 'description' || field === 'links' || field === 'claim_instagram' || field === 'claim_proof') input.setAttribute('aria-invalid', 'true');
             try { input.focus(); } catch (_) { /* nada */ }
         }
     }
@@ -740,6 +922,12 @@
         } else if (t.id === 'wor-links') {
             state.draft.linksText = t.value;
             clearFieldError('wor-links-error', t);
+        } else if (t.id === 'wor-claim-instagram') {
+            state.draft.claimInstagram = t.value;
+            clearFieldError('wor-claim-instagram-error', t);
+        } else if (t.id === 'wor-claim-proof') {
+            state.draft.claimProof = t.value;
+            clearFieldError('wor-claim-proof-error', t);
         }
     }
 
@@ -748,8 +936,20 @@
         const t = e.target;
         if (!t) return;
         if (t.name === 'wor-reason') {
+            const before = claimAllowed(state.kind, state.draft.reason);
             state.draft.reason = t.value;
             clearFieldError('wor-reason-error');
+            // El bloque «¿Eres la persona o el estudio suplantado?» aparece o se va según el motivo.
+            if (before !== claimAllowed(state.kind, t.value)) {
+                render(false);
+                const checked = dialog.querySelector('input[name="wor-reason"]:checked');
+                if (checked) checked.focus();
+            }
+        } else if (t.id === 'wor-claim-victim') {
+            state.draft.claimVictim = !!t.checked;
+            const fields = $('wor-claim-fields');
+            if (fields) fields.hidden = !t.checked;
+            if (t.checked) { const ig = $('wor-claim-instagram'); if (ig) ig.focus(); }
         } else if (t.id === 'wor-confirm') {
             state.draft.confirmed = !!t.checked;
             clearFieldError('wor-confirm-error');
@@ -787,7 +987,7 @@
 
     function next() {
         if (!state || state.busy || STEPS.indexOf(state.step) < 0) return;
-        const problem = validateStep(state.draft, state.step, state.reasons);
+        const problem = validateStep(state.draft, state.step, state.reasons, state.kind);
         if (problem) { showFieldError(problem.field, problem.error); return; }
         if (state.step === 'reason') { goTo('evidence'); return; }
         if (state.step === 'evidence') { goTo('confirm'); return; }
@@ -825,15 +1025,19 @@
             }
             setStatus('Enviando tu denuncia…');
             const loc = root.location || {};
-            const res = await request('POST', '/api/reports', {
+            const payload = {
                 kind: current.kind,
                 target_id: current.id,
                 reason: d.reason,
                 description: String(d.description || '').trim(),
                 links: parseLinksText(d.linksText).links || [],
                 attachments: attachments,
-                page_context: String((loc.pathname || '') + (loc.search || '')).slice(0, 300)
-            }, session);
+                page_context: pageContext(loc.pathname, loc.search, current.context)
+            };
+            const claim = buildClaim(d, current.kind).claim;
+            if (claim) payload.claim = claim;
+            if (current.item) payload.item = { key: current.item.key, image_url: current.item.image };
+            const res = await request('POST', '/api/reports', payload, session);
             if (res.ok) {
                 releaseFiles(d.files);
                 drafts.delete(current.key);
@@ -842,7 +1046,10 @@
                 if (state === current) goTo('done');
                 try {
                     doc.dispatchEvent(new root.CustomEvent('wo:report-submitted', {
-                        detail: { kind: current.kind, id: current.id, ticket: res.json.ticket || null, duplicate: !!res.json.duplicate }
+                        detail: {
+                            kind: current.kind, id: current.id, ticket: res.json.ticket || null, duplicate: !!res.json.duplicate,
+                            item_key: current.item ? current.item.key : null
+                        }
                     }));
                 } catch (_) { /* navegadores sin CustomEvent */ }
                 return;
@@ -862,6 +1069,23 @@
         else showAlert(failure.message);
     }
 
+    // Un File precargado (por ejemplo, la foto que se buscó en /buscar-diseno) entra como evidencia.
+    function preloadFile(draft, file) {
+        if (!file || validateFile(file)) return;
+        const files = draft.files;
+        if (files.length >= MAX_IMAGES) return;
+        const already = files.some(function (f) {
+            return f.file === file || (f.file.name === file.name && f.file.size === file.size && f.file.lastModified === file.lastModified);
+        });
+        if (already) return;
+        let preview = '';
+        if (fileType(file) !== 'image/heic' && root.URL && typeof root.URL.createObjectURL === 'function') {
+            try { preview = root.URL.createObjectURL(file); } catch (_) { preview = ''; }
+        }
+        files.push({ file: file, preview: preview, uploaded: null });
+    }
+
+    // options: { kind, id, label, opener, reason, item: { key, image }, file, context }
     async function open(options) {
         const opts = options || {};
         const kind = String(opts.kind || '').trim();
@@ -870,12 +1094,17 @@
         if (state && state.busy) return false;
         ensureStyles();
         ensureDialog();
-        const key = kind + ':' + id;
+        const item = GUEST_KINDS.indexOf(kind) >= 0 ? normalizeItem(opts.item) : null;
+        const key = draftKey(kind, id, item && item.key);
         if (!drafts.has(key)) drafts.set(key, newDraft());
         opener = opts.opener || doc.activeElement || null;
+        const loc = root.location || {};
         const current = {
             key: key, kind: kind, id: id, label: String(opts.label || '').trim(), step: 'loading',
-            draft: drafts.get(key), reasons: [], busy: false, status: '', message: '', result: null
+            draft: drafts.get(key), reasons: [], busy: false, status: '', message: '', result: null,
+            item: item, context: String(opts.context || '').trim(), code: '',
+            returnTo: String((loc.pathname || '/') + (loc.search || '') + (loc.hash || '')).replace(/^\/beta(?=\/)/, ''),
+            base: basePath()
         };
         state = current;
         render(false);
@@ -884,13 +1113,17 @@
         if (state !== current || current.step !== 'loading') return false;
         if (!info || !info.eligible) {
             current.step = 'blocked';
+            current.code = (info && info.code) || '';
             current.message = (info && info.message) || MSG.unavailable;
             render(true);
             return false;
         }
         current.reasons = Array.isArray(info.reasons) && info.reasons.length ? info.reasons : reasonsFor(kind);
         if (!current.label && info.target_label) current.label = String(info.target_label);
+        const wanted = String(opts.reason || '').trim();
+        if (wanted && reasonLabel(current.reasons, wanted) && !current.draft.reason) current.draft.reason = wanted;
         if (!reasonLabel(current.reasons, current.draft.reason)) current.draft.reason = '';
+        if (opts.file) preloadFile(current.draft, opts.file);
         current.draft.confirmed = false;
         current.step = 'reason';
         render(true);
@@ -906,7 +1139,10 @@
         const target = buttonTarget(btn);
         if (!target) return;
         e.preventDefault();
-        open({ kind: target.kind, id: target.id, label: btn.getAttribute('data-label') || '', opener: btn });
+        open({
+            kind: target.kind, id: target.id, label: btn.getAttribute('data-label') || '', opener: btn,
+            reason: target.reason, item: target.item
+        });
     }
 
     // Si la persona inicia o cierra sesión en la misma página, se vuelve a evaluar quién ve los botones.

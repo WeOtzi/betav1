@@ -34,11 +34,12 @@ test('el mapa de Invitaciones carga Natural Earth 1:110m vendorizado', () => {
     assert.ok(fs.existsSync(path.join(root, 'public/shared/geo/LICENSE-world-atlas.txt')));
 });
 
-test('términos v1.0 y privacidad v1.1: aviso de revisión, versión, índice anclado y marcadores', () => {
+test('términos v1.1 y privacidad v1.2: aviso de revisión, versión, índice anclado y marcadores', () => {
     const { TERMS_VERSION } = require('../lib/terms-acceptance');
     // Un solo código para el par de textos: la fecha del último que cambió.
-    assert.equal(TERMS_VERSION, '2026-11-16');
-    const OWN = { terms: { label: '1.0', date: '2026-11-13' }, privacy: { label: '1.1', date: '2026-11-16' } };
+    // 2.7.0 (18 nov 2026): cambian los dos textos a la vez (suplantación, plagio y sanciones).
+    assert.equal(TERMS_VERSION, '2026-11-18');
+    const OWN = { terms: { label: '1.1', date: '2026-11-18' }, privacy: { label: '1.2', date: '2026-11-18' } };
     for (const slug of ['terms', 'privacy']) {
         const html = read(`public/legal/${slug}/index.html`);
         const own = OWN[slug];
@@ -57,14 +58,15 @@ test('términos v1.0 y privacidad v1.1: aviso de revisión, versión, índice an
     }
     const privacy = read('public/legal/privacy/index.html');
     assert.match(privacy, /href="https:\/\/weotzi\.com\/privacy-policy\/"/);
-    // 1.1: la fila de OpenAI declara el asistente del chat de soporte y la sección de cambios lo registra.
+    // 1.1: la fila de OpenAI declara el asistente del chat de soporte y la sección de cambios lo registra
+    // (se conserva en 1.2; la entrada 1.2 se prueba en tests/seguridad-page.test.js).
     assert.match(privacy, /<th scope="row">OpenAI<\/th><td>[^<]*Asistente automático del chat de soporte, solo cuando escribes en ese chat\.<\/td>/);
     assert.match(privacy, /En el chat de soporte: los mensajes que escribes ahí, tu nombre de perfil, tu tipo de cuenta, la página en la que estás/);
     assert.match(privacy, /<strong>Versión 1\.1 \(16 de noviembre de 2026\)\.<\/strong> Sumamos a los usos de OpenAI el asistente automático del chat de soporte/);
-    assert.match(privacy, /Privacidad v1\.1 · 16\/11\/2026/);
+    assert.match(privacy, /Privacidad v1\.2 · 18\/11\/2026/);
     const terms = read('public/legal/terms/index.html');
-    assert.match(terms, /Términos v1\.0 · 13\/11\/2026/, 'los términos no cambian de versión');
-    // El aviso dentro de la plataforma que promete la sección 13.
+    assert.match(terms, /Términos v1\.1 · 18\/11\/2026/);
+    // El aviso dentro de la plataforma que promete la sección «Cambios en esta política».
     const updates = JSON.parse(read('public/shared/platform-updates.json'));
     const notice = updates.find((u) => u.id === '2026-11-privacidad-1-1');
     assert.ok(notice && /Política de privacidad/.test(notice.title) && /1\.1/.test(notice.body), 'aviso de la versión 1.1 en las novedades');

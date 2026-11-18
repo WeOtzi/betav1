@@ -446,3 +446,132 @@ test('la reversa devuelve el search_path que la función de sincronización tien
     assert.ok(create !== -1, 'la reversa recrea la función');
     assert.ok(alter > create, 'el ALTER va después del CREATE OR REPLACE');
 });
+
+// ---------------------------------------------------------------------------
+// 20261118100000_insignia_instagram: la insignia exige controlar el Instagram
+// (plan KYC 1.5). Columna generada instagram_badge_ok en artists_db y studios
+// y requisito en las funciones de verificación, sobre la definición viva.
+// ---------------------------------------------------------------------------
+
+const BADGE_MIGRATION = 'supabase/migrations/20261118100000_insignia_instagram.sql';
+const BADGE_ROLLBACK = 'supabase/rollbacks/20261118100000_insignia_instagram.down.sql';
+const badgeSql = read(BADGE_MIGRATION);
+const badgeDown = read(BADGE_ROLLBACK);
+const Badge = require('../public/shared/js/verified-badge.js');
+
+test('insignia: columna generada en artists_db y studios, con la regla en una función inmutable', () => {
+    assert.match(badgeSql, /^begin;$/m);
+    assert.match(badgeSql, /^commit;$/m);
+    assert.match(badgeSql, /create or replace function public\.instagram_badge_ok_for\(\s*p_instagram text,\s*p_verified_at timestamptz,\s*p_verified_handle text\s*\)\s*returns boolean\s*language sql\s*immutable/);
+    for (const table of ['artists_db', 'studios']) {
+        assert.match(badgeSql, new RegExp(`alter table public\\.${table}\\s+add column if not exists instagram_badge_ok boolean\\s+generated always as \\(public\\.instagram_badge_ok_for\\(instagram, instagram_verified_at, instagram_verified_handle\\)\\) stored;`));
+        assert.match(badgeSql, new RegExp(`grant select \\(instagram_badge_ok\\) on public\\.${table} to anon, authenticated;`));
+    }
+    assert.match(badgeSql, /notify pgrst, 'reload schema';/);
+    // Sin trigger que borre instagram_verified_at al cambiar el Instagram.
+    const live = lex(badgeSql).skeleton;
+    assert.doesNotMatch(live, /create (?:or replace )?trigger/i);
+    assert.doesNotMatch(badgeSql, /set instagram_verified_at\s*=\s*null/i);
+});
+
+test('insignia: la normalización SQL espeja normalizeHandle (URL, @, mayúsculas, handle válido)', () => {
+    const fn = badgeSql.slice(badgeSql.indexOf('create or replace function public.instagram_badge_ok_for'), badgeSql.indexOf('$fn$;'));
+    assert.match(fn, /p_verified_at is not null/);
+    assert.match(fn, /'\^\(https\?:\/\/\)\?\(www\\\.\|m\\\.\)\?instagram\\\.com\/\(\[\^\/\?#\[:space:\]\]\+\)\.\*\$', '\\3', 'i'/);
+    assert.match(fn, /'\^@\+', ''/);
+    assert.match(fn, /h\.handle ~ '\^\[a-z0-9\._\]\{1,30\}\$'/);
+    // Misma regla en JS: los casos que la migración valida en vivo.
+    const ok = (instagram, handle) => Badge.instagramMatches({ instagram, instagram_verified_at: '2026-11-18T00:00:00Z', instagram_verified_handle: handle });
+    assert.equal(ok('@Laura.Tattoo', 'laura.tattoo'), true);
+    assert.equal(ok('https://www.instagram.com/Laura.Tattoo/?hl=es', 'laura.tattoo'), true);
+    assert.equal(ok('otra', 'laura.tattoo'), false);
+    assert.equal(ok('', ''), false);
+});
+
+test('insignia: las funciones se cambian sobre la definición viva con ancla y marcador', () => {
+    assert.match(badgeSql, /create function pg_temp\.wo_patch_function\(/);
+    assert.match(badgeSql, /pg_get_functiondef\(p_fn\)/);
+    assert.match(badgeSql, /raise exception '% no tiene el texto ancla esperado/);
+    for (const sig of [
+        'public.request_artist_verification(uuid)',
+        'public.guard_artist_privileged_fields()',
+        'public.support_set_artist_verification_state(uuid, text, text)',
+        'private.apply_studio_verification_decision(uuid, text, text, uuid)',
+        'public.get_artist_public_profile_preferences(uuid)'
+    ]) {
+        assert.ok(badgeSql.includes(`'${sig}'::regprocedure`), `migración: ${sig}`);
+        assert.ok(badgeDown.includes(`'${sig}'::regprocedure`), `reversa: ${sig}`);
+    }
+    // Mensajes en tuteo, con el errcode que mapean lib/verificacion-artista.js y lib/routes/verif-estudio.js.
+    assert.match(badgeSql, /raise exception 'Antes de solicitarla, valida tu Instagram con el código\.' using errcode = '22023';/);
+    assert.match(badgeSql, /raise exception 'Antes de solicitarla, valida tu Instagram con el código\.' using errcode = '42501';/);
+    assert.match(badgeSql, /raise exception 'El Instagram del artista no está validado\.' using errcode = '22023';/);
+    assert.match(badgeSql, /raise exception 'Antes de aprobar, valida el Instagram del estudio \(código o confirmación de soporte\)\.' using errcode = '22023';/);
+    // El guardián exige el Instagram solo al pasar a 'Requested' (INSERT y UPDATE) y no usa la columna generada (BEFORE trigger).
+    assert.match(badgeSql, /if coalesce\(new\.verification_state, 'No'\) = 'Requested'\n\s+and not public\.instagram_badge_ok_for\(new\.instagram, new\.instagram_verified_at, new\.instagram_verified_handle\) then/);
+    // Soporte no aprueba sin el Instagram; aprobar un estudio tampoco.
+    assert.match(badgeSql, /if p_state = 'Yes' and not exists \(select 1 from public\.artists_db a/);
+    assert.match(badgeSql, /if p_decision = 'approve' and not exists \(select 1 from public\.studios s/);
+});
+
+test('insignia: perfil público sin la rama del documento aprobado y con badge_visible', () => {
+    const from = badgeSql.slice(badgeSql.indexOf("'public.get_artist_public_profile_preferences(uuid)'::regprocedure"));
+    assert.match(from, /or exists \(\n\s+select 1\n\s+from public\.artist_verification_documents doc/);
+    assert.match(from, /\$to\$    'verified', \(artist\.verification_state = 'Yes' and coalesce\(artist\.instagram_badge_ok, false\)\),\n    'badge_visible', \(artist\.verification_state = 'Yes' and coalesce\(artist\.instagram_badge_ok, false\)\)\n\$to\$/);
+});
+
+test('insignia: la reversa deshace todo en orden (funciones, permisos, columnas y función)', () => {
+    assert.match(badgeDown, /^begin;$/m);
+    assert.match(badgeDown, /^commit;$/m);
+    const lastPatch = badgeDown.lastIndexOf('select pg_temp.wo_patch_function(');
+    const revoke = badgeDown.indexOf('revoke select (instagram_badge_ok) on public.artists_db from anon, authenticated;');
+    const dropArtists = badgeDown.indexOf('alter table public.artists_db drop column if exists instagram_badge_ok;');
+    const dropStudios = badgeDown.indexOf('alter table public.studios drop column if exists instagram_badge_ok;');
+    const dropFn = badgeDown.indexOf('drop function if exists public.instagram_badge_ok_for(text, timestamptz, text);');
+    assert.ok(lastPatch > 0 && revoke > lastPatch, 'las funciones dejan de leer la columna antes de quitarla');
+    assert.ok(dropArtists > revoke && dropStudios > revoke);
+    assert.ok(dropFn > dropArtists && dropFn > dropStudios, 'la función se borra después de las columnas que la usan');
+    assert.match(badgeDown, /notify pgrst, 'reload schema';/);
+    // Los marcadores de la reversa esperan que el cambio ya NO esté.
+    assert.equal((badgeDown.match(/^  false\);$/gm) || []).length, 5);
+    assert.equal((badgeSql.match(/^  true\);$/gm) || []).length, 5);
+    // La reversa recupera la rama del documento de identidad aprobado.
+    assert.match(badgeDown, /\$to\$    'verified', \(\n\s+artist\.verification_state = 'Yes'\n\s+or exists \(/);
+});
+
+test('insignia: la reversa se puede volver a correr (revokes de columna con guardia, drops con if exists)', () => {
+    const { skeleton, bodies } = lex(badgeDown);
+    // Fuera de un bloque DO, revoke select (columna) falla con 42703 en la segunda corrida.
+    assert.doesNotMatch(skeleton, /revoke select \(instagram_badge_ok\)/i, 'ningún revoke de la columna sin guardia');
+    for (const table of ['artists_db', 'studios']) {
+        const revoke = `revoke select (instagram_badge_ok) on public.${table} from anon, authenticated;`;
+        const guarded = bodies.filter((body) => body.includes(revoke));
+        assert.equal(guarded.length, 1, `${table}: el revoke vive en un bloque DO`);
+        const guard = new RegExp(
+            `if exists \\(select 1 from pg_catalog\\.pg_attribute\\s+where attrelid = pg_catalog\\.to_regclass\\('public\\.${table}'\\)\\s+`
+            + `and attname = 'instagram_badge_ok'\\s+and not attisdropped\\) then\\s+`
+            + revoke.replace(/[()]/g, '\\$&').replace(/\./g, '\\.'));
+        assert.match(guarded[0], guard, `${table}: el revoke solo corre si la columna existe`);
+    }
+    assert.match(skeleton, /\bdo\s+\$body\$/i);
+    // Cada drop fuera de los cuerpos es idempotente; el drop de la cola vive en un
+    // bloque DO que primero comprueba si ya está revertida.
+    for (const statement of skeleton.split(';').map((s) => s.trim()).filter((s) => /^(drop|alter table)\b/i.test(s))) {
+        assert.match(statement, /\bdrop (?:function|column) if exists\b/i, `no idempotente: ${statement.slice(0, 80)}`);
+    }
+    assert.match(badgeDown, /create or replace function pg_temp\.wo_patch_function\(/);
+    const queue = bodies.find((body) => body.includes('drop function public.support_list_verification_requests(text, uuid);'));
+    assert.ok(queue && queue.indexOf("if position('instagram_badge_ok' in def) = 0 then") < queue.indexOf('drop function'),
+        'la cola solo se recrea si todavía devuelve instagram_badge_ok');
+});
+
+test('insignia: la cola de soporte trae instagram e instagram_badge_ok sin abrirla a anon', () => {
+    for (const text of [badgeSql, badgeDown]) {
+        assert.match(text, /'instagram_verified_handle text, instagram text, instagram_badge_ok boolean, requested_at timestamp with time zone'/);
+        assert.match(text, /drop function public\.support_list_verification_requests\(text, uuid\);/);
+        assert.match(text, /revoke all on function public\.support_list_verification_requests\(text, uuid\) from public, anon;/);
+        assert.match(text, /grant execute on function public\.support_list_verification_requests\(text, uuid\) to authenticated, service_role;/);
+    }
+    // En la reversa la cola se revierte antes de quitar la columna que lee.
+    assert.ok(badgeDown.indexOf('drop function public.support_list_verification_requests') < badgeDown.indexOf('alter table public.artists_db drop column'));
+});

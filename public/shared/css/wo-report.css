@@ -147,6 +147,27 @@ textarea.wor-input--links{min-height:76px}
   animation:wor-spin .8s linear infinite}
 @keyframes wor-spin{to{transform:rotate(360deg)}}
 
+/* ---- 2.7.0: pista del motivo, reclamo del titular, imagen denunciada, visitantes ---- */
+.wor-reason:has(.wor-reason-hint){display:grid;grid-template-columns:22px minmax(0,1fr);column-gap:12px;row-gap:2px;align-items:start}
+.wor-reason:has(.wor-reason-hint) input{grid-row:1 / span 2;margin-top:1px}
+.wor-reason-hint{grid-column:2;font-size:13px;line-height:1.4;color:var(--text-muted,#5A5449)}
+.wor-claim{margin:0 0 16px;padding:12px 14px 4px;border:1px dashed var(--border-muted,#B9AE98);background:var(--surface-input,#FAF8F3)}
+.wor-claim .wor-check{margin-bottom:12px;font-weight:600}
+.wor-claim-fields{padding:0 0 8px}
+.wor-input--line{min-height:44px}
+.wor-item{display:flex;align-items:center;gap:12px;margin:0 0 16px;padding:8px;border:1px solid var(--border-muted,#B9AE98);
+  background:var(--surface-input,#FAF8F3)}
+.wor-item img{flex:none;display:block;width:72px;height:72px;object-fit:cover;background:var(--sand-050,#EFEBE1)}
+.wor-item figcaption{display:flex;flex-direction:column;gap:2px;min-width:0}
+.wor-item-label{font-family:var(--font-mono,'JetBrains Mono',ui-monospace,monospace);font-size:12px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--text-body,#24211D)}
+.wor-item-help{font-size:13px;line-height:1.4;color:var(--text-muted,#5A5449)}
+.wor-guest .wor-text{margin:0 0 16px}
+.wor-guest-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.wor-guest-actions .wor-btn{text-decoration:none}
+.wor-guest .wor-help a{color:var(--text-link,#0055FF);text-underline-offset:3px}
+.wor-guest .wor-help a:focus-visible{outline:2px solid var(--border-focus,#0055FF);outline-offset:2px}
+
 /* ---- Teléfono: hoja a pantalla completa ---- */
 @media (max-width:600px){
   .wor-dialog{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;border:0;box-shadow:none}

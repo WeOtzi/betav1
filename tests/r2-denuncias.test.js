@@ -146,7 +146,9 @@ test('migración: rango, kind denuncia, expediente solo soporte y RPC solo servi
     assert.match(sql, /create table if not exists public\.support_ticket_reports/);
     assert.match(sql, /ticket_id uuid not null references public\.support_tickets\(id\) on delete cascade/);
     assert.match(sql, /constraint support_ticket_reports_ticket_key unique \(ticket_id\)/);
-    for (const reason of D.REASONS.quotation.concat(D.REASONS.artist)) assert.ok(sql.includes(`'${reason.code}'::text`), reason.code);
+    // 2.7.0: los motivos nuevos (plagio_diseno, estafa) los suma 20261118110000_denuncias_abiertas.sql.
+    const widened = sql + read('supabase/migrations/20261118110000_denuncias_abiertas.sql');
+    for (const reason of D.REASONS.quotation.concat(D.REASONS.artist)) assert.ok(widened.includes(`'${reason.code}'::text`), reason.code);
     assert.match(sql, /alter table public\.support_ticket_reports enable row level security/);
     assert.match(sql, /drop policy if exists support_ticket_reports_support_read on public\.support_ticket_reports/);
     assert.match(sql, /for select to authenticated\s+using \(\(select public\.is_support_user\(\)\)\)/);
@@ -180,12 +182,16 @@ test('reversa: conserva los tickets como consulta y restaura el CHECK original',
 
 test('motivos por tipo: los del pedido del dueño, sin cruzarse', () => {
     assert.deepEqual(D.REASONS.quotation.map((r) => r.label), ['Comentarios abusivos', 'Fotos inapropiadas', 'Violencia', 'Spam']);
-    assert.deepEqual(D.REASONS.artist.map((r) => r.label), ['Suplantación de identidad', 'Robo de propiedad intelectual', 'Difamación']);
+    // 2.7.0 (denuncias abiertas): etiquetas cortas; la pista va aparte.
+    assert.deepEqual(D.REASONS.artist.map((r) => r.label),
+        ['Suplantación de identidad', 'Plagio de diseños', 'Uso de marca o nombre ajeno', 'Difamación', 'Estafa']);
     assert.deepEqual(D.REASONS.studio, D.REASONS.artist);
     assert.equal(D.isValidReason('quotation', 'spam'), true);
     assert.equal(D.isValidReason('artist', 'spam'), false);
     assert.equal(D.isValidReason('quotation', 'difamacion'), false);
+    assert.equal(D.isValidReason('quotation', 'estafa'), false);
     assert.equal(D.priorityFor('violencia'), 'urgent');
+    assert.equal(D.priorityFor('estafa'), 'urgent');
     assert.equal(D.priorityFor('spam'), 'high');
     assert.equal(D.ticketCode(42), 'WO-00042');
     assert.equal(D.ticketCode(null), '');
@@ -419,7 +425,7 @@ test('cotización de un cliente sin cuenta: el expediente usa los datos de la co
     assert.equal(report.dossier.reported.has_account, false);
 });
 
-test('artista denuncia a otro artista; nadie se denuncia a sí mismo', async () => {
+test('artista o cliente denuncian a un artista; nadie se denuncia a sí mismo', async () => {
     const body = { kind: 'artist', target_id: 'sara.luna', reason: 'robo_propiedad_intelectual', description: DESCRIPTION };
     const ok = await run(routes._internal.submitHandler, { userId: ARTIST, body });
     assert.equal(ok.res.statusCode, 201);
@@ -438,15 +444,18 @@ test('artista denuncia a otro artista; nadie se denuncia a sí mismo', async () 
         assert.equal(self.res.statusCode, 409, target);
         assert.equal(self.res.body.code, 'SELF_REPORT');
     }
+    // 2.7.0: un cliente también puede denunciar el perfil de un artista.
     const client = await run(routes._internal.submitHandler, { userId: CLIENT, body });
-    assert.equal(client.res.statusCode, 403);
+    assert.equal(client.res.statusCode, 201);
+    assert.equal(client.repo.calls.createReport[0].reporter_role, 'client');
+    assert.equal(client.repo.calls.createReport[0].requester_role, 'client');
     const missing = await run(routes._internal.submitHandler, { userId: ARTIST, body: { ...body, target_id: 'no.existe' } });
     assert.equal(missing.res.statusCode, 404);
     const wrongReason = await run(routes._internal.submitHandler, { userId: ARTIST, body: { ...body, reason: 'spam' } });
     assert.equal(wrongReason.res.statusCode, 400);
 });
 
-test('dueño o manager de estudio denuncia a OTRO estudio', async () => {
+test('dueño o manager de estudio denuncia a OTRO estudio (y un artista sin estudio también)', async () => {
     const body = { kind: 'studio', target_id: 'tinta-sur', reason: 'suplantacion_identidad', description: DESCRIPTION };
     const owner = await run(routes._internal.submitHandler, { userId: OWNER, body });
     assert.equal(owner.res.statusCode, 201);
@@ -473,8 +482,11 @@ test('dueño o manager de estudio denuncia a OTRO estudio', async () => {
     const managedStudio = await run(routes._internal.submitHandler, { userId: MANAGER, body: { ...body, target_id: 'estudio-norte' } });
     assert.equal(managedStudio.res.statusCode, 409);
     assert.equal(managedStudio.res.body.code, 'SELF_REPORT');
+    // 2.7.0: cualquier persona con sesión denuncia estudios.
     const artistOnly = await run(routes._internal.submitHandler, { userId: ARTIST, body });
-    assert.equal(artistOnly.res.statusCode, 403, 'un artista sin estudio no denuncia estudios');
+    assert.equal(artistOnly.res.statusCode, 201, 'un artista sin estudio también denuncia estudios');
+    assert.equal(artistOnly.repo.calls.createReport[0].reporter_role, 'artist');
+    assert.equal(artistOnly.repo.calls.createReport[0].reporter_studio_id, null);
     const missing = await run(routes._internal.submitHandler, { userId: OWNER, body: { ...body, target_id: 'no-existe' } });
     assert.equal(missing.res.statusCode, 404);
 });
@@ -559,14 +571,20 @@ test('GET /api/reports/eligibility: motivos del tipo o el porqué del no', async
     assert.equal(yes.res.body.target_label, 'Tinta Sur');
     assert.deepEqual(yes.res.body.reasons, D.REASONS.studio);
     assert.equal(yes.res.body.limits.images, 3);
+    assert.equal(yes.res.body.limits.daily, D.DAILY_LIMIT);
     const own = await run(routes._internal.eligibilityHandler, { userId: OWNER, query: { kind: 'studio', id: STUDIO_A } });
     assert.equal(own.res.body.eligible, false);
     assert.equal(own.res.body.code, 'SELF_REPORT');
+    // 2.7.0: el cliente puede denunciar perfiles; las cotizaciones siguen siendo del artista.
     const client = await run(routes._internal.eligibilityHandler, { userId: CLIENT, query: { kind: 'artist', id: 'sara.luna' } });
     assert.equal(client.res.statusCode, 200);
-    assert.equal(client.res.body.eligible, false);
-    assert.equal(client.res.body.code, 'NOT_ALLOWED');
-    assert.deepEqual(client.res.body.reasons, []);
+    assert.equal(client.res.body.eligible, true);
+    assert.equal(client.res.body.reporter_role, 'client');
+    assert.deepEqual(client.res.body.reasons, D.REASONS.artist);
+    const clientQuote = await run(routes._internal.eligibilityHandler, { userId: CLIENT, query: { kind: 'quotation', id: '55' } });
+    assert.equal(clientQuote.res.body.eligible, false);
+    assert.equal(clientQuote.res.body.code, 'NOT_ALLOWED');
+    assert.deepEqual(clientQuote.res.body.reasons, []);
     const quote = await run(routes._internal.eligibilityHandler, { userId: ARTIST, query: { kind: 'quotation', id: '55' } });
     assert.equal(quote.res.body.eligible, true);
     assert.deepEqual(quote.res.body.reasons.map((r) => r.code), ['comentarios_abusivos', 'fotos_inapropiadas', 'violencia', 'spam']);
@@ -720,6 +738,7 @@ test('server.js registra las rutas con una línea, antes de los redirects legacy
     routes.register(app);
     assert.deepEqual(registered, [
         'GET /api/reports/eligibility', 'POST /api/reports', 'GET /api/support/reports', 'GET /api/support/reports/:ticketId',
-        'POST /api/support/reports/:ticketId/status', 'POST /api/support/reports/:ticketId/notes'
+        'POST /api/support/reports/:ticketId/status', 'POST /api/support/reports/:ticketId/notes',
+        'POST /api/support/reports/:ticketId/claim', 'POST /api/support/reports/:ticketId/notify-reported'
     ]);
 });

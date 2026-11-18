@@ -68,6 +68,8 @@
         'latitude', 'longitude', 'google_place_id', 'google_maps_url', 'geocoded_at',
         'is_verified', 'is_active', 'profile_complete', 'primary_location_id',
         'is_seeking_artists', 'verification_status', 'verified_at', 'instagram_verified_at',
+        // Generada (20261118100000): el Instagram del estudio es el validado.
+        'instagram_badge_ok',
         'specialty_styles', 'station_count', 'equipment', 'accepts_guest_spots',
         'guest_window_start', 'guest_window_end', 'accepts_artist_inquiries',
         'location_verified', 'user_id', 'created_at', 'updated_at'
@@ -100,6 +102,15 @@
         const kept = parts.filter((part, i) => !PRIVATE_SET.has(names[i]));
         return kept.length ? kept.join(', ') : 'id';
     }
+    // Estudio visible en lo público (2.7.0): activo y sin sanción. Misma regla
+    // que WoVerifiedBadge.isStudioPublic; sanction_state ausente (anon no la
+    // lee) cuenta como 'none' porque la sanción también apaga is_active.
+    function isStudioRowPublic(row) {
+        if (!row || typeof row !== 'object') return false;
+        const state = row.sanction_state;
+        return row.is_active !== false && (state == null || state === '' || state === 'none');
+    }
+
     // PGRST202 / 42883 = la RPC todavía no existe en este backend.
     function isMissingRpc(error) {
         if (!error) return false;
@@ -285,13 +296,20 @@
         },
 
         // Sedes primarias activas con coordenadas y estudio embebido para el mapa.
-        // Cubre explore-map.js:653. Embed FK studios:studio_id(...).
-        listPrimaryWithStudioForMap() {
-            return from('studio_locations')
-                .select('id, studio_id, label, is_primary, latitude, longitude, formatted_address, city, country, studios:studio_id(id, slug, name, tagline, cover_image, instagram, website, is_verified)')
+        // Cubre explore-map.js:757. Embed FK studios:studio_id(...).
+        // 2.7.0: solo estudios públicos. La sede sigue activa cuando el estudio
+        // se desactiva o se sanciona (la sanción apaga studios.is_active), así
+        // que el pin se descarta aquí con el is_active del embed. No se filtra
+        // con `studios.is_active` en la consulta: el modo demo no resuelve
+        // filtros sobre embebidos. Devuelve { data, error } ya resuelto.
+        async listPrimaryWithStudioForMap() {
+            const res = await from('studio_locations')
+                .select('id, studio_id, label, is_primary, latitude, longitude, formatted_address, city, country, studios:studio_id(id, slug, name, tagline, cover_image, instagram, website, is_verified, instagram_badge_ok, is_active)')
                 .eq('is_active', true)
                 .eq('is_primary', true)
                 .not('latitude', 'is', null);
+            if (!res || res.error || !Array.isArray(res.data)) return res;
+            return { ...res, data: res.data.filter((loc) => isStudioRowPublic(loc && loc.studios)) };
         },
 
         // Bulk-fetch de las sedes primarias de varios estudios (resolver coordenadas

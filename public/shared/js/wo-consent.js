@@ -202,6 +202,29 @@
         });
     }
 
+    // ── gate de Términos (2.7.0) ───────────────────────────────────────
+    // Con una sesión de Supabase guardada, este archivo (que está en todas las
+    // páginas) carga public/shared/js/wo-terms-gate.js, salvo en soporte y en
+    // el backoffice. Así no hace falta tocar cada HTML.
+    var TERMS_GATE_EXCLUDED = ['/support', '/backoffice'];
+    var TERMS_GATE_ASSET_VERSION = '20261118';
+
+    function shouldLoadTermsGate(pathname, basePath, hasSession) {
+        if (!hasSession) return false;
+        var p = String(pathname || '/');
+        var base = String(basePath || '').replace(/\/$/, '');
+        if (base && (p === base || p.indexOf(base + '/') === 0)) p = p.slice(base.length) || '/';
+        return !TERMS_GATE_EXCLUDED.some(function (prefix) { return p === prefix || p.indexOf(prefix + '/') === 0; });
+    }
+
+    // Misma carpeta que wo-consent.js (respeta /beta y los previews); sin
+    // currentScript, la ruta absoluta con el base path.
+    function termsGateScriptUrl(scriptSrc, basePath) {
+        var file = 'wo-terms-gate.js?v=' + TERMS_GATE_ASSET_VERSION;
+        if (scriptSrc && /wo-consent\.js(\?.*)?$/.test(scriptSrc)) return scriptSrc.replace(/wo-consent\.js(\?.*)?$/, file);
+        return String(basePath || '').replace(/\/$/, '') + '/shared/js/' + file;
+    }
+
     // ── navegador ───────────────────────────────────────────────────────
 
     function boot(win, doc) {
@@ -554,6 +577,20 @@
         fetchJson(appUrl('/api/privacy/cookie-config'), null, 3000).then(function (data) {
             start(data && data.config ? data.config : null);
         });
+
+        // ── términos (2.7.0): gate de re-aceptación y cuentas sancionadas.
+        function loadTermsGate() {
+            try {
+                if (win.WoTermsGate || win.WEOTZI_PREVIEW || doc.querySelector('script[data-wo-terms-gate]')) return;
+                if (!shouldLoadTermsGate(win.location.pathname, basePath(), Boolean(sessionToken()))) return;
+                var s = doc.createElement('script');
+                s.src = termsGateScriptUrl(scriptSrc, basePath());
+                s.async = true;
+                s.setAttribute('data-wo-terms-gate', '');
+                (doc.head || doc.documentElement).appendChild(s);
+            } catch (_) { /* el gate también lo cargan los módulos de auth */ }
+        }
+        loadTermsGate();
     }
 
     return {
@@ -570,6 +607,8 @@
         buildRecord: buildRecord,
         allCategories: allCategories,
         scriptsToLoad: scriptsToLoad,
+        shouldLoadTermsGate: shouldLoadTermsGate,
+        termsGateScriptUrl: termsGateScriptUrl,
         boot: boot
     };
 });

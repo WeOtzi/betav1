@@ -149,8 +149,33 @@
         return match ? parseInt(match[0], 10) : 0;
     }
 
+    // Insignia: verificado y con el Instagram validado (verified-badge.js vía
+    // marketplace-core). La vista artists_with_location no trae
+    // instagram_badge_ok: fetchArtists la suma con listArtistBadges.
     function isVerified(artist) {
-        return !!(artist && artist.verification_state === 'Yes');
+        return !!(artist && Core && Core.isArtistBadgeVisible(artist));
+    }
+
+    function isVerifiedStudio(studio) {
+        return !!(studio && Core && Core.isStudioBadgeVisible(studio));
+    }
+
+    // Columna de la insignia para los artistas verificados (pocos): si la
+    // consulta falla, nadie muestra la insignia (nunca se muestra de más).
+    async function fetchBadgeFlags() {
+        var repo = window.WeotziData && WeotziData.Marketplace;
+        if (!repo || typeof repo.listArtistBadges !== 'function') return {};
+        try {
+            var res = await repo.listArtistBadges();
+            if (res && res.error) return {};
+            var map = {};
+            ((res && res.data) || []).forEach(function (row) {
+                if (row && row.user_id) map[row.user_id] = row.instagram_badge_ok === true;
+            });
+            return map;
+        } catch (_) {
+            return {};
+        }
     }
 
     function escapeHtml(value) {
@@ -252,12 +277,14 @@
             console.error('[explore-map] Supabase error:', resp.error);
             throw new Error(resp.error.message || 'No se pudieron cargar los artistas');
         }
+        var badges = await fetchBadgeFlags();
         // Sin país real queda null: nunca se inventa "Desconocido" (no aparece
         // como opción del filtro ni se geocodifica).
         return (resp.data || []).map(function (a) {
             return Object.assign({}, a, {
                 languages: a.languages || ['Español'],
-                country: a.country && String(a.country).trim() ? a.country : null
+                country: a.country && String(a.country).trim() ? a.country : null,
+                instagram_badge_ok: badges[a.user_id] === true
             });
         });
     }
@@ -370,7 +397,7 @@
             STATE.currentFilters.experience = expSelect.value || null; applyFilters();
         });
 
-        // Verificados (VER-A6): verification_state = 'Yes'.
+        // Verificados (VER-A6): verification_state = 'Yes' y el Instagram validado.
         var verifiedSelect = document.getElementById('filter-verified');
         if (verifiedSelect) {
             var verifiedCount = STATE.all.filter(isVerified).length;
@@ -741,7 +768,7 @@
                 cover:     loc.studios && loc.studios.cover_image,
                 instagram: loc.studios && loc.studios.instagram,
                 website:   loc.studios && loc.studios.website,
-                is_verified: Boolean(loc.studios && loc.studios.is_verified === true),
+                is_verified: isVerifiedStudio(loc.studios),
                 location_label:    loc.label,
                 formatted_address: loc.formatted_address,
                 city:      loc.city,

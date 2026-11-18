@@ -45,6 +45,8 @@ const {
     isMissingSchemaError: isMissingSchemaIg
 } = igVerification._internal;
 
+const BLOCKED_HANDLE_ERROR = 'No podemos validar esta cuenta de Instagram. Si crees que es un error, escribe a soporte.';
+
 const EMAIL_EVENT = 'instagram_verification_code';
 const CODE_TTL_HOURS = igVerification.CODE_TTL_HOURS || 72;
 const CODE_TTL_MS = CODE_TTL_HOURS * 60 * 60 * 1000;
@@ -71,12 +73,26 @@ const NO_SESSION_ERROR = 'Inicia sesión para ver la verificación de tu estudio
 const NO_STUDIO_ERROR = 'No encontramos un estudio asociado a tu cuenta.';
 
 // Dependencias reemplazables desde los tests (_internal.setDeps).
+// isHandleBlocked: bloqueo de reingreso (lib/sanciones-service.js, falla
+// abierta). notifyClaimantValidated: sube las denuncias de quien reclamó ese
+// Instagram (lib/repos/denuncias.js), sin esperar. Los dos viven en
+// instagram-verification.js y se comparten con el flujo del artista.
 const deps = {
     repo: StudioVerificationRepo,
     resolveBearerUser,
     sendEmail: (...args) => emailService.sendEmail(...args),
-    now: () => Date.now()
+    now: () => Date.now(),
+    isHandleBlocked: (...args) => igVerification._internal.isHandleBlocked(...args),
+    notifyClaimantValidated: (...args) => igVerification._internal.notifyClaimantValidated(...args)
 };
+
+function notifyClaimant(userId, handle) {
+    try {
+        if (typeof deps.notifyClaimantValidated === 'function') deps.notifyClaimantValidated(userId, handle);
+    } catch (error) {
+        logError('claimant reports', error);
+    }
+}
 
 function setDeps(overrides) {
     const previous = { ...deps };
@@ -306,6 +322,9 @@ async function requestInstagramCodeHandler(req, res) {
     if (studio.instagram_verified_at && normalizeHandle(studio.instagram_verified_handle) === handle) {
         return res.status(409).json({ success: false, code: 'IG_ALREADY_VERIFIED', error: `El Instagram @${handle} del estudio ya está validado.` });
     }
+    if (await deps.isHandleBlocked({ handle, flow: 'instagram', userId: user.id })) {
+        return res.status(409).json({ success: false, code: 'IG_BLOCKED', error: BLOCKED_HANDLE_ERROR });
+    }
     // Siempre el email de la cuenta (auth.users), nunca studios.email.
     const email = user.email ? String(user.email).trim().toLowerCase() : null;
     if (!email) {
@@ -415,6 +434,8 @@ async function markVerified(row, { via, senderHandle, verifiedBy, note } = {}) {
     } catch (error) {
         logError('cancel others', error);
     }
+    // requested_by: dueño que pidió el código (viene en la fila reclamada).
+    notifyClaimant((claimed[0] && claimed[0].requested_by) || row.requested_by || null, handle);
     return { ok: true, verified_at: verifiedAt, handle };
 }
 
@@ -516,17 +537,23 @@ function parseAdminStatus(value) {
     return ADMIN_STATUS_FILTERS.includes(status) ? status : null;
 }
 
-// Soporte confirma el Instagram del estudio al aprobar la verificación.
+// Soporte confirma el Instagram del estudio al aprobar la verificación
+// (lib/routes/verif-estudio.js lo llama ANTES de aplicar la decisión).
+// { confirmed:true, … } | { confirmed:false, reason: 'invalid_studio' |
+// 'studio_not_found' | 'no_handle' | 'blocked' }
 async function confirmInstagramBySupport({ studioId, verifiedBy, note } = {}) {
     if (!UUID_RE.test(String(studioId || ''))) return { confirmed: false, reason: 'invalid_studio' };
     const studio = await deps.repo.getStudioById(studioId, {
-        select: 'id,instagram,instagram_verified_at,instagram_verified_handle'
+        select: 'id,user_id,instagram,instagram_verified_at,instagram_verified_handle'
     });
     if (!studio) return { confirmed: false, reason: 'studio_not_found' };
     const handle = normalizeHandle(studio.instagram);
     if (!handle) return { confirmed: false, reason: 'no_handle' };
     if (studio.instagram_verified_at && normalizeHandle(studio.instagram_verified_handle) === handle) {
         return { confirmed: true, already: true, handle, verified_at: studio.instagram_verified_at };
+    }
+    if (await deps.isHandleBlocked({ handle, flow: 'instagram', userId: studio.user_id || null })) {
+        return { confirmed: false, reason: 'blocked' };
     }
     const verifiedAt = nowIso();
     await deps.repo.setStudioInstagramVerified(studio.id, handle, verifiedAt);
@@ -540,6 +567,7 @@ async function confirmInstagramBySupport({ studioId, verifiedBy, note } = {}) {
     } catch (error) {
         if (!isMissingSchemaError(error)) logError('support codes', error);
     }
+    notifyClaimant(studio.user_id || null, handle);
     return { confirmed: true, already: false, handle, verified_at: verifiedAt, codes_verified: codesVerified };
 }
 

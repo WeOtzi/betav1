@@ -456,7 +456,9 @@ async function handleArtistLogin(e) {
 
         let errorMessage = 'No pudimos iniciar tu sesión.';
         const message = String(error?.message || '');
-        if (message.includes('Invalid login credentials')) {
+        if (window.WoAccountBan?.isBannedError(error)) {
+            errorMessage = window.WoAccountBan.MESSAGE;
+        } else if (message.includes('Invalid login credentials')) {
             errorMessage = 'Email o contraseña incorrectos.';
         } else if (message.includes('Email not confirmed') || window.WeotziEmailConfirm?.isEmailNotConfirmedError(error)) {
             // ── confirmacion-email: aviso con "Reenviar email" (DS).

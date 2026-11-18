@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.7.0] - 2026-11-18
+
+Seguridad: identidad, suplantación y plagio (fases 1 y 2 del plan `docs/plans/2026-11-18-kyc-antisuplantacion.md`).
+
+- Denuncias abiertas: cualquier usuario con cuenta (también clientes) denuncia perfiles de artistas y estudios; motivos nuevos «Plagio de diseños» y «Estafa»; «soy la persona suplantada» con Instagram y prueba (sube a urgente si valida su Instagram o soporte confirma al titular); botón de denuncia en cada foto del portfolio y del estudio; invitados ven el botón con «Inicia sesión» / «Crea tu cuenta»; tope de 5 denuncias por día; correo al denunciante con el resultado; «Avisar al denunciado» con plazo de 5 días hábiles, sin datos del denunciante.
+- Sanciones (pestaña «Sanciones» en soporte): advertencia, suspensión y cierre permanente; el cierre lo confirma un agente distinto del que lo propuso. Efectos: perfil y estudio ocultos en todas las vistas públicas y la Store, cotizaciones abiertas canceladas con aviso al cliente («Cancelada por soporte»), anticipos retenidos con alertas de devolución para soporte, retiros bloqueados, fondos de la Store retenidos, huellas cifradas (HMAC) de correo, teléfono e Instagram, bloqueo en Auth y cierre de sesiones. Levantar revierte solo lo aplicado. Apelación única dentro de 30 días en `/apelacion` (enlace firmado, sin sesión). Las suspensiones vencidas se levantan solas.
+- Bloqueo de reingreso: el registro, el primer inicio de sesión de una cuenta nueva y la validación de Instagram comparan las huellas; si coinciden, «No podemos crear esta cuenta…» y alerta a soporte. Levantar un bloqueo automático marca la cuenta como revisada.
+- Términos v1.1 y Privacidad v1.2 (`2026-11-18`): identidad, obra propia, denuncias, sanciones, apelación, huellas; todos los usuarios vuelven a aceptarlos al iniciar sesión. Página pública `/seguridad`.
+- Insignia de verificado: exige además Instagram validado (columna `instagram_badge_ok`); cambiar el Instagram la oculta hasta validar el nuevo. Pedir la verificación exige el Instagram validado; aprobar un estudio exige su Instagram (código o confirmación de soporte).
+- Huellas de imágenes (fase 2): hash perceptual de cada foto del portfolio, flash, feed del estudio y Store; las copias (incluso espejadas) solo avisan a soporte (Legítimo / Retirar / Abrir denuncia), nada se oculta solo. Buscador `/buscar-diseno` (20 búsquedas por día; la foto no se guarda). Agrega `sharp@0.35.5` fijada (auditada en `docs/plans/2026-11-18-auditoria-sharp.md`; el servidor cumple glibc 2.34 y SSE4.2). Con `IMAGE_FP_JOB=off`, o si `sharp` no carga, el motor y el buscador quedan apagados.
+- Migraciones: `20261118100000`, `110000`, `120000`, `130000`, `140000` (en ese orden, antes del código). Variable nueva `BAN_HMAC_KEY`. Ver `deployments/DEPLOY.md`.
+- Validación: node --test "tests/*.test.js": 3306 pruebas, 3304 pasan, 0 fallan, 2 salteadas; test:prequote en verde. Las cinco migraciones y sus reversas validadas juntas en el proyecto vivo dentro de begin … rollback (objetos nuevos 49/49 y luego 0/49; md5 de las 17 funciones tocadas igual al original; vistas con los mismos conteos). Páginas /seguridad, /buscar-diseno y /apelacion revisadas en el preview local, en escritorio y a 375 px.
+- Rollback: código 2.6.1 (`0bf7222`) y después las reversas de `supabase/rollbacks/` en orden inverso.
+
 ## [2.6.1] - 2026-11-17
 
 - Flash Tattoos en los correos al artista: «Nueva solicitud» y «Nueva solicitud con turno» dicen que es un flash en el asunto, el título y el texto, y muestran el título y el precio del flash. En el correo del flash no aparece «Presupuesto del cliente», porque el precio lo fija el artista. Las variables para un webhook propio de n8n también llevan is_flash, flash_title y flash_price. Los dos correos salen por el relé con el HTML que arma el servidor, así que no hay que tocar n8n.

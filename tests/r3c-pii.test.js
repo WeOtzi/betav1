@@ -141,7 +141,11 @@ test('reversa: devuelve el SELECT de tabla y borra las RPCs', () => {
 test('repo: listas idénticas a la migración', () => {
     const { Artists } = loadRepo();
     const sql = read(MIGRATION);
-    assert.deepEqual([...Artists.PUBLIC_COLUMNS].sort(), sqlArray(sql, 'v_public').sort());
+    // Columnas públicas que agregaron migraciones posteriores con su propio grant
+    // (20261118100000_insignia_instagram: instagram_badge_ok).
+    const LATER_PUBLIC = ['instagram_badge_ok'];
+    assert.match(read('supabase/migrations/20261118100000_insignia_instagram.sql'), /grant select \(instagram_badge_ok\)/i);
+    assert.deepEqual([...Artists.PUBLIC_COLUMNS].sort(), [...sqlArray(sql, 'v_public'), ...LATER_PUBLIC].sort());
     assert.deepEqual([...Artists.PRIVATE_COLUMNS].sort(), sqlArray(sql, 'v_private').sort());
 });
 

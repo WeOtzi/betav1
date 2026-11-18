@@ -10,8 +10,9 @@
     <link rel="stylesheet" href="/shared/css/quotations.css">
     <link rel="stylesheet" href="/shared/css/support-dashboard.css">
     <link rel="stylesheet" href="/shared/css/support-dashboard-store.css">
-    <link rel="stylesheet" href="/shared/css/support-dashboard-reports.css?v=20261116-r2b">
+    <link rel="stylesheet" href="/shared/css/support-dashboard-reports.css?v=20261118-kyc">
     <link rel="stylesheet" href="/shared/css/support-dashboard-feedback.css?v=20261117-feedback">
+    <link rel="stylesheet" href="/shared/css/support-dashboard-sanctions.css?v=20261118-kyc2">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="/shared/js/config-manager.js"></script>
@@ -119,6 +120,14 @@
                     <path d="M8 9h8M8 12h5"/>
                 </svg>
                 FEEDBACK <span class="fbq-count" hidden></span>
+            </a>
+            <!-- sanciones (2.7.0): advertencias, suspensiones, cierres, apelaciones y alertas (support-dashboard-sanctions.js) -->
+            <a href="#" class="nav-item nav-menu-item" data-tab="sanciones">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/>
+                    <path d="M9 9l6 6M15 9l-6 6"/>
+                </svg>
+                SANCIONES <span class="snq-count" hidden></span>
             </a>
             <div class="nav-divider"></div>
             <button class="nav-item nav-logout" onclick="handleLogout()">LOGOUT</button>
@@ -231,6 +240,13 @@
                     </svg>
                     FEEDBACK <span class="fbq-count" hidden></span>
                 </button>
+                <button class="tab-btn" data-tab="sanciones" type="button">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/>
+                        <path d="M9 9l6 6M15 9l-6 6"/>
+                    </svg>
+                    SANCIONES <span class="snq-count" hidden></span>
+                </button>
             </div>
 
             <!-- Table Toolbar -->
@@ -341,13 +357,16 @@
     <!-- Pestaña ESTUDIOS (verif-estudio): verificaciones de estudios, la misma cola que el backoffice -->
     <script src="/shared/js/backoffice-studio-verifications.js"></script>
     <!-- Pestaña DENUNCIAS (ronda 2 · denuncias): tickets de denuncia con el expediente, estado y notas internas -->
-    <script src="/shared/js/data/support-reports-repo.js?v=20261116-denuncias"></script>
-    <script src="/shared/js/support-dashboard-reports.js?v=20261116-denuncias"></script>
+    <script src="/shared/js/data/support-reports-repo.js?v=20261118-kyc3"></script>
+    <script src="/shared/js/support-dashboard-reports.js?v=20261118-kyc3"></script>
     <!-- Pestaña DISPUTAS (ronda 2 · P28): disputas de sesiones; al resolverlas la cotización deja de figurar en disputa -->
     <script src="/shared/js/data/support-disputes-repo.js?v=20261116-r2b"></script>
     <script src="/shared/js/support-dashboard-disputes.js?v=20261116-r2b"></script>
     <!-- Pestaña FEEDBACK (beta cerrada): resumen, lista filtrable, detalle con capturas, estado/nota y CSV -->
     <script src="/shared/js/data/support-feedback-repo.js?v=20261117-feedback"></script>
     <script src="/shared/js/support-dashboard-feedback.js?v=20261117-feedback"></script>
+    <!-- Pestaña SANCIONES (2.7.0): propuestas, dos agentes para un cierre, apelaciones y alertas de seguridad -->
+    <script src="/shared/js/data/support-sanctions-repo.js?v=20261118-kyc2"></script>
+    <script src="/shared/js/support-dashboard-sanctions.js?v=20261118-kyc2"></script>
 </body>
 </html>

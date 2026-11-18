@@ -1301,6 +1301,7 @@
             const changed = !!igState.signature;
             igState.signature = signature;
             renderWorks(); // repinta badges, resumen y la tarjeta
+            renderVerification(); // la solicitud exige el Instagram validado
             if (changed) assistRefresh('portafolio');
         }
         scheduleIgPoll();
@@ -2806,9 +2807,59 @@
     }
 
     // verif-artista (VER-A3): la insignia solo aparece con verification_state 'Yes'
-    // (artist-profile.js), así que la cuenta usa la misma regla.
+    // (artist-profile.js), así que la cuenta usa la misma regla. Los cobros
+    // (wallet-account.js) miran solo esto; la insignia pública exige además el
+    // Instagram validado (igBadgeState).
     function isVerified() {
         return artist?.verification_state === 'Yes';
+    }
+
+    // Plan KYC 1.5: la insignia exige el Instagram del perfil validado con el
+    // código (misma regla que public/shared/js/verified-badge.js).
+    //   'ok'      el Instagram de Mi perfil es el validado;
+    //   'changed' validó otra cuenta (cambió el Instagram después de validar);
+    //   'missing' sin validar (o sin Instagram en Mi perfil);
+    //   'unknown' la validación no está disponible o todavía no cargó: no se
+    //             bloquea nada en el navegador (el servidor decide).
+    function igBadgeState() {
+        const ig = igState.data;
+        if (!ig || ig.available === false) return 'unknown';
+        const handle = igHandle();
+        const verifiedHandle = ig.verified_handle
+            ? (GV ? GV.normalizeHandle(ig.verified_handle) : String(ig.verified_handle).replace(/^@+/, '').toLowerCase())
+            : '';
+        const validated = !!(verifiedHandle && (ig.verified === true || ig.verified_at));
+        if (validated && handle && handle === verifiedHandle) return 'ok';
+        if (validated && verifiedHandle !== handle) return 'changed';
+        return 'missing';
+    }
+
+    // Textos y botón que llevan a la tarjeta de Instagram (Portafolio) o, sin
+    // Instagram cargado, a Mi perfil. `badge`: perfil ya verificado con la
+    // insignia oculta; `request`: lo que falta para pedir la verificación.
+    function igRequirement(state) {
+        const handle = igHandle();
+        if (!handle) {
+            return {
+                badge: 'Carga tu Instagram en Mi perfil y valídalo con el código para mostrar la insignia.',
+                request: 'Antes de solicitarla, carga tu Instagram en Mi perfil y valídalo con el código.',
+                cta: '<a class="aac-btn aac-btn--outline aac-btn--s" href="#perfil" data-aac-ig-cta="perfil">Cargar mi Instagram</a>'
+            };
+        }
+        return {
+            badge: state === 'changed'
+                ? `Cambiaste tu Instagram: la insignia se oculta hasta que valides @${handle}.`
+                : 'Valida tu Instagram con el código para mostrar la insignia de verificado.',
+            request: state === 'changed'
+                ? `Antes de solicitarla, valida tu Instagram con el código: cambiaste tu Instagram y falta validar @${handle}.`
+                : 'Antes de solicitarla, valida tu Instagram con el código.',
+            cta: '<a class="aac-btn aac-btn--outline aac-btn--s" href="#portafolio" data-aac-ig-cta="portafolio">Validar mi Instagram</a>'
+        };
+    }
+
+    // Lleva a la tarjeta de validación (la navegación por hash muestra la sección).
+    function focusIgCard() {
+        setTimeout(() => $('aac-ig-verify')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
     }
 
     // Identidad y domicilio aprobados por soporte (falta la revisión final del perfil).
@@ -2827,9 +2878,13 @@
     }
 
     function renderVerification() {
+        const box = $('aac-verif-alert');
+        if (!box || !artist) return;
         const state = artist.verification_state || 'No';
         const idDoc = identityDoc();
-        const box = $('aac-verif-alert');
+        const igBadge = igBadgeState();
+        const igBlocked = igBadge === 'missing' || igBadge === 'changed';
+        const igReq = igBlocked ? igRequirement(igBadge) : null;
         let cls = '';
         let icon = 'check-circle';
         let title = 'Perfil verificado';
@@ -2866,6 +2921,18 @@
                 }
                 action = requestBtn;
             }
+            // Sin el Instagram validado no se puede pedir: el botón pasa a ser
+            // el acceso a la validación (misma regla que la RPC).
+            if (action && igReq) {
+                detail = `${detail} ${igReq.request}`;
+                action = igReq.cta;
+            }
+        } else if (igReq) {
+            // Verificado, pero el Instagram de Mi perfil no es el validado.
+            cls = ' aac-verif-box--warning'; icon = 'alert-circle';
+            title = 'Tu insignia de verificado está oculta';
+            detail = igReq.badge;
+            action = igReq.cta;
         }
 
         box.innerHTML = `<div class="aac-verif-box${cls}" role="status">
@@ -2875,6 +2942,7 @@
         </div>`;
 
         $('aac-verif-request')?.addEventListener('click', (event) => requestVerification(event.currentTarget));
+        box.querySelector('[data-aac-ig-cta="portafolio"]')?.addEventListener('click', focusIgCard);
     }
 
     // verif-artista (VER-A5): la solicitud la valida el servidor (documentos,
@@ -2883,6 +2951,12 @@
         const missing = verifAvailable ? missingRequiredDocs() : [];
         if (missing.length) {
             toast(`Antes de solicitarla, sube tu ${missing.join(' y tu ')}.`, false);
+            return;
+        }
+        const igBadge = igBadgeState();
+        if (igBadge === 'missing' || igBadge === 'changed') {
+            toast('Antes de solicitarla, valida tu Instagram con el código.', false);
+            renderVerification();
             return;
         }
         if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
