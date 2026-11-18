@@ -107,6 +107,65 @@
         }
     }
     // Email de bienvenida (servidor, una sola vez por cuenta). Nunca bloquea el alta.
+    // ── términos (2.7.0): cuenta dada de baja. Supabase Auth responde
+    // user_banned («User is banned») al iniciar sesión; se muestra el mensaje de
+    // la baja en vez del error técnico. Compartido (idempotente) entre
+    // artist-auth.js, client-auth.js y studio-auth.js; artist-login.js puede
+    // usar window.WoAccountBan.isBannedError(error) / .MESSAGE.
+    window.WoAccountBan = window.WoAccountBan || {
+        MESSAGE: 'Tu cuenta fue dada de baja por incumplir los Términos. Revisa el correo que te enviamos para conocer el motivo y cómo apelar.',
+        isBannedError: function (error) {
+            if (!error) return false;
+            if (error.code === 'user_banned' || error.error_code === 'user_banned') return true;
+            return /\bbanned\b/i.test(String(error.message || error.msg || ''));
+        }
+    };
+    // ── términos (2.7.0): gate de re-aceptación y cuentas sancionadas
+    // (wo-terms-gate.js). No frena la resolución: el modal tapa la página.
+    function requestTermsGate(session) {
+        try {
+            if (!session || !session.access_token) return;
+            const supabase = client || null;
+            if (window.WoTermsGate && typeof window.WoTermsGate.ensure === 'function') {
+                window.WoTermsGate.ensure(session, { surface: 'studio', supabase });
+                return;
+            }
+            window.__woTermsGateQueue = window.__woTermsGateQueue || [];
+            window.__woTermsGateQueue.push({ session, surface: 'studio', supabase });
+            if (document.querySelector('script[data-wo-terms-gate]')) return;
+            const script = document.createElement('script');
+            script.src = appUrl('/shared/js/wo-terms-gate.js?v=20261118');
+            script.async = true;
+            script.setAttribute('data-wo-terms-gate', '');
+            (document.head || document.documentElement).appendChild(script);
+        } catch (_) {
+            // El gate también lo carga wo-consent.js.
+        }
+    }
+    // Antes del signUp: ¿el correo, el teléfono o el Instagram pertenecen a una
+    // cuenta dada de baja? Solo experiencia de uso: el control real lo hace el
+    // servidor al revisar la sesión. Sin red se sigue con el alta.
+    async function precheckRegistration({ email, phone, instagram, country, flow }) {
+        let blocked = null;
+        try {
+            const response = await window.fetch(appUrl('/api/register/precheck'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, phone: phone || null, instagram: instagram || null, country: country || null, flow })
+            });
+            if (response.status === 403) {
+                const data = await response.json().catch(() => ({}));
+                if (data && data.code === 'REGISTRATION_BLOCKED') blocked = data.error;
+            }
+        } catch (_) {
+            blocked = null;
+        }
+        if (blocked) {
+            const error = new Error(blocked);
+            error.code = 'REGISTRATION_BLOCKED';
+            throw error;
+        }
+    }
     function requestWelcomeEmail(session) {
         try {
             if (window.WEOTZI_PREVIEW_COMMIT || typeof window.fetch !== 'function') return;
@@ -323,6 +382,7 @@
                     return null;
                 }
                 if (recoveryMode) return null;
+                requestTermsGate(session);
                 // En /studio/register un manager sin estudio propio puede registrar el suyo.
                 const state = await resolveState(session, { includeManaged: !path.startsWith('/studio/register') });
                 const studio = state.studio;
@@ -367,7 +427,13 @@
     async function loginStudio(email, password) {
         await ready();
         const { data, error } = await requireClient().auth.signInWithPassword({ email: email.trim(), password });
+        if (error && window.WoAccountBan.isBannedError(error)) {
+            const banned = new Error(window.WoAccountBan.MESSAGE);
+            banned.code = 'user_banned';
+            throw banned;
+        }
         if (error) throw error;
+        requestTermsGate(data.session);
         const state = await resolveState(data.session);
         if (state.studio) return state.studio;
         if (state.kind !== 'none') { presentState(state); return null; }
@@ -389,6 +455,14 @@
             return completeRegistration(draft, email);
         }
         if (!password || password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
+        const firstLocation = locations[0] || {};
+        await precheckRegistration({
+            email: email.trim(),
+            phone: profile.whatsapp || profile.contact_phone || profile.phone || firstLocation.phone || null,
+            instagram: profile.instagram || null,
+            country: profile.country_code || firstLocation.country_code || null,
+            flow: 'studio'
+        });
         const { data, error } = await client.auth.signUp({
             email: email.trim(), password,
             options: {
@@ -440,6 +514,7 @@
         }
         if (!/^\S+@\S+\.\S+$/.test(String(email || '').trim())) throw new Error('Escribe un email válido.');
         if (!password || password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
+        await precheckRegistration({ email: String(email).trim(), phone: draft.contact_phone, instagram: null, country: null, flow: 'studio_claim' });
         const { data, error } = await client.auth.signUp({
             email: email.trim(), password,
             options: {

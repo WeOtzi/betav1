@@ -9,6 +9,8 @@
  *   GET  /api/support/reports/:ticketId
  *   POST /api/support/reports/:ticketId/status   { status, resolution, outcome }
  *   POST /api/support/reports/:ticketId/notes    { note }
+ *   POST /api/support/reports/:ticketId/claim    { note? }
+ *   POST /api/support/reports/:ticketId/notify-reported  { note? }
  *
  * Carga: DESPUÉS de postgrest-client.js. Expone WeotziData.SupportReports.
  * Cada método devuelve { ok, status, json }.
@@ -98,6 +100,19 @@
         addNote: function (ticketId, note) {
             var path = ticketPath(ticketId, '/notes');
             return path ? call('POST', path, { note: note }) : Promise.resolve(invalid);
+        },
+
+        // Soporte confirma que el denunciante es el titular del perfil suplantado (2.7.0).
+        confirmClaim: function (ticketId, note) {
+            var path = ticketPath(ticketId, '/claim');
+            return path ? call('POST', path, note ? { note: note } : {}) : Promise.resolve(invalid);
+        },
+
+        // Aviso al denunciado (artista o estudio, una vez por ticket): motivo y
+        // plazo de 5 días hábiles. `note` opcional: qué tiene que responder.
+        notifyReported: function (ticketId, note) {
+            var path = ticketPath(ticketId, '/notify-reported');
+            return path ? call('POST', path, note ? { note: note } : {}) : Promise.resolve(invalid);
         }
     };
 })(typeof window !== 'undefined' ? window : globalThis);

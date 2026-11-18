@@ -91,6 +91,7 @@ test('migración: timestamp dentro del rango del frente y reversa completa', () 
 /* ------------------------------ solicitud del artista ------------------------------ */
 
 const DOCS_OK = [{ doc_type: 'identidad', status: 'pendiente' }, { doc_type: 'domicilio', status: 'verificado' }];
+const IG_OK = { instagram: '@Ana.Tinta', instagram_verified_at: '2026-11-18T10:00:00Z', instagram_verified_handle: 'ana.tinta' };
 
 test('requestEligibility: misma regla que la RPC (documentos obligatorios, estados)', () => {
     assert.equal(Verif.requestEligibility(null, []).status, 404);
@@ -102,9 +103,32 @@ test('requestEligibility: misma regla que la RPC (documentos obligatorios, estad
     const rejected = Verif.requestEligibility({ verification_state: 'Denied' },
         [{ doc_type: 'identidad', status: 'rechazado' }, { doc_type: 'domicilio', status: 'pendiente' }]);
     assert.deepEqual(rejected.missing, ['tu documento de identidad']);
-    assert.equal(Verif.requestEligibility({ verification_state: 'Canceled' }, DOCS_OK).ok, true);
-    assert.equal(Verif.requestEligibility({ verification_state: null }, DOCS_OK).ok, true);
-    assert.equal(Verif.requestEligibility({ verification_state: 'Raro' }, DOCS_OK).ok, false);
+    assert.equal(Verif.requestEligibility({ verification_state: 'Canceled', ...IG_OK }, DOCS_OK).ok, true);
+    assert.equal(Verif.requestEligibility({ verification_state: null, ...IG_OK }, DOCS_OK).ok, true);
+    assert.equal(Verif.requestEligibility({ verification_state: 'Raro', ...IG_OK }, DOCS_OK).ok, false);
+});
+
+test('requestEligibility: exige el Instagram validado después de los documentos (IG_REQUIRED)', () => {
+    const igRequired = {
+        ok: false, status: 409, code: 'IG_REQUIRED',
+        error: 'Antes de solicitarla, valida tu Instagram con el código.', missing: ['instagram']
+    };
+    // Sin validar.
+    assert.deepEqual(Verif.requestEligibility({ verification_state: 'No', instagram: 'ana.tinta' }, DOCS_OK), igRequired);
+    // Validó otra cuenta: cambió el Instagram del perfil después de validar.
+    assert.deepEqual(Verif.requestEligibility({ verification_state: 'No', ...IG_OK, instagram: '@otra.cuenta' }, DOCS_OK), igRequired);
+    // Sin Instagram en el perfil.
+    assert.deepEqual(Verif.requestEligibility({ verification_state: 'No', ...IG_OK, instagram: '' }, DOCS_OK), igRequired);
+    // La columna generada manda cuando viene en la fila.
+    assert.deepEqual(Verif.requestEligibility({ verification_state: 'No', ...IG_OK, instagram_badge_ok: false }, DOCS_OK), igRequired);
+    assert.equal(Verif.requestEligibility({ verification_state: 'No', instagram_badge_ok: true }, DOCS_OK).ok, true);
+    // Variantes del mismo handle: @, URL y mayúsculas.
+    assert.equal(Verif.requestEligibility({ verification_state: 'No', ...IG_OK, instagram: 'https://www.instagram.com/Ana.Tinta/' }, DOCS_OK).ok, true);
+    // Los documentos se piden primero (mismo orden que la RPC).
+    const both = Verif.requestEligibility({ verification_state: 'No' }, []);
+    assert.equal(both.error, 'Antes de solicitarla, sube tu documento de identidad y tu comprobante de domicilio.');
+    // En revisión no se vuelve a exigir nada.
+    assert.equal(Verif.requestEligibility({ verification_state: 'Requested' }, []).ok, true);
 });
 
 test('mapRpcError: el mensaje de la RPC llega al artista; sin migración → 503', () => {
@@ -113,12 +137,14 @@ test('mapRpcError: el mensaje de la RPC llega al artista; sin migración → 503
     const missing = new Error('PostgREST POST rpc/request_artist_verification failed (404): {"code":"PGRST202","message":"Could not find the function public.request_artist_verification"}');
     assert.equal(Verif.mapRpcError(missing).status, 503);
     assert.equal(Verif.mapRpcError(new Error('boom')).status, 500);
+    const ig = new Error('PostgREST POST rpc/request_artist_verification failed (400): {"code":"22023","details":null,"hint":null,"message":"Antes de solicitarla, valida tu Instagram con el código."}');
+    assert.deepEqual(Verif.mapRpcError(ig), { status: 409, error: 'Antes de solicitarla, valida tu Instagram con el código.' });
 });
 
 function requestDeps(over = {}) {
     const calls = { rpc: 0, emails: [] };
     const deps = {
-        artistByUserId: async () => ({ id: ARTIST_ROW_ID, user_id: ARTIST, name: 'Ana Tinta', username: 'ana.tinta', email: 'ana@example.test', verification_state: 'No' }),
+        artistByUserId: async () => ({ id: ARTIST_ROW_ID, user_id: ARTIST, name: 'Ana Tinta', username: 'ana.tinta', email: 'ana@example.test', verification_state: 'No', ...IG_OK }),
         documents: async () => DOCS_OK,
         requestVerification: async () => { calls.rpc++; return { state: 'Requested', history_id: HISTORY, changed: true }; },
         supportEmail: '',
@@ -166,6 +192,17 @@ test('requestVerification: sin documentos no llama a la RPC; ya pedida no duplic
 
     const bad = await Verif.requestVerification({ userId: 'no-uuid' }, requestDeps().deps);
     assert.equal(bad.status, 401);
+});
+
+test('requestVerification: sin Instagram validado no llama a la RPC (IG_REQUIRED)', async () => {
+    const noIg = requestDeps({ artistByUserId: async () => ({ id: ARTIST_ROW_ID, user_id: ARTIST, verification_state: 'No', instagram: 'ana.tinta' }) });
+    const res = await Verif.requestVerification({ userId: ARTIST }, noIg.deps);
+    assert.equal(res.ok, false);
+    assert.equal(res.status, 409);
+    assert.equal(res.code, 'IG_REQUIRED');
+    assert.deepEqual(res.missing, ['instagram']);
+    assert.equal(noIg.calls.rpc, 0);
+    assert.equal(noIg.calls.emails.length, 0);
 });
 
 /* ------------------------------ aviso de la decisión ------------------------------ */
@@ -383,6 +420,24 @@ test('chat de soporte: get_verification_status usa columnas reales y documentos'
     assert.deepEqual(res.verificacion.faltan_obligatorios, ['tu documento de identidad', 'tu comprobante de domicilio']);
     assert.equal(res.verificacion.ultima_decision.motivo, 'Falta domicilio');
     assert.match(res.verificacion.siguiente_paso, /^Subir tu documento de identidad y tu comprobante de domicilio/);
+    assert.equal(res.verificacion.instagram_validado, false);
+    assert.match(res.verificacion.siguiente_paso, /validar su Instagram con el código/);
+
+    // Verificado que cambió su Instagram: la insignia se oculta.
+    const changed = await Verif.verificationStatusForUser(ARTIST, {
+        artistByUserId: async () => ({ id: ARTIST_ROW_ID, name: 'Ana', verification_state: 'Yes', ...IG_OK, instagram: 'otra.cuenta' }),
+        documents: async () => DOCS_OK
+    });
+    assert.equal(changed.verificacion.verificado, true);
+    assert.equal(changed.verificacion.insignia_visible, false);
+    assert.equal(changed.verificacion.instagram_cambiado, true);
+    assert.match(changed.verificacion.siguiente_paso, /cambió su Instagram/);
+    const visible = await Verif.verificationStatusForUser(ARTIST, {
+        artistByUserId: async () => ({ id: ARTIST_ROW_ID, name: 'Ana', verification_state: 'Yes', ...IG_OK }),
+        documents: async () => DOCS_OK
+    });
+    assert.equal(visible.verificacion.insignia_visible, true);
+    assert.equal(visible.verificacion.siguiente_paso, 'El perfil ya está verificado y muestra la insignia.');
     assert.deepEqual(await Verif.verificationStatusForUser(ARTIST, { artistByUserId: async () => null, documents: async () => [] }),
         { error: 'Este usuario no es un artista.' });
 });
@@ -399,8 +454,9 @@ test('estados: pre-cotización excluye denegados; Spots no promete "verificado";
 
     const spots = read('public/shared/js/studio-spots-directory.js');
     assert.doesNotMatch(spots, /'Perfil verificado'/);
-    assert.match(spots, /artist\.verification_state === 'Yes'\) parts\.push\('Verificado'\)/);
-    assert.match(spots, /portafolio, verification_state'/);
+    // Misma regla que la insignia: verificado y con el Instagram validado.
+    assert.match(spots, /window\.WoVerifiedBadge\.isBadgeVisible\(artist\)\) parts\.push\('Verificado'\)/);
+    assert.match(spots, /portafolio, verification_state, instagram_badge_ok'/);
 
     const bo = read('public/backoffice/index.html');
     const select = bo.slice(bo.indexOf('<select id="artist-verification-state"'), bo.indexOf('</select>', bo.indexOf('<select id="artist-verification-state"')));

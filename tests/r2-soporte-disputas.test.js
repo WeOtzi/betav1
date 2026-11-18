@@ -368,7 +368,7 @@ test('panel de soporte: pestaña DISPUTAS con su repo y su módulo', () => {
     const moduleAt = html.indexOf('/shared/js/support-dashboard-disputes.js?v=20261116-r2b');
     assert.ok(repoAt > html.indexOf('/shared/js/data/postgrest-client.js') && moduleAt > repoAt, 'orden de carga');
     assert.ok(moduleAt > html.indexOf('/shared/js/support-dashboard-reports.js'), 'después de la pestaña de denuncias (envuelve su switchTab)');
-    assert.match(html, /support-dashboard-reports\.css\?v=20261116-r2b/);
+    assert.match(html, /support-dashboard-reports\.css\?v=20261118-kyc/);
     assert.match(read('public/shared/css/support-dashboard-reports.css'), /\.rpq-count,\.dsq-count\{/);
 
     const repo = read('public/shared/js/data/support-disputes-repo.js');

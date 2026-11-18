@@ -1,0 +1,95 @@
+/* ============================================================================
+   Support Dashboard · pestaña SANCIONES (2.7.0)
+   Estilos propios de public/shared/js/support-dashboard-sanctions.js. La tabla,
+   el drawer, los campos y los botones reutilizan support-dashboard-reports.css
+   (rpq-*); aquí van el contador, las sub-vistas, las columnas y las etiquetas.
+   Modo claro y oscuro: los colores heredan (currentColor) y cada token del DS
+   lleva su valor de respaldo.
+   ========================================================================== */
+
+.snq-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 4px;margin-left:4px;
+  background:var(--red-300,#E63A1F);color:var(--white,#FCFCFC);font-family:'Space Mono',ui-monospace,monospace;font-size:11px;line-height:1}
+.snq-count[hidden],.snq-view-count[hidden]{display:none}
+
+.snq-toolbar{justify-content:space-between}
+.snq-views{display:flex;flex-wrap:wrap;gap:8px;flex:1 1 auto}
+.snq-view[aria-pressed="true"]{background:var(--black,#24211D);border-color:var(--black,#24211D);color:var(--white,#FCFCFC)}
+.dark-mode .snq-view[aria-pressed="true"]{background:var(--white,#FCFCFC);border-color:var(--white,#FCFCFC);color:var(--black,#24211D)}
+.snq-view-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;margin-left:6px;padding:0 4px;
+  background:var(--red-300,#E63A1F);color:var(--white,#FCFCFC);font-size:11px;line-height:1}
+
+.snq-head,.snq-row{grid-template-columns:150px 160px minmax(0,2fr) 110px minmax(0,1fr) 150px}
+.snq-row .rpq-cell{padding:0 12px;min-width:0}
+.snq-row .rpq-cell .rpq-muted{display:block;overflow-wrap:anywhere}
+.snq-mono{font-family:'Space Mono',ui-monospace,monospace;font-size:12px}
+.snq-warn{display:block;margin-top:4px;font-family:'Space Mono',ui-monospace,monospace;font-size:11px;color:var(--red-300,#E63A1F)}
+
+.snq-badge,.snq-kind{display:inline-block;padding:2px 8px;border:2px solid currentColor;font-family:'Space Mono',ui-monospace,monospace;
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;line-height:1.4;white-space:nowrap}
+.snq-badge--proposed,.snq-badge--open{background:var(--yellow-300,#F2B519);border-color:var(--yellow-300,#F2B519);color:#24211D}
+.snq-badge--active{background:var(--red-300,#E63A1F);border-color:var(--red-300,#E63A1F);color:#FCFCFC}
+.snq-badge--appealed{background:var(--blue-400,#0055FF);border-color:var(--blue-400,#0055FF);color:#FCFCFC}
+.snq-badge--lifted,.snq-badge--handled{background:var(--system-success,#1E9F74);border-color:var(--system-success,#1E9F74);color:#FCFCFC}
+.snq-badge--rejected,.snq-badge--dismissed{opacity:.65}
+.snq-kind{border-width:1px;font-weight:600}
+.snq-kind--ban{border-color:var(--red-300,#E63A1F);color:var(--red-300,#E63A1F)}
+.snq-kind--alert{border-color:var(--blue-400,#0055FF)}
+.rpq-sub .snq-kind,.rpq-sub .snq-badge{margin-right:4px}
+
+/* Formulario de propuesta */
+.snq-inline{display:flex;gap:8px}
+.snq-inline .rpq-input{flex:1 1 auto;min-width:0}
+.snq-results{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.snq-results li{min-width:0}
+.snq-pick{display:block;width:100%;min-height:44px;padding:8px 12px;border:1px solid currentColor;border-radius:0;background:transparent;color:inherit;
+  text-align:left;font:inherit;cursor:pointer}
+.snq-pick:hover{background:rgba(242,181,25,.14)}
+.snq-pick:focus-visible{outline:2px solid var(--blue-400,#0055FF);outline-offset:2px}
+.snq-pick .rpq-name,.snq-pick .rpq-muted{display:block;overflow-wrap:anywhere}
+.snq-radios{display:flex;flex-wrap:wrap;gap:8px 24px;margin:0 0 12px;padding:0;border:0}
+.snq-radios label{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:15px;cursor:pointer}
+.snq-radios input{width:20px;height:20px;accent-color:var(--blue-400,#0055FF)}
+.snq-radios[disabled] label{cursor:not-allowed;opacity:.55}
+.snq-appeal{border-color:var(--blue-400,#0055FF)}
+.rpq-detail [data-snq-confirm-form]{border-color:var(--red-300,#E63A1F)}
+
+@media (max-width:900px){
+  .snq-head{display:none}
+  .snq-row{display:flex;flex-wrap:wrap;gap:8px 16px;padding:16px 12px}
+  .snq-row .rpq-cell{padding:0}
+  .snq-row>.rpq-cell:nth-child(3){flex:1 1 100%;order:5}
+}
+@media (max-width:600px){
+  .snq-views .rpq-btn{flex:1 1 calc(50% - 8px)}
+  .snq-toolbar>.rpq-btn{flex:1 1 140px}
+  .snq-inline{flex-direction:column}
+}
+
+/* Fase 2 · alerta de imagen duplicada: las dos fotos lado a lado y tres acciones */
+.snq-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:12px}
+.snq-shot{margin:0;min-width:0;display:flex;flex-direction:column;gap:8px}
+.snq-shot-title{font-family:'Space Mono',ui-monospace,monospace;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.snq-shot-img{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;border:2px solid currentColor;
+  background:rgba(36,33,29,.06);overflow:hidden}
+.snq-shot-img img{display:block;width:100%;height:100%;object-fit:contain}
+.snq-shot-img:focus-visible,.snq-shot-link:focus-visible{outline:2px solid var(--blue-400,#0055FF);outline-offset:2px}
+.snq-shot-img--empty{font-size:13px;opacity:.7;padding:12px;text-align:center}
+.snq-shot .rpq-facts{margin:0}
+.snq-shot-link{align-self:flex-start;min-height:44px;display:inline-flex;align-items:center;font-weight:600;color:inherit;text-decoration:underline}
+.snq-conf{display:inline-block;margin-right:4px;padding:2px 8px;border:1px solid currentColor;font-family:'Space Mono',ui-monospace,monospace;
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;line-height:1.4;white-space:nowrap}
+.snq-conf--casi_segura{background:var(--red-300,#E63A1F);border-color:var(--red-300,#E63A1F);color:#FCFCFC}
+.snq-conf--posible{background:var(--yellow-300,#F2B519);border-color:var(--yellow-300,#F2B519);color:#24211D}
+.snq-image-actions{flex-wrap:wrap;gap:8px}
+.snq-btn--danger{border-color:var(--red-300,#E63A1F);color:var(--red-300,#E63A1F)}
+.snq-btn--danger:hover{background:var(--red-300,#E63A1F);color:#FCFCFC}
+.dark-mode .snq-shot-img{background:rgba(252,252,252,.06)}
+.snq-removed{margin:4px 0 8px;padding-left:20px;overflow-wrap:anywhere}
+.snq-removed a{color:inherit;text-decoration:underline}
+.snq-removed-raw summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+.snq-removed-raw pre{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.snq-image-actions .rpq-btn[disabled]{opacity:.5;cursor:not-allowed}
+@media (max-width:600px){
+  .snq-pair{grid-template-columns:1fr}
+  .snq-image-actions .rpq-btn{flex:1 1 100%}
+}

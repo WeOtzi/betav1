@@ -323,6 +323,8 @@ test('artists-public: anon key, solo filas publicadas y usuario normalizado', as
     assert.deepEqual(await repo.findPublicByUsername(' @LauUmarth '), { username: 'lauumarth.wo' });
     assert.equal(seen[0].table, 'artists_db');
     assert.deepEqual(seen[0].opts, { key: 'anon' });
+    // Sin sanción (KYC): lo filtra la RLS para anon; sin eq(sanction_state)
+    // porque anon no tiene grant de select sobre esa columna.
     assert.deepEqual(seen[0].filters, [['username', 'lauumarth.wo']]);
     assert.deepEqual(seen[0].orFilter, [
         { col: 'registration_status', op: 'is', val: 'null' },

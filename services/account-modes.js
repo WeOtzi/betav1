@@ -2,6 +2,7 @@
 const { resolveBearerUser } = require('../lib/auth/supabase-auth');
 const { pgrest } = require('../lib/postgrest');
 const { isEmailVerified } = require('../lib/cot-cliente');
+const termsGate = require('../lib/terms-gate');
 
 function testingEnabled() { return process.env.AUDIT_REGISTRATION_OPEN === 'true'; }
 // Vínculo por correo (hide/complete de una cotización sin dueño): solo con el
@@ -28,6 +29,19 @@ async function carryArtistTermsToClient(userId) {
         console.warn('[account-mode] términos del cliente:', e.message);
     }
 }
+// Identificadores de una cuenta ya creada para checkReentry (sin perfil todavía).
+function accountReentryInput(user, flow) {
+    const raw = user.raw || {};
+    const meta = raw.user_metadata || {};
+    return {
+        email: user.email || null,
+        phone: String(raw.phone || meta.whatsapp || '').trim() || null,
+        instagram: String(meta.instagram || '').trim() || null,
+        country: null,
+        flow,
+        userId: user.id
+    };
+}
 async function activate(req, res) {
     const user = await resolveBearerUser(req);
     if (!user) return res.status(401).json({ error: 'Inicia sesión para cambiar de modo.' });
@@ -35,6 +49,16 @@ async function activate(req, res) {
     if (!['artist','client'].includes(mode)) return res.status(400).json({ error: 'Modo no válido.' });
     try {
         if (mode === 'client') {
+            // ── términos (2.7.0): bloqueo de reingreso antes de crear el perfil
+            // de cliente (Google, Facebook, enlace mágico). Una cuenta nueva que
+            // coincide con una sanción queda bloqueada también en Auth.
+            const reentry = await termsGate.checkReentrySafe(accountReentryInput(user, 'client'));
+            if (reentry.blocked) {
+                if (termsGate.isEnforcedAccount(user)) {
+                    await termsGate.blockNewAccountSafe({ userId: user.id, matches: reentry.matches, flow: 'client' });
+                }
+                return res.status(403).json({ success: false, ...termsGate.REGISTRATION_BLOCKED });
+            }
             // Ignore user-supplied identity and never overwrite an existing profile.
             await pgrest.raw('clients_db?on_conflict=user_id', { method: 'POST', prefer: 'resolution=ignore-duplicates,return=minimal', body: clientProfile(user) });
             await carryArtistTermsToClient(user.id);
@@ -54,6 +78,9 @@ async function registerTestClient(req, res) {
     const name = String(req.body?.full_name || '').trim().slice(0,150);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !name || password.length < 8 || password.length > 256) return res.status(400).json({error:'Completa nombre, correo válido y contraseña de al menos 8 caracteres.'});
     try {
+        // ── términos (2.7.0): bloqueo de reingreso antes de crear la cuenta.
+        const reentry = await termsGate.checkReentrySafe({ email, phone: null, instagram: null, country: null, flow: 'client', userId: null });
+        if (reentry.blocked) return res.status(403).json({ success: false, ...termsGate.REGISTRATION_BLOCKED });
         const result = await fetch(`${process.env.SUPABASE_URL}/auth/v1/admin/users`, {
             method:'POST', headers:{ apikey:process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization:`Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type':'application/json' },
             body:JSON.stringify({email,password,email_confirm:true,app_metadata:{qa_unverified_email:true},user_metadata:{full_name:name,user_type:'client',qa_unverified_email:true}})

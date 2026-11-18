@@ -81,7 +81,8 @@ test('presupuesto: dentro, cerca o por encima de la tarifa del artista', () => {
 test('verificado desempata a igual coincidencia', () => {
     const twins = [
         artist({ user_id: 'x1', name: 'Zeta', styles_array: ['Realismo'], city: 'Lima' }),
-        artist({ user_id: 'x2', name: 'Alfa', styles_array: ['Realismo'], city: 'Lima', verification_state: 'Yes' })
+        // Insignia = verificado + Instagram validado (verified-badge.js).
+        artist({ user_id: 'x2', name: 'Alfa', styles_array: ['Realismo'], city: 'Lima', verification_state: 'Yes', instagram: '@alfa.ink', instagram_verified_at: '2026-11-01T00:00:00Z', instagram_verified_handle: 'alfa.ink' })
     ];
     const ranked = matching.rankArtists(twins, { styles: 'realismo', city: 'Lima' }, { now: NOW });
     assert.deepEqual(ranked.map((a) => a.user_id), ['x2', 'x1']);

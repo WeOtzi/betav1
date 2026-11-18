@@ -255,6 +255,171 @@ test('rutas: errores de la RPC se traducen (22023 → 409 con el mensaje de Post
     } finally { restore(); }
 });
 
+test('rutas: confirm_instagram se confirma ANTES de la RPC de aprobación', async () => {
+    const routes = require('../lib/routes/verif-estudio');
+    const realService = require('../services/studio-verification');
+    const order = [];
+    const { deps, calls } = routeDeps({
+        repo: {
+            getVerificationRequestWithStudio: async () => { order.push('lookup'); return { id: REQUEST_ID, studio_id: STUDIO_ID, status: 'pending', studios: { name: 'Horizonte', slug: 'horizonte' } }; },
+            decideVerification: async (...args) => { order.push('rpc'); calls.decide.push(args); return { id: REQUEST_ID, studio_id: STUDIO_ID, status: 'approved' }; }
+        }
+    });
+    deps.service = {
+        ...realService,
+        confirmInstagramBySupport: async ({ studioId, verifiedBy }) => {
+            order.push('confirm');
+            assert.equal(studioId, STUDIO_ID);
+            assert.equal(verifiedBy, 'agent');
+            return { confirmed: true, already: false, handle: 'horizonte.ink' };
+        }
+    };
+    const restore = routes._internal.setDeps(deps);
+    try {
+        const res = mockRes();
+        await routes._internal.decideHandler({ params: { id: REQUEST_ID }, body: { decision: 'approve', confirm_instagram: true } }, res);
+        assert.equal(res.statusCode, 200);
+        assert.deepEqual(order.slice(0, 3), ['lookup', 'confirm', 'rpc']);
+        assert.equal(res.body.instagram_confirmed, true);
+        assert.equal(res.body.instagram_handle, 'horizonte.ink');
+    } finally { restore(); }
+});
+
+test('rutas: confirm_instagram sin Instagram cargado → 409 y no se aplica la decisión', async () => {
+    const routes = require('../lib/routes/verif-estudio');
+    const realService = require('../services/studio-verification');
+    const { deps, calls } = routeDeps({
+        repo: { getVerificationRequestWithStudio: async () => ({ id: REQUEST_ID, studio_id: STUDIO_ID, status: 'pending' }) }
+    });
+    let reason = 'no_handle';
+    deps.service = { ...realService, confirmInstagramBySupport: async () => ({ confirmed: false, reason }) };
+    const restore = routes._internal.setDeps(deps);
+    try {
+        let res = mockRes();
+        await routes._internal.decideHandler({ params: { id: REQUEST_ID }, body: { decision: 'approve', confirm_instagram: true } }, res);
+        assert.equal(res.statusCode, 409);
+        assert.equal(res.body.code, 'IG_NO_HANDLE');
+        assert.equal(res.body.error, 'El estudio no cargó su Instagram.');
+        assert.equal(calls.decide.length, 0);
+        assert.equal(calls.emails.length, 0);
+
+        // Instagram de una cuenta baneada: tampoco se aprueba.
+        reason = 'blocked';
+        res = mockRes();
+        await routes._internal.decideHandler({ params: { id: REQUEST_ID }, body: { decision: 'approve', confirm_instagram: true } }, res);
+        assert.equal(res.statusCode, 409);
+        assert.equal(res.body.code, 'IG_BLOCKED');
+        assert.equal(calls.decide.length, 0);
+    } finally { restore(); }
+});
+
+test('rutas: confirm_instagram sobre una solicitud ya resuelta no toca el Instagram', async () => {
+    const routes = require('../lib/routes/verif-estudio');
+    const realService = require('../services/studio-verification');
+    let confirmed = 0;
+    const { deps, calls } = routeDeps({
+        repo: { getVerificationRequestWithStudio: async () => ({ id: REQUEST_ID, studio_id: STUDIO_ID, status: 'approved' }) }
+    });
+    deps.service = { ...realService, confirmInstagramBySupport: async () => { confirmed++; return { confirmed: true }; } };
+    const restore = routes._internal.setDeps(deps);
+    try {
+        const res = mockRes();
+        await routes._internal.decideHandler({ params: { id: REQUEST_ID }, body: { decision: 'approve', confirm_instagram: true } }, res);
+        assert.equal(res.statusCode, 409);
+        assert.equal(confirmed, 0);
+        assert.equal(calls.decide.length, 0);
+    } finally { restore(); }
+});
+
+test('rutas: aprobar sin Instagram validado (22023 de la RPC) → 409 IG_REQUIRED con el mensaje', async () => {
+    const routes = require('../lib/routes/verif-estudio');
+    const { deps } = routeDeps({
+        repo: {
+            decideVerification: async () => {
+                throw new Error('PostgREST POST rpc/decide_studio_verification_as failed (400): {"code":"22023","details":null,"hint":null,"message":"Antes de aprobar, valida el Instagram del estudio (código o confirmación de soporte)."}');
+            }
+        }
+    });
+    const restore = routes._internal.setDeps(deps);
+    try {
+        const res = mockRes();
+        await routes._internal.decideHandler({ params: { id: REQUEST_ID }, body: { decision: 'approve' } }, res);
+        assert.equal(res.statusCode, 409);
+        assert.equal(res.body.code, 'IG_REQUIRED');
+        assert.equal(res.body.error, 'Antes de aprobar, valida el Instagram del estudio (código o confirmación de soporte).');
+    } finally { restore(); }
+});
+
+test('servicio: handle baneado → el código no se pide y soporte no lo confirma; validar sube las denuncias', async () => {
+    const sv = require('../services/studio-verification');
+    const blockedCalls = [];
+    const claimant = [];
+    const inserts = [];
+    const studio = { id: STUDIO_ID, user_id: USER_ID, name: 'Horizonte', instagram: '@Horizonte.Ink', instagram_verified_at: null, instagram_verified_handle: null };
+    const repo = {
+        getOwnedStudioForVerification: async () => studio,
+        getStudioById: async () => studio,
+        insertStudioInstagramCode: async (row) => { inserts.push(row); return { id: 'code-1', ...row }; },
+        setStudioInstagramVerified: async () => null,
+        verifyPendingStudioInstagramCodesBySupport: async () => [],
+        cancelOtherStudioInstagramCodes: async () => null
+    };
+    let blocked = true;
+    const restore = sv._internal.setDeps({
+        repo,
+        resolveBearerUser: async () => ({ id: USER_ID, email: 'duena@example.com' }),
+        sendEmail: async () => ({ ok: true }),
+        isHandleBlocked: async (input) => { blockedCalls.push(input); return blocked; },
+        notifyClaimantValidated: (userId, handle) => { claimant.push([userId, handle]); }
+    });
+    try {
+        const res = mockRes();
+        await sv.requestInstagramCode({ headers: {}, body: {} }, res);
+        assert.equal(res.statusCode, 409);
+        assert.equal(res.body.code, 'IG_BLOCKED');
+        assert.equal(res.body.error, 'No podemos validar esta cuenta de Instagram. Si crees que es un error, escribe a soporte.');
+        assert.equal(inserts.length, 0);
+        assert.deepEqual(blockedCalls[0], { handle: 'horizonte.ink', flow: 'instagram', userId: USER_ID });
+
+        assert.deepEqual(await sv.confirmInstagramBySupport({ studioId: STUDIO_ID, verifiedBy: 'agent' }), { confirmed: false, reason: 'blocked' });
+        assert.equal(claimant.length, 0);
+
+        blocked = false;
+        const ok = await sv.confirmInstagramBySupport({ studioId: STUDIO_ID, verifiedBy: 'agent' });
+        assert.equal(ok.confirmed, true);
+        assert.deepEqual(claimant, [[USER_ID, 'horizonte.ink']]);
+    } finally { restore(); }
+});
+
+test('servicio: si el control de reingreso falla, la validación sigue (falla abierta)', async () => {
+    const ig = require('../services/instagram-verification');
+    const restore = ig._internal.setDeps({ checkReentry: async () => { throw new Error('base caída'); } });
+    const origError = console.error;
+    console.error = () => {};
+    try {
+        assert.equal(await ig._internal.isHandleBlocked({ handle: 'hz', flow: 'instagram' }), false);
+    } finally { console.error = origError; restore(); }
+    const restore2 = ig._internal.setDeps({ checkReentry: async (input) => ({ blocked: input.instagram === 'baneado', matches: [] }) });
+    try {
+        assert.equal(await ig._internal.isHandleBlocked({ handle: 'baneado', flow: 'instagram' }), true);
+        assert.equal(await ig._internal.isHandleBlocked({ handle: 'otro', flow: 'instagram' }), false);
+    } finally { restore2(); }
+});
+
+test('servicio: el flujo que llega a checkReentry es uno que sanciones-service reconoce', async () => {
+    const ig = require('../services/instagram-verification');
+    const { FLOW_LABELS } = require('../lib/sanciones-service');
+    const seen = [];
+    const restore = ig._internal.setDeps({ checkReentry: async (input) => { seen.push(input.flow); return { blocked: false }; } });
+    try {
+        // Aunque un llamador pase un flujo propio, se reporta el de Instagram.
+        await ig._internal.isHandleBlocked({ handle: 'hz', flow: 'instagram_studio', userId: USER_ID });
+        await ig._internal.isHandleBlocked({ handle: 'hz', userId: USER_ID });
+    } finally { restore(); }
+    assert.deepEqual(seen, ['instagram', 'instagram']);
+    assert.ok(FLOW_LABELS[seen[0]], 'flujo desconocido para checkReentry');
+});
+
 test('rutas: retirar el sello exige motivo y avisa al estudio', async () => {
     const routes = require('../lib/routes/verif-estudio');
     const { deps, calls } = routeDeps();
@@ -407,7 +572,16 @@ test('backoffice: sección, script y cola con escape y URLs seguras', () => {
     assert.match(card, /href="https:\/\/hz\.example\.com"/);
     assert.match(card, /Aprobar verificación/);
     assert.match(card, /Pedir corrección/);
-    assert.match(card, /Confirmar también el Instagram/);
+    // Instagram sin validar: la confirmación es obligatoria y aprobar arranca deshabilitado.
+    assert.match(card, /Confirmo que el Instagram @hz es del estudio/);
+    // Sin `required` nativo y con novalidate: si no, el navegador frena
+    // también «Pedir corrección» con la casilla sin marcar.
+    assert.match(card, /name="confirm_instagram"/);
+    assert.doesNotMatch(card, /<input[^>]*name="confirm_instagram"[^>]*\srequired[\s>]/);
+    assert.match(card, /<form class="bsv-decide"[^>]* novalidate>/);
+    assert.match(card, /value="approve" disabled/);
+    assert.match(card, /data-bsv-ig="confirm"/);
+    assert.match(card, /Para aprobar, el Instagram del estudio tiene que estar validado/);
     assert.match(card, /Nombre parecido a otro estudio/);
     assert.equal(bo.validateDecision('reject', 'ok'), 'Cuéntale al estudio qué tiene que corregir (al menos 3 caracteres).');
     assert.equal(bo.validateDecision('approve', ''), null);
@@ -415,6 +589,50 @@ test('backoffice: sección, script y cola con escape y URLs seguras', () => {
     const approvedCard = bo.cardHtml({ id: REQUEST_ID, studio_id: STUDIO_ID, status: 'approved', studio: { name: 'Hz', is_verified: true }, documents: [] });
     assert.match(approvedCard, /Retirar el sello/);
     assert.doesNotMatch(approvedCard, /Aprobar verificación/);
+});
+
+test('backoffice: aprobar exige el Instagram del estudio validado para el handle actual', () => {
+    const bo = require('../public/shared/js/backoffice-studio-verifications.js');
+    const at = '2026-11-18T00:00:00Z';
+    assert.equal(bo.studioIgState({ instagram: '@HZ.ink', instagram_verified_at: at, instagram_verified_handle: 'hz.ink' }), 'ok');
+    assert.equal(bo.studioIgState({ instagram: 'https://www.instagram.com/hz.ink/', instagram_verified_at: at, instagram_verified_handle: 'hz.ink' }), 'ok');
+    assert.equal(bo.studioIgState({ instagram: 'otro', instagram_verified_at: at, instagram_verified_handle: 'hz.ink' }), 'confirm');
+    assert.equal(bo.studioIgState({ instagram: 'hz.ink' }), 'confirm');
+    assert.equal(bo.studioIgState({ instagram: '' }), 'no_handle');
+    assert.equal(bo.studioIgState({ instagram: 'hz.ink', instagram_badge_ok: true }), 'ok');
+    const base = { id: REQUEST_ID, studio_id: STUDIO_ID, status: 'pending', documents: [] };
+    const ok = bo.cardHtml({ ...base, studio: { name: 'Hz', instagram: 'hz.ink', instagram_verified_at: at, instagram_verified_handle: 'hz.ink' } });
+    assert.doesNotMatch(ok, /confirm_instagram/);
+    assert.doesNotMatch(ok, /value="approve" disabled/);
+    const changed = bo.cardHtml({ ...base, studio: { name: 'Hz', instagram: 'nuevo.hz', instagram_verified_at: at, instagram_verified_handle: 'hz.ink' } });
+    assert.match(changed, /validó @hz\.ink, que ya no es el de su perfil/);
+    assert.match(changed, /value="approve" disabled/);
+    const none = bo.cardHtml({ ...base, studio: { name: 'Hz' } });
+    assert.match(none, /no cargó su Instagram/);
+    assert.doesNotMatch(none, /confirm_instagram/);
+    assert.match(none, /value="approve" disabled/);
+});
+
+test('backoffice: con el Instagram sin validar, pedir corrección no exige la casilla', () => {
+    const bo = require('../public/shared/js/backoffice-studio-verifications.js');
+    const base = { id: REQUEST_ID, studio_id: STUDIO_ID, status: 'pending', documents: [] };
+    const card = bo.cardHtml({ ...base, studio: { name: 'Hz', instagram: 'hz.ink' } });
+    // Ningún control del form de decisión bloquea el submit nativo.
+    const form = card.match(/<form class="bsv-decide"[\s\S]*?<\/form>/)[0];
+    assert.match(form, /^<form[^>]* novalidate>/);
+    assert.doesNotMatch(form, /\srequired[\s>=]/);
+    assert.match(form, /<button type="submit" class="btn btn-secondary" value="reject">/);
+    // Aprobar sí depende de la casilla (canApprove); pedir corrección no pasa por ahí.
+    const fakeForm = (ig, checked) => ({
+        dataset: { bsvIg: ig },
+        querySelector: (sel) => (sel === '[name="confirm_instagram"]' && ig === 'confirm' ? { checked } : null)
+    });
+    const { canApprove } = bo._internal;
+    assert.equal(canApprove(fakeForm('confirm', false)), false);
+    assert.equal(canApprove(fakeForm('confirm', true)), true);
+    assert.equal(canApprove(fakeForm('no_handle', false)), false);
+    assert.equal(canApprove(fakeForm('ok', false)), true);
+    assert.equal(bo.validateDecision('reject', 'Falta el documento'), null);
 });
 
 // ---------------------------------------------------------------- perfil público
@@ -486,13 +704,21 @@ test('backoffice: "Retirar sello" desde la ficha del estudio, contra la ruta adm
 
 test('sello de verificado donde se listan estudios (marketplace y mapa)', () => {
     // Integración (marketplace): la card de estudio usa el mismo sello que la de
-    // artista (verifiedBadge → .mk-card-verified), solo con is_verified === true.
+    // artista (verifiedBadge → .mk-card-verified), solo con is_verified === true
+    // y el Instagram del estudio validado (verified-badge.js vía marketplace-core).
     const mk = read('public/shared/js/marketplace.js').replace(/\r\n/g, '\n');
     const card =mk.slice(mk.indexOf('function studioCardHtml('), mk.indexOf('\n}\n', mk.indexOf('function studioCardHtml(')));
-    assert.match(card, /const verified = studio\.is_verified === true;/);
+    assert.match(card, /const verified = Core\.isStudioBadgeVisible\(studio\);/);
+    assert.match(mk, /function isVerifiedStudio\(studio\) \{\s*\n\s*return Core\.isStudioBadgeVisible\(studio\);/);
     assert.match(card, /\$\{verified \? verifiedBadge\('Estudio verificado'\) : ''\}/);
     assert.match(mk, /function verifiedBadge\(label\) \{\s*\n\s*return `<span class="mk-card-verified" title="\$\{escapeHtml\(label\)\}">/);
     assert.match(read('public/shared/css/marketplace-ds.css'), /\.mk-card-verified\{/);
     assert.match(read('public/shared/js/explore-map.js'), /s\.is_verified \? '<i data-wo-icon="check" class="pin-verified"/);
-    assert.match(read('public/shared/js/data/studios-repo.js'), /studios:studio_id\(id, slug, name, tagline, cover_image, instagram, website, is_verified\)/);
+    assert.match(read('public/shared/js/explore-map.js'), /is_verified: isVerifiedStudio\(loc\.studios\),/);
+    assert.match(read('public/shared/js/data/studios-repo.js'), /studios:studio_id\(id, slug, name, tagline, cover_image, instagram, website, is_verified, instagram_badge_ok, is_active\)/);
+    const Core = require('../public/shared/js/marketplace-core.js');
+    assert.equal(Core.isStudioBadgeVisible({ is_verified: true, instagram_badge_ok: true }), true);
+    assert.equal(Core.isStudioBadgeVisible({ is_verified: true, instagram_badge_ok: false }), false);
+    assert.equal(Core.isStudioBadgeVisible({ is_verified: true }), false, 'sin el Instagram validado no hay sello');
+    assert.equal(Core.studioFlags({ is_verified: true, instagram_badge_ok: true }, {}).verified, true);
 });

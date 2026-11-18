@@ -24,7 +24,7 @@
     const base = window.WEOTZI_BASE_PATH || (location.pathname.startsWith('/beta/') ? '/beta' : '');
     const draftKey = 'weotzi:studio-registration:' + base;
     // Igual que lib/terms-acceptance.js TERMS_VERSION (tests/studio-register-revision.test.js lo compara).
-    const TERMS_VERSION = '2026-11-16';
+    const TERMS_VERSION = '2026-11-18';
     const files = { cover: null, logo: null, gallery: [] };
     const locations = [];
     const ADDRESS_RADIUS_M = 40;

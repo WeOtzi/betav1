@@ -399,7 +399,23 @@ async function fetchArtists() {
         ? await M.listArtists()
         : await WeotziData.Artists.listPublic(window.ARTIST_PUBLIC_COLUMNS || '*');
     if (error) throw error;
-    return (data || []).map(a => ({ ...a, is_recommended: a.is_recommended || false }));
+    const rows = data || [];
+    // Insignia (KYC 2.7.0): la lista blanca de artists-repo.js puede dejar
+    // afuera instagram_badge_ok; se suma con la lista corta de verificados.
+    // Si falla, nadie muestra la insignia (nunca de más).
+    let badges = null;
+    if (rows.some(a => a.verification_state === 'Yes' && typeof a.instagram_badge_ok !== 'boolean')) {
+        badges = {};
+        if (M && typeof M.listArtistBadges === 'function') {
+            (await safeQuery('insignias', () => M.listArtistBadges()))
+                .forEach(r => { if (r && r.user_id) badges[r.user_id] = r.instagram_badge_ok === true; });
+        }
+    }
+    return rows.map(a => ({
+        ...a,
+        is_recommended: a.is_recommended || false,
+        ...(badges && typeof a.instagram_badge_ok !== 'boolean' ? { instagram_badge_ok: badges[a.user_id] === true } : {})
+    }));
 }
 
 // ============ SEÑALES REALES DE ESTADO ============
@@ -453,8 +469,17 @@ async function loadStudioNames() {
     studioNames = {};
     if (!ids.length) return;
     const rows = await safeQuery('estudios de los artistas', () => WeotziData.Marketplace.listStudioNames(ids));
-    rows.forEach(row => { studioNames[row.id] = { name: row.name || 'Estudio', slug: row.slug || row.id }; });
-    allArtists.forEach(a => { a._studioName = a.studio_id && studioNames[a.studio_id] ? studioNames[a.studio_id].name : ''; });
+    // Un estudio inactivo o sancionado (2.7.0) no aparece en la card del
+    // artista ni en el filtro Estudio: su perfil público ya no existe.
+    const hidden = new Set();
+    rows.forEach(row => {
+        if (!Core.isStudioPublic(row)) { hidden.add(row.id); return; }
+        studioNames[row.id] = { name: row.name || 'Estudio', slug: row.slug || row.id };
+    });
+    allArtists.forEach(a => {
+        a._studioHidden = Boolean(a.studio_id && hidden.has(a.studio_id));
+        a._studioName = a.studio_id && studioNames[a.studio_id] ? studioNames[a.studio_id].name : '';
+    });
 }
 
 function artistFlags(artist) {
@@ -468,6 +493,8 @@ function getArtistStatus(artist) {
 // Clave de afiliación: el estudio real (studio_id) o, sin él, el texto libre
 // `estudios` (descartando "Sin estudio / Independiente") o independiente.
 function artistStudioKey(artist) {
+    // Estudio oculto (inactivo o sancionado): el artista cuenta como independiente.
+    if (artist._studioHidden) return INDEPENDENT_KEY;
     if (artist.studio_id) return `id:${artist.studio_id}`;
     const text = String(artist.estudios || '').trim();
     if (text && !/^(sin estudio|independiente|ninguno|no)\b/i.test(text)) return `txt:${Core.normalizeKey(text)}`;
@@ -480,8 +507,13 @@ function artistStudioLabel(artist) {
     return key.startsWith('txt:') ? String(artist.estudios).trim() : '';
 }
 
+// Insignia: verificado y con el Instagram validado (verified-badge.js).
 function isVerifiedArtist(artist) {
-    return artist.verification_state === 'Yes';
+    return Core.isArtistBadgeVisible(artist);
+}
+
+function isVerifiedStudio(studio) {
+    return Core.isStudioBadgeVisible(studio);
 }
 
 // ============ ESTUDIOS (Figma 2113:9145) ============
@@ -490,7 +522,9 @@ async function fetchStudios() {
     const M = WeotziData.Marketplace;
     const { data, error } = await M.listStudios();
     if (error) throw error;
-    const studios = data || [];
+    // listStudios ya pide is_active = true; además se descarta cualquier
+    // estudio sancionado que llegue (2.7.0).
+    const studios = (data || []).filter(Core.isStudioPublic);
     const ids = studios.map(s => s.id).filter(Boolean);
     const locations = ids.length ? await safeQuery('sedes', () => M.listStudioLocations(ids)) : [];
     const byStudio = {};
@@ -749,7 +783,7 @@ function optionLabel(key, value) {
 
 function verifiedCount() {
     return browseMode === 'studios'
-        ? (allStudios || []).filter(s => s.is_verified === true).length
+        ? (allStudios || []).filter(isVerifiedStudio).length
         : allArtists.filter(isVerifiedArtist).length;
 }
 
@@ -1004,7 +1038,7 @@ function studioCardHtml(studio, opts = {}) {
     const metaLine = [city, mainStyle].filter(Boolean).join(' · ') || studio.tagline || '';
     const status = Core.studioStatus(studio._flags);
     const displayName = studio.name || 'Estudio';
-    const verified = studio.is_verified === true;
+    const verified = Core.isStudioBadgeVisible(studio);
     const ref = studio.slug || studio.id;
     const href = `/studio/profile?studio=${encodeURIComponent(ref || '')}`;
     const artists = studio._roster ? studio._roster.length : 0;
@@ -1275,7 +1309,7 @@ function artistMatches(artist, filters) {
 }
 
 function studioMatches(studio, filters) {
-    if (filters.verified && studio.is_verified !== true) return false;
+    if (filters.verified && !isVerifiedStudio(studio)) return false;
     if (filters.search && !Core.matchesSearch(filters.search,
         [studio.name, studio.tagline, studio._country].concat(studio._cities || []),
         studio._styles)) return false;
@@ -1291,7 +1325,7 @@ function applyFilters() {
     if (browseMode === 'studios') {
         filteredStudios = (allStudios || []).filter(s => studioMatches(s, filters));
         filteredStudios.sort((a, b) =>
-            (Number(b.is_verified === true) - Number(a.is_verified === true)) ||
+            (Number(isVerifiedStudio(b)) - Number(isVerifiedStudio(a))) ||
             ((studioRatings[b.id]?.average_rating || 0) - (studioRatings[a.id]?.average_rating || 0)) ||
             String(a.name || '').localeCompare(String(b.name || ''), 'es'));
     } else {

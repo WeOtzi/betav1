@@ -31,7 +31,7 @@
     <link rel="stylesheet" href="/shared/css/ds/organisms.css">
     <link rel="stylesheet" href="/shared/css/artist-profile.css">
     <!-- Ronda 2: jerarquía del visitante, insignias, pie de foto y favoritos -->
-    <link rel="stylesheet" href="/shared/css/artist-profile-r2.css">
+    <link rel="stylesheet" href="/shared/css/artist-profile-r2.css?v=20261118-kyc">
     <link rel="stylesheet" href="/shared/css/reviews.css">
     <link rel="stylesheet" href="/shared/css/wo-share-sheet.css?v=20261116-r2b">
     <link rel="stylesheet" href="/shared/css/booking.css?v=20261115-turnos">
@@ -52,7 +52,7 @@
     <script src="/shared/js/logging-loader.js"></script>
     <script src="/shared/js/wo-icons.js" defer></script>
     <script src="/shared/js/ds/organisms.js" defer></script>
-    <script src="/shared/js/wo-report.js?v=20261116-denuncias" defer></script><!-- denuncias (ronda 2): activa [data-wo-report] -->
+    <script src="/shared/js/wo-report.js?v=20261118-kyc" defer></script><!-- denuncias (ronda 2): activa [data-wo-report] -->
     <!-- Consentimiento de cookies: único cargador de scripts no esenciales (Clarity, etc.) -->
     <script src="/shared/js/wo-consent.js" defer></script>
 </head>
@@ -406,7 +406,7 @@
         </section>
 
         <!-- 11 · Denunciar perfil (contrato data-wo-report, lo activa wo-report.js):
-             solo para artistas con sesión que no son el dueño de este perfil. -->
+             para todos menos el dueño (2.7.0: también clientes y visitantes sin sesión). -->
         <section class="profile-band profile-report-band" id="profile-report-band" hidden>
             <div class="profile-shell profile-report-inner">
                 <p class="profile-report-text">¿Ves algo en este perfil que no corresponde?</p>
@@ -460,6 +460,7 @@
     <script src="/shared/js/wo-share-cards.js"></script>
     <script src="/shared/js/wo-share-sheet.js"></script>
     <script src="/shared/js/flash-model.js?v=20261117-flash"></script><!-- Flash Tattoos: precio, tamaño y "Reservar este flash" -->
+    <script src="/shared/js/verified-badge.js?v=20261118-kyc"></script><!-- insignia: verificado + Instagram validado (2.7.0) -->
     <script src="/shared/js/artist-profile.js"></script>
     <script src="/shared/js/account-availability-model.js?v=20261115-turnos"></script>
     <script src="/shared/js/booking-slots-model.js?v=20261115-turnos"></script>

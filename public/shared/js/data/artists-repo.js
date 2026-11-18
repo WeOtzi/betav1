@@ -85,7 +85,7 @@
     // los métodos de abajo lo enrutan a la RPC que corresponde.
     const PUBLIC_COLUMNS = Object.freeze([
         'id', 'user_id', 'username', 'name',
-        'instagram', 'portafolio', 'profile_links', 'instagram_verified_at',
+        'instagram', 'portafolio', 'profile_links', 'instagram_verified_at', 'instagram_badge_ok',
         'ubicacion', 'city', 'country', 'country_code', 'state_province', 'locality',
         'estudios', 'studio_id', 'work_type',
         'estilo', 'styles_array',

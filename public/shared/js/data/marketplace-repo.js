@@ -31,14 +31,16 @@
         'user_id', 'username', 'name', 'profile_picture', 'gallery_images',
         'styles_array', 'city', 'ubicacion', 'country', 'estudios', 'studio_id', 'work_type',
         'session_price', 'session_price_amount_usd', 'artist_index', 'is_recommended',
-        'verification_state', 'vacation_start', 'vacation_end'
+        'verification_state', 'instagram_badge_ok', 'vacation_start', 'vacation_end'
     ].join(', ');
 
     // Columnas públicas del estudio para las cards y los filtros del modo
     // Estudios (Figma 2113:9145). Ninguna es privada (pii-studios, 20261115200100).
+    // instagram_badge_ok (generada, 20261118100000): la insignia exige
+    // is_verified y el Instagram validado; lo mismo en artistas.
     const STUDIO_GRID_COLUMNS = [
         'id', 'slug', 'name', 'tagline', 'cover_image', 'logo_image', 'photo_feed_items',
-        'is_verified', 'specialty_styles', 'equipment', 'station_count',
+        'is_verified', 'instagram_badge_ok', 'specialty_styles', 'equipment', 'station_count',
         'accepts_guest_spots', 'guest_window_start', 'guest_window_end', 'is_seeking_artists',
         'city', 'country'
     ].join(', ');
@@ -51,6 +53,15 @@
         listArtists(columns = ARTIST_GRID_COLUMNS) {
             if (D.Artists && typeof D.Artists.listPublic === 'function') return D.Artists.listPublic(columns);
             return from('artists_db').select(columns);
+        },
+
+        // Insignia de los artistas verificados. /explore lee la vista
+        // artists_with_location, que no trae instagram_badge_ok (columna
+        // generada de artists_db, 20261118100000): la suma con esta lista corta.
+        listArtistBadges() {
+            return from('artists_db')
+                .select('user_id, verification_state, instagram_badge_ok')
+                .eq('verification_state', 'Yes');
         },
 
         // Agenda pública (artist_tattoo_locations: policy "Public can view

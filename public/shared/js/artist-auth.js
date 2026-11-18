@@ -54,6 +54,50 @@
         });
     }
 
+    // ── términos (2.7.0): cuenta dada de baja. Supabase Auth responde
+    // user_banned («User is banned») al iniciar sesión; se muestra el mensaje de
+    // la baja en vez del error técnico. Compartido (idempotente) entre
+    // artist-auth.js, client-auth.js y studio-auth.js; artist-login.js puede
+    // usar window.WoAccountBan.isBannedError(error) / .MESSAGE.
+    if (root) root.WoAccountBan = root.WoAccountBan || {
+        MESSAGE: 'Tu cuenta fue dada de baja por incumplir los Términos. Revisa el correo que te enviamos para conocer el motivo y cómo apelar.',
+        isBannedError: function (error) {
+            if (!error) return false;
+            if (error.code === 'user_banned' || error.error_code === 'user_banned') return true;
+            return /\bbanned\b/i.test(String(error.message || error.msg || ''));
+        }
+    };
+
+    // ── términos (2.7.0): gate de re-aceptación y cuentas sancionadas
+    // (public/shared/js/wo-terms-gate.js). No bloquea la resolución de la
+    // sesión: el modal del gate tapa la página si hace falta. Si el gate
+    // todavía no cargó, se encola y se inyecta el script (respeta /beta).
+    function requestTermsGate(targetRoot, session, supabase) {
+        try {
+            const win = targetRoot;
+            if (!win || !win.document || !session || !session.access_token) return;
+            if (win.WoTermsGate && typeof win.WoTermsGate.ensure === 'function') {
+                win.WoTermsGate.ensure(session, { surface: 'artist', supabase });
+                return;
+            }
+            win.__woTermsGateQueue = win.__woTermsGateQueue || [];
+            win.__woTermsGateQueue.push({ session, surface: 'artist', supabase });
+            const doc = win.document;
+            if (doc.querySelector('script[data-wo-terms-gate]')) return;
+            const pathname = (win.location && win.location.pathname) || '';
+            const base = win.WEOTZI_BASE_PATH
+                ? String(win.WEOTZI_BASE_PATH).replace(/\/$/, '')
+                : (/^\/beta(?:\/|$)/.test(pathname) ? '/beta' : '');
+            const script = doc.createElement('script');
+            script.src = base + '/shared/js/wo-terms-gate.js?v=20261118';
+            script.async = true;
+            script.setAttribute('data-wo-terms-gate', '');
+            (doc.head || doc.documentElement).appendChild(script);
+        } catch (_) {
+            // Sin DOM (tests) o sin permisos: el gate también lo carga wo-consent.js.
+        }
+    }
+
     function getRoutes(configManager) {
         if (!configManager) return {};
         if (typeof configManager.getRoutes === 'function') {
@@ -412,6 +456,7 @@
 
         const currentUser = session.user;
         const artistSelect = mergeArtistSelect(options.artistSelect);
+        requestTermsGate(targetRoot, session, supabase);
 
         let artist = null;
         let artistError = null;

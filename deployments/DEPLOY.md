@@ -604,6 +604,94 @@ Feedback de soporte. En un perfil con flashes con precio, «Reservar este flash�
 Desde la 2.6.1 los correos «Nueva solicitud» y «Nueva solicitud con turno» muestran
 el flash y su precio (los arma el servidor y salen por el relé; no hay que tocar n8n).
 
+---
+
+## Beta 2.7.0 · Identidad, denuncias abiertas, sanciones y copias de imágenes
+
+Plan: [docs/plans/2026-11-18-kyc-antisuplantacion.md](../docs/plans/2026-11-18-kyc-antisuplantacion.md).
+
+### 1. Variable de entorno nueva: `BAN_HMAC_KEY`
+
+Clave de las huellas de cuentas baneadas (HMAC-SHA256 de correo, teléfono e
+Instagram) y de la firma de los enlaces de apelación. 32 bytes aleatorios en base64,
+**generada en el servidor y sin mostrarla** (no copiarla en el chat ni en un log):
+
+```bash
+# En el servidor, una sola vez:
+cd ~/weotzi-deploy/shared
+grep -q '^BAN_HMAC_KEY=.\+' main.env || \
+  echo "BAN_HMAC_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")" >> main.env
+chmod 600 main.env
+PM2_HOME=~/weotzi-deploy/pm2 pm2 restart weotzi-beta --update-env
+```
+
+- **Si falta o no es válida:** el servidor arranca igual y **falla abierta**: los
+  cierres no guardan huellas, el registro no bloquea el reingreso y el correo de
+  sanción sale sin enlace de apelación. El log lo avisa una vez
+  (`[ban-identifiers] BAN_HMAC_KEY …`).
+- **Si se pierde o se cambia:** las huellas guardadas dejan de coincidir y los
+  enlaces de apelación ya enviados dejan de valer. Guardar una copia en el gestor de
+  secretos del dueño. No rotarla sin un plan para volver a calcular las huellas.
+
+### 2. Migraciones, en este orden y ANTES del código 2.7.0
+
+| Orden | Migración | Qué hace |
+|---|---|---|
+| 1 | `20261118100000_insignia_instagram.sql` | La insignia exige Instagram validado (columna `instagram_badge_ok`, `request_artist_verification`). |
+| 2 | `20261118110000_denuncias_abiertas.sql` | Clientes pueden denunciar; motivos `plagio_diseno` y `estafa`. |
+| 3 | `20261118120000_terminos_reaceptacion.sql` | Tabla `terms_acceptances` y versión de Términos `2026-11-18`. |
+| 4 | `20261118130000_account_sanctions.sql` | `account_sanctions`, `banned_identifiers`, `security_alerts`, `sanction_state` en artistas y estudios, `support_closed_reason`, `revoke_user_sessions`; oculta perfiles y estudios sancionados (vistas, políticas y funciones de la Store). |
+| 5 | `20261118140000_image_fingerprints.sql` | `image_fingerprints`, cola, `design_search_log`, disparadores de imágenes y RPC del buscador. |
+
+Cada una se valida antes con `execute_sql` dentro de `begin … rollback` en el
+proyecto vivo (`flbgmlvfiejfttlawnfu`) y se aplica después de aprobar el PR. Son
+compatibles con el código 2.6.1: aplicarlas primero y desplegar el código después.
+Sin la 4, `/api/support/sanctions…` y `/api/sanctions/appeal` responden
+503 `MIGRATION_PENDING` y la pestaña Sanciones lo dice.
+
+**Para volver atrás:** primero el código 2.6.1 y después las reversas en orden
+inverso (`supabase/rollbacks/20261118140000…` → `…100000`). La reversa de sanciones
+borra las sanciones, las huellas y las alertas: antes, levantar desde el panel las
+sanciones vigentes para que Auth desbloquee esas cuentas (la reversa no toca Auth).
+
+### 3. Antes de abrir: insignias, Términos y buscador
+
+- **Insignias:** desde la 1 (`insignia_instagram`) la insignia exige Instagram validado. Hoy ningún artista ni estudio tiene Instagram validado: el único estudio verificado pierde el sello hasta que soporte confirme su Instagram (Verificación de estudios → «Confirmar Instagram»).
+- **Términos:** todos los usuarios ven el aviso «Actualizamos los Términos…» al iniciar sesión (versión `2026-11-18`).
+- **Copias de imágenes y buscador `/buscar-diseno`:** necesitan la librería `sharp` (auditoría: [docs/plans/2026-11-18-auditoria-sharp.md](../docs/plans/2026-11-18-auditoria-sharp.md)). Sin ella el motor queda apagado y el buscador responde «El buscador se habilita pronto.». Con `sharp` instalada, después del despliegue: `node scripts/backfill-image-fingerprints.js --dry-run` y luego sin `--dry-run` (avisa a soporte las copias que ya existan). `IMAGE_FP_JOB=off` apaga el motor.
+
+### 4. Soporte: dos agentes
+
+Un cierre permanente lo propone un agente y lo confirma **otro** (lo exige la base).
+Hoy hay un solo agente activo en `support_users_db`; el superadmin del backoffice
+cuenta como segundo agente. Una apelación la decide un agente que no propuso ni
+confirmó: con un solo agente más el superadmin, una apelación de un cierre que
+propuso uno y confirmó el otro **no la puede decidir nadie**. Crear un segundo
+agente de soporte antes de usar sanciones en serio.
+
+Las suspensiones vencidas se levantan solas: `lib/routes/sanciones.js` (al
+registrarse en `server.js`) arranca un temporizador que corre cada 10 minutos
+(la primera pasada, un minuto después de arrancar). No hace falta cron. Con varias
+instancias de PM2 cada una corre el suyo; no se pisan porque aplicar o levantar
+una sanción toma un turno en `account_sanctions.side_effects.running` (vence a
+los 5 minutos si el proceso se cae a mitad). Si dos agentes actúan a la vez sobre
+la misma sanción, el segundo recibe «Otro agente la está aplicando o levantando…»
+y solo tiene que actualizar.
+
+### 5. Comprobar después del despliegue
+
+- `/support/dashboard#sanciones` abre la pestaña con las sub-vistas Propuestas,
+  Activas, Apeladas, Levantadas y Alertas.
+- Con una cuenta de prueba: proponer una advertencia (se aplica y llega el correo con
+  el enlace a `/apelacion`), abrir el enlace y apelar una vez; la segunda vez dice
+  «Ya enviaste tu apelación».
+- Proponer un cierre con un agente: el botón Confirmar queda deshabilitado para él y
+  habilitado para el otro. Al confirmar: el perfil sale del explorador, la cuenta no
+  puede iniciar sesión, y registrarse de nuevo con el mismo correo muestra «No podemos
+  crear esta cuenta…» y deja una alerta «Reingreso bloqueado».
+- Levantar la sanción de prueba: el perfil vuelve, Auth desbloquea y se borran sus
+  huellas.
+
 ## Reglas para el agente
 
 | Situación                                           | Acción                                      |

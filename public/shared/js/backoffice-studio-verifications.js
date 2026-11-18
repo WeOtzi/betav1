@@ -100,13 +100,39 @@
         return '<dl class="bsv-dl">' + rows.filter(r => r && r[1]).map(r => '<dt>' + esc(r[0]) + '</dt><dd>' + r[1] + '</dd>').join('') + '</dl>';
     }
 
+    // Usuario de Instagram sin @, sin URL y en minúsculas (normalizeHandle).
+    function normHandle(value) {
+        return String(value == null ? '' : value).trim()
+            .replace(/^(?:https?:\/\/)?(?:www\.|m\.)?instagram\.com\//i, '').replace(/[/?#].*$/, '')
+            .replace(/^@+/, '').toLowerCase();
+    }
+
+    // Plan KYC 1.5: aprobar exige el Instagram del estudio validado PARA el
+    // Instagram que hoy tiene el perfil (misma regla que verified-badge.js;
+    // esta página puede no cargarlo).
+    function studioIgValidated(studio) {
+        const s = studio || {};
+        if (root.WoVerifiedBadge) return root.WoVerifiedBadge.instagramMatches(s);
+        if (typeof s.instagram_badge_ok === 'boolean') return s.instagram_badge_ok;
+        const handle = normHandle(s.instagram);
+        return Boolean(s.instagram_verified_at && handle && handle === normHandle(s.instagram_verified_handle));
+    }
+
+    // 'ok' (validado) | 'confirm' (soporte tiene que confirmarlo) | 'no_handle'.
+    function studioIgState(studio) {
+        if (studioIgValidated(studio)) return 'ok';
+        return normHandle(studio && studio.instagram) ? 'confirm' : 'no_handle';
+    }
+
     function cardHtml(request, signedDocs) {
         const r = request || {};
         const studio = r.studio || {};
         const href = profileHref(studio);
         const loc = r.location;
-        const igHandle = studio.instagram ? String(studio.instagram).replace(/^@+/, '') : '';
-        const igVerified = Boolean(studio.instagram_verified_at);
+        const igHandle = normHandle(studio.instagram);
+        const igVerified = studioIgValidated(studio);
+        const igOther = !igVerified && studio.instagram_verified_at && normHandle(studio.instagram_verified_handle)
+            ? normHandle(studio.instagram_verified_handle) : '';
         const reasons = (r.reasons || []).map(x => '<span class="bsv-chip">' + esc(REASON_LABELS[x] || x) + '</span>').join('');
         const matched = (r.matched_studios || []).map(m => {
             const mh = profileHref(m);
@@ -117,8 +143,10 @@
             return u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + esc(u) + '</a>' : esc(l);
         }).join('<br>');
         const ig = igHandle
-            ? '@' + esc(igHandle) + (igVerified ? ' · <span class="bsv-ok">validado</span>' : (r.instagram_pending_code ? ' · código pendiente' : ' · sin validar'))
-            : '';
+            ? '@' + esc(igHandle) + (igVerified ? ' · <span class="bsv-ok">validado</span>'
+                : igOther ? ' · sin validar (validó @' + esc(igOther) + ', que ya no es el de su perfil)'
+                    : (r.instagram_pending_code ? ' · código pendiente' : ' · sin validar'))
+            : '<span class="bsv-muted">Sin Instagram en el perfil</span>';
         const pending = r.status === 'pending';
         const canRevoke = r.status === 'approved' && (studio.is_verified || studio.verification_status === 'verified');
         return '<article class="bsv-card" data-id="' + esc(r.id) + '">'
@@ -141,20 +169,34 @@
                 ['Nota de la decisión', r.decision_note ? esc(r.decision_note) + (r.decided_at ? ' <span class="bsv-muted">(' + esc(fmtDate(r.decided_at)) + ')</span>' : '') : '']
             ])
             + '<div class="bsv-docs-wrap" data-bsv-docs="' + esc(r.id) + '"><h4>Documentos</h4>' + docsHtml(r, signedDocs) + '</div>'
-            + (pending ? decisionFormHtml(r, igHandle && !igVerified) : '')
+            + (pending ? decisionFormHtml(r, studioIgState(studio), igHandle) : '')
             + (canRevoke ? revokeFormHtml(r) : '')
             + '</article>';
     }
 
-    function decisionFormHtml(r, offerInstagram) {
+    // igState: 'ok' | 'confirm' | 'no_handle' (studioIgState). Sin el
+    // Instagram validado, aprobar queda deshabilitado hasta marcar la
+    // confirmación; sin Instagram en el perfil solo se puede pedir corrección.
+    // La casilla NO lleva `required` y el form es novalidate: la validación
+    // nativa frenaría también «Pedir corrección». La regla de aprobar la
+    // aplican canApprove()/syncApprove() y el servidor.
+    function decisionFormHtml(r, igState, igHandle) {
         const id = esc(r.id);
-        return '<form class="bsv-decide" data-bsv-decide="' + id + '">'
+        const state = igState === 'confirm' || igState === 'no_handle' ? igState : 'ok';
+        const igBlock = state === 'confirm'
+            ? '<label class="bsv-check"><input type="checkbox" name="confirm_instagram" data-bsv-ig-required aria-describedby="bsv-ig-hint-' + id + '"> Confirmo que el Instagram @' + esc(igHandle || '') + ' es del estudio</label>'
+                + '<p class="bsv-muted bsv-hint" id="bsv-ig-hint-' + id + '">Para aprobar, el Instagram del estudio tiene que estar validado. No validó el código: confírmalo solo si revisaste que la cuenta es del estudio.</p>'
+            : state === 'no_handle'
+                ? '<p class="bsv-muted bsv-hint" id="bsv-ig-hint-' + id + '">El estudio no cargó su Instagram y sin él no se puede aprobar. Pídele que lo cargue con «Pedir corrección».</p>'
+                : '';
+        const approveOff = state === 'ok' ? '' : ' disabled aria-describedby="bsv-ig-hint-' + id + '"';
+        return '<form class="bsv-decide" data-bsv-decide="' + id + '" data-bsv-ig="' + state + '" novalidate>'
             + '<label class="bsv-label" for="bsv-note-' + id + '">Nota para el estudio <span class="bsv-muted">(obligatoria para pedir una corrección; la recibe por email)</span></label>'
             + '<textarea id="bsv-note-' + id + '" name="note" rows="3" maxlength="' + NOTE_MAX + '" placeholder="Ej. El documento de representación no muestra el nombre completo del responsable."></textarea>'
-            + (offerInstagram ? '<label class="bsv-check"><input type="checkbox" name="confirm_instagram"> Confirmar también el Instagram del estudio</label>' : '')
+            + igBlock
             + '<p class="bsv-error" role="alert" hidden></p>'
             + '<div class="bsv-actions">'
-            + '<button type="submit" class="btn btn-primary" value="approve"><i class="fa-solid fa-check" aria-hidden="true"></i> Aprobar verificación</button>'
+            + '<button type="submit" class="btn btn-primary" value="approve"' + approveOff + '><i class="fa-solid fa-check" aria-hidden="true"></i> Aprobar verificación</button>'
             + '<button type="submit" class="btn btn-secondary" value="reject"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Pedir corrección</button>'
             + '</div></form>';
     }
@@ -288,11 +330,33 @@
         if (el) { el.textContent = message; el.hidden = !message; }
     }
 
+    // Aprobar se habilita con el Instagram validado o con la confirmación marcada.
+    function canApprove(form) {
+        const ig = form.dataset.bsvIg || 'ok';
+        if (ig === 'no_handle') return false;
+        if (ig === 'confirm') {
+            const box = form.querySelector('[name="confirm_instagram"]');
+            return Boolean(box && box.checked);
+        }
+        return true;
+    }
+
+    function syncApprove(form) {
+        const approve = form.querySelector('button[value="approve"]');
+        if (approve) approve.disabled = !canApprove(form);
+    }
+
     async function decide(form, decision) {
         const id = form.dataset.bsvDecide;
         const note = form.querySelector('[name="note"]').value;
         const problem = validateDecision(decision, note);
         if (problem) { formError(form, problem); form.querySelector('[name="note"]').focus(); return; }
+        if (decision === 'approve' && !canApprove(form)) {
+            formError(form, form.dataset.bsvIg === 'no_handle'
+                ? 'El estudio no cargó su Instagram: pídele que lo cargue antes de aprobar.'
+                : 'Para aprobar, confirma que el Instagram es del estudio.');
+            return;
+        }
         const igBox = form.querySelector('[name="confirm_instagram"]');
         const confirmText = decision === 'approve' ? '¿Aprobar la verificación de este estudio? El sello aparece en su perfil público.' : '¿Pedir una corrección al estudio? Le llega la nota por email.';
         if (typeof root.confirm === 'function' && !root.confirm(confirmText)) return;
@@ -302,6 +366,7 @@
             body: { decision, note: note.trim() || null, confirm_instagram: Boolean(igBox && igBox.checked) }
         });
         form.querySelectorAll('button').forEach(b => { b.disabled = false; });
+        syncApprove(form);
         if (!res.ok) { formError(form, (res.data && res.data.error) || 'No pudimos guardar la decisión.'); return; }
         toast((decision === 'approve' ? 'Estudio verificado' : 'Corrección pedida') + (res.data.email_sent ? ' · email enviado' : ' · el email no salió (revisa Email Routing)'), res.data.email_sent ? 'success' : 'warning');
         load();
@@ -395,6 +460,8 @@
                 state.status = normalizeStatus(event.target.value);
                 load();
             }
+            const igForm = event.target && event.target.name === 'confirm_instagram' && event.target.closest('[data-bsv-decide]');
+            if (igForm) { formError(igForm, ''); syncApprove(igForm); }
         });
         el.addEventListener('click', event => {
             const button = event.target.closest('[data-bsv-action]');
@@ -578,5 +645,5 @@
         else start();
     }
 
-    return { autoInit, cardHtml, listHtml, docsHtml, detailRevokeHtml, validateDecision, safeUrl, normalizeStatus, _state: state };
+    return { autoInit, cardHtml, listHtml, docsHtml, detailRevokeHtml, validateDecision, safeUrl, normalizeStatus, studioIgState, _state: state, _internal: { canApprove } };
 });

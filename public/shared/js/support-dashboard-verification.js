@@ -642,6 +642,38 @@ textarea.svq-input{min-height:88px;resize:vertical}
 
     function fact(label, value) { return `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`; }
 
+    // Plan KYC 1.5: la insignia exige el Instagram del perfil validado con el
+    // código. La cola trae instagram e instagram_badge_ok (migración
+    // 20261118100000); la regla es la de verified-badge.js.
+    function igText(value) {
+        return String(value == null ? '' : value).trim()
+            .replace(/^(?:https?:\/\/)?(?:www\.|m\.)?instagram\.com\//i, '').replace(/[/?#].*$/, '')
+            .replace(/^@+/, '').toLowerCase();
+    }
+
+    // { label, ok, mismatch } para el dato «Instagram» del expediente.
+    function instagramFact(row) {
+        const a = row || {};
+        const verified = igText(a.instagram_verified_handle);
+        const current = igText(a.instagram);
+        if (!a.instagram_verified_at || !verified) {
+            return { label: current ? `Sin validar (@${current})` : 'Sin validar · sin Instagram en el perfil', ok: false, mismatch: false };
+        }
+        // Cola sin la migración: no se puede comparar con el perfil.
+        if (typeof a.instagram_badge_ok !== 'boolean' && !('instagram' in a)) return { label: `Validado · @${verified}`, ok: true, mismatch: false };
+        const api = root.WoVerifiedBadge;
+        const ok = typeof a.instagram_badge_ok === 'boolean' ? a.instagram_badge_ok
+            : (api ? api.instagramMatches(a) : Boolean(current) && current === verified);
+        if (ok) return { label: `Instagram validado · @${verified}`, ok: true, mismatch: false };
+        return {
+            label: current
+                ? `No coincide: validó @${verified} y su perfil ahora dice @${current}`
+                : `No coincide: validó @${verified} y su perfil no tiene Instagram`,
+            ok: false,
+            mismatch: true
+        };
+    }
+
     function reviewForm(item, approveLabel, kindLabel) {
         return `<form class="drawer-section svq-section" id="svq-form" data-svq-form="${esc(item.id)}" novalidate>
             <p class="svq-section-title">Decisión</p>
@@ -858,6 +890,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
         const current = a.verification_state || 'No';
         const docs = item.documents || [];
         const req = requiredDocsStatus(docs);
+        const ig = instagramFact(a);
         const name = a.name || (a.username ? '@' + a.username : 'Artista');
         const docRows = ['identidad', 'domicilio', 'bioseguridad'].map((type) => {
             const doc = docs.find((d) => d && d.doc_type === type);
@@ -888,9 +921,12 @@ textarea.svq-input{min-height:88px;resize:vertical}
                 <dl class="svq-facts">
                     ${fact('Email', a.email || '-')}
                     ${fact('Ubicación', [a.city, a.country].filter(Boolean).join(', ') || '-')}
-                    ${fact('Instagram validado', a.instagram_verified_at ? (a.instagram_verified_handle ? '@' + String(a.instagram_verified_handle).replace(/^@+/, '') : 'Sí') : 'No')}
+                    ${fact('Instagram', ig.label)}
                     ${fact('Pedido', fmtDateTime(a.requested_at))}
                 </dl>
+                ${ig.ok ? '' : `<p class="svq-help">${current === 'Yes'
+                    ? 'La insignia está oculta hasta que el artista valide el Instagram de su perfil con el código.'
+                    : 'Para verificar, el Instagram del perfil tiene que estar validado con el código (se valida desde Cuenta · Portafolio o en la pestaña Instagram).'}</p>`}
                 ${a.username ? `<p class="svq-text"><a class="svq-link" href="${esc(appPath('/artist/profile?artist=' + encodeURIComponent(String(a.username).replace(/^@+/, ''))))}" target="_blank" rel="noopener">Ver perfil público →</a></p>` : ''}
             </div>
             <div class="drawer-section svq-section">
@@ -1182,6 +1218,7 @@ textarea.svq-input{min-height:88px;resize:vertical}
         boot,
         _internal: { MSG, DOC_LABELS, normalizeStatus, statusMeta, maskIdentifier, maskDestination, buildReview, requiredDocsStatus, errorText, esc,
             buildSettlement, formatAmount, notifyText, KINDS,
-            buildStateDecision, stateActions, artistStateMeta, requestItems, docStatusOf, ARTIST_STATE_LABELS, HISTORY_LABELS, IN_REVIEW_STATES }
+            buildStateDecision, stateActions, artistStateMeta, requestItems, docStatusOf, ARTIST_STATE_LABELS, HISTORY_LABELS, IN_REVIEW_STATES,
+            instagramFact }
     };
 }));

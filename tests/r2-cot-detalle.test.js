@@ -282,7 +282,8 @@ test('hoja: lista blanca; nunca salud, contacto, notas privadas ni correos', () 
     });
     const sheet = logic.buildSheet({
         quote,
-        artist: { name: 'Mateo Rivas', username: 'mateoink.wo', email: 'SECRETO-EMAIL-ARTISTA@example.com', verification_state: 'Yes', profile_picture: 'https://cdn.example/m.jpg', city: 'Bogotá' },
+        // Insignia: verificado y con el Instagram validado (instagram_badge_ok).
+        artist: { name: 'Mateo Rivas', username: 'mateoink.wo', email: 'SECRETO-EMAIL-ARTISTA@example.com', verification_state: 'Yes', instagram_badge_ok: true, profile_picture: 'https://cdn.example/m.jpg', city: 'Bogotá' },
         sessions: [
             { session_number: 2, session_date: '2026-12-10T15:00:00Z', status: 'scheduled' },
             { session_number: 1, session_date: '2026-12-01T15:00:00Z', status: 'completed' },

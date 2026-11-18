@@ -1,6 +1,6 @@
 {
   "name": "weotzi-unified",
-  "version": "2.6.1",
+  "version": "2.7.0",
   "description": "We Ötzi - Unified Web Application",
   "main": "server.js",
   "scripts": {
@@ -28,6 +28,7 @@
     "multer": "^2.1.1",
     "openai": "^4.73.0",
     "pm2": "^7.0.1",
+    "sharp": "0.35.5",
     "systeminformation": "^5.30.7"
   },
   "devDependencies": {

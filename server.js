@@ -28,6 +28,8 @@ const { legacyRedirectFor, legacyLocation } = require('./lib/legacy-routes');
 // Capa PostgREST unificada (ver docs/plans/2026-06-21-postgrest-capa-unificada-piloto-cotizaciones.md)
 const { pgrest } = require('./lib/postgrest');
 const termsAcceptance = require('./lib/terms-acceptance'); // ── cotizaciones · P3
+// ── términos (2.7.0): bloqueo de reingreso en el registro del artista.
+const termsGate = require('./lib/terms-gate');
 const { resolveBearerUser } = require('./lib/auth/supabase-auth');
 // ── roster: altas de tatuadores en estudios (lib/routes/roster.js).
 const rosterRoutes = require('./lib/routes/roster');
@@ -5481,6 +5483,22 @@ function requestAbsoluteUrl(req, pathName) {
     return `${req.protocol}://${req.get('host')}${basePath}${pathName}`;
 }
 
+// ── términos (2.7.0): identificadores del wizard para checkReentry
+// (lib/sanciones-service, vía lib/terms-gate con falla abierta). El teléfono
+// no se pide en el registro del artista: se compara al sellar los Términos.
+function registrationReentryInput(formData, email, flow, userId = null) {
+    const data = formData && typeof formData === 'object' ? formData : {};
+    const instagram = String(data.instagram_handle || data.instagram || '').trim().replace(/^@/, '');
+    return {
+        email: email || null,
+        phone: String(data.whatsapp_number || data.whatsapp || '').trim() || null,
+        instagram: instagram || null,
+        country: termsGate.countryIso2(data.location_country || data.country || ''),
+        flow,
+        userId
+    };
+}
+
 app.get('/api/register/artist-draft', async (req, res) => {
     const { supabaseUrl, serviceRoleKey } = getSupabaseAdminConfig();
     if (!supabaseUrl || !serviceRoleKey) {
@@ -5533,6 +5551,11 @@ app.post('/api/register/artist-draft', async (req, res) => {
     if (email && !artistRegistration.isValidEmail(email)) {
         return res.status(400).json({ success: false, error: 'Email invalido' });
     }
+
+    // ── términos (2.7.0): el bloqueo de reingreso NO corre en el borrador
+    // (autoguardado con apiLimiter: sería un oráculo de identificadores
+    // baneados). Lo aplica el finalize, con authLimiter, antes de crear la
+    // cuenta. El borrador no crea ninguna cuenta.
 
     try {
         let existing = await findArtistDraft({ draftId: requestedDraftId, email });
@@ -5629,6 +5652,7 @@ app.post('/api/register/artist-finalize', async (req, res) => {
     let draft = null;
     let authUser = null;
     let createdStudioId = null;
+    let reentryCheck = null;
 
     try {
         // Fila a finalizar: la del draft; si el navegador perdio el draft-id,
@@ -5653,6 +5677,18 @@ app.post('/api/register/artist-finalize', async (req, res) => {
         const ownAuthUser = (priorAuthUsers || []).find(
             (u) => u && u.user_metadata && u.user_metadata.registration_draft_id === draftId
         ) || null;
+
+        // ── términos (2.7.0): bloqueo de reingreso antes de crear la cuenta.
+        // Si un intento anterior ya la creó, se bloquea esa cuenta también.
+        reentryCheck = await termsGate.checkReentrySafe(
+            registrationReentryInput(formData, email, 'artist', ownAuthUser ? ownAuthUser.id : null)
+        );
+        if (reentryCheck.blocked) {
+            if (ownAuthUser) {
+                await termsGate.blockNewAccountSafe({ userId: ownAuthUser.id, matches: reentryCheck.matches, flow: 'artist' });
+            }
+            return res.status(403).json({ success: false, ...termsGate.REGISTRATION_BLOCKED });
+        }
 
         const conflicts = await getRegistrationConflicts({
             email, username, instagram, draftId,
@@ -5728,6 +5764,18 @@ app.post('/api/register/artist-finalize', async (req, res) => {
         ));
         const artist = Array.isArray(savedRows) && savedRows[0] ? savedRows[0] : null;
         if (!artist) throw new Error('La fila del borrador cambio durante el registro');
+
+        // ── términos (2.7.0): aceptación registrada en terms_acceptances. Solo
+        // si el bloqueo de reingreso se comprobó de verdad (si falló abierto,
+        // el gate lo vuelve a comprobar en terms-status). No bloquea el alta.
+        if (reentryCheck && reentryCheck.checked) {
+            require('./lib/repos/terminos').TerminosRepo.insertAcceptance({
+                userId: authUser.id,
+                version: termsAcceptance.TERMS_VERSION,
+                surface: 'signup',
+                userAgent: String(req.headers['user-agent'] || '').slice(0, 300) || null
+            }).catch((acceptErr) => console.warn('[register finalize] terms_acceptances:', acceptErr.message));
+        }
 
         const studioMembership = await persistRegistrationStudioAssociations({
             formData,
@@ -5945,6 +5993,9 @@ app.post('/api/register/check-uniqueness', async (req, res) => {
     }
 
     try {
+        // ── términos (2.7.0): aquí NO se comprueba el bloqueo de reingreso
+        // (sin sesión y con apiLimiter sería un oráculo de identificadores
+        // baneados). Lo aplica el finalize antes de crear la cuenta.
         const caller = await resolveBearerUser(req);
         const conflicts = await getRegistrationConflicts({ email, username, instagram, draftId, allowUserId: caller && (!email || caller.email?.toLowerCase() === email) ? caller.id : undefined });
         // Instagram duplicado no bloquea el registro: viaja como warning para
@@ -6892,6 +6943,9 @@ require('./lib/routes/verif-artista').register(app, { resolveBearerUser, getActi
 
 require('./lib/routes/verif-estudio').register(app); // verificación de estudios
 require('./lib/routes/denuncias').register(app); // ── denuncias (ronda 2): denuncias → tickets de soporte
+require('./lib/routes/sanciones').register(app, null, { expiryJob: require.main === module }); // ── sanciones (2.7.0): propuesta/confirmación con dos agentes, apelación y alertas de seguridad
+require('./lib/routes/terminos').register(app, require.main === module ? null : { sweepIntervalMs: 0 }); // ── terminos (2.7.0): re-aceptación de Términos, precheck y bloqueo de reingreso
+require('./lib/routes/disenos').register(app, { startJob: require.main === module }); // ── disenos (2.7.0): huellas de imágenes, buscador /buscar-diseno y alertas de copia a soporte
 require('./lib/routes/soporte-disputas').register(app); // ── disputas (ronda 2 · P28): cola de soporte y cierre de las disputas de sesión
 require('./lib/routes/feedback').register(app); // ── feedback de la beta: botón "Comentarios", encuestas cortas y cola de soporte
 

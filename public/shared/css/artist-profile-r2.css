@@ -330,6 +330,81 @@ html.wo-has-favorites .profile-fav:not([hidden]) {
     display: none;
 }
 
+/* ---------- Denunciar un trabajo (2.7.0, plagio de diseños) ----------
+   wo-report.js llena el botón vacío con el ícono y «Denunciar»: en la grilla
+   queda solo el ícono (el texto sigue para lectores de pantalla). */
+.gallery-report {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: 2;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0 !important;
+    justify-content: center;
+    background: var(--surface-card, #FCFCFC) !important;
+    border: var(--border-hairline, 1px) solid var(--border-strong, #24211D) !important;
+    color: var(--text-body, #24211D) !important;
+    opacity: 0;
+    transition: opacity .2s;
+}
+
+.gallery-report > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.gallery-cell:hover .gallery-report,
+.gallery-cell:focus-within .gallery-report,
+.gallery-report:focus-visible {
+    opacity: 1;
+}
+
+.gallery-report:focus-visible,
+.lightbox-report-btn:focus-visible {
+    outline: 3px solid var(--blue-400);
+    outline-offset: 2px;
+}
+
+@media (hover: none), (pointer: coarse) {
+    .gallery-report {
+        min-width: 44px;
+        min-height: 44px;
+        opacity: 1;
+    }
+}
+
+/* Abajo a la derecha: arriba a la izquierda va la ficha del flash y arriba a la derecha, Cerrar. */
+.lightbox-report {
+    position: absolute;
+    right: var(--space-6);
+    bottom: var(--space-6);
+    z-index: 3;
+}
+
+@media (max-width: 760px) {
+    .lightbox-report {
+        right: var(--space-4);
+        bottom: var(--space-4);
+    }
+}
+
+.lightbox-report-btn {
+    background: var(--surface-card, #FCFCFC) !important;
+    color: var(--text-body, #24211D) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gallery-report {
+        transition: none;
+    }
+}
+
 /* ---------- Denunciar perfil (contrato data-wo-report) ---------- */
 .profile-report-band {
     display: none;

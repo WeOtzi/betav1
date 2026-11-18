@@ -137,7 +137,8 @@ test('ciudades: sin tildes ni mayúsculas, se muestra la variante más frecuente
 test('estudios: invitados, busca artistas y turnos según su roster', () => {
     const Core = freshCore();
     const agenda = Core.buildAgenda({ today: '2026-11-14', locations: [{ artist_user_id: 'x', period_type: 'current', agenda_status: 'open' }] });
-    const open = Core.studioFlags({ accepts_guest_spots: true, guest_window_end: '2027-01-01', is_seeking_artists: true, is_verified: true },
+    // Sello: verificado y con el Instagram validado (instagram_badge_ok, KYC 2.7.0).
+    const open = Core.studioFlags({ accepts_guest_spots: true, guest_window_end: '2027-01-01', is_seeking_artists: true, is_verified: true, instagram_badge_ok: true },
         { today: '2026-11-14', roster: [{ user_id: 'x' }], agenda });
     assert.deepEqual(open, { guests: true, seeking: true, openSlots: true, verified: true });
     assert.equal(Core.studioStatus(open).label, 'Turnos disponibles');

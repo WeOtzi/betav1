@@ -145,7 +145,7 @@ function sampleSheet(overrides = {}) {
         currency: 'USD', discount_pct: 10, tax_pct: 0, deposit_pct: 30, subtotal: 1000, total: 900, deposit_amount: 270,
         validity_days: 14, cancellation_policy: 'reembolsable-72', client_notes: 'Trae ropa cómoda.', extra_terms: 'Retoque incluido.'
     };
-    return logic.buildSheet({ quote: { ...quote, ...overrides }, manual, artist: { name: 'Mateo Rivas', username: 'mateoink.wo', verification_state: 'Yes', city: 'Bogotá' }, sessions: [], base: 'https://beta.weotzi.com', now: Date.parse('2026-11-16T12:00:00Z') });
+    return logic.buildSheet({ quote: { ...quote, ...overrides }, manual, artist: { name: 'Mateo Rivas', username: 'mateoink.wo', verification_state: 'Yes', instagram_badge_ok: true, city: 'Bogotá' }, sessions: [], base: 'https://beta.weotzi.com', now: Date.parse('2026-11-16T12:00:00Z') });
 }
 
 test('hoja: formatos en español neutro (montos, fechas, duración, políticas)', () => {

@@ -1,0 +1,259 @@
+/*
+ * We Ötzi · Gate de Términos (2.7.0). Lo carga public/shared/js/wo-terms-gate.js.
+ * Usa los tokens del DS con respaldo literal porque algunas páginas no cargan
+ * tokens.css. Reglas del DS: radio 0, sin sombra en reposo (sombra dura solo
+ * en hover), foco visible con --shadow-focus, un solo botón de acción por vista.
+ */
+
+.wo-terms-gate,
+.wo-terms-banner {
+    --wt-ink: var(--ink, #001125);
+    --wt-text: var(--text-body, #24211D);
+    --wt-muted: var(--text-muted, #5A5449);
+    --wt-page: var(--surface-page, var(--neutral-100, #FAF8F3));
+    --wt-white: var(--white, #FCFCFC);
+    --wt-accent: var(--action-accent, var(--yellow-300, #F2B519));
+    --wt-accent-hover: var(--yellow-400, #D99200);
+    --wt-rule: var(--border-subtle, var(--neutral-200, #E8E3D7));
+    --wt-focus: var(--shadow-focus, 0 0 0 3px rgba(0, 85, 255, 0.35));
+    --wt-hard: var(--shadow-hard-sm, 4px 4px 0 #24211D);
+    --wt-danger-bg: var(--status-error-bg, #FFF2EF);
+    --wt-danger-fg: var(--status-error-fg, #C82D16);
+    --wt-warn-bg: var(--warning-bg, #FFF4D6);
+    --wt-warn-fg: var(--warning-fg, #7A4B00);
+    --wt-body-font: var(--font-body, Inter, system-ui, sans-serif);
+    --wt-display-font: var(--font-display, 'Archivo Black', system-ui, sans-serif);
+    --wt-mono-font: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+    font-family: var(--wt-body-font);
+    color: var(--wt-text);
+    box-sizing: border-box;
+}
+
+.wo-terms-gate *,
+.wo-terms-banner * {
+    box-sizing: border-box;
+}
+
+/* ── modal ──────────────────────────────────────────────── */
+.wo-terms-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4, 16px);
+    background: rgba(0, 17, 37, 0.66);
+}
+
+.wo-terms-gate__panel {
+    width: min(640px, 100%);
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    overflow: auto;
+    padding: var(--space-8, 32px) var(--space-6, 24px) var(--space-6, 24px);
+    border: var(--border-rule-width, 3px) solid var(--wt-ink);
+    border-radius: 0;
+    background: var(--wt-page);
+}
+
+.wo-terms-gate__panel:focus {
+    outline: none;
+}
+
+.wo-terms-gate__eyebrow {
+    margin: 0 0 var(--space-1, 4px);
+    font-family: var(--wt-mono-font);
+    font-size: var(--meta-m-size, 12px);
+    letter-spacing: var(--meta-m-track, 0.14em);
+    text-transform: uppercase;
+    color: var(--wt-muted);
+}
+
+.wo-terms-gate__title {
+    margin: 0 0 var(--space-3, 12px);
+    font-family: var(--wt-display-font);
+    font-weight: 400;
+    font-size: var(--h3-size, 24px);
+    line-height: var(--h3-lh, 1.2);
+    color: var(--wt-ink);
+}
+
+.wo-terms-gate__body {
+    margin: 0 0 var(--space-3, 12px);
+    font-size: var(--body-m-size, 16px);
+    line-height: var(--body-m-lh, 1.55);
+}
+
+.wo-terms-gate__list {
+    margin: 0 0 var(--space-4, 16px);
+    padding: 0;
+    list-style: none;
+    border-top: var(--border-strong-width, 2px) solid var(--wt-ink);
+}
+
+.wo-terms-gate__list li {
+    padding: var(--space-3, 12px) 0;
+    border-bottom: var(--border-hairline, 1px) solid var(--wt-rule);
+    font-size: var(--body-s-size, 14px);
+    line-height: var(--body-s-lh, 1.55);
+}
+
+.wo-terms-gate__list strong {
+    color: var(--wt-ink);
+}
+
+.wo-terms-gate__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2, 8px) var(--space-5, 20px);
+    margin: 0 0 var(--space-4, 16px);
+}
+
+.wo-terms-gate__link {
+    font-size: var(--body-s-size, 14px);
+    font-weight: 700;
+    color: var(--wt-ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.wo-terms-gate__check {
+    display: flex;
+    gap: var(--space-3, 12px);
+    align-items: flex-start;
+    margin: 0 0 var(--space-4, 16px);
+    font-size: var(--body-s-size, 14px);
+    line-height: var(--body-s-lh, 1.55);
+    color: var(--wt-ink);
+    cursor: pointer;
+}
+
+.wo-terms-gate__check input {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    margin: 1px 0 0;
+    accent-color: var(--wt-ink);
+}
+
+.wo-terms-gate__error {
+    margin: 0 0 var(--space-4, 16px);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    border-left: var(--border-rule-width, 3px) solid var(--wt-danger-fg);
+    background: var(--wt-danger-bg);
+    color: var(--wt-danger-fg);
+    font-size: var(--body-s-size, 14px);
+}
+
+.wo-terms-gate__error[hidden] {
+    display: none;
+}
+
+.wo-terms-gate__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-3, 12px);
+}
+
+.wo-terms-gate__btn {
+    min-height: var(--control-h-md, 44px);
+    padding: 0 var(--space-5, 20px);
+    border: var(--border-strong-width, 2px) solid var(--wt-ink);
+    border-radius: 0;
+    font-family: var(--wt-body-font);
+    font-size: var(--button-m-size, 14px);
+    font-weight: 700;
+    letter-spacing: var(--button-m-track, 0.04em);
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: none;
+    transition: transform var(--duration-press, .08s) linear, box-shadow var(--duration-press, .08s) linear, background-color var(--duration-press, .08s) linear;
+}
+
+.wo-terms-gate__btn--primary {
+    background: var(--wt-accent);
+    color: var(--wt-ink);
+}
+
+.wo-terms-gate__btn--ghost {
+    background: transparent;
+    color: var(--wt-ink);
+}
+
+.wo-terms-gate__btn:hover:not(:disabled) {
+    transform: translate(calc(var(--lift-offset, 2px) * -1), calc(var(--lift-offset, 2px) * -1));
+    box-shadow: var(--wt-hard);
+}
+
+.wo-terms-gate__btn--primary:hover:not(:disabled) { background: var(--wt-accent-hover); }
+.wo-terms-gate__btn--ghost:hover:not(:disabled) { background: var(--sand-150, #EDE8DC); }
+
+.wo-terms-gate__btn:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.wo-terms-gate__btn:focus-visible,
+.wo-terms-gate__link:focus-visible,
+.wo-terms-gate__check input:focus-visible,
+.wo-terms-banner__close:focus-visible {
+    outline: 2px solid var(--wt-ink);
+    outline-offset: 2px;
+    box-shadow: var(--wt-focus);
+}
+
+/* ── aviso de suspensión ───────────────────────────────── */
+.wo-terms-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2147483050;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    border-bottom: var(--border-rule-width, 3px) solid var(--wt-ink);
+    background: var(--wt-warn-bg);
+    color: var(--wt-warn-fg);
+    font-size: var(--body-s-size, 14px);
+    line-height: var(--body-s-lh, 1.55);
+}
+
+.wo-terms-banner__text {
+    flex: 1 1 auto;
+    margin: 0;
+    min-width: 0;
+}
+
+.wo-terms-banner__close {
+    flex: 0 0 auto;
+    width: var(--tap-target-min, 44px);
+    height: var(--tap-target-min, 44px);
+    border: 0;
+    background: transparent;
+    font-size: 24px;
+    line-height: 1;
+    color: var(--wt-ink);
+    cursor: pointer;
+}
+
+@media (max-width: 520px) {
+    .wo-terms-gate__panel {
+        padding: var(--space-6, 24px) var(--space-4, 16px) var(--space-4, 16px);
+    }
+    .wo-terms-gate__actions {
+        flex-direction: column-reverse;
+    }
+    .wo-terms-gate__btn {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wo-terms-gate__btn {
+        transition: none;
+    }
+}
