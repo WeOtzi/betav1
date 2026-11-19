@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.7.1] - 2026-11-19
+
+Infraestructura: preparación para servir beta desde el VPS con Easypanel (plan `docs/plans/2026-11-18-migracion-beta-vps.md`). No cambia nada de la app; beta sigue en el hosting compartido hasta el corte de DNS.
+
+- Workflow «Publish beta image»: después de que «Verify delivery» aprueba «Tests and release policy» en un push a main, construye `ghcr.io/weotzi/betav1:sha-<commit>` con los mismos archivos que publica Hostinger (`scripts/release/export-image-context.cjs` reutiliza `exportRuntime`), prueba que arranque y la publica. Sin secretos de producción.
+- `deployments/vps/`: Dockerfile (Node 22 con glibc para sharp, usuario sin privilegios, chequeo por `/api/release`), deployer del VPS (timer de systemd que publica la punta verificada por digest, comprueba el commit a través de Traefik y vuelve sola a la anterior si falla) y runbook con el corte y la vuelta atrás.
+- Seguridad del deploy: el VPS despliega solo por el digest que anota el job oficial de «Publish beta image» (corrido desde main), nunca por etiqueta; corrige la deriva si alguien redespliega desde el panel; base `node:22-bookworm-slim` fijada por digest.
+- Apagado ordenado: con SIGTERM el servidor deja de aceptar conexiones y espera hasta 20 s (`SHUTDOWN_GRACE_MS`) a las peticiones en curso, en lugar de salir en el acto (`lib/local-ngrok.js` ya no corta el proceso).
+- Se retiran el `Dockerfile` y el `.dockerignore` viejos de la raíz (no incluían `lib/`, `services/` ni `templates/`) y la guía `docs/EASYPANEL_DEPLOYMENT.md` pasa a apuntar al runbook nuevo.
+- Validación: `node --test "tests/*.test.js"` 3312 pruebas, 3310 pasan, 0 fallan, 2 salteadas (incluye `tests/vps-image.test.js`); `deployments/vps/test_beta_deployer.py` 14 pruebas en verde en el VPS; imagen construida y arrancada en el VPS desde el contexto exportado (sharp como uid 1000, `/api/release` con el commit, healthcheck en verde); revisión adversarial con 19 hallazgos confirmados y corregidos.
+- Rollback: revertir este commit; el pipeline de Hostinger no cambia.
+
 ## [2.7.0] - 2026-11-18
 
 Seguridad: identidad, suplantación y plagio (fases 1 y 2 del plan `docs/plans/2026-11-18-kyc-antisuplantacion.md`).

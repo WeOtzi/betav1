@@ -1,0 +1,110 @@
+name: Publish beta image
+# Construye la imagen Docker de beta SOLO después de que «Verify delivery»
+# aprobó el job «Tests and release policy» para un push a main (el mismo gate
+# que usa el poller de Hostinger). No hay secretos de producción aquí: la
+# imagen no lleva .env y el VPS la descarga por su cuenta (deployments/vps).
+on:
+  workflow_run:
+    workflows: ["Verify delivery"]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+  actions: read
+  packages: write
+concurrency:
+  group: publish-beta-image-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    name: Build and push beta image
+    if: >-
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      IMAGE: ghcr.io/weotzi/betav1
+    steps:
+      - name: Confirm the release gate passed for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::SHA inválido"; exit 1; }
+          conclusion=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100" \
+            --jq '[.jobs[] | select(.name == "Tests and release policy" and .head_sha == $ENV.SHA)][0].conclusion // "missing"')
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::«Tests and release policy» no pasó para $SHA ($conclusion); no se publica imagen."
+            exit 1
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, pinned
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4, pinned
+        with:
+          node-version: '22'
+      - name: Export runtime files (same allowlist as Hostinger releases)
+        run: node scripts/release/export-image-context.cjs --sha "$SHA" --out "$RUNNER_TEMP/image-context"
+      - name: Build image
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          docker build \
+            -f deployments/vps/Dockerfile \
+            --build-arg RELEASE_COMMIT="$SHA" \
+            --build-arg RELEASE_VERSION="$version" \
+            -t "$IMAGE:sha-$SHA" \
+            "$RUNNER_TEMP/image-context"
+      - name: Smoke test (boots without production secrets)
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint node "$IMAGE:sha-$SHA" -e "require('sharp'); console.log('sharp ok')"
+          docker run -d --name smoke -p 127.0.0.1:4545:4545 \
+            -e SUPABASE_URL=http://127.0.0.1:9 -e SUPABASE_SERVICE_ROLE_KEY=smoke -e SUPABASE_ANON_KEY=smoke \
+            -e CRON_API_TOKEN=smoke -e DEPLOYMENT_ENV=smoke \
+            -e QUOTATION_EXPIRY_JOB=off -e GCAL_SYNC_JOB=off -e IMAGE_FP_JOB=off -e TURNOS_HOLD_JOB=off \
+            -e SESSION_REMINDERS_JOB=off -e MOST_WANTED_INTERVAL_HOURS=0 \
+            "$IMAGE:sha-$SHA"
+          ok=""
+          for attempt in $(seq 1 30); do
+            body=$(curl -fsS http://127.0.0.1:4545/api/release 2>/dev/null || true)
+            if echo "$body" | jq -e --arg sha "$SHA" --arg v "$VERSION" '.ok == true and .commit == $sha and .version == $v' >/dev/null 2>&1; then ok=1; break; fi
+            sleep 2
+          done
+          docker logs smoke 2>&1 | tail -n 40
+          docker rm -f smoke >/dev/null
+          test -n "$ok" || { echo "::error::La imagen no respondió /api/release con el commit esperado"; exit 1; }
+      - name: Push to GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:sha-$SHA"
+          # El VPS despliega por este digest (las etiquetas de GHCR son mutables). Lo lee de
+          # esta anotación en la API pública de GitHub: solo este workflow, corrido desde
+          # main por workflow_run, puede dejarla en este job.
+          digest=$(docker image inspect "$IMAGE:sha-$SHA" --format '{{range .RepoDigests}}{{println .}}{{end}}' | grep -m1 "^$IMAGE@sha256:" | cut -d@ -f2)
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::No obtuve el digest publicado"; exit 1; }
+          echo "::notice title=beta-image-digest::$digest"
+          # «:main» solo apunta al último commit verificado que sigue siendo la punta de main.
+          tip=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/main | cut -f1)
+          if [ "$tip" = "$SHA" ]; then
+            docker tag "$IMAGE:sha-$SHA" "$IMAGE:main"
+            docker push "$IMAGE:main"
+          else
+            echo "main ya avanzó a $tip; no se mueve la etiqueta :main"
+          fi
+          {
+            echo '### Imagen de beta'
+            echo "- \`$IMAGE:sha-$SHA\` (versión $VERSION)"
+            echo "- Digest: \`$digest\`"
+            echo '- El VPS la publica solo (deployments/vps/beta-deployer.py).'
+          } >> "$GITHUB_STEP_SUMMARY"

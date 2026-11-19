@@ -1,0 +1,13 @@
+[Unit]
+Description=We Ötzi beta: publica la punta verificada de main (una pasada)
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/weotzi-deployer/beta-deployer.py poll
+TimeoutStartSec=900
+Nice=10
+# El deployer no lee /etc/weotzi/beta.env (lo monta el servicio de Easypanel).
+PrivateTmp=true

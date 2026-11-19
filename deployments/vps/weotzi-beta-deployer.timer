@@ -1,0 +1,10 @@
+[Unit]
+Description=We Ötzi beta: revisar main cada minuto
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=60s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
