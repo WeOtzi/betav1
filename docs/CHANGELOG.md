@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.7.3] - 2026-11-19
+
+Registro del corte de DNS: beta.weotzi.com se sirve desde el VPS desde el 2026-11-19 a las 15:52 (-03). Solo documentación; el código de la app no cambia.
+
+- Runbook del VPS (`deployments/vps/README.md`): estado «en producción» y un «Registro del corte». El corte se adelantó a pedido del dueño, sin esperar las 4 h del TTL viejo: los jobs del hosting compartido se apagaron en su `.env` antes de cambiar el DNS, para que nunca corran en los dos lados (ni siquiera si el poller vuelve a publicar); la app vieja siguió viva hasta que venció la caché del TTL viejo.
+- Rollback de la migración: ahora incluye restaurar el `.env` del hosting compartido desde `main.env.bak-20261119-corte`, para devolverle los jobs.
+- Límites de recursos: se aplicaron a `agents-ai_chromium`. Quedan anotados los pendientes de `chatbot-we-otzi`, el caso de `hermes-agent` (puerto en modo host con `start-first`: cualquier cambio queda trabado) y que Easypanel no aplica los recursos hasta «Implementar».
+- `DEPLOY.md` y `CLAUDE.md` apuntan al VPS como forma de deploy. El hosting compartido queda como respaldo durante 4 semanas.
+- Todo lo de We Ötzi sale del hosting compartido (runbook: «Lo demás que se mudó al VPS»): weotzi.com (WordPress + MariaDB en Easypanel, copia exacta con la redirección `/beta`), el correo de `weotzi.chat` en BillionMail (buzón, DKIM, MX, certificado sincronizado desde Traefik) y un archivo de respaldos en `/srv/archivo-hostinger`.
+- Auditoría final de dependencias con Hostinger:
+  - Se retiró del docroot `tools/api/upload.php`, que permitía subir y ejecutar código sin autenticarse.
+  - Se retiró un `wp-config.php` de respaldo que se podía descargar.
+  - Respaldo diario en el VPS: `weotzi-backup` (WordPress, correo, n8n y secretos), con retención de 7 días.
+  - Se publicó el selector DKIM `short`.
+  - Supabase Auth envía por el SMTP del VPS. Postfix agrega el `Message-ID` que Supabase no manda y usa solo IPv4. La recuperación de contraseña se probó con un correo real.
+- Previews dadas de baja: `scripts/release/valentina-delivery.cjs` confirma la entrega con CI aprobado y la rama remota en el mismo commit, sin consultar `preview.weotzi.chat` (`PREVIEW_ENABLED = false`, con pruebas). `AGENTS.md` y las guías de Valentina remiten a la preview local.
+- Sin migraciones.
+- Validación: `node --test "tests/*.test.js"` en verde y política de entrega aprobada. En vivo: los 4 servidores autoritativos y los resolvers públicos devuelven 69.62.98.207; hay certificado de Let's Encrypt; `/api/release` 2.7.2 por HTTPS; `/explore` en Chrome contra el VPS muestra 756 tarjetas con datos de Supabase; la sincronización de Google Calendar corrió en el VPS sin fallos.
+- Rollback: revertir este commit (solo documentación).
+
 ## [2.7.2] - 2026-11-19
 
 Paridad del VPS con el hosting compartido antes del corte de DNS. Una auditoría con verificación adversarial comparó la app vieja (Hostinger: proxy.php + LiteSpeed) con la nueva (Traefik de Easypanel): 76 rutas, estáticos y APIs públicas dieron el mismo cuerpo en los dos lados. Estas son las diferencias del borde que sí cambiaban algo para los usuarios. Todo vive en `lib/edge-http.js`.

@@ -23,7 +23,8 @@ npm run test:prequote  # test del estimador de pre-cotización
 - [docs/MAPA_APLICACION.md](docs/MAPA_APLICACION.md) — mapa completo: rutas, módulos por tipo de usuario, esquema Supabase. **Empezar aquí.**
 - [docs/TECHNICAL.md](docs/TECHNICAL.md) — endpoints API y flujos críticos.
 - [docs/MISSION.md](docs/MISSION.md) — misión y pilares de producto.
-- [deployments/DEPLOY.md](deployments/DEPLOY.md) — deploy a producción `beta.weotzi.com` (SSH + PM2, vía `scripts/deploy.py`; credenciales en `.server-credentials`, nunca en el repo).
+- [deployments/vps/README.md](deployments/vps/README.md) — `beta.weotzi.com` corre en el VPS (Easypanel): merge a `main` → CI → imagen GHCR → el deployer del VPS la publica sola. Operación, rollback y registro del corte.
+- [deployments/DEPLOY.md](deployments/DEPLOY.md) — variables de entorno, migraciones y jobs; el deploy viejo al hosting compartido (SSH + PM2, `scripts/deploy.py`, credenciales en `.server-credentials`, nunca en el repo) queda como respaldo hasta 2026-12-17.
 - `docs/plans/` — solo planes activos o pausados (lo demás se elimina al completarse).
 
 ## Flujo de trabajo con git

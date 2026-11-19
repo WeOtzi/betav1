@@ -33,6 +33,8 @@ Sigue [VALENTINA-AUTOENTREGA.md](VALENTINA-AUTOENTREGA.md). La autorización de 
 git push origin valentina/rediseno-laura
 ```
 
+> **2026-11-19:** las previews públicas (`preview.weotzi.chat`) se dieron de baja al migrar al VPS. Los pasos 6 y 7 quedan así: espera el CI aprobado y revisa visualmente en la preview local. Lo que sigue sobre la preview pública es histórico.
+
 6. En [GitHub Actions](https://github.com/WeOtzi/betav1/actions), espera a que **Verify delivery** termine aprobado para tu commit. El controlador del servidor lo publica después; la actualización no es instantánea. Si falla CI, la preview conserva la última entrega aprobada.
 7. Abre [preview.weotzi.chat/inicio/](https://preview.weotzi.chat/inicio/) y refresca. Todas las páginas mantienen sus rutas, por ejemplo `/artist/login/` y `/marketplace/`, sin crear subcarpetas por entrega. Compara `git rev-parse HEAD` con el campo `commit` de [api/release](https://preview.weotzi.chat/api/release) antes de dar una entrega por publicada.
 8. Abre o actualiza el PR de `valentina/rediseno-laura` a `main`, con alcance, capturas y pruebas. Isaí revisa y mezcla; tú continúas trabajando en esta misma rama. Los cambios nuevos de main se integran de forma revisada, sin sobreescribir el rediseño.

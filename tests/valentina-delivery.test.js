@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { BRANCH, WORKSPACE, ORIGIN, guard, scope, publish, waitForPublication, status } = require('../scripts/release/valentina-delivery.cjs');
+const { BRANCH, WORKSPACE, ORIGIN, PREVIEW_ENABLED, guard, scope, publish, waitForPublication, status } = require('../scripts/release/valentina-delivery.cjs');
 const files = ['public/inicio/index.html', 'package.json', 'package-lock.json', 'docs/CHANGELOG.md'];
 const options = { title: 'fix(inicio): ajustar el formulario', validation: 'Navegador desktop y móvil comprobados.', files };
 function fixture() {
@@ -91,8 +91,29 @@ test('an old publication or PR-only CI cannot be mistaken for this delivery', as
     if (kind === 'old-release') io.release = async () => ({ ok: true, environment: 'preview', commit: 'old' });
     if (kind === 'version') io.release = async () => ({ ok: true, environment: 'preview', dataMode: 'browser-demo', commit: 'a'.repeat(40), version: 'old' });
     if (kind === 'pr') { const runs = io.runs; io.runs = sha => ({ workflow_runs: runs(sha).workflow_runs.map(run => ({ ...run, event: 'pull_request' })) }); }
-    await assert.rejects(waitForPublication(io, 'a'.repeat(40), '2.2.3-valentina.rediseno-laura.4', 1), /Todavía no/);
+    await assert.rejects(waitForPublication(io, 'a'.repeat(40), '2.2.3-valentina.rediseno-laura.4', 1, { preview: true }), /Todavía no/);
   }
+});
+test('previews are retired: CI plus the same remote commit completes without querying the preview', async () => {
+  assert.equal(PREVIEW_ENABLED, false);
+  const { io, state } = fixture(); let queried = false;
+  io.release = async () => { queried = true; return {}; };
+  const result = await waitForPublication(io, state.head, state.version);
+  assert.equal(result.ok, true); assert.equal(result.url, null); assert.match(result.note, /dadas de baja/);
+  assert.equal(queried, false);
+  state.remote = 'c'.repeat(40);
+  await assert.rejects(waitForPublication(io, state.head, state.version), /rama remota avanzó/);
+  const pr = fixture(); const runs = pr.io.runs;
+  pr.io.runs = sha => ({ workflow_runs: runs(sha).workflow_runs.map(run => ({ ...run, event: 'pull_request' })) });
+  await assert.rejects(waitForPublication(pr.io, pr.state.head, pr.state.version, 1), /Todavía no/);
+});
+test('without previews, status reports synchronized from CI and the remote branch only', async () => {
+  const { io, state } = fixture(); state.dirty = false; let queried = false;
+  io.release = async () => { queried = true; throw new Error('sin preview'); };
+  const result = await status(io);
+  assert.equal(result.synchronized, true); assert.equal(result.preview, null); assert.equal(queried, false);
+  state.remote = 'c'.repeat(40);
+  assert.equal((await status(io)).synchronized, false);
 });
 test('failed CI stops and a later successful CI plus exact release completes the wait', async () => {
   const failed = fixture(); const runs = failed.io.runs;
