@@ -12,6 +12,8 @@ const { Readable } = require('stream');
 const archiver = require('archiver');
 const fs = require('fs-extra');
 const helmet = require('helmet');
+const compression = require('compression');
+const edgeHttp = require('./lib/edge-http');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
@@ -165,6 +167,12 @@ app.use(helmet({
     contentSecurityPolicy: false, // Disabled — app uses inline scripts and CDN resources
     crossOriginEmbedderPolicy: false
 }));
+
+// ── borde (2.7.2): lo que antes ponía Hostinger y lo que exige el Traefik de Easypanel.
+// Ver lib/edge-http.js.
+app.use(edgeHttp.upgradeInsecureRequests);
+app.use(edgeHttp.upstreamFailureStatus);
+app.use(compression({ filter: (req, res) => edgeHttp.shouldCompress(req, res, compression.filter) }));
 
 // CORS: Restrict origins
 const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:4545')
@@ -1403,13 +1411,8 @@ async function uploadFileToFolder(drive, folderId, file) {
  * GET /api/client-info
  */
 app.get('/api/client-info', (req, res) => {
-    // Get IP from various headers (supports proxies)
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-               req.headers['x-real-ip'] ||
-               req.connection?.remoteAddress ||
-               req.socket?.remoteAddress ||
-               req.ip ||
-               'unknown';
+    // IP real según el proxy propio (lib/edge-http.js), no el X-Forwarded-For del cliente.
+    const ip = edgeHttp.clientIp(req) || 'unknown';
     
     // ── privacidad ── nunca la IP completa: se guarda en session_logs.user_ip.
     res.json({
@@ -1443,9 +1446,7 @@ app.post('/api/session-log', async (req, res) => {
             if (!cfg.supabaseUrl || !cfg.supabaseServiceKey) return;
 
             // Get the client IP from the request
-            const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
-                || req.headers['x-real-ip']
-                || req.socket.remoteAddress;
+            const clientIp = edgeHttp.clientIp(req);
 
             const isLocal = !clientIp || clientIp === '::1' || clientIp === '127.0.0.1' || clientIp.startsWith('192.168.') || clientIp.startsWith('10.');
 
@@ -3911,12 +3912,7 @@ function normalizeProfileVisitArtistUsername(value) {
 }
 
 function getProfileVisitClientIp(req) {
-    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-    return forwarded
-        || String(req.headers['cf-connecting-ip'] || '').trim()
-        || req.ip
-        || req.socket?.remoteAddress
-        || '';
+    return edgeHttp.clientIp(req);
 }
 
 function hashProfileVisitIp(ip, serviceRoleKey) {
@@ -7177,13 +7173,16 @@ function gracefulShutdown(signal, exitCode) {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`[server] ${signal}: cerrando (espera hasta ${SHUTDOWN_GRACE_MS} ms a las peticiones en curso)`);
+    // El keep-alive largo (lib/edge-http.js) dejaría abiertas 95 s las conexiones que
+    // terminan una petición después del close(); al apagar se cierran en 1 s.
+    httpServer.keepAliveTimeout = 1000;
     httpServer.close(() => process.exit(exitCode));
     if (typeof httpServer.closeIdleConnections === 'function') httpServer.closeIdleConnections();
     setTimeout(() => process.exit(exitCode), SHUTDOWN_GRACE_MS).unref();
 }
 process.once('SIGTERM', () => gracefulShutdown('SIGTERM', 0));
 process.once('SIGINT', () => gracefulShutdown('SIGINT', 130));
-const httpServer = app.listen(...listenArguments, () => {
+const httpServer = edgeHttp.tuneServerTimeouts(app.listen(...listenArguments, () => {
     if (LISTEN_SOCKET) fs.chmodSync(LISTEN_SOCKET, 0o600);
     logStartupBanner();
     startLocalNgrok({ targetPort: PORT }).catch(err => {
@@ -7236,5 +7235,5 @@ const httpServer = app.listen(...listenArguments, () => {
     console.log('  /job-board             - Job Board (Public Feed)');
     console.log('  /job-board/request     - Publish Tattoo Request');
     console.log('');
-});
+}));
 

@@ -132,9 +132,11 @@ test('el deployer del VPS espera el mismo workflow, job e imagen que publica Git
 
 test('apagado ordenado: SIGTERM cierra el servidor y espera las peticiones en curso', () => {
   const server = read('server.js');
-  assert.match(server, /const httpServer = app\.listen\(/);
+  assert.match(server, /const httpServer = edgeHttp\.tuneServerTimeouts\(app\.listen\(/);
   assert.match(server, /process\.once\('SIGTERM', \(\) => gracefulShutdown\('SIGTERM', 0\)\)/);
   assert.match(server, /httpServer\.close\(/);
+  // Con el keep-alive de 95 s (2.7.2), al apagar se baja para que close() no espere 95 s.
+  assert.match(server, /httpServer\.keepAliveTimeout = 1000;\s*\n\s*httpServer\.close\(/);
   assert.match(server, /SHUTDOWN_GRACE_MS/);
   const ngrok = read('lib/local-ngrok.js');
   assert.doesNotMatch(ngrok, /process\.once\('SIGTERM'/, 'ngrok no debe cortar el proceso antes del cierre ordenado');

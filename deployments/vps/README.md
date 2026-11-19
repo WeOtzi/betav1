@@ -1,6 +1,6 @@
 # Beta en el VPS (Easypanel)
 
-> **Estado (2026-11-18): en preparación.** Beta sigue sirviéndose desde el hosting compartido de Hostinger (`deployments/hostinger/RELEASE-RUNBOOK.md`) hasta el corte de DNS descrito abajo. Plan y decisiones: `docs/plans/2026-11-18-migracion-beta-vps.md`.
+> **Estado (2026-11-19): en paralelo.** El servicio `beta` ya corre en el VPS (adoptado y con el deployer encendido), con los jobs apagados. Los usuarios siguen en el hosting compartido de Hostinger (`deployments/hostinger/RELEASE-RUNBOOK.md`) hasta el corte de DNS descrito abajo. Plan y decisiones: `docs/plans/2026-11-18-migracion-beta-vps.md`.
 
 ## Cómo funciona
 
@@ -53,14 +53,34 @@ Mientras el hosting viejo siga activo, el VPS corre con estos valores en **Entor
 
 `QUOTATION_EXPIRY_JOB=off` · `GCAL_SYNC_JOB=off` · `IMAGE_FP_JOB=off` · `TURNOS_HOLD_JOB=off` · `SESSION_REMINDERS_JOB=off` · `MOST_WANTED_INTERVAL_HOURS=0`
 
-El vencimiento de sanciones y el barrido de Términos no tienen interruptor; correr en dos lados es tolerable (claims en base de datos). Al cortar, se quitan todos de **Entorno** y se redespliega.
+El vencimiento de sanciones y el barrido de Términos no tienen interruptor; correr en dos lados es tolerable (claims en base de datos). Los recordatorios de calendario solo corren si existe `CALENDAR_REMINDERS_INTERVAL_MS` (hoy no está en ningún lado). Al cortar, se quitan todos de **Entorno** y se redespliega.
+
+### Pruebas en paralelo (antes del corte)
+
+- Solo lectura en el navegador: `https://we-otzi-app-beta.jubcpl.easypanel.host` o `curl --resolve beta.weotzi.com:80:69.62.98.207 http://beta.weotzi.com/...`. Comparten la base de datos con beta.
+- Los POST/PUT/PATCH/DELETE **desde el navegador** fallan con 500 en el dominio de prueba: CORS solo admite `https://beta.weotzi.com` (igual que en el hosting compartido). Las pruebas de escritura (login, registro, cotización, subidas) se hacen **después del corte**, en `https://beta.weotzi.com`.
+- No completar registros ni reclamos de estudio en el dominio de prueba: los enlaces de los correos se arman con el `Host` y quedarían apuntando a un dominio que se borra.
+
+## Diferencias con el hosting compartido
+
+El cuerpo de las respuestas es el mismo (auditoría del 2026-11-19: 76 rutas, estáticos y APIs públicas). Lo que cambia es el borde, y la app lo compensa en `lib/edge-http.js` (2.7.2):
+
+| Tema | Hostinger (proxy.php + LiteSpeed) | VPS (Traefik de Easypanel) | Cómo queda |
+|---|---|---|---|
+| IP del cliente | proxy.php reemplaza `X-Forwarded-For` | conserva el del cliente (`forwardedHeaders.insecure`, global) | la app usa `req.ip` (`trust proxy` 1) |
+| Esquema (`X-Forwarded-Proto`) | lo fija proxy.php | también lo puede mandar el cliente | la app solo lo usa para cosas que el cliente ya controla (su propia respuesta, `secure` de una cookie); Traefik redirige a HTTPS |
+| Compresión | brotli de LiteSpeed | ninguna | middleware `compression` |
+| 502 de la app | pasa tal cual | Easypanel lo cambia por su página HTML (middleware `bad-gateway-error-page`, solo el status 502) | la app responde 504 |
+| Conexiones | una nueva por petición | Traefik las reutiliza hasta 90 s | keep-alive de 95 s |
+| `upgrade-insecure-requests` | lo agrega Hostinger | no | la app lo agrega en HTTPS |
+| Lectura del cuerpo | sin corte | `readTimeout` 60 s (global, compartido con n8n) | límite conocido: solo afecta subidas de más de 60 s; las fotos van directo a Supabase |
 
 ## Primera instalación (root en el VPS)
 
 1. **Swap** (si no hay): `fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile`, agregar `/swapfile none swap sw 0 0` a `/etc/fstab` y `sysctl vm.swappiness=10` (persistir en `/etc/sysctl.d/99-swap.conf`).
 2. **Variables:** copiar `~/weotzi-deploy/shared/main.env` del hosting compartido **de servidor a servidor**, sin mostrarlo, a `/etc/weotzi/beta.env`, quitando el BOM y las claves `PORT`, `HOST`, `LISTEN_SOCKET` y `NGROK_*`. Verificar solo nombres: `cut -d= -f1 /etc/weotzi/beta.env`. Guardar además una copia fuera de línea en el gestor de secretos.
 3. **Deployer:** copiar `deployments/vps/` al VPS y correr `bash install.sh` (deja el timer apagado).
-4. **Imagen pública:** tras la primera corrida de «Publish beta image», en GitHub → Packages → `betav1` → Package settings → Change visibility → Public.
+4. **Imagen pública:** el paquete `betav1` hereda la visibilidad del repositorio público. Comprobar desde el VPS, sin `docker login`, que `docker pull ghcr.io/weotzi/betav1:sha-<commit>` funciona; si no, GitHub → Packages → `betav1` → Package settings → Change visibility → Public.
 5. **Servicio** en Easypanel con la tabla de arriba. Después: `python3 /opt/weotzi-deployer/beta-deployer.py adopt` (comprueba el commit que responde, fija el servicio por el digest verificado y lo registra) y `systemctl enable --now weotzi-beta-deployer.timer`. Sin `adopt`, el timer no publica nada.
 
 ## Operación
@@ -85,14 +105,17 @@ systemctl disable --now weotzi-beta-deployer.timer          # congela los deploy
 
 ## Corte de DNS (una sola vez)
 
-1. 48 h antes: TTL del registro `A beta` (Google Cloud DNS de `weotzi.com`) a 300 s. No tocar el apex, `www`, MX ni SPF/DKIM.
+beta.weotzi.com manda HSTS de un año: un navegador que ya la visitó **no deja saltar** un certificado inválido. El certificado de Let's Encrypt (desafío HTTP-01) solo se puede emitir cuando el DNS ya apunta al VPS, así que hay unos minutos en que quien llegue al VPS ve un error TLS. Por eso: hora de poco tráfico, TTL bajo y HTTPS encendido apenas se cambia el registro (no antes: fallaría la validación y Let's Encrypt limita los reintentos).
+
+1. Al menos 4 h antes (el TTL actual es de 4 h): TTL del registro `A beta` a 300 s. El DNS de `weotzi.com` se administra en Squarespace (Dominios → weotzi.com → DNS). No tocar el apex, `www`, `staging`, MX ni los registros de Google.
 2. Congelar merges a main. Confirmar que VPS y hosting compartido están en el mismo commit (`/api/release`).
 3. Aplicar en Easypanel los límites de los demás servicios (beta primero; reinicia cada servicio unos segundos).
 4. **Desactivar** (no borrar) el cron del poller en hPanel.
-5. Cambiar `A beta` → `69.62.98.207`. Encender HTTPS del dominio en Easypanel y esperar el certificado.
-6. Detener la app vieja: `PM2_HOME=~/weotzi-deploy/pm2 ~/node_modules/pm2/bin/pm2 stop weotzi-beta` (en el compartido).
+5. Cambiar `A beta` → `69.62.98.207`. Esperar a que los servidores autoritativos respondan la IP nueva (`dig +short @ns-cloud-d1.googledomains.com beta.weotzi.com`, y d2–d4) y recién ahí encender HTTPS del dominio `beta.weotzi.com` en Easypanel. Mirar `docker service logs easypanel-traefik` hasta ver el certificado y comprobar: `openssl s_client -connect 69.62.98.207:443 -servername beta.weotzi.com </dev/null | grep issuer` (Let's Encrypt) y `curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' http://beta.weotzi.com/` (301 o 308 a https).
+6. Dejar viva la app vieja al menos dos TTL (10 min con 300 s): los resolvers que todavía tengan la IP vieja siguen llegando ahí. Recién entonces detenerla: `PM2_HOME=~/weotzi-deploy/pm2 ~/node_modules/pm2/bin/pm2 stop weotzi-beta` (en el compartido).
 7. Quitar los interruptores de jobs en Easypanel y redesplegar. Confirmar en logs `[huellas]` (< 2 min) y `[gcal]` (< 15 min).
-8. Vigilar 24–48 h; luego subir el TTL.
+8. Pruebas de escritura en `https://beta.weotzi.com` (login, cotización de QA, imagen IA, subida grande) y borrar el dominio `*.easypanel.host`.
+9. Vigilar 24–48 h; luego subir el TTL.
 
 ## Volver al hosting compartido (rollback de la migración)
 
