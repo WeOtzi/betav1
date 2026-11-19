@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.7.2] - 2026-11-19
+
+Paridad del VPS con el hosting compartido antes del corte de DNS. Una auditoría con verificación adversarial comparó la app vieja (Hostinger: proxy.php + LiteSpeed) con la nueva (Traefik de Easypanel): 76 rutas, estáticos y APIs públicas dieron el mismo cuerpo en los dos lados. Estas son las diferencias del borde que sí cambiaban algo para los usuarios. Todo vive en `lib/edge-http.js`.
+
+- IP del cliente: los lugares que leían a mano el primer `X-Forwarded-For` (visitas al perfil, compartidos del ranking Most Wanted, `/api/client-info`, `/api/session-log` y el helper `requestIp` de cookies, hoy sin uso) usan ahora `req.ip`. Traefik conserva el encabezado que manda el cliente, así que en el VPS cualquiera podía inflar visitas y compartidos o falsear la IP guardada; proxy.php lo limpiaba. Los límites de peticiones ya usaban `req.ip`.
+- Compresión brotli/gzip con `compression@1.8.2` (paquete oficial de Express, auditado: sin scripts de instalación ni red). Antes la hacía LiteSpeed; sin ella el VPS mandaba unas 3 veces más bytes (`config-manager.js` 81 KB → 18 KB). No comprime pedidos con `Range` ni archivos ya comprimidos.
+- Los 502 propios de la app (falla de un servicio externo, con mensaje en español) salen como 504: Easypanel cambia cualquier 502 por su página HTML en inglés y el frontend perdía el mensaje. El frontend trata el 504 igual que el 502; el 500 y el 503 tienen casos especiales y por eso no se usan.
+- Keep-alive del servidor en 95 s (más que los 90 s con que Traefik reutiliza conexiones), para evitar 502 esporádicos en POST; al apagar se baja a 1 s para que el cierre ordenado no espere de más.
+- `Content-Security-Policy: upgrade-insecure-requests` en HTTPS, como lo agregaba Hostinger.
+- Runbook del VPS: diferencias con el hosting compartido, procedimiento del corte con HSTS (TTL de 5 min y HTTPS encendido apenas cambia el DNS) y pruebas de escritura solo después del corte (CORS del dominio de prueba).
+- Sin migraciones.
+- Validación: `node --test "tests/*.test.js"` 3320 pruebas, 3318 pasan, 0 fallan, 2 salteadas (incluye `tests/edge-http.test.js` con un Express real); `server.js` levantado en local: `br` en páginas y estáticos, 206 sin comprimir con `Range`, 502 → 504 con el JSON intacto, CSP solo en HTTPS. Revisión adversarial del parche (regresiones en el servidor real, IP en los dos hostings, deploy y runbook): sin hallazgos medios en pie; se corrigieron el cierre ordenado con keep-alive largo, el alcance de la prueba de 502/504 y el runbook. Comprobado en vivo que el proxy.php instalado en Hostinger manda `X-Forwarded-For` con `REMOTE_ADDR` (misma IP antes y después del parche).
+- Rollback: revertir este commit (el deployer del VPS vuelve a la 2.7.1 con `rollback`).
+
 ## [2.7.1] - 2026-11-19
 
 Infraestructura: preparación para servir beta desde el VPS con Easypanel (plan `docs/plans/2026-11-18-migracion-beta-vps.md`). No cambia nada de la app; beta sigue en el hosting compartido hasta el corte de DNS.
