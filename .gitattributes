@@ -7,3 +7,6 @@ scripts/release/preview-assets/** -text
 
 # Migraciones SQL siempre con LF (los tests las leen como texto; COT-A-16).
 *.sql text eol=lf
+
+# Archivos que se copian tal cual al VPS de beta (Linux): siempre LF.
+deployments/vps/** text eol=lf

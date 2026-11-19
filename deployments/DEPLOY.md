@@ -2,6 +2,8 @@
 
 > Documento para agentes y desarrolladores. Cubre despliegue completo y parcial al servidor de producción `beta.weotzi.com`.
 
+> **Migración en curso (2026-11-18):** beta se está pasando a un VPS con Easypanel. Runbook nuevo en [`deployments/vps/README.md`](vps/README.md) y plan en [`docs/plans/2026-11-18-migracion-beta-vps.md`](../docs/plans/2026-11-18-migracion-beta-vps.md). Hasta el corte de DNS, beta se sigue sirviendo desde el hosting compartido según esta guía y `deployments/hostinger/RELEASE-RUNBOOK.md`.
+
 ---
 
 ## Estándar de datos (obligatorio desde 2026-06-21)

@@ -7168,7 +7168,22 @@ if (LISTEN_SOCKET) {
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
 }
 const listenArguments = LISTEN_SOCKET ? [LISTEN_SOCKET] : [PORT, LISTEN_HOST];
-app.listen(...listenArguments, () => {
+// Cierre ordenado: al recibir SIGTERM (deploy en Docker/pm2) deja de aceptar conexiones
+// y espera a que terminen las peticiones en curso (p. ej. imágenes con IA) hasta
+// SHUTDOWN_GRACE_MS; después sale igual.
+const SHUTDOWN_GRACE_MS = Math.max(0, Number(process.env.SHUTDOWN_GRACE_MS) || 20000);
+let shuttingDown = false;
+function gracefulShutdown(signal, exitCode) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[server] ${signal}: cerrando (espera hasta ${SHUTDOWN_GRACE_MS} ms a las peticiones en curso)`);
+    httpServer.close(() => process.exit(exitCode));
+    if (typeof httpServer.closeIdleConnections === 'function') httpServer.closeIdleConnections();
+    setTimeout(() => process.exit(exitCode), SHUTDOWN_GRACE_MS).unref();
+}
+process.once('SIGTERM', () => gracefulShutdown('SIGTERM', 0));
+process.once('SIGINT', () => gracefulShutdown('SIGINT', 130));
+const httpServer = app.listen(...listenArguments, () => {
     if (LISTEN_SOCKET) fs.chmodSync(LISTEN_SOCKET, 0o600);
     logStartupBanner();
     startLocalNgrok({ targetPort: PORT }).catch(err => {
