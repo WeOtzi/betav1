@@ -10,6 +10,11 @@ const WORKSPACE = 'C:/WeOtzi-Dev/weotzi-unified';
 const REPOSITORY = 'WeOtzi/betav1';
 const ORIGIN = 'https://github.com/WeOtzi/betav1.git';
 const PREVIEW = 'https://preview.weotzi.chat';
+// Las previews vivían solo en el hosting compartido y se dieron de baja el 2026-11-19
+// (migración al VPS). Sin preview, la entrega termina con el CI del push aprobado y la
+// rama remota en el mismo commit. Volver a true solo si se vuelve a publicar una preview.
+const PREVIEW_ENABLED = false;
+const PREVIEWS_RETIRED = 'Previews dadas de baja el 2026-11-19: la entrega se confirma con CI aprobado y la rama remota en el mismo commit.';
 const REQUIRED = ['package.json', 'package-lock.json', 'docs/CHANGELOG.md'];
 const normalized = value => String(value).replace(/\\/g, '/').replace(/\/$/, '').toLowerCase();
 
@@ -33,7 +38,7 @@ function ciProof(runs, sha) {
   return (runs.workflow_runs || []).filter(run => run.head_sha === sha && run.head_branch === BRANCH && run.event === 'push' && String(run.path || '').split('@')[0] === '.github/workflows/verify.yml' && run.name === 'Verify delivery').sort((a, b) => b.id - a.id)[0];
 }
 
-async function waitForPublication(io, expectedSha, version, timeoutMs = 15 * 60 * 1000) {
+async function waitForPublication(io, expectedSha, version, timeoutMs = 15 * 60 * 1000, { preview = PREVIEW_ENABLED } = {}) {
   const started = io.now();
   let phase = '';
   while (io.now() - started <= timeoutMs) {
@@ -42,6 +47,10 @@ async function waitForPublication(io, expectedSha, version, timeoutMs = 15 * 60 
     const proof = ciProof(io.runs(expectedSha), expectedSha);
     if (proof?.status === 'completed' && proof.conclusion !== 'success') throw new Error('CI no aprobó el commit ' + expectedSha + ': ' + proof.conclusion + '. Corrige la causa; no hagas force push.');
     if (proof?.status === 'completed' && proof.conclusion === 'success') {
+      if (!preview) {
+        if (io.remoteHead() !== expectedSha) throw new Error('La rama remota avanzó a otro commit. Conserva el trabajo y revisa antes de continuar.');
+        return { ok: true, branch: BRANCH, commit: expectedSha, version, ci: proof.html_url, url: null, note: PREVIEWS_RETIRED };
+      }
       let release;
       try { release = await io.release(); } catch (_) { /* A restart is not publication success. */ }
       const remote = io.remoteHead();
@@ -111,15 +120,17 @@ function createIO(root = path.resolve(__dirname, '../..')) {
   };
 }
 
-async function status(io) {
+async function status(io, { preview = PREVIEW_ENABLED } = {}) {
   const repo = io.inspect();
   let sessionReady = true, reason = '', login = '';
   try { guard(repo, io.session); login = io.login(); if (login !== 'valen-rozes') throw new Error('La cuenta de GitHub no es valen-rozes.'); } catch (error) { sessionReady = false; reason = error.message; }
   let release = {}, remote = '';
-  try { release = await io.release(); remote = io.remoteHead(); } catch (_) { reason ||= 'No se pudo consultar la publicación o la rama remota.'; }
+  try { if (preview) release = await io.release(); remote = io.remoteHead(); } catch (_) { reason ||= 'No se pudo consultar la publicación o la rama remota.'; }
   let ciPassed = false;
   try { const proof = ciProof(io.runs(repo.head), repo.head); ciPassed = proof?.status === 'completed' && proof.conclusion === 'success'; } catch (_) { /* A missing CI proof is not success. */ }
-  return { session: io.session, root: repo.root, branch: repo.branch, upstream: repo.upstream, github: login, canPublishHere: sessionReady, reason, pendingChanges: repo.dirty, localCommit: repo.head, remoteCommit: remote, publishedCommit: release.commit || '', ciPassed, synchronized: !repo.dirty && ciPassed && repo.head === remote && remote === release.commit && release.environment === 'preview' && release.version === repo.version, preview: PREVIEW + '/inicio/' };
+  const pushed = !repo.dirty && ciPassed && repo.head === remote;
+  const published = !preview || (remote === release.commit && release.environment === 'preview' && release.version === repo.version);
+  return { session: io.session, root: repo.root, branch: repo.branch, upstream: repo.upstream, github: login, canPublishHere: sessionReady, reason, pendingChanges: repo.dirty, localCommit: repo.head, remoteCommit: remote, publishedCommit: preview ? (release.commit || '') : '', ciPassed, synchronized: pushed && published, preview: preview ? PREVIEW + '/inicio/' : null, ...(preview ? {} : { note: PREVIEWS_RETIRED }) };
 }
 
 function parse(argv) {
@@ -138,4 +149,4 @@ async function cli(argv = process.argv.slice(2), io = createIO()) {
   return result;
 }
 if (require.main === module) cli().catch(error => { console.error('[Valentina] ' + error.message); process.exitCode = 1; });
-module.exports = { BRANCH, WORKSPACE, ORIGIN, guard, scope, ciProof, waitForPublication, publish, status, parse, createIO, cli };
+module.exports = { BRANCH, WORKSPACE, ORIGIN, PREVIEW_ENABLED, guard, scope, ciProof, waitForPublication, publish, status, parse, createIO, cli };

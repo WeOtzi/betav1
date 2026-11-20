@@ -2,9 +2,9 @@
 
 ## Autorización vigente de Isaí
 
-Por solicitud expresa del propietario del 27/10/2026, al terminar cada tarea de implementación o corrección de Valen, completa automáticamente pruebas, versión/changelog, commit, push a `valentina/rediseno-laura`, CI y comprobación de la misma SHA en `https://preview.weotzi.chat/api/release`. No pidas otra aprobación para esos pasos rutinarios dentro de la tarea autorizada. Esta instrucción reemplaza las guías históricas que pedían esperar una orden adicional para publicar.
+Por solicitud expresa del propietario del 27/10/2026, al terminar cada tarea de implementación o corrección de Valen, completa automáticamente pruebas, versión/changelog, commit, push a `valentina/rediseno-laura`, CI aprobado y la rama remota en el mismo commit. (Desde el 2026-11-19 no hay preview pública: `preview.weotzi.chat` se dio de baja en la migración al VPS; `valentina-delivery.cjs` ya no la consulta.) No pidas otra aprobación para esos pasos rutinarios dentro de la tarea autorizada. Esta instrucción reemplaza las guías históricas que pedían esperar una orden adicional para publicar.
 
-Una entrega corresponde a una tarea coherente y terminada, no a cada tecla o guardado. Las preguntas, auditorías de solo lectura y solicitudes explícitas de plan/borrador no generan commits. Si Valen pide no publicar una tarea, respeta esa instrucción. No declares éxito si faltan pruebas, CI o la SHA pública.
+Una entrega corresponde a una tarea coherente y terminada, no a cada tecla o guardado. Las preguntas, auditorías de solo lectura y solicitudes explícitas de plan/borrador no generan commits. Si Valen pide no publicar una tarea, respeta esa instrucción. No declares éxito si faltan pruebas, CI o el push de la misma SHA.
 
 ## Sesión y carpeta obligatorias
 

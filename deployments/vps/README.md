@@ -1,6 +1,6 @@
 # Beta en el VPS (Easypanel)
 
-> **Estado (2026-11-19): en paralelo.** El servicio `beta` ya corre en el VPS (adoptado y con el deployer encendido), con los jobs apagados. Los usuarios siguen en el hosting compartido de Hostinger (`deployments/hostinger/RELEASE-RUNBOOK.md`) hasta el corte de DNS descrito abajo. Plan y decisiones: `docs/plans/2026-11-18-migracion-beta-vps.md`.
+> **Estado: en producción desde el 2026-11-19 15:52 (-03).** `beta.weotzi.com` apunta al VPS (`A beta` → `69.62.98.207`, TTL 300 s), con HTTPS de Let's Encrypt y todos los jobs encendidos. El hosting compartido de Hostinger (`deployments/hostinger/RELEASE-RUNBOOK.md`) queda como respaldo con los jobs apagados en su `.env` (ver «Registro del corte»). Plan y decisiones: `docs/plans/2026-11-18-migracion-beta-vps.md`.
 
 ## Cómo funciona
 
@@ -49,7 +49,7 @@ Borrar el dominio `*.easypanel.host` que Easypanel crea solo, una vez terminadas
 
 ### Interruptores de jobs (pruebas en paralelo)
 
-Mientras el hosting viejo siga activo, el VPS corre con estos valores en **Entorno** para no duplicar tareas:
+**Quitados en el corte (2026-11-19):** hoy el panel solo tiene `DEPLOYMENT_ENV`, `RELEASE_ENVIRONMENT` y `NODE_OPTIONS`. Se vuelven a poner solo si el VPS tiene que convivir otra vez con un hosting que corra jobs. Mientras el hosting viejo seguía activo, el VPS corría con estos valores en **Entorno** para no duplicar tareas:
 
 `QUOTATION_EXPIRY_JOB=off` · `GCAL_SYNC_JOB=off` · `IMAGE_FP_JOB=off` · `TURNOS_HOLD_JOB=off` · `SESSION_REMINDERS_JOB=off` · `MOST_WANTED_INTERVAL_HOURS=0`
 
@@ -117,11 +117,96 @@ beta.weotzi.com manda HSTS de un año: un navegador que ya la visitó **no deja 
 8. Pruebas de escritura en `https://beta.weotzi.com` (login, cotización de QA, imagen IA, subida grande) y borrar el dominio `*.easypanel.host`.
 9. Vigilar 24–48 h; luego subir el TTL.
 
+### Registro del corte (2026-11-19)
+
+El dueño pidió adelantar el corte: el TTL bajó a 300 s a las 15:42 y el registro cambió a las 15:52 (-03), sin esperar las 4 h. Para que eso fuera seguro:
+
+- **Jobs del hosting compartido apagados en su `.env`** antes de cambiar el DNS: `~/weotzi-deploy/shared/main.env` tiene ahora `QUOTATION_EXPIRY_JOB=off`, `GCAL_SYNC_JOB=off`, `IMAGE_FP_JOB=off`, `TURNOS_HOLD_JOB=off`, `SESSION_REMINDERS_JOB=off` y `MOST_WANTED_INTERVAL_HOURS=0` (respaldo intacto en `main.env.bak-20261119-corte`). Así, si el poller de hPanel vuelve a publicar, la app vieja arranca igual sin jobs.
+- La app vieja siguió viva hasta las 20:00 (-03) para los resolvers que todavía tenían la IP vieja con el TTL de 4 h (vencía 19:47); a esa hora se detuvo con `pm2 stop`.
+- Squarespace pide verificar de nuevo la cuenta de Google antes de editar DNS (lo hace el dueño).
+- **Límites aplicados:** `agents-ai_chromium` 1536 MB / 1 núcleo. Pendientes, en un horario sin uso (cada cambio reinicia el servicio): `chatbot-we-otzi` (n8n, evolution-api, postgres, alicia-calls).
+- **Ojo con `agents-ai_hermes-agent`:** publica un puerto en modo host y su orden de actualización es `start-first`, así que cualquier cambio de spec queda en `Pending` (la tarea nueva no consigue el puerto). Se revirtió con `docker service rollback`; para limitarlo hay que pasar antes a `stop-first` (corta el servicio unos segundos).
+- Easypanel guarda los recursos pero no los aplica hasta un «Implementar»; para no reconstruir servicios ajenos se aplicaron con `docker service update --limit-memory … --limit-cpu …`, con el mismo valor que quedó en el panel.
+
+- **Cron del poller quitado de hPanel** (2026-11-19, sitio weotzi.com → Avanzado → Cron Jobs; hPanel no permite pausarlo, solo eliminarlo). Para restaurarlo, crear una tarea de tipo «Custom» con frecuencia `* * * * *` y el comando `/usr/bin/php /home/u795331143/domains/weotzi.com/public_html/beta/auto_monitor.php`.
+
+## Lo demás que se mudó al VPS (2026-11-19)
+
+El dueño pidió que no quede nada de We Ötzi en el hosting compartido. `bangtanstylefbar.com` y el WordPress de prueba `yellowgreen-woodcock-947419.hostingersite.com` quedan allá por decisión suya.
+
+### weotzi.com (WordPress corporativo)
+
+- Easypanel, proyecto `we-otzi-app` (la licencia gratuita admite 3 proyectos): servicio `web` (`wordpress:php8.2-apache`) y `web-db` (`mariadb:11.4`).
+- Archivos en `/srv/weotzi-web/html` (copia exacta del docroot, 24.538 archivos; `beta/` solo con el `.htaccess` que redirige `weotzi.com/beta/*` → `beta.weotzi.com`). Datos de MariaDB en `/srv/weotzi-web/db`.
+- Claves de la base generadas en el VPS: `/etc/weotzi/web/db_password` y `db_root_password`, montadas en `/run/secrets/weotzi-web`. `wp-config.php` lee la clave del archivo (`MARIADB_*_FILE` en la base). Nadie las tipea en el panel. El `wp-config.php` original quedó en `/srv/weotzi-web/wp-config.hostinger.php`.
+- `wp-config.php` respeta `X-Forwarded-Proto` (HTTPS termina en Traefik). PHP: `/srv/weotzi-web/php.ini` (512 MB de memoria y de subida).
+- Correo de WordPress: mu-plugin `wp-content/mu-plugins/weotzi-smtp.php`, envía por `mail.weotzi.chat:465` como `notificaciones@weotzi.chat` (el remitente original pasa a Reply-To). Clave en `/etc/weotzi/web/smtp_password` (root:www-data 0440).
+- DNS (Squarespace): `@` y `www` → `69.62.98.207`, TTL 300 s. Let's Encrypt para los dos.
+- `staging.weotzi.com` todavía apunta al compartido y no sirve nada: borrarlo antes de dar de baja el hosting (si Hostinger reasigna la IP, el subdominio quedaría en manos de otro cliente).
+
+### Correo de weotzi.chat (BillionMail)
+
+- BillionMail (`/opt/billionmail`, fuera de Easypanel) atiende `weotzi.chat`. Postfix se presenta como `mail.weotzi.chat` (`conf/postfix/main.cf`, respaldo `main.cf.bak-20261119`; es un montaje de archivo: editar en el mismo inodo y reiniciar el contenedor).
+- Buzón `notificaciones@weotzi.chat`, creado con el mismo formato que `bm.sh add-email`; la clave está solo en `/etc/weotzi/mail/notificaciones.pw` (root 0400).
+- DKIM: `default._domainkey.weotzi.chat` (rspamd, `bm.sh add-domain`). SPF: `v=spf1 ip4:69.62.98.207 ~all` (sin Hostinger desde el 2026-11-19). MX: `mail.weotzi.chat`. La zona DNS de `weotzi.chat` está en hPanel → Dominios (el dominio sigue registrado en Hostinger; no depende del plan de hosting).
+- Certificado: Traefik emite el de `mail.weotzi.chat` (ruta en `/etc/easypanel/traefik/config/billionmail.yaml`, respaldo en `/root/billionmail.yaml.bak-20261119`) y `/usr/local/sbin/weotzi-mail-cert-sync` (timer diario `weotzi-mail-cert-sync.timer`) lo copia a `/opt/billionmail/ssl` y recarga Postfix/Dovecot.
+- n8n: la credencial «We Otzi notificaciones Hostinger» (relé de beta; conserva el nombre) apunta a `mail.weotzi.chat:465` desde el 2026-11-19, cambiada con `n8n import:credentials` sin tipear la clave. Respaldo cifrado de la anterior: `/home/node/.n8n/backups/cred-uEboReZj3XMBLc1P-20261119.json` (volumen de n8n). «SMTP account» usa Gmail de `weotzi.com` y no depende de Hostinger.
+- PTR de la IPv4 del VPS: `mail.weotzi.chat` (hPanel → VPS → Settings → IP address).
+- Prueba real del 2026-11-19: beta → relé de n8n → `mail.weotzi.chat` → Gmail, `status=sent 250`, `DKIM_SIGNED`, puntaje rspamd 0,01.
+
+### Respaldos
+
+- `/usr/local/sbin/weotzi-backup` con el timer `weotzi-backup.timer` (todos los días a las 06:40 UTC) guarda en `/srv/backups/<fecha>/` (root 0700):
+  - el volcado de la base de WordPress;
+  - los archivos de WordPress, los domingos;
+  - la base y los datos de BillionMail (buzones, configuración, DKIM, certificados);
+  - la exportación de flujos y credenciales de n8n, más `n8n-config.json`, la clave de cifrado sin la cual no se restauran las credenciales;
+  - `/etc/weotzi`;
+  - un archivo `SHA256SUMS`.
+- Retención: 7 días; los archivos de WordPress, 4 copias.
+- **Está en el mismo disco del VPS.** Contra la pérdida del VPS hacen falta además una copia fuera (la PC del dueño o la nube) y los respaldos automáticos de Hostinger del VPS (hPanel → VPS → Snapshot & backups).
+
+### Seguridad heredada del sitio viejo (corregida el 2026-11-19)
+
+- `tools/api/upload.php` aceptaba subidas sin autenticación y Apache ejecutaba lo subido. Se retiró del docroot en el VPS y en el compartido. `tools/uploads` solo tenía 3 imágenes de febrero, sin rastros de abuso. Si el carrusel de `/tools` hace falta, hay que reescribir la subida con una lista de extensiones permitidas y autenticación.
+- `wp-config.php.security-bak-20260718` se podía descargar y contiene la `DUPLICATOR_AUTH_KEY` vigente. Se retiró, igual que `local-xdebuginfo.php`. Conviene rotar esa clave (o desinstalar Duplicator Pro) y borrar los 437 MB de `wp-content/backups-dup-pro`.
+- Lo retirado quedó en `/srv/archivo-hostinger/20261119/retirados-del-docroot/` (VPS) y en `~/weotzi-deploy/retirados-docroot-20261119/` (compartido).
+- Pendientes del dueño:
+  - cerrar los puertos 3000 (Easypanel), 8088 y 8443 (BillionMail) en el firewall del VPS;
+  - decidir qué sirve el apex `weotzi.chat`, que hoy muestra el login de Easypanel;
+  - activar 2FA en Easypanel.
+
+### Supabase Auth
+
+Supabase Auth envía las confirmaciones de cuenta y la recuperación de contraseña. Su SMTP propio usaba `smtp.hostinger.com`. Desde el 2026-11-19 usa `mail.weotzi.chat:465` con `notificaciones@weotzi.chat`; el dueño escribió la clave en Supabase → Authentication → Emails → SMTP Settings. Prueba: recuperación de contraseña real → Gmail `250`, `DKIM_SIGNED`, rspamd 1,7.
+
+Ajustes de Postfix para esto (`conf/postfix/main.cf`; respaldos `main.cf.bak-20261119` y `main.cf.bak-20261119b`): Supabase no manda `Message-ID`, así que Postfix lo agrega en los envíos autenticados (`local_header_rewrite_clients = permit_inet_interfaces, permit_sasl_authenticated` y `always_add_missing_headers = yes`). Además, `inet_protocols = ipv4`, porque el contenedor no tiene salida IPv6.
+
+### Previews
+
+`preview.weotzi.chat` se dio de baja: `valentina-delivery.cjs` confirma la entrega con CI y la rama remota (`PREVIEW_ENABLED = false`), y `AGENTS.md` y las guías de Valentina remiten a la preview local (`npm run dev:safe`).
+
+### Archivo del hosting compartido
+
+`/srv/archivo-hostinger/20261119/` (root 0700): respaldos de WordPress (`backups-wp`), `weotzi-deploy` sin `releases` ni `repository.git` (incluye `shared/main.env`), el docroot de beta (con sus `.env` y credenciales viejas), el de previews, el `wp-config`/`.htaccess` originales y el volcado de la base de WordPress. Sigue haciendo falta una copia **fuera** del VPS de los secretos de beta.
+
+**Lo que todavía vive en Hostinger (auditoría del 2026-11-19, antes de mudar weotzi.com y el correo):**
+
+- **Redirección `weotzi.com/beta/*` → `beta.weotzi.com`:** está en `public_html/beta/.htaccess` y la usan enlaces y correos viejos. Al limpiar, conservar un `.htaccess` mínimo con `RewriteRule ^(.*)$ https://beta.weotzi.com/$1 [R=301,L]`, o mover la regla al `.htaccess` del apex.
+- **Sitio corporativo `weotzi.com`** (WordPress, apex y `www`): beta enlaza ahí sus FAQ y la política de privacidad. La limpieza toca solo lo de beta: `~/weotzi-deploy`, `public_html/beta` (salvo la redirección) y pm2.
+- **Correo transaccional:** el relé de n8n envía por SMTP de Hostinger Mail (`weotzi.chat`). No depende de los archivos del compartido, pero sí del plan: antes de cancelar nada, confirmar que el buzón no está atado al plan de hosting.
+- **Secretos:** hoy existen solo en `/etc/weotzi/beta.env` y en las copias del compartido (`shared/main.env`, `public_html/beta/.env`). **Antes de limpiar**, guardar una copia fuera de línea completa en el gestor de secretos, sobre todo `DATA_ENC_KEY`, `GCAL_TOKEN_ENC_KEY` y `BAN_HMAC_KEY`. Sin ellas, los datos cifrados no se pueden recuperar. En la limpieza, borrar también las credenciales que quedaron en `public_html/beta` (`.env`, `.server-credentials*`, `.billionmail-*`, `.deploy_backups/`, `.git`). Hoy no se sirven: responden 403, 404 o redirigen.
+- **Previews `preview.weotzi.chat`:** caídas desde el 6 de noviembre, antes de esta migración. Viven solo en el compartido y dependían del cron que se quitó. Decidir si se mueven al VPS o se dan de baja, y actualizar `AGENTS.md` y `scripts/release/valentina-delivery.cjs`, antes de borrar `~/domains/preview.weotzi.chat` o `~/weotzi-deploy/control`.
+- **Resolver del VPS** (`45.143.83.10`): guardó la IP vieja de `beta` un rato después del corte, así que n8n siguió llamando al compartido hasta que venció esa caché. El apagado de pm2 verifica antes que el VPS ya resuelva la IP nueva.
+
+Pendientes del corte: borrar el dominio `*.easypanel.host`, límites de `chatbot-we-otzi`, subir el TTL tras 24–48 h estable.
+
 ## Volver al hosting compartido (rollback de la migración)
 
 1. Redesplegar el VPS **con los interruptores de jobs apagados** (que no corran en dos lados).
-2. Revertir `A beta` → `92.112.189.44`.
-3. En el compartido: `PM2_HOME=~/weotzi-deploy/pm2 ~/node_modules/pm2/bin/pm2 start ~/weotzi-deploy/processes/main.json --only weotzi-beta` y reactivar el cron de hPanel.
-4. Detener el servicio del VPS cuando pase el TTL.
+2. En el compartido, devolver los jobs: `cp -p ~/weotzi-deploy/shared/main.env.bak-20261119-corte ~/weotzi-deploy/shared/main.env` (o quitar las seis líneas de interruptores).
+3. Revertir `A beta` → `92.112.189.44`.
+4. En el compartido: `PM2_HOME=~/weotzi-deploy/pm2 ~/node_modules/pm2/bin/pm2 start ~/weotzi-deploy/processes/main.json --only weotzi-beta` y reactivar el cron de hPanel.
+5. Detener el servicio del VPS cuando pase el TTL.
 
 El hosting compartido se conserva intacto al menos 4 semanas después del corte.
