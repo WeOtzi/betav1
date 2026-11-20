@@ -142,7 +142,7 @@ El dueño pidió que no quede nada de We Ötzi en el hosting compartido. `bangta
 - `wp-config.php` respeta `X-Forwarded-Proto` (HTTPS termina en Traefik). PHP: `/srv/weotzi-web/php.ini` (512 MB de memoria y de subida).
 - Correo de WordPress: mu-plugin `wp-content/mu-plugins/weotzi-smtp.php`, envía por `mail.weotzi.chat:465` como `notificaciones@weotzi.chat` (el remitente original pasa a Reply-To). Clave en `/etc/weotzi/web/smtp_password` (root:www-data 0440).
 - DNS (Squarespace): `@` y `www` → `69.62.98.207`, TTL 300 s. Let's Encrypt para los dos.
-- `staging.weotzi.com` todavía apunta al compartido y no sirve nada: borrarlo antes de dar de baja el hosting (si Hostinger reasigna la IP, el subdominio quedaría en manos de otro cliente).
+- `staging.weotzi.com` se borró el 2026-11-19 (apuntaba al compartido y no servía nada).
 
 ### Correo de weotzi.chat (BillionMail)
 
@@ -169,12 +169,9 @@ El dueño pidió que no quede nada de We Ötzi en el hosting compartido. `bangta
 ### Seguridad heredada del sitio viejo (corregida el 2026-11-19)
 
 - `tools/api/upload.php` aceptaba subidas sin autenticación y Apache ejecutaba lo subido. Se retiró del docroot en el VPS y en el compartido. `tools/uploads` solo tenía 3 imágenes de febrero, sin rastros de abuso. Si el carrusel de `/tools` hace falta, hay que reescribir la subida con una lista de extensiones permitidas y autenticación.
-- `wp-config.php.security-bak-20260718` se podía descargar y contiene la `DUPLICATOR_AUTH_KEY` vigente. Se retiró, igual que `local-xdebuginfo.php`. Conviene rotar esa clave (o desinstalar Duplicator Pro) y borrar los 437 MB de `wp-content/backups-dup-pro`.
+- `wp-config.php.security-bak-20260718` se podía descargar y contiene la `DUPLICATOR_AUTH_KEY` vigente. Se retiró, igual que `local-xdebuginfo.php`. El 2026-11-20 se rotó esa clave y `wp-content/backups-dup-pro` (437 MB) salió del docroot (ver «Endurecimiento»).
 - Lo retirado quedó en `/srv/archivo-hostinger/20261119/retirados-del-docroot/` (VPS) y en `~/weotzi-deploy/retirados-docroot-20261119/` (compartido).
-- Pendientes del dueño:
-  - cerrar los puertos 3000 (Easypanel), 8088 y 8443 (BillionMail) en el firewall del VPS;
-  - decidir qué sirve el apex `weotzi.chat`, que hoy muestra el login de Easypanel;
-  - activar 2FA en Easypanel.
+- Los puertos 3000, 8088 y 8443 se cerraron el 2026-11-20 (ver «Endurecimiento»). El apex `weotzi.chat` es el dominio del panel de Easypanel (HTTPS) y se queda así. Falta que el dueño active 2FA en Easypanel.
 
 ### Supabase Auth
 
@@ -199,7 +196,29 @@ Ajustes de Postfix para esto (`conf/postfix/main.cf`; respaldos `main.cf.bak-202
 - **Previews `preview.weotzi.chat`:** caídas desde el 6 de noviembre, antes de esta migración. Viven solo en el compartido y dependían del cron que se quitó. Decidir si se mueven al VPS o se dan de baja, y actualizar `AGENTS.md` y `scripts/release/valentina-delivery.cjs`, antes de borrar `~/domains/preview.weotzi.chat` o `~/weotzi-deploy/control`.
 - **Resolver del VPS** (`45.143.83.10`): guardó la IP vieja de `beta` un rato después del corte, así que n8n siguió llamando al compartido hasta que venció esa caché. El apagado de pm2 verifica antes que el VPS ya resuelva la IP nueva.
 
-Pendientes del corte: borrar el dominio `*.easypanel.host`, límites de `chatbot-we-otzi`, subir el TTL tras 24–48 h estable.
+Pendientes del corte: ver «Endurecimiento y cierre de pendientes (2026-11-20)».
+
+## Endurecimiento y cierre de pendientes (2026-11-20)
+
+- **SSH solo con llave:** `/etc/ssh/sshd_config.d/00-weotzi-hardening.conf` (`PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin prohibit-password`). Va con `00` porque sshd usa el primer valor y `50-cloud-init.conf` traía `PasswordAuthentication yes`. Entra la llave `~/.ssh/weotzi_vps`; la del deploy de mi-dinero sigue restringida a su comando.
+- **Clave de root rotada:** la que se pegó en el chat ya no sirve. La nueva está solo en `.server-credentials` del repo principal (`VPS_ROOT_PASS`, fuera de git). Por SSH no sirve; es para la consola de hPanel.
+- **Puertos de administración cerrados hacia Internet:** `/usr/local/sbin/weotzi-firewall` + `weotzi-firewall.service` (corre después de Docker) agregan reglas `DROP` en `DOCKER-USER`, IPv4 e IPv6, para lo que entra por `eth0` a 3000, 8088 y 8443. Desde el VPS y por túnel SSH siguen accesibles. Para abrirlos: `systemctl stop weotzi-firewall`.
+  - Panel de Easypanel: `https://weotzi.chat` (ya era su dominio). Panel de BillionMail: `https://mail.weotzi.chat`.
+  - Siguen abiertos: 22, 25, 80, 443, 110, 143, 465, 587, 993 y 995. También 8642/9119 (`agents-ai_hermes-agent`, no son de We Ötzi) y 2377/7946 de Swarm, que escucha dockerd fuera de `DOCKER-USER`: para esos hace falta el firewall de hPanel.
+- **Traefik:** se quitaron las rutas `bm.weotzi.com` de `billionmail.yaml` (no tenían DNS y solo generaban errores de ACME); respaldo en `/root/billionmail.yaml.bak-20261120`.
+- **WordPress:** `DUPLICATOR_AUTH_KEY` rotada (respaldo del `wp-config.php` anterior en `/root/wp-config.php.bak-20261120`, root 0600) y `wp-content/backups-dup-pro` movido a `/srv/archivo-hostinger/20261119/retirados-del-docroot/`. Comentarios: el compartido tiene 30 (el último del 17 de noviembre) y el VPS 31; no se perdió ninguno.
+- **Buzón viejo:** los 19 correos de `notificaciones@weotzi.chat` en Hostinger Mail se copiaron al buzón de BillionMail (carpetas, marcas y fechas; sin duplicar por `Message-ID`). La clave vieja se leyó del respaldo cifrado de n8n y no se mostró.
+- **DNS de `weotzi.chat` (hPanel):** se borraron `autodiscover`, `autoconfig` y `hostingermail-{a,b,c}._domainkey` (todos de Hostinger Mail). `mail` y el MX pasaron a TTL 3600. `preview.weotzi.chat` no está en la zona: lo publica el plan de hosting y desaparece al darlo de baja.
+- **Límites de `chatbot-we-otzi`:** `/usr/local/sbin/weotzi-limits-chatbot`, programado con un timer transitorio para el 2026-11-21 a las 07:00 UTC (04:00 -03), porque cada cambio reinicia el servicio. Valores: n8n 2,5 GB / 1,5 núcleos; evolution-api 768 MB; postgres 1 GB; alicia-calls 512 MB; evolution-api-db 512 MB; redis 256 MB. Si un servicio no queda 1/1, se revierte solo. Log: `journalctl -u weotzi-limits-chatbot`. Hay que cargar los mismos valores en Easypanel → Recursos; si no, un «Implementar» los borra.
+- **Copia fuera del VPS:** `/srv/backups` y `/srv/archivo-hostinger` copiados a la PC del dueño (`WeOtzi-respaldos-VPS` en su carpeta de usuario, 1,3 GB, `SHA256SUMS` verificado). Es una copia puntual: conviene repetirla o activar los respaldos de Hostinger del VPS.
+- **Renovación:** el KVM 2 (`srv861237`) se renueva solo el 2026-11-28 (USD 24,49). El plan Premium Web Hosting de `weotzi.com` también se renueva solo el 2027-01-05: apagar esa renovación cuando se dé de baja el compartido.
+- **Pendiente del dueño:** iniciar sesión en `https://weotzi.chat`, activar 2FA, borrar `we-otzi-app-beta.jubcpl.easypanel.host` y cargar los Recursos de `chatbot-we-otzi`. Subir el TTL de `weotzi.com` en Squarespace (pide verificar con Google).
+- **n8n (fallas previas a la migración, sin tocar):**
+  - «We Otzi Digest & Reports» pide la columna `artists_db.artist_name`, que ya no existe. Corregirla haría que empiecen a salir resúmenes diarios a todos los artistas, así que es una decisión de producto.
+  - «Store · Mantenimiento horario» no tiene credencial.
+  - «Daily Currency Rates» da 401 (token).
+  - «Email Whatsapp Notifications» falla con correos sin adjunto.
+  - La base SQLite de n8n pesa 4 GB.
 
 ## Volver al hosting compartido (rollback de la migración)
 

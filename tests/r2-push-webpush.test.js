@@ -186,6 +186,37 @@ function vapidPair() {
 }
 const SUBSCRIPTION = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc123', p256dh: RFC8291.uaPublic, auth: RFC8291.authSecret };
 
+test('VAPID: una clave privada con ceros a la izquierda (31 bytes) es válida y se rellena a 32', () => {
+    // ECDH#getPrivateKey() omite los ceros iniciales: 1 de cada 256 claves sale corta.
+    // Antes loadVapidConfig la rechazaba y la prueba de 404/410 fallaba al azar en CI.
+    const scalar = Buffer.concat([Buffer.from([0]), Buffer.alloc(31, 0x11)]);
+    const ecdh = crypto.createECDH('prime256v1');
+    ecdh.setPrivateKey(scalar);
+    const short = ecdh.getPrivateKey();
+    assert.equal(short.length, 31, 'Node devuelve el escalar sin el cero inicial');
+    const publicKey = webPush.b64url(ecdh.getPublicKey());
+    const subject = 'mailto:soporte@example.com';
+    const fromShort = webPush.loadVapidConfig({ publicKey, privateKey: webPush.b64url(short), subject });
+    const fromFull = webPush.loadVapidConfig({ publicKey, privateKey: webPush.b64url(scalar), subject });
+    assert.equal(fromShort.ok, true);
+    assert.equal(fromFull.ok, true);
+    assert.equal(
+        fromShort.signingKey.export({ format: 'jwk' }).d,
+        fromFull.signingKey.export({ format: 'jwk' }).d
+    );
+    assert.equal(webPush.loadVapidConfig({ publicKey, privateKey: webPush.b64url(Buffer.alloc(33, 1)), subject }).reason, 'invalid_private_key');
+    assert.equal(webPush.loadVapidConfig({ publicKey, privateKey: webPush.b64url(Buffer.alloc(27, 1)), subject }).reason, 'invalid_private_key');
+});
+
+test('VAPID: generateVapidKeys siempre entrega una privada de 32 bytes que carga bien', () => {
+    // Con 2000 pares la probabilidad de no ver ninguna clave corta es ~0,04 %.
+    for (let i = 0; i < 2000; i += 1) {
+        const keys = webPush.generateVapidKeys();
+        assert.equal(webPush.fromB64url(keys.privateKey).length, 32);
+        assert.equal(webPush.loadVapidConfig({ ...keys, subject: 'mailto:soporte@example.com' }).ok, true);
+    }
+});
+
 test('sendNotification: POST cifrado con VAPID, TTL, Urgency y Topic; el navegador lo descifra', async () => {
     const { keys, vapid } = vapidPair();
     const calls = [];
