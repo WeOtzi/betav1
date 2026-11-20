@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.7.4] - 2026-11-20
+
+Corrige una prueba que fallaba al azar en CI y frenó la publicación de la 2.7.3.
+
+- `lib/web-push.js`: `ECDH#getPrivateKey()` omite los ceros a la izquierda, así que 1 de cada 256 claves VAPID salía con 31 bytes. `generateVapidKeys` la entregaba así y `loadVapidConfig` la rechazaba (`invalid_private_key`); en CI eso hacía fallar «404/410 marcan la suscripción como vencida» con `push_not_configured`. Ahora las claves se generan siempre con 32 bytes y al cargarlas se aceptan de 28 a 32 bytes, rellenadas con ceros. Una clave más corta sigue siendo inválida.
+- Pruebas nuevas: clave con cero inicial (fija, 31 bytes) y 2000 pares generados que cargan bien. Con el código anterior fallan las dos.
+- Runbook del VPS: nueva sección «Endurecimiento y cierre de pendientes (2026-11-20)», con lo que se hizo en el servidor (no forma parte de la imagen):
+  - SSH solo con llave y clave de root rotada.
+  - Puertos 3000, 8088 y 8443 cerrados hacia Internet (`weotzi-firewall`).
+  - `DUPLICATOR_AUTH_KEY` rotada y `backups-dup-pro` fuera del docroot.
+  - Buzón viejo de Hostinger copiado a BillionMail.
+  - Registros de Hostinger Mail fuera de la zona `weotzi.chat`.
+  - Límites de `chatbot-we-otzi` programados de madrugada.
+  - Copia de los respaldos fuera del VPS.
+- Sin migraciones ni variables nuevas.
+- Validación: `node --test "tests/*.test.js"` en verde y política de entrega aprobada.
+- Rollback: revertir este commit.
+
 ## [2.7.3] - 2026-11-19
 
 Registro del corte de DNS: beta.weotzi.com se sirve desde el VPS desde el 2026-11-19 a las 15:52 (-03). Solo documentación; el código de la app no cambia.
